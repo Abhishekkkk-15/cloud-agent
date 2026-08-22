@@ -1,0 +1,6 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": ["../../../pi-sdk", "src"],
+  "pythonVersion": "3.14"
+}

@@ -1,11 +1,34 @@
 from fastapi import FastAPI
+from src.ai_core.cloud_agent import CloudAgentCore
 import uvicorn
-
+from fastapi.middleware.cors import CORSMiddleware
+from src.schemas.chat import ChatMessage
+PiClient = CloudAgentCore()
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:3000",    
+    "http://localhost:5173",     
+    "http://localhost:8001",     
+    "https://yourfrontend.com",  
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,            
+    allow_credentials=True,           
+    allow_methods=["*"],              
+    allow_headers=["*"],              
+)
+
 @app.get("/")
 def health():
     return {"health":True}
+
+@app.post("/chat")
+def chat(body:ChatMessage):
+    res = PiClient.run(body.msg)    
+    return res
 
 
 if __name__ == "__main__":

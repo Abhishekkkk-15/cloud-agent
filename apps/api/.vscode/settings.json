@@ -1,0 +1,10 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+  "python.analysis.enableEditableInstalls": true,
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/../../../pi-sdk",
+    "${workspaceFolder}/src"
+  ],
+  "python.analysis.diagnosticMode": "workspace"
+}
