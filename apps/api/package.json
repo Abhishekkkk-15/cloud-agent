@@ -1,0 +1,7 @@
+{
+    "name":"@cloud-agent/api",
+    "scripts": {
+        "dev":"uv run main.py",
+        "build":"uv build"
+    }
+}
