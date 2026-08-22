@@ -19,7 +19,7 @@ import {
   type Project,
   type TerminalLine,
   type User,
-} from "@/types/schemas"
+} from "@cloud-agent/shared"
 
 const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms))
 

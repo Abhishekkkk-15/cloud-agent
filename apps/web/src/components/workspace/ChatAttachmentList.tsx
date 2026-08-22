@@ -10,7 +10,7 @@ import {
   AttachmentMedia,
   AttachmentTitle,
 } from "@/components/ui/attachment"
-import type { ChatAttachment } from "@/types/schemas"
+import type { ChatAttachment } from "@cloud-agent/shared"
 
 function formatBytes(size: number) {
   if (size < 1024) return `${size} B`

@@ -1,7 +1,7 @@
 import { create } from "zustand"
 
 import { getCurrentUser } from "@/lib/api"
-import type { User } from "@/types/schemas"
+import type { User } from "@cloud-agent/shared"
 
 type AuthState = {
   user: User | null

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card"
 import { languageLabels } from "@/data/mock"
 import { useProjectStore } from "@/stores/project-store"
-import type { Project } from "@/types/schemas"
+import type { Project } from "@cloud-agent/shared"
 import { cn } from "@/lib/utils"
 
 function formatRelative(iso: string) {

@@ -17,7 +17,7 @@ import type {
   RunSession,
   TerminalLine,
   AgentActivity,
-} from "@/types/schemas"
+} from "@cloud-agent/shared"
 
 function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
   for (const node of nodes) {

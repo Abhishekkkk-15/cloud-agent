@@ -29,7 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/stores/auth-store"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import type { ChatAttachment } from "@/types/schemas"
+import type { ChatAttachment } from "@cloud-agent/shared"
 import { cn } from "@/lib/utils"
 
 const suggestions = [

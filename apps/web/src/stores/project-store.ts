@@ -5,7 +5,7 @@ import {
   listProjects,
   toggleStar,
 } from "@/lib/api"
-import type { CreateProjectInput, Project } from "@/types/schemas"
+import type { CreateProjectInput, Project } from "@cloud-agent/shared"
 
 type ProjectState = {
   projects: Project[]

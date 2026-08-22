@@ -4,7 +4,7 @@ import type {
   Project,
   TerminalLine,
   User,
-} from "@/types/schemas"
+} from "@cloud-agent/shared"
 
 export const mockUser: User = {
   id: "user_1",

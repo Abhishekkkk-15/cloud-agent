@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+web/
+server/
+.pi_history
+.pi-python/
+skills/
+docs/
+flower-garden/
+log.txt
+node_modules
+tests

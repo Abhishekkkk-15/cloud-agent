@@ -8,7 +8,7 @@ import {
 
 import { Spinner } from "@/components/ui/spinner"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import type { AgentActivity } from "@/types/schemas"
+import type { AgentActivity } from "@cloud-agent/shared"
 import { cn } from "@/lib/utils"
 
 const typeIcon = {

@@ -10,7 +10,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import type { FileNode } from "@/types/schemas"
+import type { FileNode } from "@cloud-agent/shared"
 import { cn } from "@/lib/utils"
 
 function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
