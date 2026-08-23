@@ -4,6 +4,9 @@ from src.utils.config import Config
 
 DEFAULT_DOCKER_CONTAINER = "74525c90f22c"
 DEFAULT_DOCKER_WORKDIR = "/app/projects"
+WORKSPACE_ROOT = "F:/study/cloud-agent/sandbox/mounts/workspace/first_workspace"
+
+
 
 
 class CloudAgentCore:
@@ -21,6 +24,7 @@ class CloudAgentCore:
             docker_container=DEFAULT_DOCKER_CONTAINER,
             docker_workdir=DEFAULT_DOCKER_WORKDIR,
             disable_tools=["bash"],
+            cwd=WORKSPACE_ROOT,
             extra_tools=[
                 build_docker_bash_tool(
                     default_container=DEFAULT_DOCKER_CONTAINER,
