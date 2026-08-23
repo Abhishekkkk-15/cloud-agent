@@ -18,7 +18,7 @@ class Config:
             raise(RuntimeError(f"MODEL is not set"))
         if not AUTONOMOUS:
             raise(RuntimeError(f"AUTONOMOUS is not set"))
-
+        self.base_url = os.getenv("BASE_URL")
         self.api_key:str = API_KEY
         self.provider:str = PROVIDER
         self.model:str = MODEL

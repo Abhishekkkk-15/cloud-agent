@@ -2,7 +2,7 @@ from pi_sdk import Agent, RunResult
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
 from src.utils.config import Config
 
-DEFAULT_DOCKER_CONTAINER = "74525c90f22c"
+DEFAULT_DOCKER_CONTAINER = "81f6e465fc11"
 DEFAULT_DOCKER_WORKDIR = "/app/projects"
 WORKSPACE_ROOT = "F:/study/cloud-agent/sandbox/mounts/workspace/first_workspace"
 
@@ -18,6 +18,7 @@ class CloudAgentCore:
         self.client = Agent.create(
             api_key=sys_config.api_key,
             provider=sys_config.provider,
+            base_url=sys_config.base_url,
             autonomous=sys_config.autonomous,
             model=sys_config.model,
             storage="disk",
@@ -43,3 +44,6 @@ class CloudAgentCore:
     async def resume(self, session_id: str) -> Agent:
         print("Resumed")
         return await self.client.resume(session_id)
+    async def stream(self,msg:str):
+        async for event in self.client.stream(msg):
+            print(event.type.value, event.data)

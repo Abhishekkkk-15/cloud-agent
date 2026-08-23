@@ -32,8 +32,8 @@ def health():
     return {"health":True}
 @app.post("/chat")
 async def chat(body:ChatMessage):
-    res = await PiClient.run(body.msg)    
-    return res
+    await PiClient.stream(body.msg)    
+    return {"started":"true"}
 @app.post("/resume")
 async def resume(body:ResumeSessionMessage):
     res = await PiClient.resume(body.session_id)    
