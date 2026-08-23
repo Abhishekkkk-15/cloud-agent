@@ -4,6 +4,8 @@ import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from src.schemas.chat import ChatMessage
 from src.ai_core.sandbox.sandbox import Sandbox
+
+
 PiClient = CloudAgentCore()
 
 app = FastAPI()
@@ -36,8 +38,9 @@ async def chat(body:ChatMessage):
 @app.get("/box")
 def run_sandbox():
     print("Starting sandbox")
-    bytes =  box.run_sandbox()
-    print(bytes)
+    res =  (box.run_sandbox())
+    # str_to_bytes
+    print(res)
     return {"success":"true"}
 
 @app.get("/list")
