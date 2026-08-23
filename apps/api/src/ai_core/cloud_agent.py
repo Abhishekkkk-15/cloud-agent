@@ -25,6 +25,8 @@ class CloudAgentCore:
             docker_workdir=DEFAULT_DOCKER_WORKDIR,
             disable_tools=["bash"],
             cwd=WORKSPACE_ROOT,
+            max_retries=3,
+            retry_on_rate_limit=True,
             extra_tools=[
                 build_docker_bash_tool(
                     default_container=DEFAULT_DOCKER_CONTAINER,

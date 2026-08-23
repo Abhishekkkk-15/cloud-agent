@@ -3,6 +3,7 @@ from src.ai_core.cloud_agent import CloudAgentCore
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 from src.schemas.chat import ChatMessage
+from src.schemas.sessions import ResumeSessionMessage
 from src.ai_core.sandbox.sandbox import Sandbox
 
 
@@ -29,11 +30,16 @@ app.add_middleware(
 def health():
     
     return {"health":True}
-
 @app.post("/chat")
 async def chat(body:ChatMessage):
     res = await PiClient.run(body.msg)    
     return res
+@app.post("/resume")
+async def resume(body:ResumeSessionMessage):
+    res = await PiClient.resume(body.session_id)    
+    print(res)
+    # return res
+
 
 @app.get("/box")
 def run_sandbox():
