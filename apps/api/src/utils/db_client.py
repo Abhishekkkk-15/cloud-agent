@@ -40,6 +40,9 @@ async def get_database_client(uri: str, name: str, timeout_ms: int = 10000):
         specific_db = client_instance[name] 
         return client_instance, specific_db
         
+    except TimeoutError:
+        logger.error(f"Database ping timed out after {timeout_ms} ms when connecting to '{uri}'.")
+        raise ConnectionError(f"Database ping timed out after {timeout_ms} ms")
     except ServerSelectionTimeoutError as e:
         logger.error(f"Connection timed out. The server at '{uri}' might be down or blocked by a firewall. Details: {e}")
         raise
@@ -50,7 +53,8 @@ async def get_database_client(uri: str, name: str, timeout_ms: int = 10000):
         logger.error(f"MongoDB URI configuration string is malformed or invalid. Details: {e}")
         raise
     except Exception as e:
-        logger.critical(f"An unexpected error occurred during database initialization: {e}")
+        err_msg = str(e) or repr(e)
+        logger.critical(f"An unexpected error occurred during database initialization: {err_msg}")
         raise
 
 @asynccontextmanager
@@ -64,7 +68,7 @@ async def db_lifespan(app: FastAPI):
     
     # If Mongo is down, we still want the app to start so basic endpoints (like health)
     # work. Database-dependent endpoints can fail later.
-    ping_timeout_ms = int(os.getenv("MONGODB_PING_TIMEOUT_MS", "3000"))
+    ping_timeout_ms = int(os.getenv("MONGODB_PING_TIMEOUT_MS", "10000"))
 
     try:
         if not DATABASE_NAME or not DATABASE_URI:
@@ -74,9 +78,10 @@ async def db_lifespan(app: FastAPI):
             uri=DATABASE_URI, name=DATABASE_NAME, timeout_ms=ping_timeout_ms
         )
     except Exception as e:
+        err_msg = str(e) or repr(e)
         logger.error(
             "MongoDB is unreachable during startup. Continuing without DB. Error: %s",
-            e,
+            err_msg,
         )
         _client = None
         db_client = None

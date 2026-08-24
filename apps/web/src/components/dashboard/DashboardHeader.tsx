@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { FolderIcon, MessageSquareIcon, MoonIcon, SearchIcon, SunIcon } from "lucide-react"
+import {
+  FolderIcon,
+  MessageSquareIcon,
+  MoonIcon,
+  SearchIcon,
+  SunIcon,
+} from "lucide-react"
 
 import { sessionsForProject } from "@/data/mock-sessions"
 import {
@@ -18,6 +24,7 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
+  Command,
 } from "@/components/ui/command"
 import {
   InputGroup,
@@ -136,9 +143,7 @@ export function DashboardHeader() {
                     value={`${project.name} ${session.title}`}
                     onSelect={() => {
                       setOpen(false)
-                      navigate(
-                        `/workspace/${project.id}?session=${session.id}`
-                      )
+                      navigate(`/workspace/${project.id}?session=${session.id}`)
                     }}
                   >
                     <MessageSquareIcon />
