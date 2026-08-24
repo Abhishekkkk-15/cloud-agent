@@ -14,6 +14,8 @@ from src.schemas.auth import (
 )
 from src.utils.google_auth import verify_google_id_token
 from src.utils.jwt_utils import create_token_pair, decode_refresh_token
+from fastapi.responses import JSONResponse
+from pydantic_core import to_jsonable_python
 
 
 def to_public_user(user: User) -> PublicUser:
@@ -98,14 +100,47 @@ async def google_login(body: GoogleAuthRequest, repo: UserRepo) -> TokenPairResp
             detail="Failed to persist user",
         )
 
+    # 1. Generate tokens from your generator dictionary
     tokens = create_token_pair(user.id)
-    return TokenPairResponse(
+    
+    # 2. Build the final Pydantic model response structure
+    token_pair = TokenPairResponse(
         access_token=tokens["access_token"],
         refresh_token=tokens["refresh_token"],
         token_type=tokens["token_type"],
         user=to_public_user(user),
     )
+    
+    # 3. Serialize your complete Pydantic model structure to dict
 
+    response_data = to_jsonable_python(token_pair)
+
+    # 4. Initialize the custom JSON response with your content
+    response = JSONResponse(
+        content=response_data,
+        status_code=status.HTTP_200_OK
+    )
+    print(response_data)
+    # 5. Extract refresh token safely from dictionary and map to cookie
+    response.set_cookie(
+        key="ca_refresh_token",
+        value=tokens["refresh_token"],  # Fixed: Reference key from dictionary
+        httponly=True,       
+        secure=True,         
+        samesite="lax",      
+        max_age=604800       
+    )
+    response.set_cookie(
+        key="ca_access_token",
+        value=tokens["access_token"],  # Fixed: Reference key from dictionary
+        httponly=True,       
+        secure=True,         
+        samesite="lax",      
+        max_age=604800       
+    )
+    
+    # 6. Return the configured response instance
+    return response
 
 async def refresh_tokens(body: RefreshTokenRequest, repo: UserRepo) -> TokenPairResponse:
     try:
