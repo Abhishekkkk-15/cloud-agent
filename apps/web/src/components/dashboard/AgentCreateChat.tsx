@@ -4,8 +4,21 @@ import { ArrowUpIcon, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupTextarea,
+} from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
-import { Textarea } from "@/components/ui/textarea"
 import { useProjectStore } from "@/stores/project-store"
 
 function slugify(text: string) {
@@ -18,10 +31,10 @@ function slugify(text: string) {
 }
 
 const prompts = [
-  "Build a habit tracker with React and local storage",
-  "Create a Flask API for notes with JWT auth",
-  "Make a landing page for a SaaS analytics tool",
-  "Scaffold a Go CLI that watches a folder",
+  "Habit tracker in React",
+  "Flask notes API with JWT",
+  "SaaS landing page",
+  "Go folder-watcher CLI",
 ]
 
 export function AgentCreateChat() {
@@ -54,68 +67,74 @@ export function AgentCreateChat() {
   }
 
   return (
-    <div className="flex w-full flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm">
-      <div className="flex items-center gap-2">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <SparklesIcon className="size-4" />
+    <Card className="w-full">
+      <CardHeader className="items-center justify-items-center text-center">
+        <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+          <SparklesIcon className="size-5" />
         </span>
-        <div>
-          <h2 className="text-base font-medium">What do you want to build?</h2>
-          <p className="text-sm text-muted-foreground">
-            Describe an app and the agent opens a workspace for it.
-          </p>
-        </div>
-      </div>
-
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void startProject(prompt)
-        }}
-      >
-        <Textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g. A realtime chat app with rooms and typing indicators…"
-          rows={4}
-          className="min-h-28 resize-none text-base"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              void startProject(prompt)
-            }
+        <CardTitle className="text-2xl">What do you want to build?</CardTitle>
+        <CardDescription>
+          Describe an app. The agent opens a workspace and starts a session.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void startProject(prompt)
           }}
-        />
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground">
-            Mock agent flow — no backend required
-          </p>
-          <Button type="submit" disabled={creating || !prompt.trim()}>
-            {creating ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <ArrowUpIcon data-icon="inline-start" />
-            )}
-            Start building
-          </Button>
+        >
+          <InputGroup className="min-h-36">
+            <InputGroupTextarea
+              id="build-prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="A realtime chat app with rooms, typing indicators, and file uploads…"
+              className="min-h-28 text-base"
+              disabled={creating}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  void startProject(prompt)
+                }
+              }}
+            />
+            <InputGroupAddon align="block-end" className="justify-end border-t">
+              <InputGroupButton
+                type="submit"
+                variant="default"
+                size="sm"
+                disabled={creating || !prompt.trim()}
+              >
+                {creating ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <ArrowUpIcon data-icon="inline-start" />
+                )}
+                Start building
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
+        </form>
+      </CardContent>
+      <CardFooter className="flex flex-col items-stretch gap-3 sm:items-start">
+        <p className="text-xs text-muted-foreground">Try a starting point</p>
+        <div className="flex flex-wrap gap-2">
+          {prompts.map((item) => (
+            <Button
+              key={item}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void startProject(item)}
+              disabled={creating}
+            >
+              {item}
+            </Button>
+          ))}
         </div>
-      </form>
-
-      <div className="flex flex-wrap gap-2">
-        {prompts.map((item) => (
-          <Button
-            key={item}
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void startProject(item)}
-            disabled={creating}
-          >
-            {item}
-          </Button>
-        ))}
-      </div>
-    </div>
+      </CardFooter>
+    </Card>
   )
 }
