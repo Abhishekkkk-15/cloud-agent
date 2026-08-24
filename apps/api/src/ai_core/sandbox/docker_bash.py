@@ -7,8 +7,24 @@ import threading
 import time
 from typing import Optional
 
-from docker import DockerClient
-from docker.errors import APIError, NotFound
+from typing import Any
+
+try:
+    from docker import DockerClient
+    from docker.errors import APIError, NotFound
+
+    _DOCKER_AVAILABLE = True
+except ModuleNotFoundError:
+    # Keep server startup working even when Docker isn't installed.
+    DockerClient = Any  # type: ignore
+
+    class APIError(Exception):  # type: ignore
+        pass
+
+    class NotFound(Exception):  # type: ignore
+        pass
+
+    _DOCKER_AVAILABLE = False
 
 from pi_sdk import ToolSpec
 from pi_sdk.tools import (
@@ -157,6 +173,9 @@ async def execute_docker_bash(
         workdir, default_workdir=default_workdir
     )
     should_run_bg = _should_run_background(command, is_background)
+
+    if not _DOCKER_AVAILABLE:
+        return "Error executing command: docker Python package is not installed"
 
     try:
         client = get_sandbox_client()

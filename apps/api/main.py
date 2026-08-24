@@ -1,3 +1,5 @@
+import asyncio
+
 from fastapi import FastAPI
 from src.ai_core.cloud_agent import CloudAgentCore
 import uvicorn
@@ -5,11 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.schemas.chat import ChatMessage
 from src.schemas.sessions import ResumeSessionMessage
 from src.ai_core.sandbox.sandbox import Sandbox
-
+from src.utils.db_client import db_lifespan
 
 PiClient = CloudAgentCore()
 
-app = FastAPI()
+app = FastAPI(lifespan=db_lifespan)
+
 box:Sandbox = Sandbox()
 
 origins = [
@@ -26,19 +29,29 @@ app.add_middleware(
     allow_headers=["*"],              
 )
 
+
+
 @app.get("/")
 def health():
     
     return {"health":True}
+async def _fire_and_forget_stream(msg: str):
+    try:
+        await PiClient.stream(msg)
+    except Exception as e:
+        # Keep the request/response cycle responsive even if the agent fails.
+        print(f"PiClient.stream failed: {e}")
+
+
 @app.post("/chat")
 async def chat(body:ChatMessage):
-    await PiClient.stream(body.msg)    
-    return {"started":"true"}
+    asyncio.create_task(_fire_and_forget_stream(body.msg))
+    return {"started": True}
 @app.post("/resume")
 async def resume(body:ResumeSessionMessage):
     res = await PiClient.resume(body.session_id)    
     print(res)
-    # return res
+    return {"res": str(res)}
 
 
 @app.get("/box")
@@ -52,6 +65,8 @@ def run_sandbox():
 @app.get("/list")
 def list():
     return box.docker_ls()    
+ 
+print("STARTED LISTNINIG")
     
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000,reload=True)
