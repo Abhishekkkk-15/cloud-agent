@@ -22,7 +22,12 @@ db_client = None
 
 async def get_database_client(uri: str, name: str, timeout_ms: int = 10000):
     try:
-        client_instance = AsyncMongoClient(uri, serverSelectionTimeoutMS=timeout_ms)
+        client_instance = AsyncMongoClient(
+            uri,
+            serverSelectionTimeoutMS=timeout_ms,
+            socketTimeoutMS=5000,
+            connectTimeoutMS=5000,
+        )
 
         # `serverSelectionTimeoutMS` covers server selection, but some network/DNS/TLS
         # failures can still take a long time. Put a hard cap around the ping.
@@ -59,7 +64,7 @@ async def db_lifespan(app: FastAPI):
     
     # If Mongo is down, we still want the app to start so basic endpoints (like health)
     # work. Database-dependent endpoints can fail later.
-    ping_timeout_ms = int(os.getenv("MONGODB_PING_TIMEOUT_MS", "5000"))
+    ping_timeout_ms = int(os.getenv("MONGODB_PING_TIMEOUT_MS", "3000"))
 
     try:
         if not DATABASE_NAME or not DATABASE_URI:

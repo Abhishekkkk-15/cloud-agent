@@ -9,6 +9,10 @@ from src.schemas.sessions import ResumeSessionMessage
 from src.ai_core.sandbox.sandbox import Sandbox
 from src.utils.db_client import db_lifespan
 
+# routes
+
+from src.routes.user import router as UserRouter
+
 PiClient = CloudAgentCore()
 
 app = FastAPI(lifespan=db_lifespan)
@@ -43,10 +47,16 @@ async def _fire_and_forget_stream(msg: str):
         print(f"PiClient.stream failed: {e}")
 
 
+app.include_router(UserRouter)
+
 @app.post("/chat")
 async def chat(body:ChatMessage):
     asyncio.create_task(_fire_and_forget_stream(body.msg))
     return {"started": True}
+
+
+    
+
 @app.post("/resume")
 async def resume(body:ResumeSessionMessage):
     res = await PiClient.resume(body.session_id)    
@@ -55,16 +65,15 @@ async def resume(body:ResumeSessionMessage):
 
 
 @app.get("/box")
-def run_sandbox():
+async def run_sandbox():
     print("Starting sandbox")
-    res =  (box.run_sandbox())
-    # str_to_bytes
+    res = await asyncio.to_thread(box.run_sandbox)
     print(res)
-    return {"success":"true"}
+    return {"success": "true", "result": res}
 
 @app.get("/list")
-def list():
-    return box.docker_ls()    
+async def list():
+    return await asyncio.to_thread(box.docker_ls)    
  
 print("STARTED LISTNINIG")
     

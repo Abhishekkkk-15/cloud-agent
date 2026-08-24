@@ -2,8 +2,8 @@ from pi_sdk import Agent, RunResult
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
 from src.utils.config import Config
 
-DEFAULT_DOCKER_CONTAINER = "81f6e465fc11"
-DEFAULT_DOCKER_WORKDIR = "/app/projects"
+DEFAULT_DOCKER_CONTAINER = "beb2513ea0df"
+DEFAULT_DOCKER_WORKDIR = "/app"
 WORKSPACE_ROOT = "F:/study/cloud-agent/sandbox/mounts/workspace/first_workspace"
 
 

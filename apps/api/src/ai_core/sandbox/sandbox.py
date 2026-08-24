@@ -29,44 +29,43 @@ class Sandbox:
     def run_sandbox(self):
         try:
             if not _DOCKER_AVAILABLE or not self.client:
-                return "Error: Docker sandbox is not available"
+                return {"error": "Docker sandbox is not available"}
 
             if Mount is None:
-                return "Error: docker.types.Mount is unavailable"
+                return {"error": "docker.types.Mount is unavailable"}
             
-            # mount = Mount.parse_mount_string("F:/study/cloud-agent/sandbox/mounts/workspace/first_workspace:app/project")
-            # mount = Mount(
-            #     target="/app/projects",
-            #     source="",
-            #     type="bind"
-            # )
             mount = Mount(
                 target=self.config.sandbox_target,
                 source=self.config.sandbox_mount + "/first_workspace",
                 type="bind"
             )
-            container = self.client.containers.run('node-python-lite',command='tail -f /dev/null',detach=True,mounts=[mount])
+            container = self.client.containers.run('node-python-lite', command='tail -f /dev/null', detach=True, mounts=[mount])
             
-            return container
+            return {"id": container.short_id, "name": container.name, "status": container.status}
         except ContainerError as e:
-            return f"Container Error {e.stderr}"
+            return {"error": f"Container Error: {getattr(e, 'stderr', e)}"}
+        except Exception as e:
+            return {"error": f"Failed to run sandbox container: {e}"}
         
     def docker_ls(self):
-        if not self.client:
-            return []
+        try:
+            if not self.client:
+                return []
 
-        containers = self.client.containers.list()
-        return [
-      {
-          "id": container.short_id,
-          "name": container.name,
-          "status": container.status,
-          "image": (
-              container.image.tags[0]
-              if container.image.tags
-              else container.image.short_id
-          ),
-          "created": container.attrs.get("Created"),
-      }
-      for container in containers
-  ]
+            containers = self.client.containers.list()
+            return [
+                {
+                    "id": container.short_id,
+                    "name": container.name,
+                    "status": container.status,
+                    "image": (
+                        container.image.tags[0]
+                        if container.image.tags
+                        else container.image.short_id
+                    ),
+                    "created": container.attrs.get("Created"),
+                }
+                for container in containers
+            ]
+        except Exception as e:
+            return [{"error": f"Failed to list containers: {e}"}]

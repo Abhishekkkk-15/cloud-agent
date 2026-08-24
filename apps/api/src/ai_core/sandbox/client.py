@@ -40,7 +40,8 @@ def get_sandbox_client() -> DockerClient:
         raise RuntimeError("DOCKER_WSL_IP env var is not set")
 
     try:
-        SANDBOX_CLIENT = DockerClient(base_url=f"tcp://{docker_host}")
+        timeout = int(os.getenv("DOCKER_TIMEOUT", "10"))
+        SANDBOX_CLIENT = DockerClient(base_url=f"tcp://{docker_host}", timeout=timeout)
         return SANDBOX_CLIENT
-    except APIError as e:
+    except (APIError, Exception) as e:
         raise RuntimeError(f"Docker client failed [{getattr(e, 'explanation', e)}]")
