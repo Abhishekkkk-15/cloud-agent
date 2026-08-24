@@ -26,11 +26,11 @@ export function LandingPage() {
             <div className="flex flex-wrap gap-3">
               <Button
                 size="lg"
-                render={<Link to="/dashboard" />}
+                render={<Link to="/login" />}
                 nativeButton={false}
               >
                 <SparklesIcon data-icon="inline-start" />
-                Start chatting
+                Sign in with Google
               </Button>
               <Button
                 size="lg"

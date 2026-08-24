@@ -12,16 +12,32 @@ from src.utils.db_client import db_lifespan
 # routes
 
 from src.routes.user import router as UserRouter
+from src.routes.auth import router as AuthRouter
 
-PiClient = CloudAgentCore()
+_pi_client: CloudAgentCore | None = None
+_box: Sandbox | None = None
+
+
+def get_pi_client() -> CloudAgentCore:
+    global _pi_client
+    if _pi_client is None:
+        _pi_client = CloudAgentCore()
+    return _pi_client
+
+
+def get_sandbox() -> Sandbox:
+    global _box
+    if _box is None:
+        _box = Sandbox()
+    return _box
+
 
 app = FastAPI(lifespan=db_lifespan)
 
-box:Sandbox = Sandbox()
-
 origins = [
     "http://localhost:3000",    
-    "http://localhost:5173",     
+    "http://localhost:5173",
+    "http://127.0.0.1:5173", 
     "http://localhost:8001",     
     "https://yourfrontend.com",  
 ]
@@ -41,13 +57,14 @@ def health():
     return {"health":True}
 async def _fire_and_forget_stream(msg: str):
     try:
-        await PiClient.stream(msg)
+        await get_pi_client().stream(msg)
     except Exception as e:
         # Keep the request/response cycle responsive even if the agent fails.
         print(f"PiClient.stream failed: {e}")
 
 
 app.include_router(UserRouter)
+app.include_router(AuthRouter)
 
 @app.post("/chat")
 async def chat(body:ChatMessage):
@@ -59,7 +76,7 @@ async def chat(body:ChatMessage):
 
 @app.post("/resume")
 async def resume(body:ResumeSessionMessage):
-    res = await PiClient.resume(body.session_id)    
+    res = await get_pi_client().resume(body.session_id)    
     print(res)
     return {"res": str(res)}
 
@@ -67,13 +84,13 @@ async def resume(body:ResumeSessionMessage):
 @app.get("/box")
 async def run_sandbox():
     print("Starting sandbox")
-    res = await asyncio.to_thread(box.run_sandbox)
+    res = await asyncio.to_thread(get_sandbox().run_sandbox)
     print(res)
     return {"success": "true", "result": res}
 
 @app.get("/list")
 async def list():
-    return await asyncio.to_thread(box.docker_ls)    
+    return await asyncio.to_thread(get_sandbox().docker_ls)    
  
 print("STARTED LISTNINIG")
     

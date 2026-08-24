@@ -6,8 +6,8 @@ import {
   mockFileTrees,
   mockProjects,
   mockTerminalBoot,
-  mockUser,
 } from "@/data/mock"
+import { clearTokens, getAccessToken, http } from "@/lib/http"
 import {
   createProjectSchema,
   projectSchema,
@@ -36,9 +36,32 @@ api.interceptors.request.use(async (config) => {
   return config
 })
 
-export async function getCurrentUser(): Promise<User> {
-  await delay()
-  return userSchema.parse(mockUser)
+type AuthPayload = {
+  access_token: string
+  refresh_token: string
+  token_type: string
+  user: User
+}
+
+export async function googleSignIn(credential: string): Promise<AuthPayload> {
+  const { data } = await http.post("/auth/google", { credential })
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    token_type: data.token_type,
+    user: userSchema.parse(data.user),
+  }
+}
+
+export async function getCurrentUser(): Promise<User | null> {
+  if (!getAccessToken()) return null
+  try {
+    const { data } = await http.get("/auth/me")
+    return userSchema.parse(data)
+  } catch {
+    clearTokens()
+    return null
+  }
 }
 
 export async function listProjects(query?: string): Promise<Project[]> {

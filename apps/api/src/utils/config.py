@@ -37,3 +37,6 @@ class Config:
         self.database_name = DATABASE_NAME
         self.sandbox_target = SANDBOX_TARGET
         self.sandbox_mount = SANDBOX_MOUNT
+        self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+        self.google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        self.jwt_secret = os.getenv("JWT_SECRET") or "dev-insecure-change-me"

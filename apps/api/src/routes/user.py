@@ -2,7 +2,7 @@ from fastapi import APIRouter,status
 
 from src.schemas.user import RegisterUserRequset,RegisterUserReponse
 
-from src.controller.user import register_user
+from src.controller.user_controller import register_user
 
 router = APIRouter(prefix="/users",tags=["Users"])
 

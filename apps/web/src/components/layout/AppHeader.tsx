@@ -7,7 +7,7 @@ import {
   SunIcon,
 } from "lucide-react"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -87,6 +87,9 @@ export function AppHeader({ className, dense }: AppHeaderProps) {
               }
             >
               <Avatar className="size-7">
+                {user.avatarUrl ? (
+                  <AvatarImage src={user.avatarUrl} alt={user.name} />
+                ) : null}
                 <AvatarFallback>
                   {user.name
                     .split(" ")
@@ -122,8 +125,8 @@ export function AppHeader({ className, dense }: AppHeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Button size="sm" render={<Link to="/dashboard" />} nativeButton={false}>
-            Open app
+          <Button size="sm" render={<Link to="/login" />} nativeButton={false}>
+            Sign in
           </Button>
         )}
       </div>
