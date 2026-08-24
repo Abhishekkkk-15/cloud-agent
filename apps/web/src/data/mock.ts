@@ -1,10 +1,11 @@
 import type {
-  ChatMessage,
   FileNode,
   Project,
   TerminalLine,
   User,
 } from "@cloud-agent/shared"
+
+export { mockChatSeed } from "@/data/mock-agent-events"
 
 export const mockUser: User = {
   id: "user_1",
@@ -271,16 +272,6 @@ export const mockTerminalBoot: TerminalLine[] = [
     type: "stdout",
     text: "added 186 packages in 4.2s",
     timestamp: new Date().toISOString(),
-  },
-]
-
-export const mockChatSeed: ChatMessage[] = [
-  {
-    id: "c1",
-    role: "assistant",
-    content:
-      "I'm your Cloud Agent copilot. Ask me to explain code, fix bugs, or scaffold new files.",
-    createdAt: new Date().toISOString(),
   },
 ]
 

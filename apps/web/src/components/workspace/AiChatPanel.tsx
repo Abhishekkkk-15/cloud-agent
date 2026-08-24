@@ -7,7 +7,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { AgentActivityTrail } from "@/components/workspace/AgentActivityTrail"
+import { AgentEventTurn } from "@/components/workspace/AgentEventTurn"
 import { ChatAttachmentList } from "@/components/workspace/ChatAttachmentList"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -134,11 +134,16 @@ export function AiChatPanel() {
               <MessageScrollerContent className="gap-4 p-4">
                 {messages.map((message) => {
                   const isUser = message.role === "user"
+                  const hasEvents =
+                    !!message.events && message.events.length > 0
                   const hasActivities =
                     !!message.activities && message.activities.length > 0
                   const isStreaming = message.id === streamingMessageId
+                  const isAgentTurn = !isUser && (hasEvents || hasActivities)
                   const showBubble =
-                    isUser || message.content.length > 0 || isStreaming
+                    isUser ||
+                    (!isAgentTurn &&
+                      (message.content.length > 0 || isStreaming))
 
                   return (
                     <MessageScrollerItem
@@ -147,27 +152,37 @@ export function AiChatPanel() {
                       scrollAnchor={isUser}
                     >
                       <Message align={isUser ? "end" : "start"}>
-                        <MessageAvatar>
-                          <Avatar className="size-8">
-                            <AvatarFallback>
-                              {isUser ? (user?.name?.[0] ?? "U") : "A"}
-                            </AvatarFallback>
-                          </Avatar>
-                        </MessageAvatar>
-                        <MessageContent>
-                          <MessageHeader>
-                            {isUser ? (user?.name ?? "You") : "Cloud Agent"}
-                          </MessageHeader>
+                        {!isAgentTurn ? (
+                          <MessageAvatar>
+                            <Avatar className="size-8">
+                              <AvatarFallback>
+                                {isUser ? (user?.name?.[0] ?? "U") : "A"}
+                              </AvatarFallback>
+                            </Avatar>
+                          </MessageAvatar>
+                        ) : null}
+                        <MessageContent
+                          className={cn(isAgentTurn && "gap-0 pl-1")}
+                        >
+                          {!isAgentTurn ? (
+                            <MessageHeader>
+                              {isUser ? (user?.name ?? "You") : "Cloud Agent"}
+                            </MessageHeader>
+                          ) : null}
                           {isUser && message.attachments?.length ? (
                             <ChatAttachmentList
                               attachments={message.attachments}
                             />
                           ) : null}
-                          {!isUser && hasActivities && (
-                            <AgentActivityTrail
-                              activities={message.activities!}
+                          {isAgentTurn ? (
+                            <AgentEventTurn
+                              events={message.events}
+                              activities={message.activities}
+                              summary={message.content}
+                              streaming={isStreaming}
+                              defaultOpen={message.id === "c1"}
                             />
-                          )}
+                          ) : null}
                           {showBubble && (
                             <Bubble
                               variant={isUser ? "default" : "muted"}
@@ -196,7 +211,7 @@ export function AiChatPanel() {
         </MessageScrollerProvider>
       </div>
 
-      {messages.length <= 1 && !busy && (
+      {messages.length === 0 && !busy && (
         <div className="flex flex-wrap gap-2 border-t px-3 py-2">
           {suggestions.map((item) => (
             <Button

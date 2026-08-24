@@ -13,6 +13,7 @@ import {
   projectSchema,
   userSchema,
   type AgentActivity,
+  type AgentEvent,
   type ChatMessage,
   type CreateProjectInput,
   type FileNode,
@@ -276,6 +277,88 @@ function buildActivities(
   return activities
 }
 
+function buildEventsFromActivities(
+  prompt: string,
+  activities: AgentActivity[],
+  replyText: string
+): AgentEvent[] {
+  const sessionId = `sess_${crypto.randomUUID().slice(0, 8)}`
+  const events: AgentEvent[] = [
+    {
+      id: crypto.randomUUID(),
+      type: "RUN_STARTED",
+      data: { prompt, session_id: sessionId },
+    },
+    {
+      id: crypto.randomUUID(),
+      type: "USER_MESSAGE",
+      data: { text: prompt },
+    },
+  ]
+
+  for (const activity of activities) {
+    if (activity.type === "think") {
+      events.push({
+        id: activity.id,
+        type: "THINKING",
+        data: { text: activity.detail ?? activity.label },
+      })
+      continue
+    }
+    if (activity.type === "read_file") {
+      const callId = `call_${activity.id}`
+      events.push({
+        id: crypto.randomUUID(),
+        type: "TOOL_CALL",
+        data: {
+          id: callId,
+          name: "read_file",
+          arguments: { path: activity.fileName ?? activity.detail },
+        },
+      })
+      continue
+    }
+    if (activity.type === "edit_file") {
+      events.push({
+        id: crypto.randomUUID(),
+        type: "TOOL_CALL",
+        data: {
+          id: `call_${activity.id}`,
+          name: "edit_file",
+          arguments: { path: activity.fileName ?? activity.detail },
+        },
+      })
+      continue
+    }
+    if (activity.type === "run_command") {
+      events.push({
+        id: crypto.randomUUID(),
+        type: "TOOL_CALL",
+        data: {
+          id: `call_${activity.id}`,
+          name: "bash",
+          arguments: { command: activity.command ?? activity.label },
+        },
+      })
+    }
+  }
+
+  events.push(
+    {
+      id: crypto.randomUUID(),
+      type: "TEXT",
+      data: { text: replyText },
+    },
+    {
+      id: crypto.randomUUID(),
+      type: "RUN_COMPLETED",
+      data: { session_id: sessionId, text: replyText },
+    }
+  )
+
+  return events
+}
+
 export async function sendChatMessage(
   prompt: string,
   activeFile?: { id: string; name: string } | null,
@@ -288,12 +371,15 @@ export async function sendChatMessage(
       ? `\n\nI see ${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"} on your message (mock — not uploaded).`
       : ""
   const activities = buildActivities(prompt, activeFile)
+  const content = `Here's a mock response for "${prompt}"${fileHint}.${attachmentHint}\n\nI inspected the workspace, ran the planned steps above, and prepared a suggested change. Wire this to your real agent backend when ready.`
+  const events = buildEventsFromActivities(prompt, activities, content)
   const message: ChatMessage = {
     id: crypto.randomUUID(),
     role: "assistant",
-    content: `Here's a mock response for "${prompt}"${fileHint}.${attachmentHint}\n\nI inspected the workspace, ran the planned steps above, and prepared a suggested change. Wire this to your real agent backend when ready.`,
+    content,
     createdAt: new Date().toISOString(),
     activities,
+    events,
   }
   return { message, activities }
 }

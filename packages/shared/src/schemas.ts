@@ -87,6 +87,30 @@ export const agentActivitySchema = z.object({
   command: z.string().optional(),
 })
 
+export const agentEventTypeSchema = z.enum([
+  "RUN_STARTED",
+  "USER_MESSAGE",
+  "THINKING_DELTA",
+  "THINKING",
+  "TEXT_DELTA",
+  "TEXT",
+  "TOOL_CALL",
+  "TOOL_RESULT",
+  "PERMISSION_REQUEST",
+  "COMPACTION",
+  "USAGE",
+  "ERROR",
+  "STATUS",
+  "RUN_COMPLETED",
+  "RUN_FAILED",
+])
+
+export const agentEventSchema = z.object({
+  id: z.string(),
+  type: agentEventTypeSchema,
+  data: z.record(z.string(), z.unknown()).default({}),
+})
+
 export const chatAttachmentSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -102,6 +126,7 @@ export const chatMessageSchema = z.object({
   content: z.string(),
   createdAt: z.string(),
   activities: z.array(agentActivitySchema).optional(),
+  events: z.array(agentEventSchema).optional(),
   attachments: z.array(chatAttachmentSchema).optional(),
 })
 
@@ -117,6 +142,8 @@ export type Project = z.infer<typeof projectSchema>
 export type CreateProjectInput = z.infer<typeof createProjectSchema>
 export type TerminalLine = z.infer<typeof terminalLineSchema>
 export type AgentActivity = z.infer<typeof agentActivitySchema>
+export type AgentEventType = z.infer<typeof agentEventTypeSchema>
+export type AgentEvent = z.infer<typeof agentEventSchema>
 export type ChatAttachment = z.infer<typeof chatAttachmentSchema>
 export type ChatMessage = z.infer<typeof chatMessageSchema>
 export type RunSession = z.infer<typeof runSessionSchema>
