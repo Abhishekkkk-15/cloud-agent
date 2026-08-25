@@ -5,7 +5,7 @@ from datetime import datetime, UTC
 
 
 class Workspace(BaseModel):
-    id:str
+    id:str|None = None
     title:str
     user_id:str
     target_path:str     # internal container path

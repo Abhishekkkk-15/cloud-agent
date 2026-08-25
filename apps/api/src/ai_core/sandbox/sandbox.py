@@ -2,7 +2,7 @@ from typing import Any, Optional
 
 from src.ai_core.sandbox.client import get_sandbox_client
 from src.utils.config import Config
-
+from src.schemas.sandbox_schema import SandboxRunResult
 try:
     from docker import DockerClient
     from docker.errors import ContainerError, APIError
@@ -18,7 +18,6 @@ except ModuleNotFoundError:
     _DOCKER_AVAILABLE = False
 class Sandbox:
     
-    client: Optional[DockerClient] = None
     def __init__(self):
         self.config = Config()
         # Docker can be missing/unreachable; don't block server startup.
@@ -26,7 +25,7 @@ class Sandbox:
             self.client = get_sandbox_client()
         except Exception:
             self.client = None
-    def run_sandbox(self):
+    def run_sandbox(self)-> dict[str, str] | SandboxRunResult :
         try:
             if not _DOCKER_AVAILABLE or not self.client:
                 return {"error": "Docker sandbox is not available"}
@@ -40,8 +39,8 @@ class Sandbox:
                 type="bind"
             )
             container = self.client.containers.run('node-python-lite', command='tail -f /dev/null', detach=True, mounts=[mount])
-            
-            return {"id": container.short_id, "name": container.name, "status": container.status}
+            container_res = SandboxRunResult(id=container.id,name=container.name, status=container.status)
+            return container_res
         except ContainerError as e:
             return {"error": f"Container Error: {getattr(e, 'stderr', e)}"}
         except Exception as e:
@@ -69,3 +68,4 @@ class Sandbox:
             ]
         except Exception as e:
             return [{"error": f"Failed to list containers: {e}"}]
+        

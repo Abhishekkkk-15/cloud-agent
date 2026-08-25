@@ -113,4 +113,4 @@ class SessionRepository:
 async def get_session_repo(db:Annotated[Any, Depends(get_db)]) -> SessionRepository:
     return SessionRepository(db["sessions"])
 
-WorkspaceRepo = Annotated[SessionRepository, Depends(get_session_repo)]
+SessionRepo = Annotated[SessionRepository, Depends(get_session_repo)]

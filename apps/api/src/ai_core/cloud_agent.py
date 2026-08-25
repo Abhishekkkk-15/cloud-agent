@@ -12,7 +12,7 @@ WORKSPACE_ROOT = "F:/study/cloud-agent/sandbox/mounts/workspace/first_workspace"
 class CloudAgentCore:
     client: Agent
 
-    def __init__(self) -> None:
+    def __init__(self,workspace_id:str,container_id,) -> None:
         sys_config = Config()
         self.config = sys_config
         self.client = Agent.create(
@@ -21,9 +21,12 @@ class CloudAgentCore:
             base_url=sys_config.base_url,
             autonomous=sys_config.autonomous,
             model=sys_config.model,
-            storage="disk",
-            docker_container=DEFAULT_DOCKER_CONTAINER,
+            storage="mongodb",
+            mongodb_uri=sys_config.database_uri,
+            mongodb_db=sys_config.database_name,
+            docker_container=container_id,
             docker_workdir=DEFAULT_DOCKER_WORKDIR,
+            workspace_id=workspace_id,
             disable_tools=["bash"],
             cwd=WORKSPACE_ROOT,
             max_retries=3,
