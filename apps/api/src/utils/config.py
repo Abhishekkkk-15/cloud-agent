@@ -1,6 +1,9 @@
 from dotenv import load_dotenv
 import os
+from pathlib import Path
+
 load_dotenv()
+
 
                 
 
@@ -40,3 +43,14 @@ class Config:
         self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
         self.google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
         self.jwt_secret = os.getenv("JWT_SECRET") or "dev-insecure-change-me"
+        self.workspace_base =Path(
+    os.getenv(
+        "WORKSPACE_BASE",
+        r"F:\study\cloud-agent\sandbox\mounts\workspace"
+    )
+)
+        self.docker_workspace_base = self.docker_workspace_base = os.getenv(
+       "DOCKER_WORKSPACE_BASE",
+     "/mnt/f/study/cloud-agent/sandbox/mounts/workspace"
+        )
+config = Config()        

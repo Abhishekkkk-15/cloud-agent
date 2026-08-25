@@ -3,6 +3,10 @@ from typing import Any, Optional
 from src.ai_core.sandbox.client import get_sandbox_client
 from src.utils.config import Config
 from src.schemas.sandbox_schema import SandboxRunResult
+
+
+from src.utils.config import config
+
 try:
     from docker import DockerClient
     from docker.errors import ContainerError, APIError
@@ -19,13 +23,12 @@ except ModuleNotFoundError:
 class Sandbox:
     
     def __init__(self):
-        self.config = Config()
         # Docker can be missing/unreachable; don't block server startup.
         try:
             self.client = get_sandbox_client()
         except Exception:
             self.client = None
-    def run_sandbox(self)-> dict[str, str] | SandboxRunResult :
+    def run_sandbox(self,workspace_id:str)-> dict[str, str] | SandboxRunResult :
         try:
             if not _DOCKER_AVAILABLE or not self.client:
                 return {"error": "Docker sandbox is not available"}
@@ -34,8 +37,8 @@ class Sandbox:
                 return {"error": "docker.types.Mount is unavailable"}
             
             mount = Mount(
-                target=self.config.sandbox_target,
-                source=self.config.sandbox_mount + "/first_workspace",
+                target="/app",
+                source=f"{config.docker_workspace_base}/{workspace_id}",
                 type="bind"
             )
             container = self.client.containers.run('node-python-lite', command='tail -f /dev/null', detach=True, mounts=[mount])
