@@ -12,7 +12,7 @@ SECRET_KEY = os.getenv("JWT_SECRET") or "dev-insecure-change-me"
 ALGORITHM = "HS256"
 async def get_current_user(
     refresh_token: Annotated[str | None, Cookie()] = None,
-    repo: UserRepo = Depends() 
+    repo = UserRepo 
 ) -> User:
     
     if not refresh_token:
