@@ -1,9 +1,10 @@
-from src.models.users import User
-from src.repository.user import UserRepo
-from src.schemas.user import RegisterUserRequset
+from src.models.user_model import User
+from src.repository.user_repository import UserRepo
+from src.schemas.user_schema import RegisterUserRequset
 from fastapi import Depends
-from src.dependency.auth_dependency import get_current_user
+from src.dependency.auth_dependency import CurrentUser
 from typing import Annotated, Any
+
 
 async def register_user(body: RegisterUserRequset, repo: UserRepo):
     username = body.email.split("@")[0]
@@ -16,7 +17,7 @@ async def register_user(body: RegisterUserRequset, repo: UserRepo):
     return await repo.create(user_data)
 
     
-async def read_user_me(current_user: Annotated[User, Depends(get_current_user)]):
+async def read_user_me(current_user: CurrentUser):
     return {
         "id": current_user.id,
         "email": current_user.email,

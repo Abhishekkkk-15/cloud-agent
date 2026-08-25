@@ -3,9 +3,9 @@ from fastapi import Cookie, Depends, HTTPException, status,Header
 import jwt
 from dotenv import load_dotenv
 from jwt.exceptions import InvalidTokenError
-from src.repository.user import UserRepo,UserRepository
-from src.models.users import User
-from src.repository.user import get_user_repo
+from src.repository.user_repository import UserRepo,UserRepository
+from src.models.user_model import User
+from src.repository.user_repository import get_user_repo
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 import os
@@ -13,6 +13,9 @@ load_dotenv()
 security = HTTPBearer()
 SECRET_KEY = os.getenv("JWT_SECRET") or "dev-insecure-change-me"
 ALGORITHM = "HS256"
+
+
+
 async def get_current_user(
      *,
     ca_refresh_token: Annotated[str | None, Cookie()] = None,
@@ -57,3 +60,5 @@ async def get_current_user(
         )
         
     return user
+
+CurrentUser =  Annotated[User, Depends(get_current_user)]

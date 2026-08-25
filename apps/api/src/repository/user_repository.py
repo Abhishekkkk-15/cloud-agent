@@ -4,7 +4,7 @@ from bson import ObjectId
 from fastapi import Depends
 from pymongo.asynchronous.collection import AsyncCollection
 
-from src.models.users import User
+from src.models.user_model import User
 from src.utils.db_client import get_db
 
 

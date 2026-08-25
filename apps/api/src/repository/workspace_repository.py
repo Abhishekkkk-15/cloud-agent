@@ -5,7 +5,7 @@ from fastapi import Depends
 from typing import Annotated, Any
 from src.utils.db_client import get_db
 
-def _doc_to_workspace(doc:Workspace)->Workspace:
+def _doc_to_workspace(doc:dict)->Workspace:
     extras: dict = {}
     if doc.get("created_at"):
         extras["created_at"] = doc["created_at"]
@@ -30,20 +30,23 @@ class WorkspaceRepository:
     async def create(self, workspace:Workspace)-> Workspace:
         data = workspace.model_dump(exclude={"id"})
         result = await self.collection.insert_one(data)
-        result.id = str(result.inserted_id)
+        workspace.id = str(result.inserted_id)
         return workspace
     
-    async def find_by_user(self,id:str) -> Workspace|None:
-        doc = await self.collection.find_one({"user_id":id})
-        return _doc_to_workspace(doc) if doc else None
+    async def find_by_user(self, id: str) -> list[Workspace]:
+        cursor = self.collection.find({"user_id": id})
+
+        docs = await cursor.to_list(length=None)
+
+        return [_doc_to_workspace(doc) for doc in docs]
     async def find_by_id(self,id:str) -> Workspace|None:
-        doc = await self.collection.get(id)
+        doc = await self.collection.find_one({"_id":ObjectId(id)})
         return _doc_to_workspace(doc) if doc else None
     
     async def save(self,workspace:Workspace) -> Workspace:
         if not workspace.id or not ObjectId.is_valid(workspace.id):
             return await self.create(workspace)
-        data = workspace.model_dump()
+        data = workspace.model_dump(exclude={"id"})
         await self.collection.update_one({"_id":ObjectId(workspace.id)},{"$set":data})
         return workspace
 
@@ -51,5 +54,5 @@ class WorkspaceRepository:
 async def get_workspace_repo(db:Annotated[Any, Depends(get_db)]) -> WorkspaceRepository:
     return WorkspaceRepository(db["workspaces"])
 
-WorkspaceRepo = Annotated[WorkspaceRepository, Depends[get_workspace_repo]]
+WorkspaceRepo = Annotated[WorkspaceRepository, Depends(get_workspace_repo)]
     

@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from src.models.users import User
-from src.repository.user import UserRepo
+from src.models.user_model import User
+from src.repository.user_repository import UserRepo
 from src.utils.jwt_utils import decode_access_token
 
 bearer_scheme = HTTPBearer(auto_error=False)

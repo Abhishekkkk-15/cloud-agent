@@ -1,7 +1,7 @@
 from fastapi import APIRouter,status
 
-from src.schemas.user import RegisterUserRequset,RegisterUserReponse
-from src.models.users import User
+from src.schemas.user_schema import RegisterUserRequset,RegisterUserReponse
+from src.models.user_model import User
 from src.controller.user_controller import register_user,read_user_me
 
 router = APIRouter(prefix="/users",tags=["Users"])

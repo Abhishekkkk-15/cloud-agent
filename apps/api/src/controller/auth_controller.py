@@ -4,9 +4,9 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
 
-from src.models.users import User
-from src.repository.user import UserRepo
-from src.schemas.auth import (
+from src.models.user_model import User
+from src.repository.user_repository import UserRepo
+from src.schemas.auth_schema import (
     GoogleAuthRequest,
     PublicUser,
     RefreshTokenRequest,
@@ -40,7 +40,7 @@ def _username_from_email(email: str) -> str:
     return slug[:80] or "user"
 
 
-async def google_login(body: GoogleAuthRequest, repo: UserRepo) -> TokenPairResponse:
+async def google_login(body: GoogleAuthRequest, repo: UserRepo) -> JSONResponse:
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
         raise HTTPException(
