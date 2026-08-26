@@ -11,7 +11,7 @@ async def websocket_endpoint(ws:WebSocket):
     while True:
         text = await ws.receive()    
         print(text)
-        await ws_manager.send_jsno(data={"worker":"thread"},websocket=ws)
+        await ws_manager.send_jsno(data={"type":"agent:send","value":"[1,2]"},websocket=ws)
         
     # ws_manager.disconnect(ws)    
     

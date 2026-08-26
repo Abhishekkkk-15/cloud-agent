@@ -55,7 +55,7 @@ export function WorkspacePage() {
 
   useEffect(() => {
     ws.connect()
-    const unsubscribe = ws.subscribe("agent:start", (event) => {
+    const unsubscribe = ws.subscribe("agent:send", (event) => {
       console.log(event)
     })
     ws.send("agent:start", { workspace_id: workspaceId, session_id: sessionId })

@@ -24,11 +24,13 @@ class WebSocketManager {
 
     this.socket = new WebSocket(this.url)
     this.socket.onopen = () => {
+      console.log("websocket connected")
       this.reconnectAttempts = 0
     }
 
     this.socket.onmessage = (event) => {
       try {
+        console.log(event)
         const message = JSON.parse(event.data)
         const handlers = this.handlers.get(message.type)
 
