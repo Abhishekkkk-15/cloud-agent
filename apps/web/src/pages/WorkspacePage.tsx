@@ -16,7 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-
+import { ws } from "@/lib/websocket"
 export function WorkspacePage() {
   const { workspaceId = "" } = useParams()
   const [searchParams] = useSearchParams()
@@ -28,31 +28,41 @@ export function WorkspacePage() {
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
   const socketRef = useRef<null | WebSocket>(null)
 
+  // useEffect(() => {
+  //   socketRef.current = ws
+  //   if (ws != null) {
+  //     ws.onopen = () => {
+  //       console.log("WS connected")
+  //       if (workspaceId) {
+  //         ws.send(
+  //           JSON.stringify({ workspace_id: workspaceId, session: sessionId })
+  //         )
+  //       }
+  //     }
+  //     ws.onmessage = (event) => {
+  //       console.log("Received:", event.data)
+  //     }
+
+  //     ws.onclose = () => {
+  //       console.log("Disconnected")
+  //     }
+  //   }
+
+  //   return () => {
+  //     ws.close()
+  //   }
+  // }, [])
+
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:5173/ws")
-    socketRef.current = ws
-    if (ws != null) {
-      ws.onopen = () => {
-        console.log("WS connected")
-        if (workspaceId) {
-          ws.send(
-            JSON.stringify({ workspace_id: workspaceId, session: sessionId })
-          )
-        }
-      }
-      ws.onmessage = (event) => {
-        console.log("Received:", event.data)
-      }
+    ws.connect()
+    const unsubscribe = ws.subscribe("agent:start", (event) => {
+      console.log(event)
+    })
+    ws.send("agent:start", { workspace_id: workspaceId, session_id: sessionId })
 
-      ws.onclose = () => {
-        console.log("Disconnected")
-      }
-    }
-
-    return () => {
-      ws.close()
-    }
+    return unsubscribe()
   }, [])
+
   useEffect(() => {
     if (workspaceId) {
       loadWorkspace(workspaceId, sessionId)
