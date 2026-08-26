@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
 
 import { AiChatPanel } from "@/components/workspace/AiChatPanel"
@@ -26,9 +26,37 @@ export function WorkspacePage() {
   const error = useWorkspaceStore((s) => s.error)
   const workspaceTab = useWorkspaceStore((s) => s.workspaceTab)
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
+  const socketRef = useRef<null | WebSocket>(null)
 
   useEffect(() => {
-    if (workspaceId) void loadWorkspace(workspaceId, sessionId)
+    const ws = new WebSocket("ws://localhost:5173/ws")
+    socketRef.current = ws
+    if (ws != null) {
+      ws.onopen = () => {
+        console.log("WS connected")
+        if (workspaceId) {
+          ws.send(
+            JSON.stringify({ workspace_id: workspaceId, session: sessionId })
+          )
+        }
+      }
+      ws.onmessage = (event) => {
+        console.log("Received:", event.data)
+      }
+
+      ws.onclose = () => {
+        console.log("Disconnected")
+      }
+    }
+
+    return () => {
+      ws.close()
+    }
+  }, [])
+  useEffect(() => {
+    if (workspaceId) {
+      loadWorkspace(workspaceId, sessionId)
+    }
   }, [workspaceId, sessionId, loadWorkspace])
 
   if (loading) {

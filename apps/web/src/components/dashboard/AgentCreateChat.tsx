@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { ArrowUpIcon, SparklesIcon } from "lucide-react"
+import { ArrowUpIcon, Scooter, SparklesIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -34,11 +34,33 @@ export function AgentCreateChat() {
   const create = useWorkspaceListStore((s) => s.create)
   const creating = useWorkspaceListStore((s) => s.creating)
   const [prompt, setPrompt] = useState("")
+  // const socketRef = useRef<null | WebSocket>(null)
+
+  // useEffect(() => {
+  //   const ws = new WebSocket("ws://localhost:5173/ws")
+  //   socketRef.current = ws
+  //   if (ws != null) {
+  //     ws.onopen = () => {
+  //       console.log("WS connected")
+  //     }
+  //     ws.onmessage = (event) => {
+  //       console.log("Received:", event.data)
+  //     }
+
+  //     ws.onclose = () => {
+  //       console.log("Disconnected")
+  //     }
+  //   }
+
+  //   return () => {
+  //     ws.close()
+  //   }
+  // }, [])
 
   async function startWorkspace(value: string) {
     const trimmed = value.trim()
     if (!trimmed || creating) return
-
+    // socketRef.current?.send(trimmed)
     try {
       const created = await create({ prompt: trimmed })
       sessionStorage.setItem(`agent-seed:${created.workspace_id}`, trimmed)

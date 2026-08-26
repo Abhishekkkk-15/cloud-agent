@@ -9,6 +9,7 @@ from src.utils.db_client import db_lifespan
 from src.routes.user_route import router as UserRouter
 from src.routes.auth_route import router as AuthRouter
 from src.routes.workspace_route import router as ChatRouter
+from src.ws.chat_ws import router as WSRouter
 
 app = FastAPI(lifespan=db_lifespan)
 
@@ -34,7 +35,7 @@ def health():
 app.include_router(UserRouter)
 app.include_router(AuthRouter)
 app.include_router(ChatRouter)
-  
+app.include_router(WSRouter)  
  
 print("STARTED LISTNINIG")
     
