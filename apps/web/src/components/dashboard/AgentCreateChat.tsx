@@ -19,16 +19,8 @@ import {
   InputGroupTextarea,
 } from "@/components/ui/input-group"
 import { Spinner } from "@/components/ui/spinner"
-import { useProjectStore } from "@/stores/project-store"
-
-function slugify(text: string) {
-  const base = text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40)
-  return base || `project-${Date.now().toString(36)}`
-}
+import { getApiErrorMessage } from "@/lib/http"
+import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 
 const prompts = [
   "Habit tracker in React",
@@ -39,30 +31,21 @@ const prompts = [
 
 export function AgentCreateChat() {
   const navigate = useNavigate()
-  const create = useProjectStore((s) => s.create)
-  const creating = useProjectStore((s) => s.creating)
+  const create = useWorkspaceListStore((s) => s.create)
+  const creating = useWorkspaceListStore((s) => s.creating)
   const [prompt, setPrompt] = useState("")
 
-  async function startProject(value: string) {
+  async function startWorkspace(value: string) {
     const trimmed = value.trim()
     if (!trimmed || creating) return
 
-    const name = slugify(trimmed)
     try {
-      const project = await create({
-        name,
-        description: trimmed,
-        language: "typescript",
-        visibility: "private",
-        template: "react-vite",
-      })
-      sessionStorage.setItem(`agent-seed:${project.id}`, trimmed)
-      toast.success("Project created")
-      navigate(`/workspace/${project.id}`)
+      const created = await create({ prompt: trimmed })
+      sessionStorage.setItem(`agent-seed:${created.workspace_id}`, trimmed)
+      toast.success("Workspace created")
+      navigate(created.redirect_url)
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not start project"
-      )
+      toast.error(getApiErrorMessage(error, "Could not start workspace"))
     }
   }
 
@@ -74,7 +57,8 @@ export function AgentCreateChat() {
         </span>
         <CardTitle className="text-2xl">What do you want to build?</CardTitle>
         <CardDescription>
-          Describe an app. The agent opens a workspace and starts a session.
+          Describe an app. We create a workspace from your prompt and open a
+          session.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -82,7 +66,7 @@ export function AgentCreateChat() {
           className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault()
-            void startProject(prompt)
+            void startWorkspace(prompt)
           }}
         >
           <InputGroup className="min-h-36">
@@ -96,7 +80,7 @@ export function AgentCreateChat() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault()
-                  void startProject(prompt)
+                  void startWorkspace(prompt)
                 }
               }}
             />
@@ -127,7 +111,7 @@ export function AgentCreateChat() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void startProject(item)}
+              onClick={() => void startWorkspace(item)}
               disabled={creating}
             >
               {item}

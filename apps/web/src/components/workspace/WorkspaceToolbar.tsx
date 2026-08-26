@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 
 export function WorkspaceToolbar() {
-  const project = useWorkspaceStore((s) => s.project)
+  const workspace = useWorkspaceStore((s) => s.workspace)
   const runSession = useWorkspaceStore((s) => s.runSession)
   const startRun = useWorkspaceStore((s) => s.startRun)
   const stopRun = useWorkspaceStore((s) => s.stopRun)
@@ -49,15 +49,15 @@ export function WorkspaceToolbar() {
         <Separator orientation="vertical" className="h-5" />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">
-            {project?.name ?? "Workspace"}
+            {workspace?.title ?? "Workspace"}
           </div>
           <div className="truncate text-xs text-muted-foreground">
-            Agent workspace
+            {workspace?.status ?? "Agent workspace"}
           </div>
         </div>
-        {project && (
+        {workspace && (
           <Badge variant="outline" className="hidden sm:inline-flex">
-            {project.language}
+            {workspace.status}
           </Badge>
         )}
         {isRunning && (
@@ -85,7 +85,7 @@ export function WorkspaceToolbar() {
           size="sm"
           onClick={() =>
             toast.success("Share link copied", {
-              description: `https://cloudagent.dev/p/${project?.name}`,
+              description: `https://cloudagent.dev/w/${workspace?.id}`,
             })
           }
         >

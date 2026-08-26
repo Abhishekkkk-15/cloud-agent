@@ -32,7 +32,7 @@ export function App() {
             }
           />
           <Route
-            path="/workspace/:projectId"
+            path="/workspace/:workspaceId"
             element={
               <ProtectedRoute>
                 <WorkspacePage />

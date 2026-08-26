@@ -1,12 +1,13 @@
 from src.dependency.auth_dependency import CurrentUser
 # from src.schemas.workspace_schema import 
 from src.models.workspace_model import Workspace
-from src.schemas.workspace_schema import GetAllWorkspacesResponse, WorkspaceWithSession,MinimalSession, CreateWorkspaceRequest
+from src.schemas.workspace_schema import GetAllWorkspacesResponse, WorkspaceWithSession,MinimalSession, CreateWorkspaceRequest,CreateWorkspaceResponse
 from src.repository.workspace_repository import WorkspaceRepo
 from src.repository.session_repository import SessionRepository
 from fastapi import  HTTPException, status
 from collections import defaultdict
 from pymongo.errors import WriteError
+from fastapi.responses import JSONResponse
 
 async def create_workspace(body:CreateWorkspaceRequest,current_user: CurrentUser,repo:WorkspaceRepo,):
     try:
@@ -18,8 +19,9 @@ async def create_workspace(body:CreateWorkspaceRequest,current_user: CurrentUser
             )
         # Generate workspace title using user query
         workspace_obj = Workspace(title=body.prompt,user_id=current_user.id,target_path="/app",source_path="/",initial_prompt=body.prompt)
-        workspace = repo.create(workspace_obj)
-        return workspace
+        workspace =await repo.create(workspace_obj)
+        
+        return CreateWorkspaceResponse(workspace_id=workspace.id,redirect_url=f"/workspace/{workspace.id}",workspace_name=workspace.title)
 
     except WriteError as e:
         raise HTTPException(

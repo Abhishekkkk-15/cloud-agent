@@ -67,7 +67,7 @@ function TreeNode({
 
 export function FileTree() {
   const files = useWorkspaceStore((s) => s.files)
-  const project = useWorkspaceStore((s) => s.project)
+  const workspace = useWorkspaceStore((s) => s.workspace)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -76,7 +76,7 @@ export function FileTree() {
           Files
         </span>
         <Button variant="ghost" size="xs" disabled>
-          {project?.name ?? "Project"}
+          {workspace?.title ?? "Workspace"}
         </Button>
       </div>
       <ScrollArea className="min-h-0 flex-1">

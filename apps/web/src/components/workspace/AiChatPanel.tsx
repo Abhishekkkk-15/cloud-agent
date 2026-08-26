@@ -29,11 +29,11 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { useAuthStore } from "@/stores/auth-store"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import type { ChatAttachment } from "@cloud-agent/shared"
+import type { ChatAttachment } from "@/types/chat-ui"
 import { cn } from "@/lib/utils"
 
 const suggestions = [
-  "Explain what this project does",
+  "Explain what this workspace does",
   "Add a dark mode toggle",
   "Fix any TypeScript errors",
   "Improve the landing page copy",

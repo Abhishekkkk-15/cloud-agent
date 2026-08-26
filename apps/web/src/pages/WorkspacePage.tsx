@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useSearchParams } from "react-router-dom"
 
 import { AiChatPanel } from "@/components/workspace/AiChatPanel"
 import { CodeEditor } from "@/components/workspace/CodeEditor"
@@ -18,7 +18,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 
 export function WorkspacePage() {
-  const { projectId = "" } = useParams()
+  const { workspaceId = "" } = useParams()
+  const [searchParams] = useSearchParams()
+  const sessionId = searchParams.get("session")
   const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace)
   const loading = useWorkspaceStore((s) => s.loading)
   const error = useWorkspaceStore((s) => s.error)
@@ -26,8 +28,8 @@ export function WorkspacePage() {
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
 
   useEffect(() => {
-    if (projectId) void loadWorkspace(projectId)
-  }, [projectId, loadWorkspace])
+    if (workspaceId) void loadWorkspace(workspaceId, sessionId)
+  }, [workspaceId, sessionId, loadWorkspace])
 
   if (loading) {
     return (

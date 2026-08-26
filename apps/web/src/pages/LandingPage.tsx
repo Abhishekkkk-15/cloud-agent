@@ -35,7 +35,7 @@ export function LandingPage() {
               <Button
                 size="lg"
                 variant="outline"
-                render={<Link to="/workspace/proj_1" />}
+                render={<Link to="/workspace/ws_1" />}
                 nativeButton={false}
               >
                 Open sample workspace

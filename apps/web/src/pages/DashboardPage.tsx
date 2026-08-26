@@ -5,15 +5,15 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader"
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/stores/auth-store"
-import { useProjectStore } from "@/stores/project-store"
+import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user)
-  const fetchProjects = useProjectStore((s) => s.fetchProjects)
+  const fetchWorkspaces = useWorkspaceListStore((s) => s.fetchWorkspaces)
 
   useEffect(() => {
-    void fetchProjects()
-  }, [fetchProjects])
+    void fetchWorkspaces()
+  }, [fetchWorkspaces])
 
   const firstName = user?.name.split(" ")[0]
 
@@ -29,7 +29,7 @@ export function DashboardPage() {
                 {firstName ? `Hey, ${firstName}` : "Hey"}
               </h1>
               <p className="text-muted-foreground">
-                Start a new project, or reopen a session from the sidebar.
+                Start a new workspace, or reopen a session from the sidebar.
               </p>
             </div>
             <AgentCreateChat />

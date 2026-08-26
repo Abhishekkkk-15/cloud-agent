@@ -20,7 +20,7 @@ import { useWorkspaceStore } from "@/stores/workspace-store"
 export function PreviewPanel() {
   const runSession = useWorkspaceStore((s) => s.runSession)
   const startRun = useWorkspaceStore((s) => s.startRun)
-  const project = useWorkspaceStore((s) => s.project)
+  const workspace = useWorkspaceStore((s) => s.workspace)
 
   if (runSession.status === "idle" || runSession.status === "stopped") {
     return (
@@ -32,8 +32,8 @@ export function PreviewPanel() {
             </EmptyMedia>
             <EmptyTitle>Webview offline</EmptyTitle>
             <EmptyDescription>
-              Run the project to open a live preview for{" "}
-              {project?.name ?? "this Repl"}.
+              Run the workspace to open a live preview for{" "}
+              {workspace?.title ?? "this app"}.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -80,9 +80,9 @@ export function PreviewPanel() {
           <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Mock preview
           </p>
-          <h3 className="mt-2 text-lg font-medium">{project?.name}</h3>
+          <h3 className="mt-2 text-lg font-medium">{workspace?.title}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {project?.description}
+            {workspace?.initial_prompt}
           </p>
           <div className="mt-6 grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-muted p-3">

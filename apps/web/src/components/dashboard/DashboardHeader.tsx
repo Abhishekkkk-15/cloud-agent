@@ -8,7 +8,6 @@ import {
   SunIcon,
 } from "lucide-react"
 
-import { sessionsForProject } from "@/data/mock-sessions"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -35,11 +34,11 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { useTheme } from "@/components/theme-provider"
-import { useProjectStore } from "@/stores/project-store"
+import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 
 export function DashboardHeader() {
   const navigate = useNavigate()
-  const projects = useProjectStore((s) => s.projects)
+  const workspaces = useWorkspaceListStore((s) => s.workspaces)
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const isDark =
@@ -78,7 +77,7 @@ export function DashboardHeader() {
           </InputGroupAddon>
           <InputGroupInput
             readOnly
-            placeholder="Search projects…"
+            placeholder="Search workspaces…"
             onFocus={() => setOpen(true)}
             onClick={() => setOpen(true)}
           />
@@ -113,47 +112,54 @@ export function DashboardHeader() {
         open={open}
         onOpenChange={setOpen}
         title="Search"
-        description="Jump to a project or session"
+        description="Jump to a workspace or session"
       >
         <Command>
-          <CommandInput placeholder="Search projects and sessions…" />
+          <CommandInput placeholder="Search workspaces and sessions…" />
           <CommandList>
             <CommandEmpty>No matches.</CommandEmpty>
-            <CommandGroup heading="Projects">
-              {projects.map((project) => (
-                <CommandItem
-                  key={project.id}
-                  value={project.name}
-                  onSelect={() => {
-                    setOpen(false)
-                    navigate(`/workspace/${project.id}`)
-                  }}
-                >
-                  <FolderIcon />
-                  {project.name}
-                </CommandItem>
-              ))}
+            <CommandGroup heading="Workspaces">
+              {workspaces.map((workspace) => {
+                if (!workspace.id) return null
+                return (
+                  <CommandItem
+                    key={workspace.id}
+                    value={workspace.title}
+                    onSelect={() => {
+                      setOpen(false)
+                      navigate(`/workspace/${workspace.id}`)
+                    }}
+                  >
+                    <FolderIcon />
+                    {workspace.title}
+                  </CommandItem>
+                )
+              })}
             </CommandGroup>
             <CommandSeparator />
             <CommandGroup heading="Sessions">
-              {projects.flatMap((project) =>
-                sessionsForProject(project.id).map((session) => (
+              {workspaces.flatMap((workspace) => {
+                if (!workspace.id) return []
+                const workspaceId = workspace.id
+                return workspace.sessions.map((session) => (
                   <CommandItem
                     key={session.id}
-                    value={`${project.name} ${session.title}`}
+                    value={`${workspace.title} ${session.title}`}
                     onSelect={() => {
                       setOpen(false)
-                      navigate(`/workspace/${project.id}?session=${session.id}`)
+                      navigate(
+                        `/workspace/${workspaceId}?session=${session.id}`
+                      )
                     }}
                   >
                     <MessageSquareIcon />
                     {session.title}
                     <span className="ml-auto text-xs text-muted-foreground">
-                      {project.name}
+                      {workspace.title}
                     </span>
                   </CommandItem>
                 ))
-              )}
+              })}
             </CommandGroup>
           </CommandList>
         </Command>

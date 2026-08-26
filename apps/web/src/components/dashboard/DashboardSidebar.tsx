@@ -9,7 +9,6 @@ import {
   PlusIcon,
 } from "lucide-react"
 
-import { sessionsForProject } from "@/data/mock-sessions"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Collapsible,
@@ -44,15 +43,15 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/stores/auth-store"
-import { useProjectStore } from "@/stores/project-store"
+import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 
 export function DashboardSidebar() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useAuthStore((s) => s.user)
   const signOut = useAuthStore((s) => s.signOut)
-  const projects = useProjectStore((s) => s.projects)
-  const loading = useProjectStore((s) => s.loading)
+  const workspaces = useWorkspaceListStore((s) => s.workspaces)
+  const loading = useWorkspaceListStore((s) => s.loading)
   const search = new URLSearchParams(location.search)
   const activeSession = search.get("session")
   const initials =
@@ -99,10 +98,10 @@ export function DashboardSidebar() {
                 <SidebarMenuButton
                   isActive={location.pathname === "/dashboard"}
                   render={<Link to="/dashboard" />}
-                  tooltip="New project"
+                  tooltip="New workspace"
                 >
                   <LayoutDashboardIcon />
-                  <span>New project</span>
+                  <span>New workspace</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -110,8 +109,8 @@ export function DashboardSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
-          <SidebarGroupAction title="New project" onClick={focusComposer}>
+          <SidebarGroupLabel>Workspaces</SidebarGroupLabel>
+          <SidebarGroupAction title="New workspace" onClick={focusComposer}>
             <PlusIcon />
           </SidebarGroupAction>
           <SidebarGroupContent>
@@ -122,11 +121,12 @@ export function DashboardSidebar() {
                       <SidebarMenuSkeleton showIcon />
                     </SidebarMenuItem>
                   ))
-                : projects.map((project, index) => {
-                    const sessions = sessionsForProject(project.id)
+                : workspaces.map((workspace, index) => {
+                    const workspaceId = workspace.id
+                    if (!workspaceId) return null
                     return (
                       <Collapsible
-                        key={project.id}
+                        key={workspaceId}
                         defaultOpen={index === 0}
                         className="group/collapsible"
                       >
@@ -135,19 +135,21 @@ export function DashboardSidebar() {
                             render={<SidebarMenuButton />}
                           >
                             <FolderIcon />
-                            <span>{project.name}</span>
+                            <span>{workspace.title}</span>
                             <ChevronRightIcon className="ml-auto transition-transform group-data-open/collapsible:rotate-90" />
                           </CollapsibleTrigger>
-                          <SidebarMenuBadge>{sessions.length}</SidebarMenuBadge>
+                          <SidebarMenuBadge>
+                            {workspace.sessions.length}
+                          </SidebarMenuBadge>
                           <CollapsibleContent>
                             <SidebarMenuSub>
-                              {sessions.map((session) => (
+                              {workspace.sessions.map((session) => (
                                 <SidebarMenuSubItem key={session.id}>
                                   <SidebarMenuSubButton
                                     isActive={activeSession === session.id}
                                     render={
                                       <Link
-                                        to={`/workspace/${project.id}?session=${session.id}`}
+                                        to={`/workspace/${workspaceId}?session=${session.id}`}
                                       />
                                     }
                                   >
@@ -159,7 +161,7 @@ export function DashboardSidebar() {
                               <SidebarMenuSubItem>
                                 <SidebarMenuSubButton
                                   render={
-                                    <Link to={`/workspace/${project.id}`} />
+                                    <Link to={`/workspace/${workspaceId}`} />
                                   }
                                 >
                                   <PlusIcon />

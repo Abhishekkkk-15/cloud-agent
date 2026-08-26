@@ -22,3 +22,8 @@ class GetAllWorkspacesResponse(BaseModel):
     
 class CreateWorkspaceRequest(BaseModel):
     prompt:str
+
+class CreateWorkspaceResponse(BaseModel):
+    workspace_id: str
+    redirect_url: str
+    workspace_name: str

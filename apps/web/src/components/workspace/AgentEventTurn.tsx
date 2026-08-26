@@ -28,7 +28,7 @@ import {
 } from "@/lib/agent-events"
 import { cn } from "@/lib/utils"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import type { AgentActivity, AgentEvent } from "@cloud-agent/shared"
+import type { AgentActivity, AgentEvent } from "@/types/chat-ui"
 
 const kindIcon: Record<AgentActionKind, ComponentType<{ className?: string }>> =
   {

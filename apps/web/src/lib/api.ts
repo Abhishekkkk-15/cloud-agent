@@ -1,57 +1,43 @@
-import axios from "axios"
 import { z } from "zod"
 
 import {
   mockChatSeed,
   mockFileTrees,
-  mockProjects,
+  mockUser,
+  mockWorkspaces,
   mockTerminalBoot,
 } from "@/data/mock"
+import { sessionsForWorkspace } from "@/data/mock-sessions"
 import { clearTokens, getAccessToken, http } from "@/lib/http"
+import type {
+  AgentActivity,
+  AgentEvent,
+  ThreadMessage,
+} from "@/types/chat-ui"
 import {
-  createProjectSchema,
-  projectSchema,
+  createWorkspaceRequestSchema,
+  createWorkspaceResponseSchema,
+  tokenPairResponseSchema,
   userSchema,
-  type AgentActivity,
-  type AgentEvent,
-  type ChatMessage,
-  type CreateProjectInput,
+  workspaceSchema,
+  workspaceWithSessionSchema,
+  type CreateWorkspaceRequest,
+  type CreateWorkspaceResponse,
   type FileNode,
-  type Project,
   type TerminalLine,
   type User,
+  type Workspace,
+  type WorkspaceWithSession,
 } from "@cloud-agent/shared"
 
 const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms))
 
-let projects = [...mockProjects]
+let workspaces = [...mockWorkspaces]
 const fileTrees: Record<string, FileNode[]> = structuredClone(mockFileTrees)
 
-export const api = axios.create({
-  baseURL: "/api",
-  timeout: 8000,
-})
-
-api.interceptors.request.use(async (config) => {
-  await delay(200 + Math.random() * 250)
-  return config
-})
-
-type AuthPayload = {
-  access_token: string
-  refresh_token: string
-  token_type: string
-  user: User
-}
-
-export async function googleSignIn(credential: string): Promise<AuthPayload> {
+export async function googleSignIn(credential: string) {
   const { data } = await http.post("/auth/google", { credential })
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    token_type: data.token_type,
-    user: userSchema.parse(data.user),
-  }
+  return tokenPairResponseSchema.parse(data)
 }
 
 export async function getCurrentUser(): Promise<User | null> {
@@ -65,74 +51,72 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-export async function listProjects(query?: string): Promise<Project[]> {
+function toWorkspaceWithSessions(workspace: Workspace): WorkspaceWithSession {
+  const id = workspace.id
+  if (!id) throw new Error("Workspace is missing id")
+  return workspaceWithSessionSchema.parse({
+    ...workspace,
+    sessions: sessionsForWorkspace(id),
+  })
+}
+
+export async function listWorkspaces(
+  query?: string
+): Promise<WorkspaceWithSession[]> {
   await delay()
   const q = query?.trim().toLowerCase()
   const filtered = q
-    ? projects.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          p.language.toLowerCase().includes(q)
+    ? workspaces.filter(
+        (workspace) =>
+          workspace.title.toLowerCase().includes(q) ||
+          workspace.initial_prompt.toLowerCase().includes(q)
       )
-    : projects
-  return z.array(projectSchema).parse(filtered)
+    : workspaces
+  return filtered.map(toWorkspaceWithSessions)
 }
 
-export async function getProject(id: string): Promise<Project> {
+export async function getWorkspace(id: string): Promise<WorkspaceWithSession> {
   await delay()
-  const project = projects.find((p) => p.id === id)
-  if (!project) throw new Error("Project not found")
-  return projectSchema.parse(project)
+  const workspace = workspaces.find((item) => item.id === id)
+  if (!workspace) throw new Error("Workspace not found")
+  return toWorkspaceWithSessions(workspace)
 }
 
-export async function createProject(
-  input: CreateProjectInput
-): Promise<Project> {
-  await delay(500)
-  const data = createProjectSchema.parse(input)
+export async function createWorkspace(
+  input: CreateWorkspaceRequest
+): Promise<CreateWorkspaceResponse> {
+  const body = createWorkspaceRequestSchema.parse(input)
+  const { data } = await http.post("/workspaces/new", body)
+  const created = createWorkspaceResponseSchema.parse(data)
+
+  // Seed local IDE mocks so navigating to the new workspace still works
+  // until list/get workspace APIs are wired.
   const now = new Date().toISOString()
-  const project: Project = {
-    id: `proj_${crypto.randomUUID().slice(0, 8)}`,
-    name: data.name,
-    description: data.description || `${data.template} project`,
-    language:
-      data.template === "python-flask"
-        ? "python"
-        : data.template === "static-html"
-          ? "html"
-          : data.language,
-    visibility: data.visibility,
-    starCount: 0,
-    isStarred: false,
-    updatedAt: now,
-    createdAt: now,
-    ownerUsername: mockUser.username,
-  }
-  projects = [project, ...projects]
-  fileTrees[project.id] = structuredClone(mockFileTrees.default)
-  return projectSchema.parse(project)
-}
-
-export async function toggleStar(id: string): Promise<Project> {
-  await delay(150)
-  projects = projects.map((p) => {
-    if (p.id !== id) return p
-    const isStarred = !p.isStarred
-    return {
-      ...p,
-      isStarred,
-      starCount: Math.max(0, p.starCount + (isStarred ? 1 : -1)),
-    }
+  const workspace = workspaceSchema.parse({
+    id: created.workspace_id,
+    title: created.workspace_name,
+    user_id: mockUser.id,
+    target_path: "/app",
+    source_path: `/mnt/workspaces/${created.workspace_id}`,
+    sandbox_id: null,
+    is_active: true,
+    initial_prompt: body.prompt,
+    status: "pending",
+    created_at: now,
+    updated_at: now,
   })
-  const project = projects.find((p) => p.id === id)
-  if (!project) throw new Error("Project not found")
-  return projectSchema.parse(project)
+  workspaces = [
+    workspace,
+    ...workspaces.filter((item) => item.id !== created.workspace_id),
+  ]
+  fileTrees[created.workspace_id] = structuredClone(mockFileTrees.default)
+
+  return created
 }
 
-export async function getFileTree(projectId: string): Promise<FileNode[]> {
+export async function getFileTree(workspaceId: string): Promise<FileNode[]> {
   await delay()
-  return fileTrees[projectId] ?? structuredClone(mockFileTrees.default)
+  return fileTrees[workspaceId] ?? structuredClone(mockFileTrees.default)
 }
 
 export async function getTerminalBoot(): Promise<TerminalLine[]> {
@@ -186,13 +170,13 @@ export async function runCommand(command: string): Promise<TerminalLine[]> {
   return lines
 }
 
-export async function getChatSeed(): Promise<ChatMessage[]> {
+export async function getChatSeed(): Promise<ThreadMessage[]> {
   await delay(100)
   return mockChatSeed
 }
 
 export type ChatReply = {
-  message: ChatMessage
+  message: ThreadMessage
   activities: AgentActivity[]
 }
 
@@ -251,7 +235,11 @@ function buildActivities(
     })
   }
 
-  if (lower.includes("run") || lower.includes("preview") || lower.includes("start")) {
+  if (
+    lower.includes("run") ||
+    lower.includes("preview") ||
+    lower.includes("start")
+  ) {
     activities.push({
       id: crypto.randomUUID(),
       type: "run_command",
@@ -306,12 +294,11 @@ function buildEventsFromActivities(
       continue
     }
     if (activity.type === "read_file") {
-      const callId = `call_${activity.id}`
       events.push({
         id: crypto.randomUUID(),
         type: "TOOL_CALL",
         data: {
-          id: callId,
+          id: `call_${activity.id}`,
           name: "read_file",
           arguments: { path: activity.fileName ?? activity.detail },
         },
@@ -359,25 +346,29 @@ function buildEventsFromActivities(
   return events
 }
 
+/** Mock chat send — request shape matches `ChatMessageRequest` (`query`). */
 export async function sendChatMessage(
-  prompt: string,
+  query: string,
   activeFile?: { id: string; name: string } | null,
-  attachmentCount = 0
+  attachmentCount = 0,
+  sessionId = "sess_local"
 ): Promise<ChatReply> {
   await delay(400)
+  const payload = z.object({ query: z.string().min(1) }).parse({ query })
   const fileHint = activeFile?.name ? ` in \`${activeFile.name}\`` : ""
   const attachmentHint =
     attachmentCount > 0
       ? `\n\nI see ${attachmentCount} attachment${attachmentCount === 1 ? "" : "s"} on your message (mock — not uploaded).`
       : ""
-  const activities = buildActivities(prompt, activeFile)
-  const content = `Here's a mock response for "${prompt}"${fileHint}.${attachmentHint}\n\nI inspected the workspace, ran the planned steps above, and prepared a suggested change. Wire this to your real agent backend when ready.`
-  const events = buildEventsFromActivities(prompt, activities, content)
-  const message: ChatMessage = {
+  const activities = buildActivities(payload.query, activeFile)
+  const content = `Here's a mock response for "${payload.query}"${fileHint}.${attachmentHint}\n\nI inspected the workspace, ran the planned steps above, and prepared a suggested change. Wire this to your real agent backend when ready.`
+  const events = buildEventsFromActivities(payload.query, activities, content)
+  const message: ThreadMessage = {
     id: crypto.randomUUID(),
+    session_id: sessionId,
+    seq: Date.now(),
     role: "assistant",
     content,
-    createdAt: new Date().toISOString(),
     activities,
     events,
   }

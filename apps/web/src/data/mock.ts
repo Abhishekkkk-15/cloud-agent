@@ -1,9 +1,4 @@
-import type {
-  FileNode,
-  Project,
-  TerminalLine,
-  User,
-} from "@cloud-agent/shared"
+import type { FileNode, TerminalLine, User, Workspace } from "@cloud-agent/shared"
 
 export { mockChatSeed } from "@/data/mock-agent-events"
 
@@ -16,83 +11,73 @@ export const mockUser: User = {
   plan: "hacker",
 }
 
-export const mockProjects: Project[] = [
-  {
-    id: "proj_1",
-    name: "neon-dashboard",
-    description: "Realtime analytics dashboard with WebSocket feeds.",
-    language: "typescript",
-    visibility: "public",
-    starCount: 128,
-    isStarred: true,
-    updatedAt: "2026-08-20T14:22:00.000Z",
-    createdAt: "2026-07-01T09:00:00.000Z",
-    ownerUsername: "alexrivera",
-  },
-  {
-    id: "proj_2",
-    name: "flask-notes-api",
-    description: "Lightweight notes API with JWT auth and SQLite.",
-    language: "python",
-    visibility: "private",
-    starCount: 12,
-    isStarred: false,
-    updatedAt: "2026-08-19T18:05:00.000Z",
-    createdAt: "2026-06-12T11:30:00.000Z",
-    ownerUsername: "alexrivera",
-  },
-  {
-    id: "proj_3",
-    name: "edge-router",
-    description: "Tiny Go reverse proxy with hot-reload config.",
-    language: "go",
-    visibility: "public",
-    starCount: 64,
-    isStarred: false,
-    updatedAt: "2026-08-18T08:41:00.000Z",
-    createdAt: "2026-05-03T16:20:00.000Z",
-    ownerUsername: "alexrivera",
-  },
-  {
-    id: "proj_4",
-    name: "portfolio-site",
-    description: "Static personal site with dark theme and blog.",
-    language: "html",
-    visibility: "public",
-    starCount: 31,
-    isStarred: true,
-    updatedAt: "2026-08-15T21:10:00.000Z",
-    createdAt: "2026-04-22T10:00:00.000Z",
-    ownerUsername: "alexrivera",
-  },
-  {
-    id: "proj_5",
-    name: "chat-widget",
-    description: "Embeddable React chat widget for support desks.",
-    language: "javascript",
-    visibility: "private",
-    starCount: 8,
-    isStarred: false,
-    updatedAt: "2026-08-12T12:00:00.000Z",
-    createdAt: "2026-08-01T08:00:00.000Z",
-    ownerUsername: "alexrivera",
-  },
-  {
-    id: "proj_6",
-    name: "wasm-playground",
-    description: "Experiment with Rust + WASM in the browser.",
-    language: "rust",
-    visibility: "public",
-    starCount: 97,
-    isStarred: false,
-    updatedAt: "2026-08-10T07:55:00.000Z",
-    createdAt: "2026-03-14T13:45:00.000Z",
-    ownerUsername: "alexrivera",
-  },
+function ws(
+  partial: Omit<Workspace, "user_id" | "target_path" | "source_path" | "sandbox_id" | "is_active"> &
+    Partial<Workspace>
+): Workspace {
+  return {
+    user_id: mockUser.id,
+    target_path: "/app",
+    source_path: `/mnt/workspaces/${partial.id ?? "unknown"}`,
+    sandbox_id: null,
+    is_active: true,
+    ...partial,
+  }
+}
+
+export const mockWorkspaces: Workspace[] = [
+  ws({
+    id: "ws_1",
+    title: "neon-dashboard",
+    initial_prompt: "Realtime analytics dashboard with WebSocket feeds.",
+    status: "ready",
+    updated_at: "2026-08-20T14:22:00.000Z",
+    created_at: "2026-07-01T09:00:00.000Z",
+  }),
+  ws({
+    id: "ws_2",
+    title: "flask-notes-api",
+    initial_prompt: "Lightweight notes API with JWT auth and SQLite.",
+    status: "ready",
+    updated_at: "2026-08-19T18:05:00.000Z",
+    created_at: "2026-06-12T11:30:00.000Z",
+  }),
+  ws({
+    id: "ws_3",
+    title: "edge-router",
+    initial_prompt: "Tiny Go reverse proxy with hot-reload config.",
+    status: "ready",
+    updated_at: "2026-08-18T08:41:00.000Z",
+    created_at: "2026-05-03T16:20:00.000Z",
+  }),
+  ws({
+    id: "ws_4",
+    title: "portfolio-site",
+    initial_prompt: "Static personal site with dark theme and blog.",
+    status: "ready",
+    updated_at: "2026-08-15T21:10:00.000Z",
+    created_at: "2026-04-22T10:00:00.000Z",
+  }),
+  ws({
+    id: "ws_5",
+    title: "chat-widget",
+    initial_prompt: "Embeddable React chat widget for support desks.",
+    status: "running",
+    updated_at: "2026-08-12T12:00:00.000Z",
+    created_at: "2026-08-01T08:00:00.000Z",
+  }),
+  ws({
+    id: "ws_6",
+    title: "wasm-playground",
+    initial_prompt: "Experiment with Rust + WASM in the browser.",
+    status: "pending",
+    updated_at: "2026-08-10T07:55:00.000Z",
+    created_at: "2026-03-14T13:45:00.000Z",
+  }),
 ]
 
 export const mockFileTrees: Record<string, FileNode[]> = {
-  proj_1: [
+  ws_1: [
     {
       id: "f_root_src",
       name: "src",
@@ -246,7 +231,7 @@ npm run dev
       name: "README.md",
       type: "file",
       language: "markdown",
-      content: `# New Project
+      content: `# New Workspace
 
 Start building in the cloud.
 `,
@@ -274,20 +259,3 @@ export const mockTerminalBoot: TerminalLine[] = [
     timestamp: new Date().toISOString(),
   },
 ]
-
-export const languageLabels: Record<string, string> = {
-  typescript: "TypeScript",
-  javascript: "JavaScript",
-  python: "Python",
-  go: "Go",
-  rust: "Rust",
-  html: "HTML",
-}
-
-export const templateOptions = [
-  { value: "blank", label: "Blank" },
-  { value: "react-vite", label: "React + Vite" },
-  { value: "express-api", label: "Express API" },
-  { value: "python-flask", label: "Python Flask" },
-  { value: "static-html", label: "Static HTML" },
-] as const

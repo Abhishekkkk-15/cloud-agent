@@ -1,4 +1,4 @@
-import type { AgentActivity, AgentEvent, AgentEventType } from "@cloud-agent/shared"
+import type { AgentActivity, AgentEvent, AgentEventType } from "@/types/chat-ui"
 
 /** Shortcut: event.text ≈ data.text | data.content */
 export function eventText(event: AgentEvent): string | undefined {

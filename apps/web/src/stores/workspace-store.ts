@@ -4,19 +4,21 @@ import { streamText } from "@/lib/mock-stream"
 import {
   getChatSeed,
   getFileTree,
-  getProject,
   getTerminalBoot,
+  getWorkspace,
   runCommand,
   sendChatMessage,
 } from "@/lib/api"
 import type {
+  AgentActivity,
   ChatAttachment,
-  ChatMessage,
+  ThreadMessage,
+} from "@/types/chat-ui"
+import type {
   FileNode,
-  Project,
   RunSession,
   TerminalLine,
-  AgentActivity,
+  Workspace,
 } from "@cloud-agent/shared"
 
 function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
@@ -49,12 +51,13 @@ function updateFileContent(
 export type WorkspaceTab = "preview" | "code" | "console"
 
 type WorkspaceState = {
-  project: Project | null
+  workspace: Workspace | null
+  activeSessionId: string | null
   files: FileNode[]
   openFileIds: string[]
   activeFileId: string | null
   terminalLines: TerminalLine[]
-  chatMessages: ChatMessage[]
+  chatMessages: ThreadMessage[]
   runSession: RunSession
   loading: boolean
   chatLoading: boolean
@@ -62,7 +65,7 @@ type WorkspaceState = {
   workspaceTab: WorkspaceTab
   bottomPanel: "console" | "shell"
   error: string | null
-  loadWorkspace: (projectId: string) => Promise<void>
+  loadWorkspace: (workspaceId: string, sessionId?: string | null) => Promise<void>
   openFile: (fileId: string) => void
   closeFile: (fileId: string) => void
   setActiveFile: (fileId: string) => void
@@ -80,7 +83,8 @@ type WorkspaceState = {
 let chatAbortController: AbortController | null = null
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
-  project: null,
+  workspace: null,
+  activeSessionId: null,
   files: [],
   openFileIds: [],
   activeFileId: null,
@@ -105,41 +109,50 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     return flattenFiles(files).find((f) => f.id === activeFileId) ?? null
   },
 
-  loadWorkspace: async (projectId) => {
+  loadWorkspace: async (workspaceId, sessionId = null) => {
     set({ loading: true, error: null })
     try {
-      const [project, files, terminalLines, chatSeed] = await Promise.all([
-        getProject(projectId),
-        getFileTree(projectId),
-        getTerminalBoot(),
-        getChatSeed(),
-      ])
+      const [workspaceDetail, files, terminalLines, chatSeed] =
+        await Promise.all([
+          getWorkspace(workspaceId),
+          getFileTree(workspaceId),
+          getTerminalBoot(),
+          getChatSeed(),
+        ])
       const flat = flattenFiles(files)
       const firstFile = flat[0]
-      const seedKey = `agent-seed:${projectId}`
+      const seedKey = `agent-seed:${workspaceId}`
       const seed = sessionStorage.getItem(seedKey)
+      const resolvedSessionId =
+        sessionId ?? workspaceDetail.sessions[0]?.id ?? `${workspaceId}_main`
 
-      let chatMessages = chatSeed
+      let chatMessages = chatSeed.map((message) => ({
+        ...message,
+        session_id: resolvedSessionId,
+      }))
       if (seed) {
         sessionStorage.removeItem(seedKey)
         chatMessages = [
           {
             id: crypto.randomUUID(),
+            session_id: resolvedSessionId,
+            seq: 0,
             role: "user",
             content: seed,
-            createdAt: new Date().toISOString(),
           },
           {
             id: crypto.randomUUID(),
+            session_id: resolvedSessionId,
+            seq: 1,
             role: "assistant",
-            content: `Got it — I'll scaffold “${project.name}” around:\n\n> ${seed}\n\nI set up a starter workspace. Open the Code tab to edit files, or hit Run to preview. What should we tackle first?`,
-            createdAt: new Date().toISOString(),
+            content: `Got it — I'll scaffold “${workspaceDetail.title}” around:\n\n> ${seed}\n\nI set up a starter workspace. Open the Code tab to edit files, or hit Run to preview. What should we tackle first?`,
           },
         ]
       }
 
       set({
-        project,
+        workspace: workspaceDetail,
+        activeSessionId: resolvedSessionId,
         files,
         terminalLines,
         chatMessages,
@@ -214,12 +227,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       workspaceTab: "preview",
     })
     await get().executeCommand("npm run dev")
-    const project = get().project
+    const workspace = get().workspace
     set({
       runSession: {
         id: get().runSession.id,
         status: "running",
-        url: `https://${project?.name ?? "app"}.cloudagent.dev`,
+        url: `https://${workspace?.title ?? "app"}.cloudagent.dev`,
         startedAt: get().runSession.startedAt,
       },
     })
@@ -253,12 +266,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     chatAbortController = controller
 
     let assistantId: string | null = null
+    const sessionId = get().activeSessionId ?? "sess_local"
+    const nextSeq = get().chatMessages.length
 
-    const userMessage: ChatMessage = {
+    const userMessage: ThreadMessage = {
       id: crypto.randomUUID(),
+      session_id: sessionId,
+      seq: nextSeq,
       role: "user",
       content: trimmed || "(attached files)",
-      createdAt: new Date().toISOString(),
       attachments: attachments.length ? attachments : undefined,
     }
     set((state) => ({
@@ -296,7 +312,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const { message, activities } = await sendChatMessage(
         trimmed || "Review my attachments",
         active ? { id: active.id, name: active.name } : null,
-        attachments.length
+        attachments.length,
+        sessionId
       )
 
       if (controller.signal.aborted) {
@@ -315,6 +332,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           ...state.chatMessages,
           {
             ...message,
+            seq: nextSeq + 1,
             content: "",
             activities: pendingActivities,
           },

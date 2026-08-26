@@ -1,4 +1,4 @@
-import type { AgentEvent, ChatMessage } from "@cloud-agent/shared"
+import type { AgentEvent, ThreadMessage } from "@/types/chat-ui"
 
 const sessionId = "sess_demo_cli_package"
 
@@ -10,7 +10,6 @@ function ev(
   return { id, type, data }
 }
 
-/** First assistant turn — rich event stream matching the product event table */
 export const mockFirstTurnEvents: AgentEvent[] = [
   ev("e1", "RUN_STARTED", {
     prompt: "Ship this as a CLI package with docs and install checks.",
@@ -146,33 +145,37 @@ export const mockSecondTurnEvents: AgentEvent[] = [
   }),
 ]
 
-export const mockChatSeed: ChatMessage[] = [
+export const mockChatSeed: ThreadMessage[] = [
   {
     id: "c0",
+    session_id: sessionId,
+    seq: 0,
     role: "user",
     content: "Ship this as a CLI package with docs and install checks.",
-    createdAt: "2026-08-24T10:00:00.000Z",
   },
   {
     id: "c1",
+    session_id: sessionId,
+    seq: 1,
     role: "assistant",
     content:
       "I've confirmed this should be delivered as a CLI package, not a web app. I'm adding the implementation and docs now, then I'll install the runtime dependencies and run the workspace checks.",
-    createdAt: "2026-08-24T10:00:12.000Z",
     events: mockFirstTurnEvents,
   },
   {
     id: "c2",
+    session_id: sessionId,
+    seq: 2,
     role: "user",
     content: "Also add a detect command for .env files.",
-    createdAt: "2026-08-24T10:01:00.000Z",
   },
   {
     id: "c3",
+    session_id: sessionId,
+    seq: 3,
     role: "assistant",
     content:
       "I'll add a `detect` command next and wire it into the CLI entrypoint so you can scan for `.env` files from the terminal.",
-    createdAt: "2026-08-24T10:01:18.000Z",
     events: mockSecondTurnEvents,
   },
 ]
