@@ -21,7 +21,7 @@ async def create_workspace(body:CreateWorkspaceRequest,current_user: CurrentUser
         workspace_obj = Workspace(title=body.prompt,user_id=current_user.id,target_path="/app",source_path="/",initial_prompt=body.prompt)
         workspace =await repo.create(workspace_obj)
         
-        return CreateWorkspaceResponse(workspace_id=workspace.id,redirect_url=f"/workspace/{workspace.id}",workspace_name=workspace.title)
+        return CreateWorkspaceResponse(workspace_id=workspace.id,redirect_url=f"/workspace/{workspace.id}",workspace_name=workspace.title,workspace=workspace)
 
     except WriteError as e:
         raise HTTPException(

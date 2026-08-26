@@ -51,7 +51,7 @@ export const workspaceSchema = z.object({
   title: z.string(),
   user_id: z.string(),
   target_path: z.string(),
-  source_path: z.string(),
+  source_path: z.string().nullable(),
   sandbox_id: z.string().nullable(),
   is_active: z.boolean(),
   initial_prompt: z.string(),
@@ -91,6 +91,7 @@ export const createWorkspaceResponseSchema = z.object({
   workspace_id: z.string(),
   redirect_url: z.string(),
   workspace_name: z.string(),
+  workspace: workspaceSchema,
 });
 
 export const workspaceListResponseSchema = z.object({

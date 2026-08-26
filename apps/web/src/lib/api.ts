@@ -9,11 +9,7 @@ import {
 } from "@/data/mock"
 import { sessionsForWorkspace } from "@/data/mock-sessions"
 import { clearTokens, getAccessToken, http } from "@/lib/http"
-import type {
-  AgentActivity,
-  AgentEvent,
-  ThreadMessage,
-} from "@/types/chat-ui"
+import type { AgentActivity, AgentEvent, ThreadMessage } from "@/types/chat-ui"
 import {
   createWorkspaceRequestSchema,
   createWorkspaceResponseSchema,
@@ -88,7 +84,7 @@ export async function createWorkspace(
   const body = createWorkspaceRequestSchema.parse(input)
   const { data } = await http.post("/workspaces/new", body)
   const created = createWorkspaceResponseSchema.parse(data)
-
+  console.log(data)
   // Seed local IDE mocks so navigating to the new workspace still works
   // until list/get workspace APIs are wired.
   const now = new Date().toISOString()
@@ -96,9 +92,9 @@ export async function createWorkspace(
     id: created.workspace_id,
     title: created.workspace_name,
     user_id: mockUser.id,
-    target_path: "/app",
-    source_path: `/mnt/workspaces/${created.workspace_id}`,
+    source_path: created.workspace.source_path,
     sandbox_id: null,
+    target_path: created.workspace.target_path,
     is_active: true,
     initial_prompt: body.prompt,
     status: "pending",

@@ -45,6 +45,7 @@ export function AgentCreateChat() {
       toast.success("Workspace created")
       navigate(created.redirect_url)
     } catch (error) {
+      console.log(error)
       toast.error(getApiErrorMessage(error, "Could not start workspace"))
     }
   }

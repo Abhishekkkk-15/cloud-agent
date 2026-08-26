@@ -27,3 +27,4 @@ class CreateWorkspaceResponse(BaseModel):
     workspace_id: str
     redirect_url: str
     workspace_name: str
+    workspace:Workspace
