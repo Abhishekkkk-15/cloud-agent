@@ -6,20 +6,28 @@ from src.repository.workspace_repository import WorkspaceRepo
 from src.repository.session_repository import SessionRepository
 from fastapi import  HTTPException, status
 from collections import defaultdict
+from pymongo.errors import WriteError
 
 async def create_workspace(body:CreateWorkspaceRequest,current_user: CurrentUser,repo:WorkspaceRepo,):
-    if not current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authorized"
-        )
-    # Generate workspace title using user query
-    workspace_obj = Workspace(title=body.prompt,user_id=current_user.id,target_path="/app",source_path="/",initial_prompt=body.prompt)
-    workspace = repo.create(workspace_obj)
-    return workspace
+    try:
+    
+        if not current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authorized"
+            )
+        # Generate workspace title using user query
+        workspace_obj = Workspace(title=body.prompt,user_id=current_user.id,target_path="/app",source_path="/",initial_prompt=body.prompt)
+        workspace = repo.create(workspace_obj)
+        return workspace
 
-    
-    
+    except WriteError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error : [{e}]"
+        )
+    except:
+        print("error while creating workspace")
 
 async def get_all_workspace(
     current_user: CurrentUser,
