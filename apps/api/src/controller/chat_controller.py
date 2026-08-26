@@ -8,6 +8,7 @@ from fastapi import  HTTPException, status
 from src.dependency.sandbox_dependency import SandboxRepo
 from fastapi.sse import EventSourceResponse
 from src.utils.config import config
+from src.schemas.sandbox_schema import SandboxRunResult
 
 
 async def start_chat(body:ChatMessageRequest,current_user: CurrentUser,workspace_repo:WorkspaceRepo,session_repo:SessionRepo, sandbox:SandboxRepo, w_id:str|None=None):
@@ -27,7 +28,6 @@ async def start_chat(body:ChatMessageRequest,current_user: CurrentUser,workspace
     workspace_obj = Workspace(title=query_intent_title,user_id=current_user.id,target_path="/app",source_path="/app",sandbox_id="somid")
     workspace =await workspace_repo.create(workspace_obj)
     if not workspace.id:
-        print(sandbox)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Something wrong with the server"
@@ -36,19 +36,17 @@ async def start_chat(body:ChatMessageRequest,current_user: CurrentUser,workspace
     workspace.target_path
     workspace_root = config.workspace_base/workspace.id
     workspace_root.mkdir(parents=True, exist_ok=True)
-    sandbox = sandbox.run_sandbox(workspace_id=workspace.id)
-    print(sandbox)
-    if isinstance(sandbox,dict):
-        print(sandbox)
+    sandbox_res = sandbox.run_sandbox(workspace_id=workspace.id)
+    if not isinstance(sandbox_res,SandboxRunResult):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Something wrong with the server"
-        )
+            detail=f"Something wrong with Docker {sandbox_res}"
+        )  
     
     
-    workspace.sandbox_id = sandbox.id
+    workspace.sandbox_id = sandbox_res.id
     await workspace_repo.save(workspace)
-    agent = CloudAgentCore(workspace.id,sandbox.id,current_user.id)
+    agent = CloudAgentCore(workspace.id,sandbox_res.id,current_user.id)
     res = await agent.run(msg=body.query)
     # agent = CloudAgentCore()
     # agent.run()
