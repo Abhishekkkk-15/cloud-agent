@@ -17,3 +17,8 @@ class WorkspaceResponse(BaseModel):
     
 class GetAllWorkspacesResponse(BaseModel):    
     workspaces:WorkspaceWithSession
+    
+    
+    
+class CreateWorkspaceRequest(BaseModel):
+    prompt:str

@@ -1,11 +1,25 @@
 from src.dependency.auth_dependency import CurrentUser
 # from src.schemas.workspace_schema import 
 from src.models.workspace_model import Workspace
-from src.schemas.workspace_schema import GetAllWorkspacesResponse, WorkspaceWithSession,MinimalSession
+from src.schemas.workspace_schema import GetAllWorkspacesResponse, WorkspaceWithSession,MinimalSession, CreateWorkspaceRequest
 from src.repository.workspace_repository import WorkspaceRepo
 from src.repository.session_repository import SessionRepository
 from fastapi import  HTTPException, status
 from collections import defaultdict
+
+async def create_workspace(body:CreateWorkspaceRequest,current_user: CurrentUser,repo:WorkspaceRepo,):
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized"
+        )
+    # Generate workspace title using user query
+    workspace_obj = Workspace(title=body.prompt,user_id=current_user.id,target_path="/app",source_path="/",initial_prompt=body.prompt)
+    workspace = repo.create(workspace_obj)
+    return workspace
+
+    
+    
 
 async def get_all_workspace(
     current_user: CurrentUser,
@@ -55,6 +69,7 @@ async def get_all_workspace(
         for workspace in all_workspaces
     ]
     
+      
     
 async def get_workspace_details(current_user: CurrentUser,repo:WorkspaceRepo,session_repo:SessionRepository, w_id:str|None=None) -> WorkspaceWithSession:
     if not w_id:
