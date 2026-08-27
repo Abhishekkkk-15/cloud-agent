@@ -26,41 +26,22 @@ export function WorkspacePage() {
   const error = useWorkspaceStore((s) => s.error)
   const workspaceTab = useWorkspaceStore((s) => s.workspaceTab)
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
-  const socketRef = useRef<null | WebSocket>(null)
-
-  // useEffect(() => {
-  //   socketRef.current = ws
-  //   if (ws != null) {
-  //     ws.onopen = () => {
-  //       console.log("WS connected")
-  //       if (workspaceId) {
-  //         ws.send(
-  //           JSON.stringify({ workspace_id: workspaceId, session: sessionId })
-  //         )
-  //       }
-  //     }
-  //     ws.onmessage = (event) => {
-  //       console.log("Received:", event.data)
-  //     }
-
-  //     ws.onclose = () => {
-  //       console.log("Disconnected")
-  //     }
-  //   }
-
-  //   return () => {
-  //     ws.close()
-  //   }
-  // }, [])
 
   useEffect(() => {
-    ws.connect()
+    ;(async () => {
+      await ws.connect()
+      console.log("run afterwards")
+      ws.send("agent:start", {
+        workspace_id: workspaceId,
+        session_id: sessionId,
+      })
+    })()
+
     const unsubscribe = ws.subscribe("agent:send", (event) => {
       console.log(event)
     })
-    ws.send("agent:start", { workspace_id: workspaceId, session_id: sessionId })
 
-    return unsubscribe()
+    return unsubscribe
   }, [])
 
   useEffect(() => {

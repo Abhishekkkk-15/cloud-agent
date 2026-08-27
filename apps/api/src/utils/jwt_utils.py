@@ -10,8 +10,8 @@ load_dotenv()
 
 SECRET_KEY = os.getenv("JWT_SECRET") or "dev-insecure-change-me"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 1000
+REFRESH_TOKEN_EXPIRE_DAYS = 2000
 
 
 def create_refresh_token(user_id: str) -> str:

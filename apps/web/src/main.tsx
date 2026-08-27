@@ -16,11 +16,13 @@ const app = (
 )
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+  // <StrictMode>
+  <div>
     {googleClientId ? (
       <GoogleOAuthProvider clientId={googleClientId}>{app}</GoogleOAuthProvider>
     ) : (
       app
     )}
-  </StrictMode>
+  </div>
+  // </StrictMode>
 )

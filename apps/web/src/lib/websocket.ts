@@ -13,41 +13,43 @@ class WebSocketManager {
     this.url = url
   }
 
-  connect() {
-    if (
-      this.socket &&
-      (this.socket.readyState === WebSocket.OPEN ||
-        this.socket.readyState === WebSocket.CONNECTING)
-    ) {
-      return
-    }
-
-    this.socket = new WebSocket(this.url)
-    this.socket.onopen = () => {
-      console.log("websocket connected")
-      this.reconnectAttempts = 0
-    }
-
-    this.socket.onmessage = (event) => {
-      try {
-        console.log(event)
-        const message = JSON.parse(event.data)
-        const handlers = this.handlers.get(message.type)
-
-        handlers?.forEach((handle) => handle(message.type))
-      } catch (error) {
-        console.error("Invalid websocket message : ", error)
+  connect(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (
+        this.socket &&
+        (this.socket.readyState === WebSocket.OPEN ||
+          this.socket.readyState === WebSocket.CONNECTING)
+      ) {
+        resolve()
+        return
       }
-    }
 
-    this.socket.onclose = () => {
-      this.socket = null
-      this.reconnect()
-    }
+      this.socket = new WebSocket(this.url)
+      this.socket.onopen = () => {
+        console.log("websocket connected")
+        this.reconnectAttempts = 0
+        resolve()
+      }
 
-    this.socket.onerror = (error) => {
-      console.error("WebSocket error:", error)
-    }
+      this.socket.onmessage = (event) => {
+        try {
+          console.log(event)
+          const message = JSON.parse(event.data)
+          const handlers = this.handlers.get(message.type)
+
+          handlers?.forEach((handle) => handle(message.type))
+        } catch (error) {
+          console.error("Invalid websocket message : ", error)
+        }
+      }
+
+      this.socket.onclose = () => {
+        this.socket = null
+        this.reconnect()
+      }
+
+      this.socket.onerror = reject
+    })
   }
 
   private reconnect() {
