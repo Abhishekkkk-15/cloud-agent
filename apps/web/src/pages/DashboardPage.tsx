@@ -3,17 +3,21 @@ import { useEffect } from "react"
 import { AgentCreateChat } from "@/components/dashboard/AgentCreateChat"
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader"
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { useAuthStore } from "@/stores/auth-store"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 
 export function DashboardPage() {
   const user = useAuthStore((s) => s.user)
+  const authLoading = useAuthStore((s) => s.loading)
   const fetchWorkspaces = useWorkspaceListStore((s) => s.fetchWorkspaces)
+  const error = useWorkspaceListStore((s) => s.error)
 
   useEffect(() => {
+    if (authLoading || !user) return
     void fetchWorkspaces()
-  }, [fetchWorkspaces])
+  }, [authLoading, user, fetchWorkspaces])
 
   const firstName = user?.name.split(" ")[0]
 
@@ -32,6 +36,12 @@ export function DashboardPage() {
                 Start a new workspace, or reopen a session from the sidebar.
               </p>
             </div>
+            {error ? (
+              <Alert variant="destructive">
+                <AlertTitle>Could not load workspaces</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
             <AgentCreateChat />
           </div>
         </div>

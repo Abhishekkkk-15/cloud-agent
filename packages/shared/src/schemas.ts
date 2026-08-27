@@ -45,6 +45,12 @@ export const workspaceStatusSchema = z.enum([
   "failed",
 ]);
 
+const isoTimestamp = z
+  .union([z.string(), z.date()])
+  .transform((value) =>
+    value instanceof Date ? value.toISOString() : value
+  );
+
 /** Matches `Workspace` — snake_case API fields */
 export const workspaceSchema = z.object({
   id: z.string().nullable(),
@@ -56,8 +62,8 @@ export const workspaceSchema = z.object({
   is_active: z.boolean(),
   initial_prompt: z.string(),
   status: workspaceStatusSchema,
-  created_at: z.string(),
-  updated_at: z.string(),
+  created_at: isoTimestamp,
+  updated_at: isoTimestamp,
 });
 
 /** Matches `MinimalSession` (`id` / `_id`) */
@@ -74,12 +80,7 @@ export const minimalSessionSchema = z
   });
 
 export const workspaceWithSessionSchema = workspaceSchema.extend({
-  sessions: z.array(
-    z.object({
-      id: z.string(),
-      title: z.string(),
-    }),
-  ),
+  sessions: z.array(minimalSessionSchema),
 });
 
 export const createWorkspaceRequestSchema = z.object({
@@ -95,7 +96,7 @@ export const createWorkspaceResponseSchema = z.object({
 });
 
 export const workspaceListResponseSchema = z.object({
-  workspaces: z.array(workspaceSchema),
+  workspaces: z.array(workspaceWithSessionSchema),
 });
 
 export const chatMessageRequestSchema = z.object({

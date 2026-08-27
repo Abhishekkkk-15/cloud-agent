@@ -1,30 +1,31 @@
+from pydantic import BaseModel
+
 from src.models.workspace_model import Workspace
 
-from pydantic import BaseModel, Field
 
 class MinimalSession(BaseModel):
-    id: str = Field(alias="_id")
+    id: str
     title: str = ""
 
+
 class WorkspaceWithSession(Workspace):
-    sessions:list[MinimalSession]
+    sessions: list[MinimalSession]
+
 
 class WorkspaceResponse(BaseModel):
-    workspaces:list[Workspace]
-    
- 
-    
-    
-class GetAllWorkspacesResponse(BaseModel):    
-    workspaces:WorkspaceWithSession
-    
-    
-    
+    workspaces: list[Workspace]
+
+
+class GetAllWorkspacesResponse(BaseModel):
+    workspaces: list[WorkspaceWithSession]
+
+
 class CreateWorkspaceRequest(BaseModel):
-    prompt:str
+    prompt: str
+
 
 class CreateWorkspaceResponse(BaseModel):
     workspace_id: str
     redirect_url: str
     workspace_name: str
-    workspace:Workspace
+    workspace: Workspace

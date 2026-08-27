@@ -52,6 +52,7 @@ export function DashboardSidebar() {
   const signOut = useAuthStore((s) => s.signOut)
   const workspaces = useWorkspaceListStore((s) => s.workspaces)
   const loading = useWorkspaceListStore((s) => s.loading)
+  const error = useWorkspaceListStore((s) => s.error)
   const search = new URLSearchParams(location.search)
   const activeSession = search.get("session")
   const initials =
@@ -115,13 +116,27 @@ export function DashboardSidebar() {
           </SidebarGroupAction>
           <SidebarGroupContent>
             <SidebarMenu>
+              {error ? (
+                <SidebarMenuItem>
+                  <span className="px-2 py-1 text-xs text-muted-foreground">
+                    {error}
+                  </span>
+                </SidebarMenuItem>
+              ) : null}
               {loading
                 ? Array.from({ length: 4 }).map((_, index) => (
                     <SidebarMenuItem key={index}>
                       <SidebarMenuSkeleton showIcon />
                     </SidebarMenuItem>
                   ))
-                : workspaces.map((workspace, index) => {
+                : workspaces.length === 0 ? (
+                    <SidebarMenuItem>
+                      <span className="px-2 py-1 text-xs text-muted-foreground">
+                        No workspaces yet. Describe something above to start.
+                      </span>
+                    </SidebarMenuItem>
+                  ) : (
+                    workspaces.map((workspace, index) => {
                     const workspaceId = workspace.id
                     if (!workspaceId) return null
                     return (
@@ -173,7 +188,8 @@ export function DashboardSidebar() {
                         </SidebarMenuItem>
                       </Collapsible>
                     )
-                  })}
+                  })
+                  )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

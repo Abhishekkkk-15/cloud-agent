@@ -3,11 +3,8 @@ import { z } from "zod"
 import {
   mockChatSeed,
   mockFileTrees,
-  mockUser,
-  mockWorkspaces,
   mockTerminalBoot,
 } from "@/data/mock"
-import { sessionsForWorkspace } from "@/data/mock-sessions"
 import { clearTokens, getAccessToken, http } from "@/lib/http"
 import type { AgentActivity, AgentEvent, ThreadMessage } from "@/types/chat-ui"
 import {
@@ -15,20 +12,17 @@ import {
   createWorkspaceResponseSchema,
   tokenPairResponseSchema,
   userSchema,
-  workspaceSchema,
   workspaceWithSessionSchema,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
   type FileNode,
   type TerminalLine,
   type User,
-  type Workspace,
   type WorkspaceWithSession,
 } from "@cloud-agent/shared"
 
 const delay = (ms = 350) => new Promise((resolve) => setTimeout(resolve, ms))
 
-let workspaces = [...mockWorkspaces]
 const fileTrees: Record<string, FileNode[]> = structuredClone(mockFileTrees)
 
 export async function googleSignIn(credential: string) {
@@ -47,35 +41,30 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-function toWorkspaceWithSessions(workspace: Workspace): WorkspaceWithSession {
-  const id = workspace.id
-  if (!id) throw new Error("Workspace is missing id")
-  return workspaceWithSessionSchema.parse({
-    ...workspace,
-    sessions: sessionsForWorkspace(id),
-  })
+function filterWorkspaces(
+  workspaces: WorkspaceWithSession[],
+  query?: string
+) {
+  const q = query?.trim().toLowerCase()
+  if (!q) return workspaces
+  return workspaces.filter(
+    (workspace) =>
+      workspace.title.toLowerCase().includes(q) ||
+      workspace.initial_prompt.toLowerCase().includes(q)
+  )
 }
 
 export async function listWorkspaces(
   query?: string
 ): Promise<WorkspaceWithSession[]> {
-  await delay()
-  const q = query?.trim().toLowerCase()
-  const filtered = q
-    ? workspaces.filter(
-        (workspace) =>
-          workspace.title.toLowerCase().includes(q) ||
-          workspace.initial_prompt.toLowerCase().includes(q)
-      )
-    : workspaces
-  return filtered.map(toWorkspaceWithSessions)
+  const { data } = await http.get("/workspaces")
+  const workspaces = z.array(workspaceWithSessionSchema).parse(data)
+  return filterWorkspaces(workspaces, query)
 }
 
 export async function getWorkspace(id: string): Promise<WorkspaceWithSession> {
-  await delay()
-  const workspace = workspaces.find((item) => item.id === id)
-  if (!workspace) throw new Error("Workspace not found")
-  return toWorkspaceWithSessions(workspace)
+  const { data } = await http.get(`/workspaces/${id}`)
+  return workspaceWithSessionSchema.parse(data)
 }
 
 export async function createWorkspace(
@@ -84,29 +73,7 @@ export async function createWorkspace(
   const body = createWorkspaceRequestSchema.parse(input)
   const { data } = await http.post("/workspaces/new", body)
   const created = createWorkspaceResponseSchema.parse(data)
-  console.log(data)
-  // Seed local IDE mocks so navigating to the new workspace still works
-  // until list/get workspace APIs are wired.
-  const now = new Date().toISOString()
-  const workspace = workspaceSchema.parse({
-    id: created.workspace_id,
-    title: created.workspace_name,
-    user_id: mockUser.id,
-    source_path: created.workspace.source_path,
-    sandbox_id: null,
-    target_path: created.workspace.target_path,
-    is_active: true,
-    initial_prompt: body.prompt,
-    status: "pending",
-    created_at: now,
-    updated_at: now,
-  })
-  workspaces = [
-    workspace,
-    ...workspaces.filter((item) => item.id !== created.workspace_id),
-  ]
   fileTrees[created.workspace_id] = structuredClone(mockFileTrees.default)
-
   return created
 }
 
