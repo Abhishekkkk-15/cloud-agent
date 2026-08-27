@@ -8,6 +8,7 @@ import {
   MessageSquareIcon,
   PlusIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -42,6 +43,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import { getApiErrorMessage } from "@/lib/http"
 import { useAuthStore } from "@/stores/auth-store"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 
@@ -53,6 +55,10 @@ export function DashboardSidebar() {
   const workspaces = useWorkspaceListStore((s) => s.workspaces)
   const loading = useWorkspaceListStore((s) => s.loading)
   const error = useWorkspaceListStore((s) => s.error)
+  const creatingSessionFor = useWorkspaceListStore((s) => s.creatingSessionFor)
+  const createSessionForWorkspace = useWorkspaceListStore(
+    (s) => s.createSessionForWorkspace
+  )
   const search = new URLSearchParams(location.search)
   const activeSession = search.get("session")
   const initials =
@@ -64,6 +70,15 @@ export function DashboardSidebar() {
 
   function focusComposer() {
     document.getElementById("build-prompt")?.focus()
+  }
+
+  async function handleNewSession(workspaceId: string) {
+    try {
+      const session = await createSessionForWorkspace(workspaceId)
+      navigate(`/workspace/${workspaceId}?session=${session.id}`)
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not create session"))
+    }
   }
 
   return (
@@ -175,9 +190,10 @@ export function DashboardSidebar() {
                               ))}
                               <SidebarMenuSubItem>
                                 <SidebarMenuSubButton
-                                  render={
-                                    <Link to={`/workspace/${workspaceId}`} />
-                                  }
+                                  disabled={creatingSessionFor === workspaceId}
+                                  onClick={() => {
+                                    void handleNewSession(workspaceId)
+                                  }}
                                 >
                                   <PlusIcon />
                                   <span>New session</span>

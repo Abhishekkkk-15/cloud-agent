@@ -1,16 +1,21 @@
 import { z } from "zod"
 
 import { defaultFileTree, defaultTerminalBoot } from "@/data/stubs"
+import { messagesToThread } from "@/lib/session-messages"
 import { clearTokens, getAccessToken, http } from "@/lib/http"
 import {
   createWorkspaceRequestSchema,
   createWorkspaceResponseSchema,
+  sessionDetailResponseSchema,
+  sessionSchema,
   tokenPairResponseSchema,
   userSchema,
   workspaceWithSessionSchema,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
   type FileNode,
+  type Session,
+  type SessionDetailResponse,
   type TerminalLine,
   type User,
   type WorkspaceWithSession,
@@ -68,6 +73,29 @@ export async function createWorkspace(
   const created = createWorkspaceResponseSchema.parse(data)
   fileTrees[created.workspace_id] = [...defaultFileTree]
   return created
+}
+
+export async function createSession(workspaceId: string): Promise<Session> {
+  const { data } = await http.post("/sessions/", null, {
+    params: { workspace_id: workspaceId },
+  })
+  return sessionSchema.parse(data)
+}
+
+export async function getSessionDetail(
+  sessionId: string
+): Promise<SessionDetailResponse> {
+  const { data } = await http.get(`/sessions/${sessionId}`)
+  const parsed = sessionDetailResponseSchema.parse(data)
+  return {
+    session: parsed.session,
+    messages: parsed.messages,
+  }
+}
+
+export async function getSessionMessages(sessionId: string) {
+  const detail = await getSessionDetail(sessionId)
+  return messagesToThread(detail.messages)
 }
 
 export async function getFileTree(workspaceId: string): Promise<FileNode[]> {

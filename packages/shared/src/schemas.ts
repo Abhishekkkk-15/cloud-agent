@@ -113,27 +113,39 @@ export const sessionPermissionsSchema = z.object({
   allowed_targets: z.record(z.string(), z.array(z.string())).default({}),
 });
 
-/** Matches `MongoSessionDocument` */
-export const sessionSchema = z.object({
-  id: z.string(),
-  title: z.string().default(""),
-  workspace: z.string(),
-  permissions: sessionPermissionsSchema.default({
-    allow_all: false,
-    allowed_tools: [],
-    allowed_targets: {},
-  }),
-  prompt_tokens: z.number().default(0),
-  completion_tokens: z.number().default(0),
-  total_tokens: z.number().default(0),
-  cached_tokens: z.number().default(0),
-  estimated_cost_usd: z.number().default(0),
-  compaction_summary: z.string().default(""),
-  compacted_until: z.number().default(0),
-  user_id: z.string().nullable().optional(),
-  workspace_id: z.string().nullable().optional(),
-  created_at: z.string().nullable().optional(),
-  updated_at: z.string().nullable().optional(),
+/** Matches `MongoSessionDocument` (`id` / `_id`) */
+export const sessionSchema = z
+  .object({
+    id: z.string().optional(),
+    _id: z.string().optional(),
+    title: z.string().default(""),
+    workspace: z.string(),
+    permissions: sessionPermissionsSchema.default({
+      allow_all: false,
+      allowed_tools: [],
+      allowed_targets: {},
+    }),
+    prompt_tokens: z.number().default(0),
+    completion_tokens: z.number().default(0),
+    total_tokens: z.number().default(0),
+    cached_tokens: z.number().default(0),
+    estimated_cost_usd: z.number().default(0),
+    compaction_summary: z.string().default(""),
+    compacted_until: z.number().default(0),
+    user_id: z.string().nullable().optional(),
+    workspace_id: z.string().nullable().optional(),
+    created_at: z.string().nullable().optional(),
+    updated_at: z.string().nullable().optional(),
+  })
+  .transform((value) => {
+    const id = value.id ?? value._id;
+    if (!id) throw new Error("Session is missing id");
+    const { _id: _ignored, ...rest } = value;
+    return { ...rest, id };
+  });
+
+export const createSessionRequestSchema = z.object({
+  workspace_id: z.string().min(1),
 });
 
 export const messageRoleSchema = z.enum([
@@ -154,6 +166,11 @@ export const messageSchema = z.object({
   tool_calls: z.array(z.unknown()).nullable().optional(),
   tool_call_id: z.string().nullable().optional(),
   reasoning_content: z.string().nullable().optional(),
+});
+
+export const sessionDetailResponseSchema = z.object({
+  session: sessionSchema,
+  messages: z.array(messageSchema),
 });
 
 export const sandboxRunResultSchema = z.object({
@@ -220,6 +237,8 @@ export type ChatMessageRequest = z.infer<typeof chatMessageRequestSchema>;
 export type ResumeSessionMessage = z.infer<typeof resumeSessionMessageSchema>;
 export type SessionPermissions = z.infer<typeof sessionPermissionsSchema>;
 export type Session = z.infer<typeof sessionSchema>;
+export type CreateSessionRequest = z.infer<typeof createSessionRequestSchema>;
+export type SessionDetailResponse = z.infer<typeof sessionDetailResponseSchema>;
 export type MessageRole = z.infer<typeof messageRoleSchema>;
 export type Message = z.infer<typeof messageSchema>;
 export type SandboxRunResult = z.infer<typeof sandboxRunResultSchema>;

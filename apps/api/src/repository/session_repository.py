@@ -16,6 +16,15 @@ def _normalize_workspace_id(value) -> str | None:
     return str(value)
 
 
+def _session_id_query(session_id: str) -> dict:
+    clauses: list[dict] = [{"_id": session_id}]
+    if ObjectId.is_valid(session_id):
+        clauses.append({"_id": ObjectId(session_id)})
+    if len(clauses) == 1:
+        return clauses[0]
+    return {"$or": clauses}
+
+
 def _doc_to_session(doc: dict) -> MongoSessionDocument:
     return MongoSessionDocument(
         _id=str(doc["_id"]),
@@ -47,9 +56,7 @@ class SessionRepository:
         return session
 
     async def find_by_id(self, id: str) -> MongoSessionDocument | None:
-        if not ObjectId.is_valid(id):
-            return None
-        doc = await self.collection.find_one({"_id": ObjectId(id)})
+        doc = await self.collection.find_one(_session_id_query(id))
         return _doc_to_session(doc) if doc else None
 
     async def find_by_workspace(self, id: str) -> MongoSessionDocument | None:
@@ -96,14 +103,14 @@ class SessionRepository:
         data = session.model_dump(exclude={"id"}, by_alias=False)
 
         await self.collection.update_one(
-            {"_id": ObjectId(session.id)},
+            _session_id_query(session.id),
             {"$set": data},
         )
 
         return session
 
     async def delete(self, session_id: str) -> bool:
-        result = await self.collection.delete_one({"_id": ObjectId(session_id)})
+        result = await self.collection.delete_one(_session_id_query(session_id))
         return result.deleted_count > 0
 
 

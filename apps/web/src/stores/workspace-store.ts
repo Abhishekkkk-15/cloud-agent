@@ -2,11 +2,13 @@ import { create } from "zustand"
 
 import {
   getFileTree,
+  getSessionMessages,
   getTerminalBoot,
   getWorkspace,
   runCommand,
 } from "@/lib/api"
 import { get_wehsocket } from "@/lib/websocket"
+import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 import {
   isTerminalAgentEvent,
   wsEventToUiEvent,
@@ -142,6 +144,7 @@ function applyAgentEvent(
   if (isTerminalAgentEvent(payload)) {
     activeAgentStream = null
     set({ chatLoading: false, streamingMessageId: null })
+    void useWorkspaceListStore.getState().fetchWorkspaces()
   }
 }
 
@@ -296,14 +299,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       const flat = flattenFiles(files)
       const firstFile = flat[0]
       const resolvedSessionId =
-        sessionId ?? workspaceDetail.sessions[0]?.id ?? `${workspaceId}_main`
+        sessionId ?? workspaceDetail.sessions[0]?.id ?? null
+
+      let chatMessages: ThreadMessage[] = []
+      if (resolvedSessionId) {
+        try {
+          chatMessages = await getSessionMessages(resolvedSessionId)
+        } catch {
+          chatMessages = []
+        }
+      }
 
       set({
         workspace: workspaceDetail,
         activeSessionId: resolvedSessionId,
         files,
         terminalLines,
-        chatMessages: [],
+        chatMessages,
         openFileIds: firstFile ? [firstFile.id] : [],
         activeFileId: firstFile?.id ?? null,
         loading: false,
@@ -322,7 +334,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         get,
         set
       )
-      if (workspaceDetail.status === "pending") {
+      if (workspaceDetail.status === "pending" && !resolvedSessionId) {
         ws.sendAgentStart({
           workspace_id: workspaceId,
           session_id: resolvedSessionId,
@@ -433,7 +445,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const controller = new AbortController()
     chatAbortController = controller
 
-    const sessionId = get().activeSessionId ?? `${workspace.id}_main`
+    const sessionId = get().activeSessionId
+    if (!sessionId) {
+      set({ error: "No active session. Create or select a session first." })
+      return
+    }
     let streamAssistantId = ""
 
     controller.signal.addEventListener(

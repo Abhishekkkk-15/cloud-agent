@@ -59,7 +59,9 @@ class MessageRepository:
         docs = await cursor.to_list(length=None)
 
         return [
-            MongoMessageDocument(**doc)
+            MongoMessageDocument(
+                **{k: v for k, v in doc.items() if k != "_id"}
+            )
             for doc in docs
         ]
 
@@ -90,7 +92,7 @@ class MessageRepository:
 
         return result.deleted_count
 
-async def get_message_repo(db:Annotated[Any, Depends(get_db)]) -> MessageRepository:
-    return MessageRepository(db["sessions"])
+async def get_message_repo(db: Annotated[Any, Depends(get_db)]) -> MessageRepository:
+    return MessageRepository(db["messages"])
 
-WorkspaceRepo = Annotated[MessageRepository, Depends(get_message_repo)]
+MessageRepo = Annotated[MessageRepository, Depends(get_message_repo)]
