@@ -2,7 +2,7 @@ import { z } from "zod"
 
 import { messageRoleSchema } from "@cloud-agent/shared"
 
-/** Agent stream event types used by the chat UI (not yet on the API). */
+/** pi_sdk `EventType` values used by the chat UI event trail. */
 export const agentEventTypeSchema = z.enum([
   "RUN_STARTED",
   "USER_MESSAGE",

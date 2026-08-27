@@ -1,19 +1,20 @@
 import { create } from "zustand"
 
-import { streamText } from "@/lib/mock-stream"
 import {
   getChatSeed,
   getFileTree,
   getTerminalBoot,
   getWorkspace,
   runCommand,
-  sendChatMessage,
 } from "@/lib/api"
-import type {
-  AgentActivity,
-  ChatAttachment,
-  ThreadMessage,
-} from "@/types/chat-ui"
+import { get_wehsocket } from "@/lib/websocket"
+import {
+  isTerminalAgentEvent,
+  wsEventToUiEvent,
+  wsPayloadText,
+  type AgentWsEventPayload,
+} from "@/types/agent-ws-events"
+import type { ChatAttachment, ThreadMessage } from "@/types/chat-ui"
 import type {
   FileNode,
   RunSession,
@@ -65,7 +66,10 @@ type WorkspaceState = {
   workspaceTab: WorkspaceTab
   bottomPanel: "console" | "shell"
   error: string | null
-  loadWorkspace: (workspaceId: string, sessionId?: string | null) => Promise<void>
+  loadWorkspace: (
+    workspaceId: string,
+    sessionId?: string | null
+  ) => Promise<void>
   openFile: (fileId: string) => void
   closeFile: (fileId: string) => void
   setActiveFile: (fileId: string) => void
@@ -81,6 +85,178 @@ type WorkspaceState = {
 }
 
 let chatAbortController: AbortController | null = null
+let agentStreamUnsubscribe: (() => void) | null = null
+
+type ActiveAgentStream = {
+  assistantId: string
+  textBuffer: string
+}
+
+let activeAgentStream: ActiveAgentStream | null = null
+
+function clearAgentStreamListener() {
+  agentStreamUnsubscribe?.()
+  agentStreamUnsubscribe = null
+  activeAgentStream = null
+}
+
+function applyAgentEvent(
+  payload: AgentWsEventPayload,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void
+) {
+  if (!activeAgentStream) return
+
+  const { assistantId } = activeAgentStream
+  let { textBuffer } = activeAgentStream
+
+  if (payload.type === "text_delta" || payload.type === "text") {
+    const chunk = wsPayloadText(payload) ?? ""
+    if (chunk) textBuffer += chunk
+  } else if (payload.type === "run_completed") {
+    const finalText = wsPayloadText(payload)
+    if (finalText && !textBuffer) textBuffer = finalText
+  } else if (payload.type === "run_failed") {
+    const errorText = payload.error ?? wsPayloadText(payload)
+    if (errorText && !textBuffer) textBuffer = errorText
+  }
+
+  activeAgentStream.textBuffer = textBuffer
+  const uiEvent = wsEventToUiEvent(payload)
+
+  set((state) => ({
+    chatMessages: state.chatMessages.map((msg) =>
+      msg.id === assistantId
+        ? {
+            ...msg,
+            content: textBuffer || msg.content,
+            events: [...(msg.events ?? []), uiEvent],
+          }
+        : msg
+    ),
+    ...(payload.session_id ? { activeSessionId: payload.session_id } : {}),
+  }))
+
+  if (isTerminalAgentEvent(payload)) {
+    activeAgentStream = null
+    set({ chatLoading: false, streamingMessageId: null })
+  }
+}
+
+function beginAgentStream(
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void,
+  options: {
+    sessionId: string
+    userContent?: string
+    assistantId?: string
+    attachments?: ChatAttachment[]
+  }
+) {
+  const assistantId = options.assistantId ?? crypto.randomUUID()
+  let messages = get().chatMessages
+
+  if (options.userContent) {
+    const last = messages[messages.length - 1]
+    const alreadyHasUser =
+      last?.role === "user" && last.content === options.userContent
+    if (!alreadyHasUser) {
+      messages = [
+        ...messages,
+        {
+          id: crypto.randomUUID(),
+          session_id: options.sessionId,
+          seq: messages.length,
+          role: "user",
+          content: options.userContent,
+          attachments: options.attachments?.length
+            ? options.attachments
+            : undefined,
+        },
+      ]
+    }
+  }
+
+  if (!messages.some((message) => message.id === assistantId)) {
+    messages = [
+      ...messages,
+      {
+        id: assistantId,
+        session_id: options.sessionId,
+        seq: messages.length,
+        role: "assistant",
+        content: "",
+        events: [],
+      },
+    ]
+  }
+
+  activeAgentStream = { assistantId, textBuffer: "" }
+  set({
+    chatMessages: messages,
+    streamingMessageId: assistantId,
+    chatLoading: true,
+    activeSessionId: options.sessionId,
+  })
+
+  return assistantId
+}
+
+function ensureAgentStreamListener(
+  ws: ReturnType<typeof get_wehsocket>,
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void
+) {
+  if (agentStreamUnsubscribe) return
+
+  agentStreamUnsubscribe = ws.subscribeAgentEvents((payload) => {
+    if (payload.type === "run_started" && !activeAgentStream) {
+      const sessionId =
+        payload.session_id ??
+        get().activeSessionId ??
+        get().workspace?.id ??
+        "local"
+      const prompt = wsPayloadText(payload)
+      beginAgentStream(get, set, {
+        sessionId,
+        userContent: prompt || undefined,
+      })
+    }
+
+    if (!activeAgentStream) return
+    applyAgentEvent(payload, set)
+  })
+}
+
+async function connectChatSocket(
+  workspaceId: string,
+  sessionId: string | null,
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void
+) {
+  const ws = get_wehsocket({
+    workspace_id: workspaceId,
+    session_id: sessionId,
+  })
+  await ws.connect()
+  ensureAgentStreamListener(ws, get, set)
+  return ws
+}
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspace: null,
@@ -110,6 +286,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   loadWorkspace: async (workspaceId, sessionId = null) => {
+    clearAgentStreamListener()
     set({ loading: true, error: null })
     try {
       const [workspaceDetail, files, terminalLines, chatSeed] =
@@ -167,6 +344,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
           startedAt: null,
         },
       })
+
+      if (!seed) {
+        const ws = await connectChatSocket(
+          workspaceId,
+          resolvedSessionId,
+          get,
+          set
+        )
+        if (workspaceDetail.status === "pending") {
+          ws.sendAgentStart({
+            workspace_id: workspaceId,
+            session_id: resolvedSessionId,
+          })
+        }
+      }
     } catch (error) {
       set({
         loading: false,
@@ -261,157 +453,71 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (!trimmed && attachments.length === 0) return
     if (get().chatLoading || get().streamingMessageId) return
 
+    const workspace = get().workspace
+    if (!workspace?.id) {
+      set({ error: "Workspace is not loaded" })
+      return
+    }
+
     chatAbortController?.abort()
+    activeAgentStream = null
+
     const controller = new AbortController()
     chatAbortController = controller
 
-    let assistantId: string | null = null
-    const sessionId = get().activeSessionId ?? "sess_local"
-    const nextSeq = get().chatMessages.length
+    const sessionId = get().activeSessionId ?? `${workspace.id}_main`
+    let streamAssistantId = ""
 
-    const userMessage: ThreadMessage = {
-      id: crypto.randomUUID(),
-      session_id: sessionId,
-      seq: nextSeq,
-      role: "user",
-      content: trimmed || "(attached files)",
-      attachments: attachments.length ? attachments : undefined,
-    }
-    set((state) => ({
-      chatMessages: [...state.chatMessages, userMessage],
-      chatLoading: true,
-    }))
-
-    const finalizeAssistant = (contentFallback?: string) => {
-      if (!assistantId) return
-      const id = assistantId
-      set((state) => ({
-        chatLoading: false,
-        streamingMessageId: null,
-        chatMessages: state.chatMessages.map((msg) =>
-          msg.id === id
-            ? {
-                ...msg,
-                content: msg.content || contentFallback || msg.content,
-                activities: msg.activities?.map((activity) => ({
-                  ...activity,
-                  status:
-                    activity.status === "pending" ||
-                    activity.status === "running"
-                      ? ("done" as const)
-                      : activity.status,
-                })),
-              }
-            : msg
-        ),
-      }))
-    }
+    controller.signal.addEventListener(
+      "abort",
+      () => {
+        activeAgentStream = null
+        const stoppedId = streamAssistantId
+        set((state) => ({
+          chatLoading: false,
+          streamingMessageId: null,
+          chatMessages: state.chatMessages.map((msg) =>
+            msg.id === stoppedId
+              ? {
+                  ...msg,
+                  content: msg.content || "Generation stopped.",
+                }
+              : msg
+          ),
+        }))
+      },
+      { once: true }
+    )
 
     try {
-      const active = get().getActiveFile()
-      const { message, activities } = await sendChatMessage(
-        trimmed || "Review my attachments",
-        active ? { id: active.id, name: active.name } : null,
-        attachments.length,
-        sessionId
+      const ws = await connectChatSocket(
+        workspace.id,
+        get().activeSessionId,
+        get,
+        set
       )
 
-      if (controller.signal.aborted) {
-        set({ chatLoading: false })
-        return
-      }
-
-      const pendingActivities = activities.map((activity, index) => ({
-        ...activity,
-        status: (index === 0 ? "running" : "pending") as AgentActivity["status"],
-      }))
-
-      assistantId = message.id
-      set((state) => ({
-        chatMessages: [
-          ...state.chatMessages,
-          {
-            ...message,
-            seq: nextSeq + 1,
-            content: "",
-            activities: pendingActivities,
-          },
-        ],
-        streamingMessageId: assistantId,
-      }))
-
-      for (let i = 0; i < pendingActivities.length; i++) {
-        await new Promise<void>((resolve, reject) => {
-          const timer = window.setTimeout(() => resolve(), 400)
-          const onAbort = () => {
-            window.clearTimeout(timer)
-            reject(new DOMException("Aborted", "AbortError"))
-          }
-          controller.signal.addEventListener("abort", onAbort, { once: true })
-        })
-
-        set((state) => ({
-          chatMessages: state.chatMessages.map((msg) => {
-            if (msg.id !== assistantId || !msg.activities) return msg
-            return {
-              ...msg,
-              activities: msg.activities.map((activity, index) => {
-                if (index <= i) return { ...activity, status: "done" as const }
-                if (index === i + 1)
-                  return { ...activity, status: "running" as const }
-                return activity
-              }),
-            }
-          }),
-        }))
-      }
-
-      set((state) => ({
-        chatMessages: state.chatMessages.map((msg) =>
-          msg.id === assistantId
-            ? {
-                ...msg,
-                activities: (msg.activities ?? []).map((activity) => ({
-                  ...activity,
-                  status: "done" as const,
-                })),
-              }
-            : msg
-        ),
-        chatLoading: false,
-      }))
-
-      await streamText(message.content, {
-        signal: controller.signal,
-        delayMs: 16,
-        chunkSize: 4,
-        onChunk: (_chunk, fullText) => {
-          set((state) => ({
-            chatMessages: state.chatMessages.map((msg) =>
-              msg.id === assistantId ? { ...msg, content: fullText } : msg
-            ),
-          }))
-        },
+      streamAssistantId = beginAgentStream(get, set, {
+        sessionId,
+        userContent: trimmed || "(attached files)",
+        attachments,
       })
 
-      set({ streamingMessageId: null })
+      ws.sendAgentQuery(trimmed || "Review my attachments")
     } catch (error) {
-      const aborted =
-        error instanceof DOMException && error.name === "AbortError"
-      if (aborted) {
-        finalizeAssistant("Generation stopped.")
-      } else {
-        set({ chatLoading: false, streamingMessageId: null })
-      }
-    } finally {
-      if (chatAbortController === controller) {
-        chatAbortController = null
-      }
+      activeAgentStream = null
+      set({
+        chatLoading: false,
+        streamingMessageId: null,
+        error:
+          error instanceof Error ? error.message : "Failed to send message",
+      })
     }
   },
 
   stopStreaming: () => {
     chatAbortController?.abort()
+    chatAbortController = null
   },
 
   setWorkspaceTab: (tab) => set({ workspaceTab: tab }),

@@ -2,6 +2,14 @@ from fastapi import WebSocket
 from src.models.user_model import User
 from src.utils.jwt_utils import decode_access_token
 from src.repository.user_repository import UserRepo
+from pydantic import BaseModel
+from typing import Any
+
+
+class WSMessage(BaseModel):
+    type: str
+    data: Any
+
 class ConnectionManager:
     def __init__(self):
         self.active_connections: list[WebSocket] = []
@@ -9,7 +17,13 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
-
+    async def receive(self, websocket: WebSocket) -> WSMessage:
+        data = await websocket.receive_json()
+        print(data)
+        return WSMessage(
+            type=data["type"],
+            data=data.get("data"),
+        )
     async def send_json(self,data:dict[str,str],websocket:WebSocket):
         await websocket.send_json(data=data)
 

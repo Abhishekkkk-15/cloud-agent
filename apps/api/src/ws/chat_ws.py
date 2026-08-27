@@ -1,3 +1,4 @@
+from src.repository.session_repository import SessionRepo
 from src.utils.ws_manager import ws_manager, ConnectionManager
 from fastapi import APIRouter, WebSocket, WebSocketException
 from src.utils.ws_manager import authenticate_websocket
@@ -17,7 +18,7 @@ router = APIRouter()
 
 
 
-async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:SandboxRepo,workspace_repo:WorkspaceRepo):
+async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:SandboxRepo,workspace_repo:WorkspaceRepo,session_repo:SessionRepo):
     
     # Recieve workspace id and session_id (if there is) from query
     # fetch workspace and session details
@@ -33,8 +34,9 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
         
         user = await authenticate_websocket(ws,user_repo)
         workspace_id = ws.query_params.get("workspace_id")
-        text = await ws.receive()    
-        print(text)
+        user_query = await ws_manager.receive(ws)  
+        # user_query = await ws.receive() 
+        print(user_query)
         if not workspace_id:
             raise WebSocketException(code=1008,reason="workspace is required")
         session_id = ws.query_params.get("session_id")
@@ -46,13 +48,15 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
         )
 
         sandbox_id = workspace.sandbox_id
-        workspace.source_path = str(config.workspace_base/workspace_id)
-        workspace.target_path
-        workspace_root = config.workspace_base/workspace_id
-        workspace_root.mkdir(parents=True, exist_ok=True)
-        await workspace_repo.save(workspace)
+        
+        # await workspace_repo.save(workspace)
 
         if not sandbox_id:
+            print("starting sandbox")
+            workspace.source_path = str(config.workspace_base/workspace_id)
+            workspace.target_path
+            workspace_root = config.workspace_base/workspace_id
+            workspace_root.mkdir(parents=True, exist_ok=True)
             sandbox = sandbox_repo.run_sandbox(workspace_id)
             if not isinstance(sandbox,SandboxRunResult):
                 raise WebSocketException(
@@ -61,9 +65,14 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
                 )  
             workspace.sandbox_id = sandbox.id
             sandbox_id = sandbox.id
+            
             await workspace_repo.save(workspace)
-
-        sandbox_repo.is_sandbox_running(sandbox_id)
+        # sanbox_exists = sandbox_repo.sandbox_exists(sandbox_id)
+        
+        # sandbox_exists = sandbox_repo.is_sandbox_running(sandbox_id)
+        
+        # if not sanbox_exists:
+        #     pass
 
 
 
@@ -77,12 +86,16 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
 
         agent = CloudAgentCore(workspace_id,workspace.sandbox_id,user.id,on_event)
         if workspace.status == "pending":
-            await agent.run(workspace.initial_prompt)
+            agent_res = await agent.run(workspace.initial_prompt)
+            session = await session_repo.find_by_id(session_id)
+
+            session.title = agent_res.title
+            await session_repo.save(session)
             workspace.status  = WorkspaceStatus("ready")
-            await workspace_repo.save(workspace)
-        if  session_id and text:
+            await workspace_repo.save(workspace)            
+        elif   session_id and user_query.data:
            await agent.resume(session_id) 
-           
+           await agent.run(user_query.data.query)
             # text = await ws.receive()    
             # print(text)
 

@@ -39,23 +39,23 @@ def event_handler(event: AgentEvent) -> WsEvent:
         )
 
     if event.type == EventType.USER_MESSAGE:
-        return WsEvent(type="user_message", text=text)
+        return WsEvent(type="agent:user_message", text=text)
 
     if event.type == EventType.THINKING_DELTA:
-        return WsEvent(type="thinking_delta", text=text)
+        return WsEvent(type="agent:thinking_delta", text=text)
 
     if event.type == EventType.THINKING:
-        return WsEvent(type="thinking", text=text)
+        return WsEvent(type="agent:thinking", text=text)
 
     if event.type == EventType.TEXT_DELTA:
-        return WsEvent(type="text_delta", text=text)
+        return WsEvent(type="agent:text_delta", text=text)
 
     if event.type == EventType.TEXT:
-        return WsEvent(type="text", text=text)
+        return WsEvent(type="agent:text", text=text)
 
     if event.type == EventType.TOOL_CALL:
         return WsEvent(
-            type="tool_call",
+            type="agent:tool_call",
             tool=data.get("name"),
             tool_call_id=data.get("id"),
             arguments=data.get("arguments"),
@@ -63,7 +63,7 @@ def event_handler(event: AgentEvent) -> WsEvent:
 
     if event.type == EventType.TOOL_RESULT:
         return WsEvent(
-            type="tool_result",
+            type="agent:tool_result",
             tool=data.get("name"),
             tool_call_id=data.get("id"),
             content=data.get("content"),
@@ -72,7 +72,7 @@ def event_handler(event: AgentEvent) -> WsEvent:
 
     if event.type == EventType.PERMISSION_REQUEST:
         return WsEvent(
-            type="permission_request",
+            type="agent:permission_request",
             tool=data.get("tool"),
             target=data.get("target"),
             details=data.get("details"),
@@ -82,14 +82,14 @@ def event_handler(event: AgentEvent) -> WsEvent:
 
     if event.type == EventType.COMPACTION:
         return WsEvent(
-            type="compaction",
+            type="agent:compaction",
             message=data.get("message"),
             text=str(data.get("message") or ""),
         )
 
     if event.type == EventType.USAGE:
         return WsEvent(
-            type="usage",
+            type="agent:usage",
             usage={
                 "prompt_tokens": data.get("prompt_tokens"),
                 "completion_tokens": data.get("completion_tokens"),
@@ -100,7 +100,7 @@ def event_handler(event: AgentEvent) -> WsEvent:
 
     if event.type == EventType.ERROR:
         return WsEvent(
-            type="error",
+            type="agent:error",
             error=data.get("error"),
             message=data.get("title"),
             text=str(data.get("error") or ""),
@@ -108,14 +108,14 @@ def event_handler(event: AgentEvent) -> WsEvent:
 
     if event.type == EventType.STATUS:
         return WsEvent(
-            type="status",
+            type="agent:status",
             message=data.get("message"),
             text=str(data.get("message") or ""),
         )
 
     if event.type == EventType.RUN_COMPLETED:
         return WsEvent(
-            type="run_completed",
+            type="agent:run_completed",
             text=text or str(data.get("text") or ""),
             session_id=data.get("session_id"),
             done=True,
@@ -123,11 +123,11 @@ def event_handler(event: AgentEvent) -> WsEvent:
 
     if event.type == EventType.RUN_FAILED:
         return WsEvent(
-            type="run_failed",
+            type="agent:run_failed",
             error=data.get("error"),
             session_id=data.get("session_id"),
             text=str(data.get("error") or ""),
             done=True,
         )
 
-    return WsEvent(type=event.type.value, text=text)
+    return WsEvent(type=f"agent:{event.type.value}", text=text)

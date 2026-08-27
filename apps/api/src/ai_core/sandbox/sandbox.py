@@ -7,9 +7,10 @@ from src.schemas.sandbox_schema import SandboxRunResult
 
 from src.utils.config import config
 
+from docker.errors import ContainerError, APIError,NotFound
 try:
     from docker import DockerClient
-    from docker.errors import ContainerError, APIError
+    from docker.errors import ContainerError, APIError,NotFound
     from docker.types import Mount
     
 
@@ -60,6 +61,7 @@ class Sandbox:
                 return []
 
             containers = self.client.containers.list()
+            
             return [
                 {
                     "id": container.short_id,
@@ -76,13 +78,75 @@ class Sandbox:
             ]
         except Exception as e:
             return [{"error": f"Failed to list containers: {e}"}]
-        
-    def is_sandbox_running(self,sandbox_id:str) -> bool:
+     
+    def resume_sandbox(
+        self,
+        sandbox_id: str,
+) ->     dict[str, str] | SandboxRunResult:
+        try:
+            if not _DOCKER_AVAILABLE or not self.client:
+                return {"error": "Docker sandbox is not available"}
+
+            container = self.client.containers.get(sandbox_id)
+
+            container.reload()
+
+            if container.status != "running":
+                container.start()
+                container.reload()
+
+            if (
+                container.id is None
+                or container.name is None
+                or container.status is None
+            ):
+                raise RuntimeError("Container metadata missing")
+
+            return SandboxRunResult(
+                id=container.id,
+                name=container.name,
+                status=container.status,
+            )
+
+        except NotFound:
+            return {"error": f"Sandbox '{sandbox_id}' not found"}
+
+        except ContainerError as e:
+            return {
+                "error": f"Container Error: {getattr(e, 'stderr', e)}"
+            }
+
+        except APIError as e:
+            return {
+                "error": f"Docker API Error: {e}"
+            }
+
+        except Exception as e:
+            return {
+                "error": f"Failed to resume sandbox: {e}"
+            }         
+    def sandbox_exists(self, sandbox_id: str) -> bool:
         if not self.client:
-                return False
-        container = self.client.containers.get(sandbox_id)   
-        if container:
+            return False
+
+        try:
+            self.client.containers.get(sandbox_id)
             return True
-        return False
+        except NotFound:
+            return False
+        except Exception:
+            return False    
+    def is_sandbox_running(self, sandbox_id: str) -> bool:
+        if not self.client:
+            return False
+
+        try:
+            container = self.client.containers.get(sandbox_id)
+            container.reload()
+
+            return container.status == "running"
+
+        except NotFound:
+            return False
     
         

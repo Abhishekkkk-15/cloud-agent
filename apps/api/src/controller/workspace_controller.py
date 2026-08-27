@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from fastapi import HTTPException, status
 from pymongo.errors import WriteError
-
+from src.ai_core.intent_agent import IntentAgent
 from src.dependency.auth_dependency import CurrentUser
 from src.models.workspace_model import Workspace
 from src.repository.session_repository import SessionRepo
@@ -35,8 +35,12 @@ async def create_workspace(
         )
 
     try:
+        
+        agent = IntentAgent()
+        intent = await agent.analyze(body.prompt)
+        
         workspace_obj = Workspace(
-            title=body.prompt,
+            title=intent.title,
             user_id=current_user.id,
             target_path="/app",
             source_path="/",
