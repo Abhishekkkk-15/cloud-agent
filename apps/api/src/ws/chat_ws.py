@@ -88,7 +88,7 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
         if workspace.status == "pending":
             agent_res = await agent.run(workspace.initial_prompt)
             session = await session_repo.find_by_id(session_id)
-
+            
             session.title = agent_res.title
             await session_repo.save(session)
             workspace.status  = WorkspaceStatus("ready")

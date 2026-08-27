@@ -21,7 +21,7 @@ export function LandingPage() {
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
               Describe what you want to build. The agent opens a workspace with
-              chat, code, preview, and console — Replit-style, mock data for now.
+              chat, code, preview, and console.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button
@@ -35,10 +35,10 @@ export function LandingPage() {
               <Button
                 size="lg"
                 variant="outline"
-                render={<Link to="/workspace/ws_1" />}
+                render={<Link to="/dashboard" />}
                 nativeButton={false}
               >
-                Open sample workspace
+                Open dashboard
               </Button>
             </div>
           </div>

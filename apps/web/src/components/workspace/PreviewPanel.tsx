@@ -62,38 +62,30 @@ export function PreviewPanel() {
         <div className="flex min-w-0 items-center gap-2">
           <Badge variant="secondary">Live</Badge>
           <span className="truncate font-mono text-xs text-muted-foreground">
-            {runSession.url}
+            {runSession.url ?? "Preview unavailable"}
           </span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          render={<a href={runSession.url ?? "#"} target="_blank" rel="noreferrer" />}
-          nativeButton={false}
-          aria-label="Open preview"
-        >
-          <ExternalLinkIcon />
-        </Button>
+        {runSession.url ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            render={
+              <a href={runSession.url} target="_blank" rel="noreferrer" />
+            }
+            nativeButton={false}
+            aria-label="Open preview"
+          >
+            <ExternalLinkIcon />
+          </Button>
+        ) : null}
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/40 p-6">
-        <div className="w-full max-w-md rounded-xl border bg-background p-6 shadow-sm">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            Mock preview
+        <div className="w-full max-w-md rounded-xl border bg-background p-6 shadow-sm text-center">
+          <h3 className="text-lg font-medium">{workspace?.title}</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Preview is not connected yet. Run will execute in the terminal once
+            the sandbox preview API is wired.
           </p>
-          <h3 className="mt-2 text-lg font-medium">{workspace?.title}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {workspace?.initial_prompt}
-          </p>
-          <div className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-muted p-3">
-              <div className="text-2xl font-medium">1.2k</div>
-              <div className="text-xs text-muted-foreground">Requests</div>
-            </div>
-            <div className="rounded-lg bg-muted p-3">
-              <div className="text-2xl font-medium">98%</div>
-              <div className="text-xs text-muted-foreground">Uptime</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

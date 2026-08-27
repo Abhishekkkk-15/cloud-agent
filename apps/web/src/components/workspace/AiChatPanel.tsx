@@ -180,7 +180,7 @@ export function AiChatPanel() {
                               activities={message.activities}
                               summary={message.content}
                               streaming={isStreaming}
-                              defaultOpen={message.id === "c1"}
+                              defaultOpen={isStreaming}
                             />
                           ) : null}
                           {showBubble && (

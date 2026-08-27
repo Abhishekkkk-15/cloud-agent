@@ -1,7 +1,6 @@
 import { create } from "zustand"
 
 import {
-  getChatSeed,
   getFileTree,
   getTerminalBoot,
   getWorkspace,
@@ -289,50 +288,22 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     clearAgentStreamListener()
     set({ loading: true, error: null })
     try {
-      const [workspaceDetail, files, terminalLines, chatSeed] =
-        await Promise.all([
-          getWorkspace(workspaceId),
-          getFileTree(workspaceId),
-          getTerminalBoot(),
-          getChatSeed(),
-        ])
+      const [workspaceDetail, files, terminalLines] = await Promise.all([
+        getWorkspace(workspaceId),
+        getFileTree(workspaceId),
+        getTerminalBoot(),
+      ])
       const flat = flattenFiles(files)
       const firstFile = flat[0]
-      const seedKey = `agent-seed:${workspaceId}`
-      const seed = sessionStorage.getItem(seedKey)
       const resolvedSessionId =
         sessionId ?? workspaceDetail.sessions[0]?.id ?? `${workspaceId}_main`
-
-      let chatMessages = chatSeed.map((message) => ({
-        ...message,
-        session_id: resolvedSessionId,
-      }))
-      if (seed) {
-        sessionStorage.removeItem(seedKey)
-        chatMessages = [
-          {
-            id: crypto.randomUUID(),
-            session_id: resolvedSessionId,
-            seq: 0,
-            role: "user",
-            content: seed,
-          },
-          {
-            id: crypto.randomUUID(),
-            session_id: resolvedSessionId,
-            seq: 1,
-            role: "assistant",
-            content: `Got it — I'll scaffold “${workspaceDetail.title}” around:\n\n> ${seed}\n\nI set up a starter workspace. Open the Code tab to edit files, or hit Run to preview. What should we tackle first?`,
-          },
-        ]
-      }
 
       set({
         workspace: workspaceDetail,
         activeSessionId: resolvedSessionId,
         files,
         terminalLines,
-        chatMessages,
+        chatMessages: [],
         openFileIds: firstFile ? [firstFile.id] : [],
         activeFileId: firstFile?.id ?? null,
         loading: false,
@@ -345,19 +316,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         },
       })
 
-      if (!seed) {
-        const ws = await connectChatSocket(
-          workspaceId,
-          resolvedSessionId,
-          get,
-          set
-        )
-        if (workspaceDetail.status === "pending") {
-          ws.sendAgentStart({
-            workspace_id: workspaceId,
-            session_id: resolvedSessionId,
-          })
-        }
+      const ws = await connectChatSocket(
+        workspaceId,
+        resolvedSessionId,
+        get,
+        set
+      )
+      if (workspaceDetail.status === "pending") {
+        ws.sendAgentStart({
+          workspace_id: workspaceId,
+          session_id: resolvedSessionId,
+        })
       }
     } catch (error) {
       set({
@@ -419,12 +388,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       workspaceTab: "preview",
     })
     await get().executeCommand("npm run dev")
-    const workspace = get().workspace
     set({
       runSession: {
         id: get().runSession.id,
         status: "running",
-        url: `https://${workspace?.title ?? "app"}.cloudagent.dev`,
+        url: null,
         startedAt: get().runSession.startedAt,
       },
     })
