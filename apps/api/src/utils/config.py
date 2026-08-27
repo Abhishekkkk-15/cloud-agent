@@ -43,6 +43,9 @@ class Config:
         self.google_client_id = os.getenv("GOOGLE_CLIENT_ID")
         self.google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
         self.jwt_secret = os.getenv("JWT_SECRET") or "dev-insecure-change-me"
+        self.intent_model= os.getenv("INTENT_MODEL") or ""
+        self.intent_base_url= os.getenv("INTENT_BASE_URL") or ""
+        self.intent_model_key= os.getenv("INTENT_MODEL_KEY") or ""
         self.workspace_base =Path(
     os.getenv(
         "WORKSPACE_BASE",
