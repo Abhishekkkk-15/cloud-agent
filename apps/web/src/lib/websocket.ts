@@ -1,7 +1,19 @@
 type MessageHandler = (data: any) => void
 
-type Event = "agent:send" | "agent:start"
+type Event =
+  "agent:send" | "agent:start" | "workspace:info" | "workspace:update"
 
+type QueryPremitive = string | number | boolean | null | undefined
+
+type QueryParameters<T extends string> = Partial<Record<T, QueryPremitive>>
+
+type WorkspaceKeys = "workspace_id" | "session_id" | "page"
+
+// const WorkspaceQuery:QueryParameters<WorkspaceKeys> = {
+//   workspace_id: string
+//   session_id?: string | null
+//   page?: number
+// }
 class WebSocketManager {
   private socket: WebSocket | null = null
   private url: string = ""
@@ -25,6 +37,7 @@ class WebSocketManager {
       }
 
       this.socket = new WebSocket(this.url)
+
       this.socket.onopen = () => {
         console.log("websocket connected")
         this.reconnectAttempts = 0
@@ -37,7 +50,7 @@ class WebSocketManager {
           const message = JSON.parse(event.data)
           const handlers = this.handlers.get(message.type)
 
-          handlers?.forEach((handle) => handle(message.type))
+          handlers?.forEach((handle) => handle(message.data))
         } catch (error) {
           console.error("Invalid websocket message : ", error)
         }
@@ -90,5 +103,24 @@ class WebSocketManager {
     this.socket = null
   }
 }
+let ws: WebSocketManager | null = null
 
-export const ws = new WebSocketManager("ws://localhost:8000/ws")
+export function get_wehsocket(
+  queryParameters: QueryParameters<WorkspaceKeys>
+): WebSocketManager {
+  if (!ws) {
+    const searchParams = new URLSearchParams()
+
+    Object.entries(queryParameters).forEach(([key, value]) => {
+      if (value != null) {
+        searchParams.set(key, String(value))
+      }
+    })
+
+    const url = `ws://localhost:5173/ws?${searchParams.toString()}`
+
+    ws = new WebSocketManager(url)
+  }
+
+  return ws
+}

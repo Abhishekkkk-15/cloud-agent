@@ -10,7 +10,7 @@ sys_config = config
 class CloudAgentCore:
     client: Agent
 
-    def __init__(self,workspace_id:str,container_id,user_id:str) -> None:
+    def __init__(self,workspace_id:str,container_id,user_id:str,on_event_handler) -> None:
         self.config = sys_config
         self.client = Agent.create(
             api_key=sys_config.api_key,
@@ -35,6 +35,7 @@ class CloudAgentCore:
                     default_workdir=DEFAULT_DOCKER_WORKDIR,
                 ),
             ],
+            on_event=on_event_handler
         )
 
 

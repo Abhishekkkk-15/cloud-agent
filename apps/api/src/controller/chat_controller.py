@@ -25,7 +25,7 @@ async def start_chat(body:ChatMessageRequest,current_user: CurrentUser,workspace
             detail="Not authorized"
         )
     query_intent_title = "Building application"
-    workspace_obj = Workspace(title=query_intent_title,user_id=current_user.id,target_path="/app",source_path="/app",sandbox_id="somid")
+    workspace_obj = Workspace(title=query_intent_title,user_id=current_user.id,target_path="/app",source_path="/app",sandbox_id="somid",initial_prompt=query_intent_title)
     workspace =await workspace_repo.create(workspace_obj)
     if not workspace.id:
         raise HTTPException(

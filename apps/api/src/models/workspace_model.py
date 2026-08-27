@@ -17,7 +17,9 @@ class Workspace(BaseModel):
     sandbox_id:str|None    = None      # Cotainer id
     is_active:bool = True
     
-    initial_prompt:str 
+    
+    
+    initial_prompt:str =""
     status: WorkspaceStatus = WorkspaceStatus.PENDING
     
     created_at:datetime = Field(default_factory=lambda: datetime.now(UTC))

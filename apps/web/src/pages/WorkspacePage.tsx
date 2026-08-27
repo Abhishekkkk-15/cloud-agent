@@ -16,7 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import { ws } from "@/lib/websocket"
+import { get_wehsocket } from "@/lib/websocket"
 export function WorkspacePage() {
   const { workspaceId = "" } = useParams()
   const [searchParams] = useSearchParams()
@@ -26,7 +26,10 @@ export function WorkspacePage() {
   const error = useWorkspaceStore((s) => s.error)
   const workspaceTab = useWorkspaceStore((s) => s.workspaceTab)
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
-
+  const ws = get_wehsocket({
+    workspace_id: workspaceId,
+    session_id: sessionId,
+  })
   useEffect(() => {
     ;(async () => {
       await ws.connect()
@@ -40,8 +43,13 @@ export function WorkspacePage() {
     const unsubscribe = ws.subscribe("agent:send", (event) => {
       console.log(event)
     })
-
-    return unsubscribe
+    const workspace_subscriber = ws.subscribe("workspace:info", (event) => {
+      console.log(event)
+    })
+    return () => {
+      unsubscribe()
+      workspace_subscriber()
+    }
   }, [])
 
   useEffect(() => {

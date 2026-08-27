@@ -19,6 +19,7 @@ def _doc_to_workspace(doc:dict)->Workspace:
         source_path = doc["source_path"],     # host mount path    
         sandbox_id = doc["sandbox_id"],              # Cotainer id
         is_active= doc["is_active"],
+        initial_prompt=doc["initial_prompt"],
         **extras
     )
 
@@ -41,8 +42,9 @@ class WorkspaceRepository:
         return [_doc_to_workspace(doc) for doc in docs]
     async def find_by_id(self,id:str) -> Workspace|None:
         doc = await self.collection.find_one({"_id":ObjectId(id)})
+        print(doc)
         return _doc_to_workspace(doc) if doc else None
-    
+
     async def save(self,workspace:Workspace) -> Workspace:
         if not workspace.id or not ObjectId.is_valid(workspace.id):
             return await self.create(workspace)
