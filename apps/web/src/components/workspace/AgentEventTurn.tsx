@@ -185,6 +185,11 @@ function ActionRow({
               {action.detail}
             </span>
           ) : null}
+          {action.detail && action.kind === "usage" ? (
+            <span className="mt-0.5 block text-xs opacity-80">
+              {action.detail}
+            </span>
+          ) : null}
         </span>
       </button>
     </li>

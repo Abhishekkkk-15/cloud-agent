@@ -1,4 +1,4 @@
-import type { Message } from "@cloud-agent/shared"
+import type { Message, Session } from "@cloud-agent/shared"
 
 import { summaryFromEvents } from "@/lib/agent-events"
 import {
@@ -180,12 +180,54 @@ export function messageToThread(message: Message): ThreadMessage {
   }
 }
 
+function sessionUsageEvent(session: Session): AgentEvent | null {
+  const hasUsage =
+    session.prompt_tokens > 0 ||
+    session.completion_tokens > 0 ||
+    session.total_tokens > 0 ||
+    session.cached_tokens > 0 ||
+    session.estimated_cost_usd > 0
+
+  if (!hasUsage) return null
+
+  return {
+    id: `${session.id}:session-usage`,
+    type: "USAGE",
+    data: {
+      prompt_tokens: session.prompt_tokens,
+      completion_tokens: session.completion_tokens,
+      total_tokens: session.total_tokens,
+      cached_tokens: session.cached_tokens,
+      estimated_cost_usd: session.estimated_cost_usd,
+    },
+  }
+}
+
+function appendSessionUsage(thread: ThreadMessage[], session: Session) {
+  const usageEvent = sessionUsageEvent(session)
+  if (!usageEvent) return
+
+  const lastAgentTurn = [...thread]
+    .reverse()
+    .find((message) => message.role === "assistant")
+
+  if (!lastAgentTurn) return
+
+  const events = lastAgentTurn.events ?? []
+  if (events.some((event) => event.type === "USAGE")) return
+
+  lastAgentTurn.events = [...events, usageEvent]
+}
+
 /**
  * Reconstruct chat thread rows from persisted session messages.
  * Groups assistant/tool sequences into agent turns with `events`, mirroring
  * live WS handling in `applyAgentEvent`.
  */
-export function messagesToThread(messages: Message[]): ThreadMessage[] {
+export function messagesToThread(
+  messages: Message[],
+  session?: Session
+): ThreadMessage[] {
   const sorted = [...messages].sort((left, right) => left.seq - right.seq)
   const thread: ThreadMessage[] = []
 
@@ -226,6 +268,10 @@ export function messagesToThread(messages: Message[]): ThreadMessage[] {
     }
 
     index += 1
+  }
+
+  if (session) {
+    appendSessionUsage(thread, session)
   }
 
   return thread

@@ -95,7 +95,7 @@ export async function getSessionDetail(
 
 export async function getSessionMessages(sessionId: string) {
   const detail = await getSessionDetail(sessionId)
-  return messagesToThread(detail.messages)
+  return messagesToThread(detail.messages, detail.session)
 }
 
 export async function getFileTree(workspaceId: string): Promise<FileNode[]> {

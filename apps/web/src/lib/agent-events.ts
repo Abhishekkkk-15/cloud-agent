@@ -13,6 +13,32 @@ function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined
 }
 
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined
+}
+
+function formatTokenCount(value: number): string {
+  return value.toLocaleString()
+}
+
+export function formatUsageDetail(data: Record<string, unknown>): string {
+  const input = asNumber(data.input_tokens) ?? asNumber(data.prompt_tokens)
+  const output = asNumber(data.output_tokens) ?? asNumber(data.completion_tokens)
+  const cached = asNumber(data.cached_tokens)
+  const total = asNumber(data.total_tokens)
+  const cost = asNumber(data.estimated_cost_usd)
+
+  const parts: string[] = []
+  if (input != null) parts.push(`in ${formatTokenCount(input)}`)
+  if (output != null) parts.push(`out ${formatTokenCount(output)}`)
+  if (cached != null && cached > 0) {
+    parts.push(`cached ${formatTokenCount(cached)}`)
+  }
+  if (total != null) parts.push(`total ${formatTokenCount(total)}`)
+  if (cost != null && cost > 0) parts.push(`$${cost.toFixed(4)}`)
+  return parts.join(" · ")
+}
+
 function toolTarget(data: Record<string, unknown>): string | undefined {
   const args = data.arguments
   if (args && typeof args === "object" && !Array.isArray(args)) {
@@ -167,15 +193,11 @@ export function actionsFromEvents(events: AgentEvent[]): AgentActionItem[] {
     }
 
     if (event.type === "USAGE") {
-      const input = data.input_tokens ?? data.prompt_tokens
-      const output = data.output_tokens ?? data.completion_tokens
       items.push({
         id: event.id,
         kind: "usage",
         label: "Token usage",
-        detail: [input != null && `in ${String(input)}`, output != null && `out ${String(output)}`]
-          .filter(Boolean)
-          .join(" · "),
+        detail: formatUsageDetail(data),
       })
       continue
     }
