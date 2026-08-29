@@ -1,6 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
-  ChevronRightIcon,
   CloudIcon,
   FolderIcon,
   LayoutDashboardIcon,
@@ -35,7 +34,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
@@ -171,11 +169,13 @@ export function DashboardSidebar() {
                             >
                               {workspace.title}
                             </span>
-                            <ChevronRightIcon className="ml-auto shrink-0 transition-transform group-data-open/collapsible:rotate-90" />
+                            <span
+                              aria-hidden
+                              className="ml-auto inline-flex size-4 shrink-0 items-center justify-center pr-0.5 text-sm leading-none text-muted-foreground transition-transform duration-200 group-data-open/collapsible:rotate-90"
+                            >
+                              &gt;
+                            </span>
                           </CollapsibleTrigger>
-                          <SidebarMenuBadge>
-                            {workspace.sessions.length}
-                          </SidebarMenuBadge>
                           <CollapsibleContent>
                             <SidebarMenuSub>
                               {workspace.sessions.map((session) => (
