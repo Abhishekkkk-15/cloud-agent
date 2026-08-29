@@ -9,6 +9,7 @@ import {
 } from "@/lib/api"
 import { get_wehsocket } from "@/lib/websocket"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
+import { appendAgentEvent } from "@/lib/agent-events"
 import {
   isTerminalAgentEvent,
   wsEventToUiEvent,
@@ -134,7 +135,7 @@ function applyAgentEvent(
         ? {
             ...msg,
             content: textBuffer || msg.content,
-            events: [...(msg.events ?? []), uiEvent],
+            events: appendAgentEvent(msg.events ?? [], uiEvent),
           }
         : msg
     ),

@@ -96,6 +96,51 @@ export function isActionEvent(type: AgentEventType) {
   return ACTION_EVENT_TYPES.has(type)
 }
 
+function statusMessage(event: AgentEvent): string {
+  return asString(event.data.message) ?? eventText(event) ?? ""
+}
+
+/** Key for merging repeated streaming STATUS rows (e.g. tool arg progress). */
+export function statusEventKey(event: AgentEvent): string | null {
+  if (event.type !== "STATUS") return null
+  const message = statusMessage(event)
+  const match = message.match(/^Generating arguments for (.+?) \(/)
+  if (match) return `tool-args:${match[1].trim()}`
+  return message || "status"
+}
+
+export function coalesceAgentEvents(events: AgentEvent[]): AgentEvent[] {
+  const result: AgentEvent[] = []
+
+  for (const event of events) {
+    const key = statusEventKey(event)
+    if (key && result.length > 0) {
+      const previous = result[result.length - 1]
+      if (statusEventKey(previous) === key) {
+        result[result.length - 1] = event
+        continue
+      }
+    }
+    result.push(event)
+  }
+
+  return result
+}
+
+export function appendAgentEvent(
+  events: AgentEvent[],
+  event: AgentEvent
+): AgentEvent[] {
+  const key = statusEventKey(event)
+  if (key && events.length > 0) {
+    const previous = events[events.length - 1]
+    if (statusEventKey(previous) === key) {
+      return [...events.slice(0, -1), event]
+    }
+  }
+  return [...events, event]
+}
+
 function toolCallLabel(name: string, target?: string): {
   kind: AgentActionKind
   label: string
@@ -137,7 +182,7 @@ function toolCallLabel(name: string, target?: string): {
 export function actionsFromEvents(events: AgentEvent[]): AgentActionItem[] {
   const items: AgentActionItem[] = []
 
-  for (const event of events) {
+  for (const event of coalesceAgentEvents(events)) {
     if (!isActionEvent(event.type)) continue
     const data = event.data
 
