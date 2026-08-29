@@ -113,6 +113,15 @@ class SessionRepository:
         result = await self.collection.delete_one(_session_id_query(session_id))
         return result.deleted_count > 0
 
+    async def delete_by_workspace(self, workspace_id: str) -> int:
+        query_ids: list = [workspace_id]
+        if ObjectId.is_valid(workspace_id):
+            query_ids.append(ObjectId(workspace_id))
+        result = await self.collection.delete_many(
+            {"workspace_id": {"$in": query_ids}}
+        )
+        return result.deleted_count
+
 
 async def get_session_repo(db: Annotated[Any, Depends(get_db)]) -> SessionRepository:
     return SessionRepository(db["sessions"])

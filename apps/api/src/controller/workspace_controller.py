@@ -5,6 +5,7 @@ from pymongo.errors import WriteError
 from src.ai_core.intent_agent import IntentAgent
 from src.dependency.auth_dependency import CurrentUser
 from src.models.workspace_model import Workspace
+from src.repository.message_repository import MessageRepo
 from src.repository.session_repository import SessionRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.schemas.workspace_schema import (
@@ -135,3 +136,80 @@ async def get_workspace_details(
         **workspace.model_dump(),
         sessions=_to_minimal_sessions(all_sessions),
     )
+
+
+async def update_workspace(
+    workspace_id: str,
+    body: Workspace,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+    session_repo: SessionRepo,
+) -> WorkspaceWithSession:
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="user is not authenticated",
+        )
+
+    existing = await repo.find_by_id(workspace_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="workspace not found",
+        )
+    if existing.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="forbidden",
+        )
+
+    if body.title.strip():
+        existing.title = body.title.strip()
+
+    updated = await repo.save(existing)
+    sessions = await session_repo.find_by_workspace_ids([workspace_id])
+
+    return WorkspaceWithSession(
+        **updated.model_dump(),
+        sessions=_to_minimal_sessions(sessions),
+    )
+
+
+async def delete_workspace(
+    workspace_id: str,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+    session_repo: SessionRepo,
+    message_repo: MessageRepo,
+):
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="user is not authenticated",
+        )
+
+    existing = await repo.find_by_id(workspace_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="workspace not found",
+        )
+    if existing.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="forbidden",
+        )
+
+    sessions = await session_repo.find_by_workspace_ids([workspace_id])
+    for session in sessions:
+        if session.id:
+            await message_repo.delete_by_session(session.id)
+
+    await session_repo.delete_by_workspace(workspace_id)
+
+    deleted = await repo.delete(workspace_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="workspace not found",
+        )

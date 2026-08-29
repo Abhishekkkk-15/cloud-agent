@@ -64,6 +64,12 @@ class WorkspaceRepository:
         )
         return workspace
 
+    async def delete(self, workspace_id: str) -> bool:
+        if not ObjectId.is_valid(workspace_id):
+            return False
+        result = await self.collection.delete_one({"_id": ObjectId(workspace_id)})
+        return result.deleted_count > 0
+
 
 async def get_workspace_repo(db: Annotated[Any, Depends(get_db)]) -> WorkspaceRepository:
     return WorkspaceRepository(db["workspaces"])

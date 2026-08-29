@@ -83,3 +83,30 @@ async def update_session(
     session.id = session_id
     updated = await session_repo.save(session)
     return updated.model_dump(by_alias=True)
+
+
+async def delete_session(
+    current_user: CurrentUser,
+    session_repo: SessionRepo,
+    message_repo: MessageRepo,
+    session_id: str,
+):
+    existing = await session_repo.find_by_id(session_id)
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+    if existing.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden",
+        )
+
+    await message_repo.delete_by_session(session_id)
+    deleted = await session_repo.delete(session_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )

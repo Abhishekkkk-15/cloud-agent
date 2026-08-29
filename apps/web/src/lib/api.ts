@@ -98,6 +98,76 @@ export async function getSessionMessages(sessionId: string) {
   return messagesToThread(detail.messages, detail.session)
 }
 
+function sessionToUpdateBody(session: Session, title: string) {
+  return {
+    _id: session.id,
+    title,
+    workspace: session.workspace,
+    permissions: session.permissions,
+    prompt_tokens: session.prompt_tokens,
+    completion_tokens: session.completion_tokens,
+    total_tokens: session.total_tokens,
+    cached_tokens: session.cached_tokens,
+    estimated_cost_usd: session.estimated_cost_usd,
+    compaction_summary: session.compaction_summary,
+    compacted_until: session.compacted_until,
+    user_id: session.user_id,
+    workspace_id: session.workspace_id,
+    created_at: session.created_at,
+    updated_at: session.updated_at,
+  }
+}
+
+export async function updateSessionTitle(
+  sessionId: string,
+  title: string
+): Promise<Session> {
+  const detail = await getSessionDetail(sessionId)
+  const { data } = await http.put(
+    `/sessions/${sessionId}`,
+    sessionToUpdateBody(detail.session, title)
+  )
+  return sessionSchema.parse(data)
+}
+
+function workspaceToUpdateBody(
+  workspace: WorkspaceWithSession,
+  title: string
+) {
+  return {
+    title,
+    user_id: workspace.user_id,
+    target_path: workspace.target_path,
+    source_path: workspace.source_path,
+    sandbox_id: workspace.sandbox_id,
+    is_active: workspace.is_active,
+    initial_prompt: workspace.initial_prompt,
+    status: workspace.status,
+    created_at: workspace.created_at,
+    updated_at: workspace.updated_at,
+  }
+}
+
+export async function updateWorkspaceTitle(
+  workspaceId: string,
+  title: string
+): Promise<WorkspaceWithSession> {
+  const current = await getWorkspace(workspaceId)
+  const { data } = await http.put(
+    `/workspaces/${workspaceId}`,
+    workspaceToUpdateBody(current, title)
+  )
+  return workspaceWithSessionSchema.parse(data)
+}
+
+export async function deleteSession(sessionId: string): Promise<void> {
+  await http.delete(`/sessions/${sessionId}`)
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  await http.delete(`/workspaces/${workspaceId}`)
+}
+
 export async function getFileTree(workspaceId: string): Promise<FileNode[]> {
   return fileTrees[workspaceId] ?? [...defaultFileTree]
 }

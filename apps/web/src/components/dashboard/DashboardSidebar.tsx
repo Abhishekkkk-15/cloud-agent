@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   CloudIcon,
@@ -9,6 +10,10 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import {
+  ManageSidebarItemDialog,
+  type ManageSidebarItemTarget,
+} from "@/components/dashboard/ManageSidebarItemDialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Collapsible,
@@ -57,6 +62,14 @@ export function DashboardSidebar() {
   const createSessionForWorkspace = useWorkspaceListStore(
     (s) => s.createSessionForWorkspace
   )
+  const renameWorkspace = useWorkspaceListStore((s) => s.renameWorkspace)
+  const renameSession = useWorkspaceListStore((s) => s.renameSession)
+  const removeWorkspace = useWorkspaceListStore((s) => s.removeWorkspace)
+  const removeSession = useWorkspaceListStore((s) => s.removeSession)
+  const itemActionBusy = useWorkspaceListStore((s) => s.itemActionBusy)
+  const [manageTarget, setManageTarget] = useState<ManageSidebarItemTarget | null>(
+    null
+  )
   const search = new URLSearchParams(location.search)
   const activeSession = search.get("session")
   const initials =
@@ -77,6 +90,64 @@ export function DashboardSidebar() {
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not create session"))
     }
+  }
+
+  async function handleSave(name: string) {
+    if (!manageTarget) return
+    try {
+      if (manageTarget.kind === "workspace") {
+        await renameWorkspace(manageTarget.workspaceId, name)
+        toast.success("Workspace renamed")
+      } else {
+        await renameSession(
+          manageTarget.workspaceId,
+          manageTarget.sessionId,
+          name
+        )
+        toast.success("Session renamed")
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not save name"))
+      throw error
+    }
+  }
+
+  async function handleDelete() {
+    if (!manageTarget) return
+    try {
+      if (manageTarget.kind === "workspace") {
+        await removeWorkspace(manageTarget.workspaceId)
+        toast.success("Workspace deleted")
+        if (location.pathname.includes(manageTarget.workspaceId)) {
+          navigate("/dashboard")
+        }
+      } else {
+        await removeSession(manageTarget.workspaceId, manageTarget.sessionId)
+        toast.success("Session deleted")
+        if (activeSession === manageTarget.sessionId) {
+          navigate(`/workspace/${manageTarget.workspaceId}`)
+        }
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Could not delete"))
+      throw error
+    }
+  }
+
+  function openSessionFromDialog() {
+    if (manageTarget?.kind !== "session") return
+    navigate(
+      `/workspace/${manageTarget.workspaceId}?session=${manageTarget.sessionId}`
+    )
+  }
+
+  function openManageTarget(
+    target: ManageSidebarItemTarget,
+    event: React.MouseEvent
+  ) {
+    event.preventDefault()
+    event.stopPropagation()
+    setManageTarget(target)
   }
 
   return (
@@ -150,71 +221,97 @@ export function DashboardSidebar() {
                     </SidebarMenuItem>
                   ) : (
                     workspaces.map((workspace, index) => {
-                    const workspaceId = workspace.id
-                    if (!workspaceId) return null
-                    return (
-                      <Collapsible
-                        key={workspaceId}
-                        defaultOpen={index === 0}
-                        className="group/collapsible"
-                      >
-                        <SidebarMenuItem>
-                          <CollapsibleTrigger
-                            render={<SidebarMenuButton />}
-                          >
-                            <FolderIcon />
-                            <span
-                              className="min-w-0 flex-1 truncate"
-                              title={workspace.title}
-                            >
-                              {workspace.title}
-                            </span>
-                            <span
-                              aria-hidden
-                              className="ml-auto inline-flex size-4 shrink-0 items-center justify-center pr-0.5 text-sm leading-none text-muted-foreground transition-transform duration-200 group-data-open/collapsible:rotate-90"
-                            >
-                              &gt;
-                            </span>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <SidebarMenuSub>
-                              {workspace.sessions.map((session) => (
-                                <SidebarMenuSubItem key={session.id}>
-                                  <SidebarMenuSubButton
-                                    isActive={activeSession === session.id}
-                                    render={
-                                      <Link
-                                        to={`/workspace/${workspaceId}?session=${session.id}`}
-                                      />
-                                    }
+                      const workspaceId = workspace.id
+                      if (!workspaceId) return null
+                      return (
+                        <Collapsible
+                          key={workspaceId}
+                          defaultOpen={index === 0}
+                          className="group/collapsible"
+                        >
+                          <SidebarMenuItem>
+                            <CollapsibleTrigger
+                              render={
+                                <SidebarMenuButton
+                                  onContextMenu={(event) =>
+                                    openManageTarget(
+                                      {
+                                        kind: "workspace",
+                                        workspaceId,
+                                        title: workspace.title,
+                                      },
+                                      event
+                                    )
+                                  }
+                                >
+                                  <FolderIcon />
+                                  <span
+                                    className="min-w-0 flex-1 truncate text-left"
+                                    title={workspace.title}
                                   >
-                                    <MessageSquareIcon />
-                                    <span
-                                      className="min-w-0 flex-1 truncate"
-                                      title={session.title}
+                                    {workspace.title}
+                                  </span>
+                                  <span
+                                    aria-hidden
+                                    className="ml-auto inline-flex size-4 shrink-0 items-center justify-center pr-0.5 text-sm leading-none text-muted-foreground transition-transform duration-200 group-data-open/collapsible:rotate-90"
+                                  >
+                                    &gt;
+                                  </span>
+                                </SidebarMenuButton>
+                              }
+                            />
+                            <CollapsibleContent>
+                              <SidebarMenuSub>
+                                {workspace.sessions.map((session) => (
+                                  <SidebarMenuSubItem key={session.id}>
+                                    <SidebarMenuSubButton
+                                      isActive={activeSession === session.id}
+                                      render={
+                                        <Link
+                                          to={`/workspace/${workspaceId}?session=${session.id}`}
+                                        />
+                                      }
+                                      onContextMenu={(event) =>
+                                        openManageTarget(
+                                          {
+                                            kind: "session",
+                                            workspaceId,
+                                            sessionId: session.id,
+                                            title: session.title,
+                                          },
+                                          event
+                                        )
+                                      }
                                     >
-                                      {session.title}
-                                    </span>
+                                      <MessageSquareIcon />
+                                      <span
+                                        className="min-w-0 flex-1 truncate text-left"
+                                        title={session.title}
+                                      >
+                                        {session.title}
+                                      </span>
+                                    </SidebarMenuSubButton>
+                                  </SidebarMenuSubItem>
+                                ))}
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton
+                                    disabled={
+                                      creatingSessionFor === workspaceId
+                                    }
+                                    onClick={() => {
+                                      void handleNewSession(workspaceId)
+                                    }}
+                                  >
+                                    <PlusIcon />
+                                    <span>New session</span>
                                   </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
-                              ))}
-                              <SidebarMenuSubItem>
-                                <SidebarMenuSubButton
-                                  disabled={creatingSessionFor === workspaceId}
-                                  onClick={() => {
-                                    void handleNewSession(workspaceId)
-                                  }}
-                                >
-                                  <PlusIcon />
-                                  <span>New session</span>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            </SidebarMenuSub>
-                          </CollapsibleContent>
-                        </SidebarMenuItem>
-                      </Collapsible>
-                    )
-                  })
+                              </SidebarMenuSub>
+                            </CollapsibleContent>
+                          </SidebarMenuItem>
+                        </Collapsible>
+                      )
+                    })
                   )}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -225,9 +322,7 @@ export function DashboardSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<SidebarMenuButton size="lg" />}
-              >
+              <DropdownMenuTrigger render={<SidebarMenuButton size="lg" />}>
                 <Avatar size="sm">
                   {user?.avatarUrl ? (
                     <AvatarImage src={user.avatarUrl} alt={user.name} />
@@ -268,6 +363,19 @@ export function DashboardSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
+
+      <ManageSidebarItemDialog
+        target={manageTarget}
+        onOpenChange={(open) => {
+          if (!open) setManageTarget(null)
+        }}
+        busy={itemActionBusy}
+        onSave={handleSave}
+        onDelete={handleDelete}
+        onOpen={
+          manageTarget?.kind === "session" ? openSessionFromDialog : undefined
+        }
+      />
     </Sidebar>
   )
 }

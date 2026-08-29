@@ -1,7 +1,16 @@
 import { create } from "zustand"
 
-import { createSession, createWorkspace, listWorkspaces } from "@/lib/api"
+import {
+  createSession,
+  createWorkspace,
+  deleteSession,
+  deleteWorkspace,
+  listWorkspaces,
+  updateSessionTitle,
+  updateWorkspaceTitle,
+} from "@/lib/api"
 import { getApiErrorMessage } from "@/lib/http"
+import { useWorkspaceStore } from "@/stores/workspace-store"
 import type {
   CreateWorkspaceRequest,
   CreateWorkspaceResponse,
@@ -14,6 +23,7 @@ type WorkspaceListState = {
   loading: boolean
   creating: boolean
   creatingSessionFor: string | null
+  itemActionBusy: boolean
   query: string
   error: string | null
   setQuery: (query: string) => void
@@ -22,6 +32,14 @@ type WorkspaceListState = {
     input: CreateWorkspaceRequest
   ) => Promise<CreateWorkspaceResponse>
   createSessionForWorkspace: (workspaceId: string) => Promise<Session>
+  renameWorkspace: (workspaceId: string, title: string) => Promise<void>
+  renameSession: (
+    workspaceId: string,
+    sessionId: string,
+    title: string
+  ) => Promise<void>
+  removeWorkspace: (workspaceId: string) => Promise<void>
+  removeSession: (workspaceId: string, sessionId: string) => Promise<void>
 }
 
 export const useWorkspaceListStore = create<WorkspaceListState>((set, get) => ({
@@ -29,6 +47,7 @@ export const useWorkspaceListStore = create<WorkspaceListState>((set, get) => ({
   loading: false,
   creating: false,
   creatingSessionFor: null,
+  itemActionBusy: false,
   query: "",
   error: null,
   setQuery: (query) => set({ query }),
@@ -70,6 +89,82 @@ export const useWorkspaceListStore = create<WorkspaceListState>((set, get) => ({
       set({
         creatingSessionFor: null,
         error: getApiErrorMessage(error, "Failed to create session"),
+      })
+      throw error
+    }
+  },
+  renameWorkspace: async (workspaceId, title) => {
+    set({ itemActionBusy: true, error: null })
+    try {
+      await updateWorkspaceTitle(workspaceId, title)
+      const workspaces = await listWorkspaces(get().query)
+      set({ workspaces, itemActionBusy: false })
+
+      const activeWorkspace = useWorkspaceStore.getState().workspace
+      if (activeWorkspace?.id === workspaceId) {
+        useWorkspaceStore.setState({
+          workspace: { ...activeWorkspace, title },
+        })
+      }
+    } catch (error) {
+      set({
+        itemActionBusy: false,
+        error: getApiErrorMessage(error, "Failed to rename workspace"),
+      })
+      throw error
+    }
+  },
+  renameSession: async (_workspaceId, sessionId, title) => {
+    set({ itemActionBusy: true, error: null })
+    try {
+      await updateSessionTitle(sessionId, title)
+      const workspaces = await listWorkspaces(get().query)
+      set({ workspaces, itemActionBusy: false })
+    } catch (error) {
+      set({
+        itemActionBusy: false,
+        error: getApiErrorMessage(error, "Failed to rename session"),
+      })
+      throw error
+    }
+  },
+  removeWorkspace: async (workspaceId) => {
+    set({ itemActionBusy: true, error: null })
+    try {
+      await deleteWorkspace(workspaceId)
+      const workspaces = await listWorkspaces(get().query)
+      set({ workspaces, itemActionBusy: false })
+
+      const activeWorkspace = useWorkspaceStore.getState().workspace
+      if (activeWorkspace?.id === workspaceId) {
+        useWorkspaceStore.setState({ workspace: null, chatMessages: [] })
+      }
+    } catch (error) {
+      set({
+        itemActionBusy: false,
+        error: getApiErrorMessage(error, "Failed to delete workspace"),
+      })
+      throw error
+    }
+  },
+  removeSession: async (_workspaceId, sessionId) => {
+    set({ itemActionBusy: true, error: null })
+    try {
+      await deleteSession(sessionId)
+      const workspaces = await listWorkspaces(get().query)
+      set({ workspaces, itemActionBusy: false })
+
+      const activeSessionId = useWorkspaceStore.getState().activeSessionId
+      if (activeSessionId === sessionId) {
+        useWorkspaceStore.setState({
+          activeSessionId: null,
+          chatMessages: [],
+        })
+      }
+    } catch (error) {
+      set({
+        itemActionBusy: false,
+        error: getApiErrorMessage(error, "Failed to delete session"),
       })
       throw error
     }
