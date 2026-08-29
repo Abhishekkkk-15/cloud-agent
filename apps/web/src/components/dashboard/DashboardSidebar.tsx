@@ -165,8 +165,13 @@ export function DashboardSidebar() {
                             render={<SidebarMenuButton />}
                           >
                             <FolderIcon />
-                            <span>{workspace.title}</span>
-                            <ChevronRightIcon className="ml-auto transition-transform group-data-open/collapsible:rotate-90" />
+                            <span
+                              className="min-w-0 flex-1 truncate"
+                              title={workspace.title}
+                            >
+                              {workspace.title}
+                            </span>
+                            <ChevronRightIcon className="ml-auto shrink-0 transition-transform group-data-open/collapsible:rotate-90" />
                           </CollapsibleTrigger>
                           <SidebarMenuBadge>
                             {workspace.sessions.length}
@@ -184,7 +189,12 @@ export function DashboardSidebar() {
                                     }
                                   >
                                     <MessageSquareIcon />
-                                    <span>{session.title}</span>
+                                    <span
+                                      className="min-w-0 flex-1 truncate"
+                                      title={session.title}
+                                    >
+                                      {session.title}
+                                    </span>
                                   </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                               ))}
