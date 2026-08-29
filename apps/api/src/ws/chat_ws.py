@@ -12,6 +12,7 @@ from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
 from src.utils.config import config
 from src.schemas.sandbox_schema import SandboxRunResult
+from src.ai_core.intent_agent import IntentAgent
 
 router = APIRouter()
 
@@ -31,10 +32,11 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
     print("websocket connection setablished")
     
     while True:
-        
+        intent_agent = IntentAgent()
         user = await authenticate_websocket(ws,user_repo)
         workspace_id = ws.query_params.get("workspace_id")
         user_query = await ws_manager.receive(ws)  
+        print("\n USER QUERY : ",user_query)
         # user_query = await ws.receive() 
         print(user_query)
         if not workspace_id:
@@ -87,15 +89,19 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
         agent = CloudAgentCore(workspace_id,workspace.sandbox_id,user.id,on_event)
         if workspace.status == "pending":
             agent_res = await agent.run(workspace.initial_prompt)
-            session = await session_repo.find_by_id(session_id)
             
-            session.title = agent_res.title
+            session = await session_repo.find_by_id(agent_res.session_id) #type:ignore
+            if not session or not session.title:
+                WebSocketException(code=1008,reason="Session not found")
+            intent_res = await intent_agent.analyze(workspace.initial_prompt)
+            session.title = intent_res.title
             await session_repo.save(session)
             workspace.status  = WorkspaceStatus("ready")
             await workspace_repo.save(workspace)            
         elif   session_id and user_query.data:
-           await agent.resume(session_id) 
-           await agent.run(user_query.data.query)
+            print(user_query,user_query.data)
+            await agent.resume(session_id) 
+            await agent.run(user_query.data["query"])
             # text = await ws.receive()    
             # print(text)
 

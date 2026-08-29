@@ -9,6 +9,7 @@ import { toast } from "sonner"
 
 import { AgentEventTurn } from "@/components/workspace/AgentEventTurn"
 import { ChatAttachmentList } from "@/components/workspace/ChatAttachmentList"
+import { ChatMarkdown } from "@/components/workspace/ChatMarkdown"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
@@ -188,14 +189,17 @@ export function AiChatPanel() {
                               variant={isUser ? "default" : "muted"}
                               align={isUser ? "end" : "start"}
                             >
-                              <BubbleContent
-                                className={cn(
-                                  "whitespace-pre-wrap",
-                                  isStreaming &&
-                                    "after:ml-0.5 after:inline-block after:h-4 after:w-0.5 after:animate-pulse after:bg-foreground after:align-text-bottom after:content-['']"
+                              <BubbleContent>
+                                {isUser ? (
+                                  <span className="whitespace-pre-wrap">
+                                    {message.content || (isStreaming ? " " : "")}
+                                  </span>
+                                ) : (
+                                  <ChatMarkdown
+                                    content={message.content}
+                                    streaming={isStreaming}
+                                  />
                                 )}
-                              >
-                                {message.content || (isStreaming ? " " : "")}
                               </BubbleContent>
                             </Bubble>
                           )}
