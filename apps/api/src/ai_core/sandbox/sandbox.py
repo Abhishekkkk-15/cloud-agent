@@ -149,4 +149,18 @@ class Sandbox:
         except NotFound:
             return False
     
-        
+    def stop_sandbox(self,container_id:str) -> dict[str,str] | None:    
+        try:
+            if not _DOCKER_AVAILABLE or not self.client:
+                return {"error":"Docker is not available"}
+            container = self.client.containers.get(container_id)
+            container.stop()
+            return None
+        except NotFound:
+            return {"error": f"Container '{container_id}' not found"}
+        except ContainerError as e:
+            return {"error": f"Container Error: {getattr(e, 'stderr', e)}"}
+        except APIError as e:
+            return {"error": f"Docker API Error: {e}"}
+        except Exception as e:
+            return {"error": f"Failed to stop container: {e}"}
