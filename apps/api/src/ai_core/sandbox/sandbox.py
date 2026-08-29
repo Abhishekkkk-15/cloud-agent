@@ -3,11 +3,19 @@ from typing import Any, Optional
 from src.ai_core.sandbox.client import get_sandbox_client
 from src.utils.config import Config
 from src.schemas.sandbox_schema import SandboxRunResult
+from docker.models.containers import Container
 # from docker import Con
-
+from pydantic import BaseModel
 from src.utils.config import config
 
+class DockerClentsList(BaseModel):
+    id:str
+    container:Container
+
 from docker.errors import ContainerError, APIError,NotFound
+
+
+
 try:
     from docker import DockerClient
     from docker.errors import ContainerError, APIError,NotFound
@@ -68,9 +76,9 @@ class Sandbox:
                     "name": container.name,
                     "status": container.status,
                     "image": (
-                        container.image.tags[0]
-                        if container.image.tags
-                        else container.image.short_id
+                        container.image.tags[0] #type:ignore
+                        if container.image.tags #type:ignore
+                        else container.image.short_id #type:ignore
                     ),
                     "created": container.attrs.get("Created"),
                 }
@@ -136,6 +144,17 @@ class Sandbox:
             return False
         except Exception:
             return False    
+    def sandbox_get(self, sandbox_id: str) -> None|Container:
+        if not self.client:
+            return None
+
+        try:
+            cnt = self.client.containers.get(sandbox_id)
+            return cnt
+        except NotFound:
+            return None
+        except Exception:
+            return None    
     def is_sandbox_running(self, sandbox_id: str) -> bool:
         if not self.client:
             return False
@@ -164,3 +183,10 @@ class Sandbox:
             return {"error": f"Docker API Error: {e}"}
         except Exception as e:
             return {"error": f"Failed to stop container: {e}"}
+    
+    def run_exec(self,sandbox_id:str, cmd:str|list[str]) -> dict[str,str] | bool:
+            ctn = self.sandbox_get(sandbox_id=sandbox_id)    
+            if ctn is None:
+                return {"error":"sandbox not found"}
+            exit_code,output = ctn.exec_run(cmd)
+            return {"exit_code":exit_code,"output":output}
