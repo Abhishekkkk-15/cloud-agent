@@ -1,12 +1,14 @@
 from src.repository.session_repository import SessionRepo
-from src.utils.ws_manager import ws_manager, ConnectionManager
-from fastapi import APIRouter, WebSocket, WebSocketException,WebSocketDisconnect
+from src.utils.ws_manager import ws_manager
+from fastapi import APIRouter, WebSocket, WebSocketException, WebSocketDisconnect
 from src.utils.ws_manager import authenticate_websocket
 from src.repository.user_repository import UserRepo
 from src.dependency.sandbox_dependency import SandboxRepo
+from src.dependency.port_depemdency import PortRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.models.workspace_model import WorkspaceStatus
 from src.utils.event_handler import event_handler
+from src.utils.port_manager import PortRole
 from pi_sdk import AgentEvent
 from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
@@ -17,60 +19,95 @@ from src.ai_core.intent_agent import IntentAgent
 router = APIRouter()
 
 
-
-
-async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:SandboxRepo,workspace_repo:WorkspaceRepo,session_repo:SessionRepo):
-    
+async def websocket_endpoint(
+    ws: WebSocket,
+    user_repo: UserRepo,
+    sandbox_repo: SandboxRepo,
+    workspace_repo: WorkspaceRepo,
+    session_repo: SessionRepo,
+    port_manager: PortRepo,
+):
     # Recieve workspace id and session_id (if there is) from query
     # fetch workspace and session details
     # check if workspace sandbox/container is running (Event: Checking Sandbox Status)
     # if not sandbox start/create sandbox  (Event: Starting Sandbox container)
     # save container id
     # create agent with workspace_id
-    
+
     await ws_manager.connect(ws)
     print("websocket connection setablished")
-    
+
     while True:
         try:
             intent_agent = IntentAgent()
-            user = await authenticate_websocket(ws,user_repo)
+            user = await authenticate_websocket(ws, user_repo)
             workspace_id = ws.query_params.get("workspace_id")
-            user_query = await ws_manager.receive(ws)  
+            user_query = await ws_manager.receive(ws)
             if not workspace_id:
-                raise WebSocketException(code=1008,reason="workspace is required")
+                raise WebSocketException(code=1008, reason="workspace is required")
             session_id = ws.query_params.get("session_id")
             workspace = await workspace_repo.find_by_id(workspace_id)
             if not workspace:
-                raise WebSocketException(code=4004,reason="workspace not found")
-            await ws_manager.send_json(websocket=ws,
-                    data=jsonable_encoder({"type":"workspace:info","data":workspace})
+                raise WebSocketException(code=4004, reason="workspace not found")
+            await ws_manager.send_json(
+                websocket=ws,
+                data=jsonable_encoder({"type": "workspace:info", "data": workspace}),
             )
 
             sandbox_id = workspace.sandbox_id
 
-            # await workspace_repo.save(workspace)
-
             if not sandbox_id:
                 print("starting sandbox")
-                workspace.source_path = str(config.workspace_base/workspace_id)
-                workspace.target_path
-                workspace_root = config.workspace_base/workspace_id
+                workspace.source_path = str(config.workspace_base / workspace_id)
+                workspace_root = config.workspace_base / workspace_id
                 workspace_root.mkdir(parents=True, exist_ok=True)
-                sandbox = sandbox_repo.run_sandbox(workspace_id)
-                if not isinstance(sandbox,SandboxRunResult):
+
+                # Publish frontend (4000) + backend (4001) before container create
+                allocated = port_manager.allocate_workspace_ports(workspace_id)
+                docker_ports = port_manager.to_docker_ports(workspace_id)
+                print(docker_ports)
+                sandbox = sandbox_repo.run_sandbox(workspace_id, docker_ports)
+                if not isinstance(sandbox, SandboxRunResult):
+                    port_manager.release_workspace_ports(workspace_id)
                     raise WebSocketException(
-                    code=1002,
-                    reason=f"Something wrong with Docker {sandbox}"
-                    )  
+                        code=1002,
+                        reason=f"Something wrong with Docker {sandbox}",
+                    )
+
+                frontend = next(
+                    (p for p in allocated if p.role == PortRole.FRONTEND), None
+                )
+                backend = next(
+                    (p for p in allocated if p.role == PortRole.BACKEND), None
+                )
+                if frontend:
+                    workspace.frontend_port = frontend.host_port
+                    workspace.preview_port = frontend.host_port
+                    workspace.preview_url = frontend.url
+                if backend:
+                    workspace.backend_port = backend.host_port
+                    workspace.backend_url = backend.url
+                workspace.preview_status = "ports_ready"
+
                 workspace.sandbox_id = sandbox.id
                 sandbox_id = sandbox.id
 
                 await workspace_repo.save(workspace)
 
-
-            await ws_manager.send_json(websocket=ws,
-                    data=jsonable_encoder({"type":"sandbox:start","data":{"sandbox_id":sandbox_id}})
+            await ws_manager.send_json(
+                websocket=ws,
+                data=jsonable_encoder(
+                    {
+                        "type": "sandbox:start",
+                        "data": {
+                            "sandbox_id": sandbox_id,
+                            "frontend_port": workspace.frontend_port,
+                            "backend_port": workspace.backend_port,
+                            "preview_url": workspace.preview_url,
+                            "backend_url": workspace.backend_url,
+                        },
+                    }
+                ),
             )
 
             async def on_event(event: AgentEvent) -> None:

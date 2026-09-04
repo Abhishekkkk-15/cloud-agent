@@ -25,6 +25,10 @@ class Workspace(BaseModel):
     created_at:datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at:datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    preview_port:int|None = None
-    preview_url:str|None = None
-    preview_status:str|None = None
+    # Host ports published on the sandbox (container: frontend=4000, backend=4001)
+    frontend_port: int | None = None
+    backend_port: int | None = None
+    preview_port: int | None = None  # alias: frontend host port for Preview UI
+    preview_url: str | None = None
+    preview_status: str | None = None
+    backend_url: str | None = None

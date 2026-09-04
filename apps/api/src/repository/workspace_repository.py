@@ -29,6 +29,12 @@ def _doc_to_workspace(doc: dict) -> Workspace:
         is_active=doc.get("is_active", True),
         initial_prompt=doc.get("initial_prompt", ""),
         status=status,
+        frontend_port=doc.get("frontend_port"),
+        backend_port=doc.get("backend_port"),
+        preview_port=doc.get("preview_port"),
+        preview_url=doc.get("preview_url"),
+        preview_status=doc.get("preview_status"),
+        backend_url=doc.get("backend_url"),
         **extras,
     )
 
