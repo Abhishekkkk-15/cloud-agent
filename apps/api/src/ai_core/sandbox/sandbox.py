@@ -1,84 +1,75 @@
-from typing import Any, Optional
-
 from src.ai_core.sandbox.client import get_sandbox_client
-from src.utils.config import Config
 from src.schemas.sandbox_schema import SandboxRunResult
-from docker.models.containers import Container
-# from docker import Con
-from pydantic import BaseModel
 from src.utils.config import config
-
-# class DockerClentsList(BaseModel):
-#     id:str
-#     container:Container
-
-from docker.errors import ContainerError, APIError,NotFound
+from docker import DockerClient
+from docker.errors import APIError, ContainerError, NotFound
+from docker.models.containers import Container
+from docker.types import Mount
 
 
-
-try:
-    from docker import DockerClient
-    from docker.errors import ContainerError, APIError,NotFound
-    from docker.types import Mount
-    
-
-    _DOCKER_AVAILABLE = True
-except ModuleNotFoundError:
-    # Allow the app to import/start without the `docker` Python package.
-    ContainerError = Exception  # type: ignore
-    APIError = Exception  # type: ignore
-    Mount = None  # type: ignore
-    _DOCKER_AVAILABLE = False
 class Sandbox:
-    client :DockerClient | None
+    client: DockerClient | None
+    _client_error: str | None
+
     def __init__(self):
+        self._client_error = None
         try:
             self.client = get_sandbox_client()
-        except Exception:
+        except Exception as e:
             self.client = None
-    def run_sandbox(self,workspace_id:str)-> dict[str, str] | SandboxRunResult :
-        try:
-            if not _DOCKER_AVAILABLE or not self.client:
-                return {"error": "Docker sandbox is not available"}
+            self._client_error = str(e)
 
-            if Mount is None:
-                return {"error": "docker.types.Mount is unavailable"}
-            
+    def run_sandbox(self, workspace_id: str) -> dict[str, str] | SandboxRunResult:
+        try:
+            if not self.client:
+                return {
+                    "error": self._client_error
+                    or "Docker sandbox is not available"
+                }
+
             mount = Mount(
                 target="/app",
                 source=f"{config.docker_workspace_base}/{workspace_id}",
-                type="bind"
+                type="bind",
             )
-            container = self.client.containers.run('node-python-lite', command='tail -f /dev/null', detach=True, mounts=[mount])
+            container = self.client.containers.run(
+                "node-python-lite",
+                command="tail -f /dev/null",
+                detach=True,
+                mounts=[mount],
+                ports={"4000/tcp": 4000},  # container 4000 → host 4000
+            )
             if (
                 container.id is None
                 or container.name is None
                 or container.status is None
-                ):          
-                raise RuntimeError("Container metadata missing")            
-            container_res = SandboxRunResult(id=container.id,name=container.name, status=container.status)
+            ):
+                raise RuntimeError("Container metadata missing")
+            container_res = SandboxRunResult(
+                id=container.id, name=container.name, status=container.status
+            )
             return container_res
         except ContainerError as e:
             return {"error": f"Container Error: {getattr(e, 'stderr', e)}"}
         except Exception as e:
             return {"error": f"Failed to run sandbox container: {e}"}
-        
+
     def docker_ls(self):
         try:
             if not self.client:
                 return []
 
             containers = self.client.containers.list()
-            
+
             return [
                 {
                     "id": container.short_id,
                     "name": container.name,
                     "status": container.status,
                     "image": (
-                        container.image.tags[0] #type:ignore
-                        if container.image.tags #type:ignore
-                        else container.image.short_id #type:ignore
+                        container.image.tags[0]  # type:ignore
+                        if container.image.tags  # type:ignore
+                        else container.image.short_id  # type:ignore
                     ),
                     "created": container.attrs.get("Created"),
                 }
@@ -86,14 +77,17 @@ class Sandbox:
             ]
         except Exception as e:
             return [{"error": f"Failed to list containers: {e}"}]
-     
+
     def resume_sandbox(
         self,
         sandbox_id: str,
-) ->     dict[str, str] | SandboxRunResult:
+    ) -> dict[str, str] | SandboxRunResult:
         try:
-            if not _DOCKER_AVAILABLE or not self.client:
-                return {"error": "Docker sandbox is not available"}
+            if not self.client:
+                return {
+                    "error": self._client_error
+                    or "Docker sandbox is not available"
+                }
 
             container = self.client.containers.get(sandbox_id)
 
@@ -120,19 +114,14 @@ class Sandbox:
             return {"error": f"Sandbox '{sandbox_id}' not found"}
 
         except ContainerError as e:
-            return {
-                "error": f"Container Error: {getattr(e, 'stderr', e)}"
-            }
+            return {"error": f"Container Error: {getattr(e, 'stderr', e)}"}
 
         except APIError as e:
-            return {
-                "error": f"Docker API Error: {e}"
-            }
+            return {"error": f"Docker API Error: {e}"}
 
         except Exception as e:
-            return {
-                "error": f"Failed to resume sandbox: {e}"
-            }         
+            return {"error": f"Failed to resume sandbox: {e}"}
+
     def sandbox_exists(self, sandbox_id: str) -> bool:
         if not self.client:
             return False
@@ -143,8 +132,9 @@ class Sandbox:
         except NotFound:
             return False
         except Exception:
-            return False    
-    def sandbox_get(self, sandbox_id: str) -> Container|None:
+            return False
+
+    def sandbox_get(self, sandbox_id: str) -> Container | None:
         if not self.client:
             return None
 
@@ -154,7 +144,8 @@ class Sandbox:
         except NotFound:
             return None
         except Exception:
-            return None    
+            return None
+
     def is_sandbox_running(self, sandbox_id: str) -> bool:
         if not self.client:
             return False
@@ -167,11 +158,13 @@ class Sandbox:
 
         except NotFound:
             return False
-    
-    def stop_sandbox(self,container_id:str) -> dict[str,str] | None:    
+
+    def stop_sandbox(self, container_id: str) -> dict[str, str] | None:
         try:
-            if not _DOCKER_AVAILABLE or not self.client:
-                return {"error":"Docker is not available"}
+            if not self.client:
+                return {
+                    "error": self._client_error or "Docker is not available"
+                }
             container = self.client.containers.get(container_id)
             container.stop()
             return None
@@ -183,10 +176,10 @@ class Sandbox:
             return {"error": f"Docker API Error: {e}"}
         except Exception as e:
             return {"error": f"Failed to stop container: {e}"}
-    
-    def run_exec(self,sandbox_id:str, cmd:str|list[str]) -> dict[str,str] | bool:
-            ctn = self.sandbox_get(sandbox_id=sandbox_id)    
-            if ctn is None:
-                return {"error":"sandbox not found"}
-            exit_code,output = ctn.exec_run(cmd)
-            return {"exit_code":exit_code,"output":output}
+
+    def run_exec(self, sandbox_id: str, cmd: str | list[str]) -> dict[str, str] | bool:
+        ctn = self.sandbox_get(sandbox_id=sandbox_id)
+        if ctn is None:
+            return {"error": "sandbox not found"}
+        exit_code, output = ctn.exec_run(cmd)
+        return {"exit_code": exit_code, "output": output}
