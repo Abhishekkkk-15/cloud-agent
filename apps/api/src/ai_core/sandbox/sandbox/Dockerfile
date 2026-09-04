@@ -12,4 +12,4 @@ WORKDIR /app
 # Verify installations during build
 RUN node -v && python3 --version
 
-CMD ["/bin/sh"]
+CMD ["/bin/sh"] 

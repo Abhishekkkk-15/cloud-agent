@@ -8,9 +8,9 @@ from docker.models.containers import Container
 from pydantic import BaseModel
 from src.utils.config import config
 
-class DockerClentsList(BaseModel):
-    id:str
-    container:Container
+# class DockerClentsList(BaseModel):
+#     id:str
+#     container:Container
 
 from docker.errors import ContainerError, APIError,NotFound
 
@@ -144,7 +144,7 @@ class Sandbox:
             return False
         except Exception:
             return False    
-    def sandbox_get(self, sandbox_id: str) -> None|Container:
+    def sandbox_get(self, sandbox_id: str) -> Container|None:
         if not self.client:
             return None
 

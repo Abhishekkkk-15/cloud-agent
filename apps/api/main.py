@@ -12,6 +12,7 @@ from src.routes.workspace_route import router as ChatRouter
 from src.routes.session_route import router as SessionRouter
 from src.ws.chat_ws import router as WSRouter
 from src.routes.session_route import router as SessionRouter
+from src.routes.preview_route import router as PreviewRouter
 
 app = FastAPI(lifespan=db_lifespan)
 
@@ -40,8 +41,9 @@ app.include_router(ChatRouter)
 app.include_router(SessionRouter)
 app.include_router(WSRouter)  
 app.include_router(SessionRouter)  
+app.include_router(PreviewRouter)  
  
 print("STARTED LISTNINIG")
     
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000,reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000)

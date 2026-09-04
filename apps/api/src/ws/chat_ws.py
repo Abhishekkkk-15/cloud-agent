@@ -99,7 +99,7 @@ async def websocket_endpoint(ws:WebSocket,user_repo:UserRepo,sandbox_repo:Sandbo
                 await agent.run(user_query.data["query"])
                 await ws_manager.send_json(websocket=ws,data=jsonable_encoder({"type":"session:create","data":{"session_id":session.id}}))
         except WebSocketDisconnect:
-            await sandbox_repo.stop_sandbox(workspace.sandbox_id)
+            # await sandbox_repo.stop_sandbox(workspace.sandbox_id)
             await ws_manager.disconnect(ws)
             break
         except Exception as e:

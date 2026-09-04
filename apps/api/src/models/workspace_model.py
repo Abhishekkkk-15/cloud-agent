@@ -24,3 +24,7 @@ class Workspace(BaseModel):
     
     created_at:datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at:datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    preview_port:int|None = None
+    preview_url:str|None = None
+    preview_status:str|None = None
