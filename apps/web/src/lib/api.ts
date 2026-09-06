@@ -1,4 +1,4 @@
-import { z } from "zod"
+import { string, z } from "zod"
 
 import { defaultFileTree, defaultTerminalBoot } from "@/data/stubs"
 import { messagesToThread } from "@/lib/session-messages"
@@ -39,10 +39,7 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
-function filterWorkspaces(
-  workspaces: WorkspaceWithSession[],
-  query?: string
-) {
+function filterWorkspaces(workspaces: WorkspaceWithSession[], query?: string) {
   const q = query?.trim().toLowerCase()
   if (!q) return workspaces
   return workspaces.filter(
@@ -130,10 +127,7 @@ export async function updateSessionTitle(
   return sessionSchema.parse(data)
 }
 
-function workspaceToUpdateBody(
-  workspace: WorkspaceWithSession,
-  title: string
-) {
+function workspaceToUpdateBody(workspace: WorkspaceWithSession, title: string) {
   return {
     title,
     user_id: workspace.user_id,
@@ -194,4 +188,17 @@ export async function runCommand(command: string): Promise<TerminalLine[]> {
       timestamp: new Date().toISOString(),
     },
   ]
+}
+
+// Preview APi
+
+// export async function preview(
+//   workspace_id: string,
+//   path: string = ""
+// ): Promise<string> {
+//   const response = await http.get(`/workspaces/preview/${workspace_id}/${path}`)
+//   return response.data
+// }
+export function preview(workspaceId: string): string {
+  return `http://localhost:8000/workspaces/preview/${workspaceId}/`
 }

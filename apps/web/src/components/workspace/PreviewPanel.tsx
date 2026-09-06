@@ -65,22 +65,22 @@ export function PreviewPanel() {
             {runSession.url ?? "Preview unavailable"}
           </span>
         </div>
-        {runSession.url ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            render={
-              <a href={runSession.url} target="_blank" rel="noreferrer" />
-            }
-            nativeButton={false}
-            aria-label="Open preview"
-          >
-            <ExternalLinkIcon />
-          </Button>
-        ) : null}
+        <div className="min-h-0 flex-1 bg-background">
+          {runSession.url ? (
+            <iframe
+              src={runSession.url}
+              title={`${workspace?.title ?? "Workspace"} preview`}
+              className="h-full w-full border-0"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              Preview unavailable
+            </div>
+          )}
+        </div>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center bg-muted/40 p-6">
-        <div className="w-full max-w-md rounded-xl border bg-background p-6 shadow-sm text-center">
+        <div className="w-full max-w-md rounded-xl border bg-background p-6 text-center shadow-sm">
           <h3 className="text-lg font-medium">{workspace?.title}</h3>
           <p className="mt-2 text-sm text-muted-foreground">
             Preview is not connected yet. Run will execute in the terminal once

@@ -1,4 +1,6 @@
-from fastapi import HTTPException, responses
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
+import httpx
 
 from src.dependency.auth_dependency import CurrentUser
 from src.dependency.port_depemdency import PortRepo
@@ -84,4 +86,62 @@ async def start_preview(
             "workspace_id": workspace_id,
             "preview_status": workspace.preview_status,
         }
+    )
+
+
+
+async def preview( workspace_id: str,
+    path: str,
+    request: Request,
+    repo: WorkspaceRepo,
+   ):
+    workspace = await repo.find_by_id(workspace_id)
+    if not workspace:
+        raise HTTPException(
+            status_code=404,
+            detail="Workspace not found"
+        )
+    
+    if not workspace.sandbox_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Sandbox not found"
+        )
+
+    if not workspace.frontend_port:
+        raise HTTPException(
+            status_code=404,
+            detail="Preview has not been started"
+        )
+    
+    target_url = (
+        f"http://127.0.0.1:{workspace.frontend_port}/{path}"
+    )
+
+    body = await request.body()
+
+    async with httpx.AsyncClient() as client:
+        response = await client.request(
+             method=request.method,
+            url=target_url,
+            headers=dict(request.headers),
+            content=body,
+            params=request.query_params,
+        )
+    excluded_headers = {
+        "content-encoding",
+        "transfer-encoding",
+        "connection",
+    }
+
+    headers = {
+        key: value
+        for key, value in response.headers.items()
+        if key.lower() not in excluded_headers
+    }
+
+    return Response(
+        content=response.content,
+        status_code=response.status_code,
+        headers=headers,
     )

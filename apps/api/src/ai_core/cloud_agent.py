@@ -44,7 +44,7 @@ class CloudAgentCore:
 
   <technology_constraints>
     <frontend>
-      <framework>React</framework>
+      <framework>React+Vite</framework>
       <language>TypeScript</language>
       <styling>Tailwind CSS</styling>
       <components>shadcn/ui</components>

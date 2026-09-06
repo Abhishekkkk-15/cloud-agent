@@ -6,6 +6,7 @@ import {
   getTerminalBoot,
   getWorkspace,
   runCommand,
+  preview,
 } from "@/lib/api"
 import { get_wehsocket } from "@/lib/websocket"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
@@ -389,26 +390,45 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       terminalLines: [...state.terminalLines, ...lines],
     }))
   },
-
   startRun: async () => {
+    const workspaceId = get().workspace?.id
+
+    const runSession = {
+      id: `run_${crypto.randomUUID().slice(0, 6)}`,
+      status: "starting" as const,
+      url: null,
+      startedAt: new Date().toISOString(),
+    }
+
     set({
-      runSession: {
-        id: `run_${crypto.randomUUID().slice(0, 6)}`,
-        status: "starting",
-        url: null,
-        startedAt: new Date().toISOString(),
-      },
+      runSession,
       workspaceTab: "preview",
     })
-    await get().executeCommand("npm run dev")
-    set({
-      runSession: {
-        id: get().runSession.id,
-        status: "running",
-        url: null,
-        startedAt: get().runSession.startedAt,
-      },
-    })
+
+    try {
+      await get().executeCommand("npm run dev")
+
+      const url = preview(workspaceId!)
+      console.log(url)
+      set({
+        runSession: {
+          ...runSession,
+          status: "running",
+          url,
+        },
+      })
+    } catch (error) {
+      console.log(error)
+      set({
+        runSession: {
+          ...runSession,
+          status: "error",
+          url: null,
+        },
+      })
+
+      throw error
+    }
   },
 
   stopRun: () => {

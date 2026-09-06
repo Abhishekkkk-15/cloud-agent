@@ -44,7 +44,7 @@ class Port(BaseModel):
 
 # Fixed inside the sandbox so the agent always knows where to bind.
 CONTAINER_PORTS: dict[PortRole, int] = {
-    PortRole.FRONTEND: 5173,
+    PortRole.FRONTEND: 4000,
     PortRole.BACKEND: 3000,
 }
 

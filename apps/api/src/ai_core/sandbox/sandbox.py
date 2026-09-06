@@ -39,6 +39,12 @@ class Sandbox:
                 mounts=[mount],
                 ports=ports,
             )
+            print("2. Container created:", container.id)
+
+            print("3. Reloading container")
+            container.reload()
+
+            print("4. Status:", container.status)
             if (
                 container.id is None
                 or container.name is None
