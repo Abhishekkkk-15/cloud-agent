@@ -76,7 +76,7 @@ async def websocket_endpoint(
             )
 
             # Define base preview domain (defaulting to lvh.me for local dev)
-            base_domain = getattr(config, "preview_base_domain", "lvh.me")
+            base_domain = config.preview_base_domain
 
             if frontend:
                 workspace.frontend_port = frontend.host_port

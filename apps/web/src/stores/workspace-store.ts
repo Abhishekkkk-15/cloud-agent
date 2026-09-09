@@ -302,6 +302,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         getFileTree(workspaceId),
         getTerminalBoot(),
       ])
+      console.log(workspaceDetail)
       const flat = flattenFiles(files)
       const firstFile = flat[0]
       const resolvedSessionId =
@@ -410,7 +411,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     try {
       // Trigger execution via WebSocket or API
-      await get().executeCommand("pnpm dev")
 
       // If backend assigned workspace.frontend_port:
       const port = workspace.frontend_port || 32591

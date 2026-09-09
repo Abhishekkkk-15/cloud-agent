@@ -47,9 +47,7 @@ export const workspaceStatusSchema = z.enum([
 
 const isoTimestamp = z
   .union([z.string(), z.date()])
-  .transform((value) =>
-    value instanceof Date ? value.toISOString() : value
-  );
+  .transform((value) => (value instanceof Date ? value.toISOString() : value));
 
 /** Matches `Workspace` — snake_case API fields */
 export const workspaceSchema = z.object({
@@ -64,6 +62,9 @@ export const workspaceSchema = z.object({
   status: workspaceStatusSchema,
   created_at: isoTimestamp,
   updated_at: isoTimestamp,
+  frontend_port: z.number().nullable(),
+  backend_port: z.number().nullable(),
+  preview_url: z.string().nullable(),
 });
 
 /** Matches `MinimalSession` (`id` / `_id`) */
