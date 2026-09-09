@@ -71,7 +71,7 @@ async def start_preview(
     workspace.preview_status = "started"
     await repo.save(workspace)
 
-    return responses.JSONResponse(
+    return Response(
         content={
             "frontend": {
                 "container_port": 4000,

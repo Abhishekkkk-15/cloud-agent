@@ -46,6 +46,7 @@ class Config:
         self.intent_model= os.getenv("INTENT_MODEL") or ""
         self.intent_base_url= os.getenv("INTENT_BASE_URL") or ""
         self.intent_model_key= os.getenv("INTENT_MODEL_KEY") or ""
+        self.preview_base_domain = os.getenv("PREVIEW_BASE_DOMAIN") or "lvh.me",
         self.workspace_base =Path(
     os.getenv(
         "WORKSPACE_BASE",

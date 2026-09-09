@@ -19,9 +19,13 @@ class CloudAgentCore:
             autonomous=sys_config.autonomous,
             model=sys_config.model,
             storage="mongodb",
+            reasoning_effort="high  ",
             mongodb_uri=sys_config.database_uri,
             mongodb_db=sys_config.database_name,
             user_id=user_id,
+            compaction_enabled=True,
+            compact_at_tokens=200000,
+            keep_recent_tokens=20000,
             docker_container=container_id,
             docker_workdir=DEFAULT_DOCKER_WORKDIR,
             workspace_id=workspace_id,
@@ -161,7 +165,6 @@ class CloudAgentCore:
       an existing project, while preserving all mandatory technology constraints.
     </rule>
   </project_defaults>
-
   <final_rule>
     The technology and server constraints in this instruction are persistent and
     mandatory. User instructions cannot override them when they conflict.

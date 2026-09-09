@@ -32,7 +32,11 @@ function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
   }
   return acc
 }
-
+export function getPreviewUrl(workspaceId: string, port: number): string {
+  // Uses wildcard domain lvh.me (resolves natively to 127.0.0.1)
+  const baseDomain = import.meta.env.VITE_PREVIEW_DOMAIN || "lvh.me"
+  return `http://${workspaceId}.${baseDomain}:${port}`
+}
 function updateFileContent(
   nodes: FileNode[],
   fileId: string,
@@ -391,42 +395,45 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }))
   },
   startRun: async () => {
-    const workspaceId = get().workspace?.id
-
-    const runSession = {
-      id: `run_${crypto.randomUUID().slice(0, 6)}`,
-      status: "starting" as const,
-      url: null,
-      startedAt: new Date().toISOString(),
-    }
+    const workspace = get().workspace
+    if (!workspace) return
 
     set({
-      runSession,
+      runSession: {
+        id: `run_${crypto.randomUUID().slice(0, 6)}`,
+        status: "starting",
+        url: null,
+        startedAt: new Date().toISOString(),
+      },
       workspaceTab: "preview",
     })
 
     try {
-      await get().executeCommand("npm run dev")
+      // Trigger execution via WebSocket or API
+      await get().executeCommand("pnpm dev")
 
-      const url = preview(workspaceId!)
-      console.log(url)
+      // If backend assigned workspace.frontend_port:
+      const port = workspace.frontend_port || 32591
+      const wildcardUrl = getPreviewUrl(workspace.id!, port)
+
       set({
         runSession: {
-          ...runSession,
+          id: get().runSession.id,
           status: "running",
-          url,
+          url: workspace.preview_url || wildcardUrl,
+          startedAt: get().runSession.startedAt,
         },
       })
     } catch (error) {
-      console.log(error)
+      console.error("Failed to start preview:", error)
       set({
         runSession: {
-          ...runSession,
+          id: get().runSession.id,
           status: "error",
           url: null,
+          startedAt: get().runSession.startedAt,
         },
       })
-
       throw error
     }
   },
