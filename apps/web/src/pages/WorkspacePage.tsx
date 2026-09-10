@@ -1,5 +1,6 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useParams, useSearchParams } from "react-router-dom"
+import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { AiChatPanel } from "@/components/workspace/AiChatPanel"
 import { CodeEditor } from "@/components/workspace/CodeEditor"
@@ -15,8 +16,9 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { useWorkspaceStore } from "@/stores/workspace-store"
+import { cn } from "@/lib/utils"
 export function WorkspacePage() {
   const { workspaceId = "" } = useParams()
   const [searchParams] = useSearchParams()
@@ -26,6 +28,20 @@ export function WorkspacePage() {
   const error = useWorkspaceStore((s) => s.error)
   const workspaceTab = useWorkspaceStore((s) => s.workspaceTab)
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
+  const chatPanelRef = useRef<PanelImperativeHandle | null>(null)
+  const chatCollapsed = useWorkspaceStore((s) => s.chatCollapsed)
+  const setChatCollapsed = useWorkspaceStore((s) => s.setChatCollapsed)
+
+  useEffect(() => {
+    const panel = chatPanelRef.current
+    if (!panel) return
+    if (chatCollapsed && !panel.isCollapsed()) {
+      panel.collapse()
+    } else if (!chatCollapsed && panel.isCollapsed()) {
+      panel.expand()
+    }
+  }, [chatCollapsed])
+
   useEffect(() => {
     if (workspaceId) {
       loadWorkspace(workspaceId, sessionId)
@@ -66,14 +82,29 @@ export function WorkspacePage() {
         >
           <ResizablePanel
             id="agent"
+            panelRef={chatPanelRef}
+            collapsible
+            collapsedSize={0}
             defaultSize="40%"
-            minSize="28%"
-            maxSize="55%"
-            className="min-h-0"
+            minSize="20%"
+            maxSize="65%"
+            onResize={(size) => {
+              const isCollapsed = size.asPercentage === 0
+              if (isCollapsed !== chatCollapsed) {
+                setChatCollapsed(isCollapsed)
+              }
+            }}
+            className="min-h-0 overflow-hidden"
           >
             <AiChatPanel />
           </ResizablePanel>
-          <ResizableHandle withHandle />
+          <ResizableHandle
+            withHandle={!chatCollapsed}
+            className={cn(
+              "transition-colors",
+              chatCollapsed && "hover:bg-primary/50 cursor-col-resize after:w-3"
+            )}
+          />
           <ResizablePanel
             id="workspace"
             defaultSize="60%"
@@ -93,14 +124,6 @@ export function WorkspacePage() {
               }}
               className="flex h-full min-h-0 flex-col gap-0"
             >
-              <div className="flex h-10 shrink-0 items-center border-b px-2">
-                <TabsList variant="line">
-                  <TabsTrigger value="preview">Preview</TabsTrigger>
-                  <TabsTrigger value="code">Code</TabsTrigger>
-                  <TabsTrigger value="console">Console</TabsTrigger>
-                </TabsList>
-              </div>
-
               <TabsContent
                 value="preview"
                 className="mt-0 min-h-0 flex-1 outline-none"

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react"
 import {
   PaperclipIcon,
   SendIcon,
-  SparklesIcon,
   SquareIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -55,7 +54,6 @@ export function AiChatPanel() {
   const streamingMessageId = useWorkspaceStore((s) => s.streamingMessageId)
   const sendChat = useWorkspaceStore((s) => s.sendChat)
   const stopStreaming = useWorkspaceStore((s) => s.stopStreaming)
-  const activeFileName = useWorkspaceStore((s) => s.getActiveFile()?.name)
   const [prompt, setPrompt] = useState("")
   const [attachments, setAttachments] = useState<ChatAttachment[]>([])
   const [dragging, setDragging] = useState(false)
@@ -117,19 +115,6 @@ export function AiChatPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r bg-background">
-      <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <SparklesIcon className="size-4 shrink-0 text-muted-foreground" />
-          <span className="text-sm font-medium">Agent</span>
-          {activeFileName && (
-            <span className="truncate text-xs text-muted-foreground">
-              · editing {activeFileName}
-            </span>
-          )}
-        </div>
-        <ModelAndEffortSelector compact disabled={busy} />
-      </div>
-
       <div className="min-h-0 flex-1">
         <MessageScrollerProvider autoScroll>
           <MessageScroller>

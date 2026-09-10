@@ -123,6 +123,9 @@ type WorkspaceState = {
   selectedEffort: ReasoningEffort
   setSelectedModel: (model: string) => void
   setSelectedEffort: (effort: ReasoningEffort) => void
+  chatCollapsed: boolean
+  setChatCollapsed: (collapsed: boolean) => void
+  toggleChatCollapsed: () => void
 }
 
 let chatAbortController: AbortController | null = null
@@ -587,6 +590,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   streamingMessageId: null,
   workspaceTab: "preview",
   bottomPanel: "console",
+  chatCollapsed: false,
   error: null,
 
   getActiveFile: () => {
@@ -841,6 +845,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   setWorkspaceTab: (tab) => set({ workspaceTab: tab }),
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
+  setChatCollapsed: (collapsed) => set({ chatCollapsed: collapsed }),
+  toggleChatCollapsed: () =>
+    set((state) => ({ chatCollapsed: !state.chatCollapsed })),
 }))
 
 if (typeof window !== "undefined") {
