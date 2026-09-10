@@ -1,14 +1,23 @@
-import { useState } from "react"
 import {
+  CopyIcon,
   ExternalLinkIcon,
   EyeIcon,
   LoaderCircleIcon,
   MonitorSmartphoneIcon,
+  MoreVerticalIcon,
   RefreshCwIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyContent,
@@ -20,7 +29,8 @@ import {
 import { useWorkspaceStore } from "@/stores/workspace-store"
 
 export function PreviewPanel() {
-  const [iframeKey, setIframeKey] = useState(0)
+  const previewKey = useWorkspaceStore((s) => s.previewKey)
+  const reloadPreview = useWorkspaceStore((s) => s.reloadPreview)
   const runSession = useWorkspaceStore((s) => s.runSession)
   const startRun = useWorkspaceStore((s) => s.startRun)
   const workspace = useWorkspaceStore((s) => s.workspace)
@@ -63,55 +73,82 @@ export function PreviewPanel() {
 
   // 3. Active Running State (Wildcard Preview Frame)
   return (
-    <div className="flex h-full min-h-0 flex-col bg-background">
-      {/* Top Address/Control Bar */}
-      <div className="flex h-10 items-center justify-between gap-2 border-b px-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Badge
-            variant="secondary"
-            className="bg-emerald-500/10 text-emerald-600"
+    <div className="relative flex h-full min-h-0 flex-col bg-background">
+      {/* Floating Preview Controls (Three-dot Menu) */}
+      <div className="absolute top-2.5 right-2.5 z-20">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="outline"
+                size="icon-xs"
+                className="size-7 rounded-md border-border/80 bg-background/85 shadow-sm backdrop-blur-sm hover:bg-background transition-all"
+                title="Preview options"
+              />
+            }
           >
-            Live
-          </Badge>
-          <span className="truncate font-mono text-xs text-muted-foreground">
-            {runSession.url ?? "Preview unavailable"}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {/* Reload Iframe */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            onClick={() => setIframeKey((prev) => prev + 1)}
-            title="Reload Preview"
-          >
-            <RefreshCwIcon className="size-3.5" />
-          </Button>
-
-          {/* Open in New Window */}
-          {runSession.url && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-7"
-
-              title="Open in new tab"
+            <MoreVerticalIcon className="size-3.5 text-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64 p-1.5">
+            <div className="px-2 py-1.5 flex flex-col gap-0.5">
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="secondary"
+                  className="h-4 px-1 text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-normal"
+                >
+                  Live
+                </Badge>
+                <span className="text-[11px] font-medium text-foreground">
+                  Preview runtime
+                </span>
+              </div>
+              <span
+                className="text-[11px] font-mono text-muted-foreground truncate select-all"
+                title={runSession.url ?? undefined}
+              >
+                {runSession.url ?? "Preview unavailable"}
+              </span>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2 text-xs"
+              onClick={reloadPreview}
             >
-              <a href={runSession.url} target="_blank" rel="noreferrer">
-                <ExternalLinkIcon className="size-3.5" />
-              </a>
-            </Button>
-          )}
-        </div>
+              <RefreshCwIcon className="size-3.5 text-muted-foreground" />
+              <span>Refresh preview</span>
+            </DropdownMenuItem>
+            {runSession.url && (
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-2 text-xs"
+                onClick={() =>
+                  window.open(runSession.url!, "_blank", "noreferrer")
+                }
+              >
+                <ExternalLinkIcon className="size-3.5 text-muted-foreground" />
+                <span>Redirect to live</span>
+              </DropdownMenuItem>
+            )}
+            {runSession.url && (
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-2 text-xs"
+                onClick={() => {
+                  void navigator.clipboard.writeText(runSession.url!)
+                  toast.success("Live URL copied to clipboard")
+                }}
+              >
+                <CopyIcon className="size-3.5 text-muted-foreground" />
+                <span>Copy live URL</span>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Main Viewport */}
-      <div className="min-h-0 flex-1 bg-background">
+      <div className="h-full w-full min-h-0 flex-1 bg-background">
         {runSession.url ? (
           <iframe
-            key={iframeKey}
+            key={previewKey}
             src={runSession.url}
             title={`${workspace?.title ?? "Workspace"} preview`}
             className="h-full w-full border-0"

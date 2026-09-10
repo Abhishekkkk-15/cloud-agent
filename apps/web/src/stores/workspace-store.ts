@@ -126,6 +126,8 @@ type WorkspaceState = {
   chatCollapsed: boolean
   setChatCollapsed: (collapsed: boolean) => void
   toggleChatCollapsed: () => void
+  previewKey: number
+  reloadPreview: () => void
 }
 
 let chatAbortController: AbortController | null = null
@@ -591,6 +593,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspaceTab: "preview",
   bottomPanel: "console",
   chatCollapsed: false,
+  previewKey: 0,
   error: null,
 
   getActiveFile: () => {
@@ -848,6 +851,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setChatCollapsed: (collapsed) => set({ chatCollapsed: collapsed }),
   toggleChatCollapsed: () =>
     set((state) => ({ chatCollapsed: !state.chatCollapsed })),
+  reloadPreview: () => set((state) => ({ previewKey: state.previewKey + 1 })),
 }))
 
 if (typeof window !== "undefined") {

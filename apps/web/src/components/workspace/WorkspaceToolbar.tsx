@@ -4,8 +4,6 @@ import {
   ArrowLeftIcon,
   Code2Icon,
   EyeIcon,
-  PanelLeftCloseIcon,
-  PanelLeftOpenIcon,
   PlayIcon,
   Share2Icon,
   SquareIcon,
@@ -18,7 +16,6 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useWorkspaceStore } from "@/stores/workspace-store"
-import { cn } from "@/lib/utils"
 
 export function WorkspaceToolbar() {
   const workspace = useWorkspaceStore((s) => s.workspace)
@@ -28,8 +25,6 @@ export function WorkspaceToolbar() {
   const workspaceTab = useWorkspaceStore((s) => s.workspaceTab)
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
   const activeFileName = useWorkspaceStore((s) => s.getActiveFile()?.name)
-  const chatCollapsed = useWorkspaceStore((s) => s.chatCollapsed)
-  const toggleChatCollapsed = useWorkspaceStore((s) => s.toggleChatCollapsed)
   const [running, setRunning] = useState(false)
 
   const isRunning =
@@ -60,23 +55,6 @@ export function WorkspaceToolbar() {
           <ArrowLeftIcon className="size-4" />
         </Button>
         <Separator orientation="vertical" className="h-4" />
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          className={cn(
-            "size-7 transition-colors",
-            chatCollapsed && "text-primary bg-primary/10 hover:bg-primary/20"
-          )}
-          onClick={toggleChatCollapsed}
-          title={chatCollapsed ? "Open chat panel" : "Collapse chat panel (fullscreen preview)"}
-          aria-label={chatCollapsed ? "Open chat panel" : "Collapse chat panel"}
-        >
-          {chatCollapsed ? (
-            <PanelLeftOpenIcon className="size-4" />
-          ) : (
-            <PanelLeftCloseIcon className="size-4 text-muted-foreground" />
-          )}
-        </Button>
         <div className="flex items-center gap-2 min-w-0">
           <span className="truncate text-sm font-medium text-foreground">
             {workspace?.title ?? "Workspace"}
