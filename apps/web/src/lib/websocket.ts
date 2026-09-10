@@ -161,9 +161,20 @@ class WebSocketManager {
     this.socket.send(JSON.stringify({ type, data }))
   }
 
-  sendAgentQuery(query: string, sessionId?: string | null) {
+  sendAgentQuery(
+    query: string,
+    sessionId?: string | null,
+    options?: { model?: string; reasoning_effort?: string }
+  ) {
     const payload: AgentOutgoingEvent = "agent:send"
-    this.send(payload, { query, session_id: sessionId ?? undefined })
+    this.send(payload, {
+      query,
+      session_id: sessionId ?? undefined,
+      ...(options?.model ? { model: options.model } : {}),
+      ...(options?.reasoning_effort
+        ? { reasoning_effort: options.reasoning_effort }
+        : {}),
+    })
   }
 
   sendAgentStart(data: Record<string, unknown>) {

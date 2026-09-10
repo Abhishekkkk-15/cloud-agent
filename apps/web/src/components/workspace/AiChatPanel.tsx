@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import { AgentEventTurn } from "@/components/workspace/AgentEventTurn"
 import { ChatAttachmentList } from "@/components/workspace/ChatAttachmentList"
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown"
+import { ModelAndEffortSelector } from "@/components/workspace/ModelAndEffortSelector"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
@@ -118,14 +119,17 @@ export function AiChatPanel() {
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r bg-background">
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-        <SparklesIcon className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Agent</span>
-        {activeFileName && (
-          <span className="truncate text-xs text-muted-foreground">
-            · editing {activeFileName}
-          </span>
-        )}
+      <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <SparklesIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className="text-sm font-medium">Agent</span>
+          {activeFileName && (
+            <span className="truncate text-xs text-muted-foreground">
+              · editing {activeFileName}
+            </span>
+          )}
+        </div>
+        <ModelAndEffortSelector compact disabled={busy} />
       </div>
 
       <div className="min-h-0 flex-1">
@@ -230,102 +234,118 @@ export function AiChatPanel() {
         </div>
       )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          void submit(prompt)
-        }}
-        className={cn(
-          "flex flex-col gap-2 border-t p-3",
-          dragging && "bg-muted/40"
-        )}
-        onDragEnter={(e) => {
-          e.preventDefault()
-          setDragging(true)
-        }}
-        onDragOver={(e) => {
-          e.preventDefault()
-          setDragging(true)
-        }}
-        onDragLeave={(e) => {
-          e.preventDefault()
-          if (e.currentTarget.contains(e.relatedTarget as Node)) return
-          setDragging(false)
-        }}
-        onDrop={(e) => {
-          e.preventDefault()
-          setDragging(false)
-          if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files)
-        }}
-      >
-        {attachments.length > 0 && (
-          <ChatAttachmentList
-            attachments={attachments}
-            onRemove={removeAttachment}
-          />
-        )}
-        <Textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Ask the agent to build, fix, or explain… (drop files here)"
-          rows={3}
-          className="resize-none"
-          disabled={busy}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              void submit(prompt)
-            }
+      <div className="border-t p-3 bg-background">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void submit(prompt)
           }}
-        />
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              multiple
-              onChange={(e) => {
-                if (e.target.files) addFiles(e.target.files)
-                e.target.value = ""
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={busy || attachments.length >= MAX_FILES}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <PaperclipIcon data-icon="inline-start" />
-              Attach
-            </Button>
-            <p className="text-xs text-muted-foreground">
-              Enter to send · max {MAX_FILES} files / 5MB
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {busy ? (
+          className={cn(
+            "relative flex flex-col rounded-xl border border-border/80 bg-muted/20 dark:bg-muted/10 p-2 shadow-xs transition-colors focus-within:border-ring/80 focus-within:ring-2 focus-within:ring-ring/20",
+            dragging && "border-primary/50 bg-muted/40"
+          )}
+          onDragEnter={(e) => {
+            e.preventDefault()
+            setDragging(true)
+          }}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setDragging(true)
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault()
+            if (e.currentTarget.contains(e.relatedTarget as Node)) return
+            setDragging(false)
+          }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDragging(false)
+            if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files)
+          }}
+        >
+          {attachments.length > 0 && (
+            <div className="mb-2">
+              <ChatAttachmentList
+                attachments={attachments}
+                onRemove={removeAttachment}
+              />
+            </div>
+          )}
+          <Textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Plan, Build, / for skills, @ for context"
+            rows={2}
+            className="min-h-[48px] max-h-44 w-full resize-none border-0 bg-transparent p-1.5 text-sm shadow-none outline-none focus-visible:ring-0 placeholder:text-muted-foreground/60 dark:placeholder:text-muted-foreground/50"
+            disabled={busy}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault()
+                void submit(prompt)
+              }
+            }}
+          />
+          <div className="flex items-center justify-between gap-2 pt-1">
+            {/* Left: Model & Effort hover selector */}
+            <div className="flex items-center gap-1">
+              <ModelAndEffortSelector disabled={busy} />
+            </div>
+
+            {/* Right: Attach & Send/Stop action buttons */}
+            <div className="flex items-center gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                multiple
+                onChange={(e) => {
+                  if (e.target.files) addFiles(e.target.files)
+                  e.target.value = ""
+                }}
+              />
               <Button
                 type="button"
-                variant="destructive"
-                onClick={stopStreaming}
+                variant="ghost"
+                size="icon-xs"
+                className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                disabled={busy || attachments.length >= MAX_FILES}
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach files (max 5 files / 5MB)"
               >
-                <SquareIcon data-icon="inline-start" />
-                Stop
+                <PaperclipIcon className="size-4" />
               </Button>
-            ) : (
-              <Button
-                type="submit"
-                disabled={!prompt.trim() && attachments.length === 0}
-              >
-                <SendIcon data-icon="inline-start" />
-                Send
-              </Button>
-            )}
+
+              {busy ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon-xs"
+                  className="size-7 rounded-md"
+                  onClick={stopStreaming}
+                  title="Stop generation"
+                >
+                  <SquareIcon className="size-3" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon-xs"
+                  className={cn(
+                    "size-7 rounded-md transition-all",
+                    !prompt.trim() && attachments.length === 0
+                      ? "opacity-30 cursor-not-allowed"
+                      : "bg-primary text-primary-foreground hover:bg-primary/90"
+                  )}
+                  disabled={!prompt.trim() && attachments.length === 0}
+                  title="Send message (Enter)"
+                >
+                  <SendIcon className="size-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

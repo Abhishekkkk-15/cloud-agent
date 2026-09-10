@@ -24,6 +24,7 @@ import type {
   TerminalLine,
   Workspace,
 } from "@cloud-agent/shared"
+import type { ReasoningEffort } from "@/types/models"
 
 export type SandboxStatus =
   | "idle"
@@ -118,6 +119,10 @@ type WorkspaceState = {
   setSandboxState: (patch: Partial<SandboxState>) => void
   dismissSandbox: () => void
   retrySandbox: () => Promise<void>
+  selectedModel: string
+  selectedEffort: ReasoningEffort
+  setSelectedModel: (model: string) => void
+  setSelectedEffort: (effort: ReasoningEffort) => void
 }
 
 let chatAbortController: AbortController | null = null
@@ -520,6 +525,27 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       },
     }))
   },
+  selectedModel:
+    typeof window !== "undefined"
+      ? localStorage.getItem("ca_selected_model") || "gpt-5.6-luna"
+      : "gpt-5.6-luna",
+  selectedEffort:
+    typeof window !== "undefined"
+      ? ((localStorage.getItem("ca_selected_effort") as ReasoningEffort) ||
+        "high")
+      : "high",
+  setSelectedModel: (model: string) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ca_selected_model", model)
+    }
+    set({ selectedModel: model })
+  },
+  setSelectedEffort: (effort: ReasoningEffort) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ca_selected_effort", effort)
+    }
+    set({ selectedEffort: effort })
+  },
   retrySandbox: async () => {
     const { workspace, activeSessionId } = get()
     if (!workspace || !workspace.id) return
@@ -792,7 +818,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         attachments,
       })
 
-      ws.sendAgentQuery(trimmed || "Review my attachments", sessionId)
+      const { selectedModel, selectedEffort } = get()
+      ws.sendAgentQuery(trimmed || "Review my attachments", sessionId, {
+        model: selectedModel,
+        reasoning_effort: selectedEffort,
+      })
     } catch (error) {
       activeAgentStream = null
       set({
