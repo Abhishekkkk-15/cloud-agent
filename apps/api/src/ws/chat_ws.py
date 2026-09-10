@@ -15,6 +15,7 @@ from fastapi.encoders import jsonable_encoder
 from src.utils.config import config
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.ai_core.intent_agent import IntentAgent
+from docker.errors import APIError, ContainerError, NotFound
 
 router = APIRouter()
 
@@ -97,6 +98,68 @@ async def websocket_endpoint(
             sandbox_id = sandbox.id
 
             await workspace_repo.save(workspace)
+
+        # Checking if sandbox/Docker container exists and if its running
+        
+        is_sandbox_running = sandbox_repo.is_sandbox_running(sandbox_id)
+        if not is_sandbox_running:
+            try:
+                resumed_sandbox = sandbox_repo.resume_sandbox(sandbox_id)
+                if not isinstance(resumed_sandbox, SandboxRunResult):
+                    port_manager.release_workspace_ports(workspace_id)
+                    raise WebSocketException(
+                    code=1002,
+                    reason=f"Failed starting Docker sandbox: {resumed_sandbox}",
+                    )
+            except NotFound:    
+                print("Starting sandbox container...")
+                workspace.source_path = str(config.workspace_base / workspace_id)
+                workspace_root = config.workspace_base / workspace_id
+                workspace_root.mkdir(parents=True, exist_ok=True)
+    
+                # Allocate host ports for container (e.g., 5173 -> host_port)
+                allocated = port_manager.allocate_workspace_ports(workspace_id)
+                docker_ports = port_manager.to_docker_ports(workspace_id)
+                
+                sandbox = sandbox_repo.run_sandbox(workspace_id, docker_ports)
+                if not isinstance(sandbox, SandboxRunResult):
+                    port_manager.release_workspace_ports(workspace_id)
+                    raise WebSocketException(
+                        code=1002,
+                        reason=f"Failed starting Docker sandbox: {sandbox}",
+                    )
+    
+                frontend = next(
+                    (p for p in allocated if p.role == PortRole.FRONTEND), None
+                )
+                backend = next(
+                    (p for p in allocated if p.role == PortRole.BACKEND), None
+                )
+    
+                # Define base preview domain (defaulting to lvh.me for local dev)
+                base_domain = config.preview_base_domain
+    
+                if frontend:
+                    workspace.frontend_port = frontend.host_port
+                    workspace.preview_port = frontend.host_port
+                    # Format URL as wildcard subdomain: http://<workspace_id>.lvh.me:<port>
+                    workspace.preview_url = (
+                        f"http://{workspace_id}.{base_domain}:{frontend.host_port}"
+                    )
+    
+                if backend:
+                    workspace.backend_port = backend.host_port
+                    workspace.backend_url = (
+                        f"http://{workspace_id}-api.{base_domain}:{backend.host_port}"
+                    )
+    
+                workspace.preview_status = "ports_ready"
+                workspace.sandbox_id = sandbox.id
+                sandbox_id = sandbox.id
+    
+                await workspace_repo.save(workspace)    
+            
+                
 
         # Notify client of active sandbox and ready wildcard URLs
         await ws_manager.send_json(

@@ -96,7 +96,7 @@ export function PreviewPanel() {
               variant="ghost"
               size="icon"
               className="size-7"
-              asChild
+
               title="Open in new tab"
             >
               <a href={runSession.url} target="_blank" rel="noreferrer">

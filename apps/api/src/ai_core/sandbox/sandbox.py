@@ -146,6 +146,7 @@ class Sandbox:
 
         try:
             cnt = self.client.containers.get(sandbox_id)
+            print(cnt.stats)
             return cnt
         except NotFound:
             return None
