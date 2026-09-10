@@ -10,16 +10,33 @@ sys_config = config
 class CloudAgentCore:
     client: Agent
 
-    def __init__(self,workspace_id:str,container_id,user_id:str,on_event_handler) -> None:
+    def __init__(
+        self,
+        workspace_id: str,
+        container_id,
+        user_id: str,
+        on_event_handler,
+        model: str | None = None,
+        provider: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        reasoning_effort: str | None = None,
+    ) -> None:
         self.config = sys_config
+        selected_provider = provider or sys_config.provider
+        selected_model = model or sys_config.model
+        selected_base_url = base_url or sys_config.base_url
+        selected_api_key = api_key or sys_config.api_key
+        selected_effort = reasoning_effort or "high"
+
         self.client = Agent.create(
-            api_key=sys_config.api_key,
-            provider=sys_config.provider,
-            base_url=sys_config.base_url,
+            api_key=selected_api_key,
+            provider=selected_provider,
+            base_url=selected_base_url,
             autonomous=sys_config.autonomous,
-            model=sys_config.model,
+            model=selected_model,
             storage="mongodb",
-            reasoning_effort="high",
+            reasoning_effort=selected_effort,
             mongodb_uri=sys_config.database_uri,
             mongodb_db=sys_config.database_name,
             user_id=user_id,

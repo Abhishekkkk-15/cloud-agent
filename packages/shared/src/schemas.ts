@@ -245,3 +245,31 @@ export type Message = z.infer<typeof messageSchema>;
 export type SandboxRunResult = z.infer<typeof sandboxRunResultSchema>;
 export type TerminalLine = z.infer<typeof terminalLineSchema>;
 export type RunSession = z.infer<typeof runSessionSchema>;
+
+export const llmModelSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  model_id: z.string(),
+  provider: z.string(),
+  url: z.string().nullable().optional(),
+  base_url: z.string().nullable().optional(),
+  api_key_env: z.string().nullable().optional(),
+  has_api_key: z.boolean().default(false),
+  is_active: z.boolean().default(true),
+  is_default: z.boolean().default(false),
+  supports_effort: z.boolean().default(false),
+  default_effort: z.string().nullable().optional(),
+  use_case: z.array(z.string()).default([]),
+  badge: z.string().nullable().optional(),
+  description: z.string().default(""),
+  context_window: z.number().nullable().optional(),
+  max_tokens: z.number().nullable().optional(),
+  input_price_per_mtok: z.number().default(0),
+  output_price_per_mtok: z.number().default(0),
+  created_at: isoTimestamp.optional(),
+  updated_at: isoTimestamp.optional(),
+});
+
+export type LLMModel = z.infer<typeof llmModelSchema>;
+
+

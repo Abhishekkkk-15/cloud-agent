@@ -3,10 +3,16 @@ export type ReasoningEffort = "low" | "medium" | "high"
 export type ModelOption = {
   id: string
   name: string
-  provider: "OpenAI" | "Anthropic" | "Google" | "DeepSeek"
+  model_id?: string
+  provider: string
+  url?: string | null
+  base_url?: string | null
   badge?: string
   description: string
   supportsEffort: boolean
+  use_case?: string[]
+  isActive?: boolean
+  isDefault?: boolean
 }
 
 export const AVAILABLE_MODELS: ModelOption[] = [
@@ -17,6 +23,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Auto",
     description: "Automatically selects the best model and reasoning depth",
     supportsEffort: true,
+    use_case: ["auto-routing", "intent-matching", "general"],
   },
   {
     id: "gpt-5.6-luna",
@@ -25,6 +32,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Default",
     description: "Next-gen flagship reasoning and agentic execution",
     supportsEffort: true,
+    use_case: ["coding", "fullstack", "architecture", "deep-reasoning"],
   },
   {
     id: "claude-3-7-sonnet",
@@ -33,6 +41,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Reasoning",
     description: "Hybrid reasoning model with deep coding & architecture skills",
     supportsEffort: true,
+    use_case: ["coding", "architecture", "deep-reasoning", "refactoring"],
   },
   {
     id: "claude-3-5-sonnet",
@@ -41,6 +50,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Fast",
     description: "Fast, precise, intelligent coding assistant",
     supportsEffort: false,
+    use_case: ["coding", "fast-agent", "frontend", "general"],
   },
   {
     id: "gpt-4o",
@@ -49,6 +59,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Omni",
     description: "High-speed multimodal model for general tasks",
     supportsEffort: false,
+    use_case: ["coding", "fullstack", "architecture", "general"],
   },
   {
     id: "o3-mini",
@@ -57,6 +68,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Math & Code",
     description: "Specialized STEM and coding reasoning model",
     supportsEffort: true,
+    use_case: ["math", "reasoning", "complex-logic", "algorithm"],
   },
   {
     id: "deepseek-r1",
@@ -65,6 +77,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Open Reasoning",
     description: "Open-weights reasoning model with chain-of-thought",
     supportsEffort: true,
+    use_case: ["math", "reasoning", "deep-thinking", "algorithm"],
   },
   {
     id: "gemini-2.5-pro",
@@ -73,6 +86,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "1M Context",
     description: "Advanced reasoning with massive multimodal context window",
     supportsEffort: true,
+    use_case: ["long-context", "multimodal", "large-repo-analysis"],
   },
 ]
 

@@ -6,6 +6,7 @@ from src.repository.user_repository import UserRepo
 from src.dependency.sandbox_dependency import SandboxRepo
 from src.dependency.port_depemdency import PortRepo
 from src.repository.workspace_repository import WorkspaceRepo
+from src.repository.model_repository import ModelRepo
 from src.models.workspace_model import WorkspaceStatus
 from src.utils.event_handler import event_handler
 from src.utils.port_manager import PortRole
@@ -28,6 +29,7 @@ async def websocket_endpoint(
     workspace_repo: WorkspaceRepo,
     session_repo: SessionRepo,
     port_manager: PortRepo,
+    model_repo: ModelRepo,
 ):
     await ws_manager.connect(ws)
     print("Websocket connection established")
@@ -284,8 +286,31 @@ async def websocket_endpoint(
             except Exception:
                 pass
 
+        # Resolve requested model and reasoning effort from query params
+        requested_model_id = ws.query_params.get("model")
+        requested_effort = ws.query_params.get("reasoning_effort") or ws.query_params.get("effort")
+
+        target_model = None
+        if requested_model_id and requested_model_id != "auto":
+            target_model = await model_repo.find_by_id(requested_model_id)
+        elif requested_model_id == "auto":
+            target_model = await model_repo.find_default()
+
+        agent_kwargs = {}
+        if target_model:
+            agent_kwargs["model"] = target_model.model_id
+            agent_kwargs["provider"] = target_model.provider
+            if target_model.url or target_model.base_url:
+                agent_kwargs["base_url"] = target_model.url or target_model.base_url
+            if target_model.api_key:
+                agent_kwargs["api_key"] = target_model.api_key
+            if requested_effort:
+                agent_kwargs["reasoning_effort"] = requested_effort
+            elif target_model.supports_effort and target_model.default_effort:
+                agent_kwargs["reasoning_effort"] = target_model.default_effort
+
         agent = CloudAgentCore(
-            workspace_id, workspace.sandbox_id, user.id, on_event
+            workspace_id, workspace.sandbox_id, user.id, on_event, **agent_kwargs
         )
 
         # 3. Message processing loop

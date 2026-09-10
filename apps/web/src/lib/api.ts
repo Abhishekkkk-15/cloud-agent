@@ -11,6 +11,8 @@ import {
   tokenPairResponseSchema,
   userSchema,
   workspaceWithSessionSchema,
+  llmModelSchema,
+  type LLMModel,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
   type FileNode,
@@ -202,3 +204,10 @@ export async function runCommand(command: string): Promise<TerminalLine[]> {
 export function preview(workspaceId: string): string {
   return `http://localhost:8000/workspaces/preview/${workspaceId}/`
 }
+
+export async function listModels(useCase?: string): Promise<LLMModel[]> {
+  const params = useCase ? { use_case: useCase } : undefined
+  const { data } = await http.get("/models", { params })
+  return z.array(llmModelSchema).parse(data)
+}
+

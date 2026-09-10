@@ -11,8 +11,8 @@ from src.routes.auth_route import router as AuthRouter
 from src.routes.workspace_route import router as ChatRouter
 from src.routes.session_route import router as SessionRouter
 from src.ws.chat_ws import router as WSRouter
-from src.routes.session_route import router as SessionRouter
 from src.routes.preview_route import router as PreviewRouter
+from src.routes.model_route import router as ModelRouter
 
 from src.middleware.subdomain_proxy_middleware import SubdomainProxyMiddleware
 
@@ -48,6 +48,7 @@ app.include_router(ChatRouter)
 app.include_router(SessionRouter)
 app.include_router(WSRouter)  
 app.include_router(PreviewRouter)  
+app.include_router(ModelRouter)  
  
 print("STARTED LISTNINIG")
     
