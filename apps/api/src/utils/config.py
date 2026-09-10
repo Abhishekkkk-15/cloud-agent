@@ -54,7 +54,20 @@ class Config:
     )
 )
         self.docker_workspace_base = os.getenv(
-       "DOCKER_WORKSPACE_BASE",
-     "/mnt/f/study/cloud-agent/sandbox/mounts/workspace"
+            "DOCKER_WORKSPACE_BASE",
+            "/mnt/f/study/cloud-agent/sandbox/mounts/workspace",
         )
-config = Config()        
+        self.port = int(os.getenv("PORT", "8000"))
+        self.compaction_enabled = os.getenv("COMPACTION_ENABLED", "true").lower() in ("true", "1", "yes")
+        self.compact_at_tokens = int(os.getenv("COMPACT_AT_TOKENS", "20000"))
+        self.keep_recent_tokens = int(os.getenv("KEEP_RECENT_TOKENS", "6000"))
+config = Config()
+
+
+def build_preview_url(workspace_id: str, is_backend: bool = False) -> str:
+    base_domain = getattr(config, "preview_base_domain", "lvh.me")
+    port = getattr(config, "port", 8000)
+    port_str = f":{port}" if port not in (80, 443) else ""
+    scheme = "https" if port == 443 else "http"
+    prefix = f"{workspace_id}-api" if is_backend else workspace_id
+    return f"{scheme}://{prefix}.{base_domain}{port_str}"

@@ -7,7 +7,7 @@ from src.models.workspace_model import Workspace
 from fastapi import HTTPException, status
 from src.dependency.sandbox_dependency import SandboxRepo
 from src.dependency.port_depemdency import PortRepo
-from src.utils.config import config
+from src.utils.config import config, build_preview_url
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.utils.port_manager import PortRole
 
@@ -67,10 +67,10 @@ async def start_chat(
     if frontend:
         workspace.frontend_port = frontend.host_port
         workspace.preview_port = frontend.host_port
-        workspace.preview_url = frontend.url
+        workspace.preview_url = build_preview_url(workspace.id, is_backend=False)
     if backend:
         workspace.backend_port = backend.host_port
-        workspace.backend_url = backend.url
+        workspace.backend_url = build_preview_url(workspace.id, is_backend=True)
     workspace.preview_status = "ports_ready"
 
     workspace.sandbox_id = sandbox_res.id

@@ -14,6 +14,8 @@ from src.ws.chat_ws import router as WSRouter
 from src.routes.session_route import router as SessionRouter
 from src.routes.preview_route import router as PreviewRouter
 
+from src.middleware.subdomain_proxy_middleware import SubdomainProxyMiddleware
+
 app = FastAPI(lifespan=db_lifespan)
 
 origins = [
@@ -23,13 +25,18 @@ origins = [
     "http://localhost:8001",     
     "https://yourfrontend.com",  
 ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,            
+    allow_origins=origins,
+    allow_origin_regex=r"^https?://([a-zA-Z0-9_-]+\.)*lvh\.me(:\d+)?$",
     allow_credentials=True,           
     allow_methods=["*"],                
     allow_headers=["*"],              
 )
+
+# Intercept wildcard subdomains (e.g. <workspace_id>.lvh.me:8000) for preview proxying
+app.add_middleware(SubdomainProxyMiddleware)
 
 @app.get("/")
 def health():
@@ -40,7 +47,6 @@ app.include_router(AuthRouter)
 app.include_router(ChatRouter)
 app.include_router(SessionRouter)
 app.include_router(WSRouter)  
-app.include_router(SessionRouter)  
 app.include_router(PreviewRouter)  
  
 print("STARTED LISTNINIG")

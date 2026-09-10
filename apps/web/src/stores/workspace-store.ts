@@ -32,10 +32,12 @@ function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
   }
   return acc
 }
-export function getPreviewUrl(workspaceId: string, port: number): string {
-  // Uses wildcard domain lvh.me (resolves natively to 127.0.0.1)
+export function getPreviewUrl(workspaceId: string, port?: number): string {
+  // Uses wildcard domain lvh.me routed through the central FastAPI proxy
   const baseDomain = import.meta.env.VITE_PREVIEW_DOMAIN || "lvh.me"
-  return `http://${workspaceId}.${baseDomain}:${port}`
+  const proxyPort = import.meta.env.VITE_PREVIEW_PORT || "8000"
+  const portSuffix = proxyPort && proxyPort !== "80" && proxyPort !== "443" ? `:${proxyPort}` : ""
+  return `http://${workspaceId}.${baseDomain}${portSuffix}`
 }
 function updateFileContent(
   nodes: FileNode[],

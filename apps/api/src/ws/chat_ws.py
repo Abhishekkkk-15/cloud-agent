@@ -12,7 +12,7 @@ from src.utils.port_manager import PortRole
 from pi_sdk import AgentEvent
 from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
-from src.utils.config import config
+from src.utils.config import config, build_preview_url
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.ai_core.intent_agent import IntentAgent
 from docker.errors import APIError, ContainerError, NotFound
@@ -77,21 +77,15 @@ async def websocket_endpoint(
             )
 
             # Define base preview domain (defaulting to lvh.me for local dev)
-            base_domain = config.preview_base_domain
-
             if frontend:
                 workspace.frontend_port = frontend.host_port
                 workspace.preview_port = frontend.host_port
-                # Format URL as wildcard subdomain: http://<workspace_id>.lvh.me:<port>
-                workspace.preview_url = (
-                    f"http://{workspace_id}.{base_domain}:{frontend.host_port}"
-                )
+                # Format URL as central proxy: http://<workspace_id>.lvh.me:8000
+                workspace.preview_url = build_preview_url(workspace_id, is_backend=False)
 
             if backend:
                 workspace.backend_port = backend.host_port
-                workspace.backend_url = (
-                    f"http://{workspace_id}-api.{base_domain}:{backend.host_port}"
-                )
+                workspace.backend_url = build_preview_url(workspace_id, is_backend=True)
 
             workspace.preview_status = "ports_ready"
             workspace.sandbox_id = sandbox.id
@@ -136,22 +130,15 @@ async def websocket_endpoint(
                     (p for p in allocated if p.role == PortRole.BACKEND), None
                 )
     
-                # Define base preview domain (defaulting to lvh.me for local dev)
-                base_domain = config.preview_base_domain
-    
                 if frontend:
                     workspace.frontend_port = frontend.host_port
                     workspace.preview_port = frontend.host_port
-                    # Format URL as wildcard subdomain: http://<workspace_id>.lvh.me:<port>
-                    workspace.preview_url = (
-                        f"http://{workspace_id}.{base_domain}:{frontend.host_port}"
-                    )
-    
+                    # Format URL as central proxy: http://<workspace_id>.lvh.me:8000
+                    workspace.preview_url = build_preview_url(workspace_id, is_backend=False)
+
                 if backend:
                     workspace.backend_port = backend.host_port
-                    workspace.backend_url = (
-                        f"http://{workspace_id}-api.{base_domain}:{backend.host_port}"
-                    )
+                    workspace.backend_url = build_preview_url(workspace_id, is_backend=True)
     
                 workspace.preview_status = "ports_ready"
                 workspace.sandbox_id = sandbox.id
@@ -189,39 +176,55 @@ async def websocket_endpoint(
         )
 
         # 3. Message processing loop
+        active_session_id = ws.query_params.get("session_id")
         while True:
-            session_id = ws.query_params.get("session_id")
             user_query = await ws_manager.receive(ws)
+            query_text = user_query.data.get("query") if user_query.data else ""
+            req_session_id = (
+                (user_query.data.get("session_id") if user_query.data else None)
+                or ws.query_params.get("session_id")
+                or active_session_id
+            )
 
             if workspace.status == "pending":
                 agent_res = await agent.run(workspace.initial_prompt)
+                active_session_id = agent_res.session_id
 
                 session = await session_repo.find_by_id(agent_res.session_id)
-                if not session or not session.title:
-                    raise WebSocketException(code=1008, reason="Session not found")
-
-                intent_res = await intent_agent.analyze(workspace.initial_prompt)
-                session.title = intent_res.title
-                await session_repo.save(session)
+                if session:
+                    intent_res = await intent_agent.analyze(workspace.initial_prompt)
+                    session.title = intent_res.title
+                    await session_repo.save(session)
 
                 workspace.status = WorkspaceStatus("ready")
                 await workspace_repo.save(workspace)
 
-            elif session_id and user_query.data:
-                await agent.resume(session_id)
-                await agent.run(user_query.data["query"])
-
-            elif not session_id and user_query.data and user_query.data.get("query"):
-                intent_res = await intent_agent.analyze(user_query.data["query"])
-                session = await session_repo.create(
-                    title=intent_res.title,
-                    user_id=user.id
-                )
-                await agent.run(user_query.data["query"])
                 await ws_manager.send_json(
                     websocket=ws,
                     data=jsonable_encoder(
-                        {"type": "session:create", "data": {"session_id": session.id}}
+                        {"type": "session:create", "data": {"session_id": active_session_id}}
+                    ),
+                )
+
+            elif req_session_id and query_text:
+                active_session_id = req_session_id
+                await agent.resume(active_session_id)
+                await agent.run(query_text)
+
+            elif not req_session_id and query_text:
+                agent_res = await agent.run(query_text)
+                active_session_id = agent_res.session_id
+
+                intent_res = await intent_agent.analyze(query_text)
+                session = await session_repo.find_by_id(active_session_id)
+                if session:
+                    session.title = intent_res.title
+                    await session_repo.save(session)
+
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder(
+                        {"type": "session:create", "data": {"session_id": active_session_id}}
                     ),
                 )
 

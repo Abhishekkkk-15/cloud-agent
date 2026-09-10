@@ -118,14 +118,16 @@ async def preview( workspace_id: str,
 
     body = await request.body()
 
-    async with httpx.AsyncClient() as client:
-        response = await client.request(
-             method=request.method,
-            url=target_url,
-            headers=dict(request.headers),
-            content=body,
-            params=request.query_params,
-        )
+    from src.middleware.subdomain_proxy_middleware import get_httpx_client
+
+    client = get_httpx_client()
+    response = await client.request(
+        method=request.method,
+        url=target_url,
+        headers=dict(request.headers),
+        content=body,
+        params=request.query_params,
+    )
     excluded_headers = {
         "content-encoding",
         "transfer-encoding",
