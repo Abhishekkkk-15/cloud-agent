@@ -57,10 +57,8 @@ async def start_preview(
     await repo.save(workspace)
 
     # Bind inside the container to fixed ports that were published at create time
-    front_cmd = (
-        f"npm run dev -- --host 0.0.0.0 --port 4000"
-    )
-    # Best-effort start; caller can refine per-project scripts later
+    front_cmd = "pnpm dev"
+    # Best-effort start; starts both Vite (4000) and Express (3000) via concurrently
     sandbox_manager.run_exec(sandbox_id=sandbox.id, cmd=front_cmd)
 
     workspace.preview_port = frontend_host

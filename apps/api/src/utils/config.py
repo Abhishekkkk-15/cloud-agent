@@ -46,14 +46,14 @@ class Config:
         self.intent_model= os.getenv("INTENT_MODEL") or ""
         self.intent_base_url= os.getenv("INTENT_BASE_URL") or ""
         self.intent_model_key= os.getenv("INTENT_MODEL_KEY") or ""
-        self.preview_base_domain = os.getenv("PREVIEW_BASE_DOMAIN") or "lvh.me",
+        self.preview_base_domain = os.getenv("PREVIEW_BASE_DOMAIN") or "lvh.me"
         self.workspace_base =Path(
     os.getenv(
         "WORKSPACE_BASE",
         r"F:\study\cloud-agent\sandbox\mounts\workspace"
     )
 )
-        self.docker_workspace_base = self.docker_workspace_base = os.getenv(
+        self.docker_workspace_base = os.getenv(
        "DOCKER_WORKSPACE_BASE",
      "/mnt/f/study/cloud-agent/sandbox/mounts/workspace"
         )

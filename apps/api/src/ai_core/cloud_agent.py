@@ -61,6 +61,7 @@ class CloudAgentCore:
         <rule>Do not replace React with another frontend framework.</rule>
         <rule>Do not replace TypeScript with JavaScript.</rule>
         <rule>Do not replace Tailwind CSS with another styling solution.</rule>
+        <rule>Always ensure vite.config.ts has server.watch.usePolling set to true for reliable Docker hot-reloading.</rule>
       </rules>
     </frontend>
 
@@ -114,17 +115,26 @@ class CloudAgentCore:
   </server_configuration>
 
   <command_examples>
+    <fullstack>
+      <example>pnpm dev</example>
+    </fullstack>
+
     <frontend>
-      <example>npm run dev -- --host 0.0.0.0 --port 4000</example>
+      <example>pnpm dev:client</example>
     </frontend>
 
     <backend>
-      <example>npm run dev -- --host 0.0.0.0 --port 3000</example>
+      <example>pnpm dev:server</example>
     </backend>
 
+    <package_management>
+      <example>pnpm add &lt;package-name&gt;</example>
+    </package_management>
+
     <note>
-      Adapt the exact command to the project's configured tooling when necessary,
-      but preserve the required host and port.
+      Always use pnpm as the package manager. The workspace starts with a pre-configured
+      fullstack template including Vite React (port 4000), Express (port 3000), and a
+      mock database layer located in server/db/mockDb.ts.
     </note>
   </command_examples>
 
@@ -163,6 +173,11 @@ class CloudAgentCore:
     <rule>
       Prefer the project's existing package manager and build tooling when modifying
       an existing project, while preserving all mandatory technology constraints.
+    </rule>
+
+    <rule>
+      Use the provided mock database layer in server/db/mockDb.ts for data persistence
+      and backend storage logic instead of attempting to connect to external databases.
     </rule>
   </project_defaults>
   <final_rule>
