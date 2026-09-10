@@ -29,7 +29,6 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { Textarea } from "@/components/ui/textarea"
-import { useAuthStore } from "@/stores/auth-store"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import type { ChatAttachment } from "@/types/chat-ui"
 import { cn } from "@/lib/utils"
@@ -57,7 +56,6 @@ export function AiChatPanel() {
   const sendChat = useWorkspaceStore((s) => s.sendChat)
   const stopStreaming = useWorkspaceStore((s) => s.stopStreaming)
   const activeFileName = useWorkspaceStore((s) => s.getActiveFile()?.name)
-  const user = useAuthStore((s) => s.user)
   const [prompt, setPrompt] = useState("")
   const [attachments, setAttachments] = useState<ChatAttachment[]>([])
   const [dragging, setDragging] = useState(false)
@@ -157,22 +155,18 @@ export function AiChatPanel() {
                       scrollAnchor={isUser}
                     >
                       <Message align={isUser ? "end" : "start"}>
-                        {!isAgentTurn ? (
+                        {!isUser && !isAgentTurn ? (
                           <MessageAvatar>
                             <Avatar className="size-8">
-                              <AvatarFallback>
-                                {isUser ? (user?.name?.[0] ?? "U") : "A"}
-                              </AvatarFallback>
+                              <AvatarFallback>A</AvatarFallback>
                             </Avatar>
                           </MessageAvatar>
                         ) : null}
                         <MessageContent
                           className={cn(isAgentTurn && "gap-0 pl-1")}
                         >
-                          {!isAgentTurn ? (
-                            <MessageHeader>
-                              {isUser ? (user?.name ?? "You") : "Cloud Agent"}
-                            </MessageHeader>
+                          {!isUser && !isAgentTurn ? (
+                            <MessageHeader>Cloud Agent</MessageHeader>
                           ) : null}
                           {isUser && message.attachments?.length ? (
                             <ChatAttachmentList
