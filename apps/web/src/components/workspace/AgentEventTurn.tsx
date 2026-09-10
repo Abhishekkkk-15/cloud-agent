@@ -147,6 +147,51 @@ export function AgentEventTurn({
   )
 }
 
+function ThinkingActionRow({ action }: { action: AgentActionItem }) {
+  const [open, setOpen] = useState(true)
+
+  return (
+    <li className="py-1">
+      <div className="flex flex-col">
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          className="flex w-full items-center gap-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
+        >
+          <span className="flex size-4 shrink-0 items-center justify-center">
+            {action.running ? (
+              <Spinner className="size-3.5" />
+            ) : (
+              <BrainIcon className="size-3.5" />
+            )}
+          </span>
+          <span className="flex-1 select-none">
+            {action.running ? "Thinking…" : "Thought process"}
+          </span>
+          {action.detail ? (
+            <ChevronDownIcon
+              className={cn(
+                "size-3.5 text-muted-foreground/70 transition-transform duration-200",
+                open && "rotate-180"
+              )}
+            />
+          ) : null}
+        </button>
+
+        {open && action.detail ? (
+          <div className="mt-1.5 ml-2 border-l-2 border-border/60 pl-3 py-1">
+            <ChatMarkdown
+              content={action.detail}
+              streaming={action.running}
+              className="text-xs text-muted-foreground/90 leading-relaxed font-normal [&_p]:mb-1.5 [&_p]:last:mb-0 [&_p]:leading-relaxed [&_li]:leading-relaxed [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs"
+            />
+          </div>
+        ) : null}
+      </div>
+    </li>
+  )
+}
+
 function ActionRow({
   action,
   onOpenFile,
@@ -154,6 +199,10 @@ function ActionRow({
   action: AgentActionItem
   onOpenFile: (fileId: string) => void
 }) {
+  if (action.kind === "think") {
+    return <ThinkingActionRow action={action} />
+  }
+
   const Icon = kindIcon[action.kind]
   const clickable = !!action.fileId
 
@@ -180,11 +229,6 @@ function ActionRow({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block">{action.label}</span>
-          {action.detail && action.kind === "think" ? (
-            <span className="mt-0.5 block line-clamp-2 text-xs opacity-80">
-              {action.detail}
-            </span>
-          ) : null}
           {action.detail && action.kind === "usage" ? (
             <span className="mt-0.5 block text-xs opacity-80">
               {action.detail}

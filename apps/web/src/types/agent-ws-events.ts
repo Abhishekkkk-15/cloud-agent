@@ -120,7 +120,40 @@ export type AgentWsEventPayload = {
 }
 
 export type WorkspaceWsEvent = "workspace:info" | "workspace:update"
-export type SandboxWsEvent = "sandbox:start"
+
+export const SANDBOX_WS_EVENT_NAMES = [
+  "sandbox:start",
+  "sandbox:ready",
+  "sandbox:starting",
+  "sandbox:provisioning",
+  "sandbox:resuming",
+  "sandbox:status",
+  "sandbox:stage",
+  "sandbox:stopping",
+  "sandbox:stopped",
+  "sandbox:error",
+  "sandbox:failed",
+] as const
+
+export type SandboxWsEvent =
+  | (typeof SANDBOX_WS_EVENT_NAMES)[number]
+  | `sandbox:${string}`
+
+export type SandboxWsPayload = {
+  sandbox_id?: string
+  status?: string
+  title?: string
+  message?: string
+  stage?: "provisioning" | "container" | "ports" | "network" | "runtime" | "ready" | string
+  details?: string
+  error?: string
+  frontend_port?: number
+  backend_port?: number
+  preview_url?: string
+  backend_url?: string
+  [key: string]: unknown
+}
+
 export type AgentOutgoingEvent = "agent:send" | "agent:start"
 
 export type WsOutgoingEvent = AgentOutgoingEvent
@@ -246,7 +279,7 @@ export function parseAgentWsPayload(
 /** Map WS payload → UI `AgentEvent` using pi_sdk data key names in `data`. */
 export function wsEventToUiEvent(
   payload: AgentWsEventPayload,
-  id = crypto.randomUUID()
+  id: string = crypto.randomUUID()
 ): AgentEvent {
   const data: Record<string, unknown> = {}
   const text = wsPayloadText(payload)

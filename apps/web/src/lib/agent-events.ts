@@ -113,14 +113,45 @@ export function coalesceAgentEvents(events: AgentEvent[]): AgentEvent[] {
   const result: AgentEvent[] = []
 
   for (const event of events) {
-    const key = statusEventKey(event)
-    if (key && result.length > 0) {
+    if (result.length > 0) {
       const previous = result[result.length - 1]
-      if (statusEventKey(previous) === key) {
+
+      const key = statusEventKey(event)
+      if (key && statusEventKey(previous) === key) {
         result[result.length - 1] = event
         continue
       }
+
+      if (event.type === "THINKING_DELTA") {
+        if (previous.type === "THINKING_DELTA") {
+          const prevText = eventText(previous) ?? ""
+          const newText = eventText(event) ?? ""
+          result[result.length - 1] = {
+            ...previous,
+            data: {
+              ...previous.data,
+              text: prevText + newText,
+            },
+          }
+          continue
+        }
+      }
+
+      if (event.type === "THINKING") {
+        if (previous.type === "THINKING_DELTA" || previous.type === "THINKING") {
+          const text = eventText(event) || eventText(previous) || ""
+          result[result.length - 1] = {
+            ...event,
+            data: {
+              ...event.data,
+              text,
+            },
+          }
+          continue
+        }
+      }
     }
+
     result.push(event)
   }
 
@@ -131,13 +162,44 @@ export function appendAgentEvent(
   events: AgentEvent[],
   event: AgentEvent
 ): AgentEvent[] {
-  const key = statusEventKey(event)
-  if (key && events.length > 0) {
+  if (events.length > 0) {
     const previous = events[events.length - 1]
-    if (statusEventKey(previous) === key) {
+
+    const key = statusEventKey(event)
+    if (key && statusEventKey(previous) === key) {
       return [...events.slice(0, -1), event]
     }
+
+    if (event.type === "THINKING_DELTA") {
+      if (previous.type === "THINKING_DELTA") {
+        const prevText = eventText(previous) ?? ""
+        const newText = eventText(event) ?? ""
+        const updated: AgentEvent = {
+          ...previous,
+          data: {
+            ...previous.data,
+            text: prevText + newText,
+          },
+        }
+        return [...events.slice(0, -1), updated]
+      }
+    }
+
+    if (event.type === "THINKING") {
+      if (previous.type === "THINKING_DELTA" || previous.type === "THINKING") {
+        const text = eventText(event) || eventText(previous) || ""
+        const updated: AgentEvent = {
+          ...event,
+          data: {
+            ...event.data,
+            text,
+          },
+        }
+        return [...events.slice(0, -1), updated]
+      }
+    }
   }
+
   return [...events, event]
 }
 
@@ -188,11 +250,13 @@ export function actionsFromEvents(events: AgentEvent[]): AgentActionItem[] {
 
     if (event.type === "THINKING" || event.type === "THINKING_DELTA") {
       const text = eventText(event)
+      const isStreaming = event.type === "THINKING_DELTA"
       items.push({
         id: event.id,
         kind: "think",
-        label: "Thinking",
+        label: isStreaming ? "Thinking…" : "Thought process",
         detail: text,
+        running: isStreaming,
       })
       continue
     }

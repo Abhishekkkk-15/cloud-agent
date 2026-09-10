@@ -5,7 +5,7 @@ import {
   toAgentChannel,
   type AgentOutgoingEvent,
   type AgentWsEventPayload,
-  type SandboxWsEvent,
+  type SandboxWsPayload,
   type WsIncomingEvent,
   type WsOutgoingEvent,
   type WorkspaceWsEvent,
@@ -23,7 +23,6 @@ const WORKSPACE_EVENTS = new Set<WorkspaceWsEvent>([
   "workspace:info",
   "workspace:update",
 ])
-const SANDBOX_EVENTS = new Set<SandboxWsEvent>(["sandbox:start"])
 
 export function syncWsAuthCookie() {
   const token = getAccessToken()
@@ -42,7 +41,7 @@ function normalizeIncomingMessage(
 
   if (
     WORKSPACE_EVENTS.has(type as WorkspaceWsEvent) ||
-    SANDBOX_EVENTS.has(type as SandboxWsEvent)
+    type.startsWith("sandbox:")
   ) {
     return { type, data: message.data ?? message }
   }
@@ -94,6 +93,13 @@ class WebSocketManager {
 
           const handlers = this.handlers.get(normalized.type)
           handlers?.forEach((handle) => handle(normalized.data))
+
+          if (normalized.type.startsWith("sandbox:")) {
+            const wildcardHandlers = this.handlers.get("sandbox:*")
+            wildcardHandlers?.forEach((handle) =>
+              handle({ type: normalized.type, data: normalized.data })
+            )
+          }
         } catch (error) {
           console.error("Invalid websocket message:", error)
         }
@@ -140,6 +146,14 @@ class WebSocketManager {
     }
   }
 
+  subscribeSandboxEvents(
+    handler: (event: { type: string; data: SandboxWsPayload }) => void
+  ) {
+    return this.subscribe("sandbox:*", (raw) => {
+      handler(raw as { type: string; data: SandboxWsPayload })
+    })
+  }
+
   send(type: WsOutgoingEvent, data: unknown) {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       throw new Error("WebSocket is not connected")
@@ -147,9 +161,9 @@ class WebSocketManager {
     this.socket.send(JSON.stringify({ type, data }))
   }
 
-  sendAgentQuery(query: string) {
+  sendAgentQuery(query: string, sessionId?: string | null) {
     const payload: AgentOutgoingEvent = "agent:send"
-    this.send(payload, { query })
+    this.send(payload, { query, session_id: sessionId ?? undefined })
   }
 
   sendAgentStart(data: Record<string, unknown>) {

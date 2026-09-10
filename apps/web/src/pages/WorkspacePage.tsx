@@ -5,6 +5,7 @@ import { AiChatPanel } from "@/components/workspace/AiChatPanel"
 import { CodeEditor } from "@/components/workspace/CodeEditor"
 import { FileTree } from "@/components/workspace/FileTree"
 import { PreviewPanel } from "@/components/workspace/PreviewPanel"
+import { SandboxOverlay } from "@/components/workspace/SandboxOverlay"
 import { TerminalPanel } from "@/components/workspace/TerminalPanel"
 import { WorkspaceToolbar } from "@/components/workspace/WorkspaceToolbar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -147,6 +148,7 @@ export function WorkspacePage() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+      <SandboxOverlay />
     </div>
   )
 }

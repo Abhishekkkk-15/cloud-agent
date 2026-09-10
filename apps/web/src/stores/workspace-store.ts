@@ -6,7 +6,6 @@ import {
   getTerminalBoot,
   getWorkspace,
   runCommand,
-  preview,
 } from "@/lib/api"
 import { get_wehsocket } from "@/lib/websocket"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
@@ -16,6 +15,7 @@ import {
   wsEventToUiEvent,
   wsPayloadText,
   type AgentWsEventPayload,
+  type SandboxWsPayload,
 } from "@/types/agent-ws-events"
 import type { ChatAttachment, ThreadMessage } from "@/types/chat-ui"
 import type {
@@ -25,6 +25,29 @@ import type {
   Workspace,
 } from "@cloud-agent/shared"
 
+export type SandboxStatus =
+  | "idle"
+  | "starting"
+  | "provisioning"
+  | "resuming"
+  | "ready"
+  | "error"
+
+export type SandboxState = {
+  active: boolean
+  status: SandboxStatus
+  title: string
+  message: string
+  stage?: string
+  details?: string
+  error: string | null
+  sandboxId: string | null
+  previewUrl: string | null
+  backendUrl: string | null
+  frontendPort: number | null
+  backendPort: number | null
+}
+
 function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
   for (const node of nodes) {
     if (node.type === "file") acc.push(node)
@@ -32,7 +55,7 @@ function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
   }
   return acc
 }
-export function getPreviewUrl(workspaceId: string, port?: number): string {
+export function getPreviewUrl(workspaceId: string, _port?: number): string {
   // Uses wildcard domain lvh.me routed through the central FastAPI proxy
   const baseDomain = import.meta.env.VITE_PREVIEW_DOMAIN || "lvh.me"
   const proxyPort = import.meta.env.VITE_PREVIEW_PORT || "8000"
@@ -91,10 +114,25 @@ type WorkspaceState = {
   setWorkspaceTab: (tab: WorkspaceTab) => void
   setBottomPanel: (panel: "console" | "shell") => void
   getActiveFile: () => FileNode | null
+  sandbox: SandboxState
+  setSandboxState: (patch: Partial<SandboxState>) => void
+  dismissSandbox: () => void
+  retrySandbox: () => Promise<void>
 }
 
 let chatAbortController: AbortController | null = null
 let agentStreamUnsubscribe: (() => void) | null = null
+let sandboxUnsubscribe: (() => void) | null = null
+let sandboxReadyTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearSandboxListener() {
+  sandboxUnsubscribe?.()
+  sandboxUnsubscribe = null
+  if (sandboxReadyTimer) {
+    clearTimeout(sandboxReadyTimer)
+    sandboxReadyTimer = null
+  }
+}
 
 type ActiveAgentStream = {
   assistantId: string
@@ -249,6 +287,179 @@ function ensureAgentStreamListener(
   })
 }
 
+function applySandboxEvent(
+  type: string,
+  data: SandboxWsPayload,
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void
+) {
+  if (sandboxReadyTimer) {
+    clearTimeout(sandboxReadyTimer)
+    sandboxReadyTimer = null
+  }
+
+  const normalized = type.startsWith("sandbox:") ? type.slice(8) : type
+
+  // 1. Success / Ready / Started
+  if (normalized === "start" || normalized === "ready") {
+    const sandboxId = data.sandbox_id ?? get().sandbox.sandboxId
+    const previewUrl = data.preview_url ?? get().sandbox.previewUrl
+    const backendUrl = data.backend_url ?? get().sandbox.backendUrl
+    const frontendPort = data.frontend_port ?? get().sandbox.frontendPort
+    const backendPort = data.backend_port ?? get().sandbox.backendPort
+
+    set((state) => ({
+      sandbox: {
+        ...state.sandbox,
+        active: true,
+        status: "ready",
+        title: data.title ?? "Sandbox Ready",
+        message: data.message ?? "Development environment online",
+        stage: "ready",
+        error: null,
+        sandboxId,
+        previewUrl,
+        backendUrl,
+        frontendPort,
+        backendPort,
+      },
+      ...(previewUrl
+        ? {
+            runSession: {
+              ...state.runSession,
+              status: "running",
+              url: previewUrl,
+            },
+          }
+        : {}),
+    }))
+
+    sandboxReadyTimer = setTimeout(() => {
+      set((state) => ({
+        sandbox: {
+          ...state.sandbox,
+          active: false,
+        },
+      }))
+    }, 900)
+    return
+  }
+
+  // 2. Error / Failed
+  if (normalized === "error" || normalized === "failed") {
+    const errMsg = data.error ?? data.message ?? "Sandbox failed to start"
+    set((state) => ({
+      sandbox: {
+        ...state.sandbox,
+        active: true,
+        status: "error",
+        title: data.title ?? "Sandbox Initialization Failed",
+        message: errMsg,
+        details: data.details,
+        error: errMsg,
+      },
+    }))
+    return
+  }
+
+  // 3. Resuming
+  if (normalized === "resuming") {
+    set((state) => ({
+      sandbox: {
+        ...state.sandbox,
+        active: true,
+        status: "resuming",
+        title: data.title ?? "Resuming Sandbox",
+        message: data.message ?? "Resuming paused container runtime...",
+        stage: data.stage ?? "container",
+        error: null,
+      },
+    }))
+    return
+  }
+
+  // 4. Provisioning / Starting / Creating
+  if (
+    normalized === "provisioning" ||
+    normalized === "starting" ||
+    normalized === "initializing"
+  ) {
+    set((state) => ({
+      sandbox: {
+        ...state.sandbox,
+        active: true,
+        status: normalized === "provisioning" ? "provisioning" : "starting",
+        title:
+          data.title ??
+          (normalized === "provisioning"
+            ? "Provisioning Sandbox"
+            : "Starting Sandbox"),
+        message:
+          data.message ?? "Setting up isolated container runtime...",
+        stage: data.stage ?? "container",
+        error: null,
+      },
+    }))
+    return
+  }
+
+  // 5. Status / Progress updates
+  if (
+    normalized === "status" ||
+    normalized === "stage" ||
+    normalized === "event"
+  ) {
+    set((state) => ({
+      sandbox: {
+        ...state.sandbox,
+        active: true,
+        status:
+          state.sandbox.status === "idle" ? "starting" : state.sandbox.status,
+        title: data.title ?? state.sandbox.title ?? "Starting Sandbox",
+        message: data.message ?? state.sandbox.message,
+        stage: data.stage ?? state.sandbox.stage,
+        details: data.details ?? state.sandbox.details,
+      },
+    }))
+    return
+  }
+
+  // 6. Generic sandbox:* fallback
+  set((state) => ({
+    sandbox: {
+      ...state.sandbox,
+      active: true,
+      title: data.title ?? state.sandbox.title ?? "Sandbox Activity",
+      message:
+        data.message ??
+        (typeof data === "string" ? data : state.sandbox.message),
+      stage: data.stage ?? state.sandbox.stage,
+    },
+  }))
+}
+
+function ensureSandboxListener(
+  ws: ReturnType<typeof get_wehsocket>,
+  get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void
+) {
+  if (sandboxUnsubscribe) return
+
+  sandboxUnsubscribe = ws.subscribe("sandbox:*", (raw) => {
+    const event = raw as { type: string; data: SandboxWsPayload }
+    if (!event || !event.type) return
+    applySandboxEvent(event.type, event.data ?? {}, get, set)
+  })
+}
+
 async function connectChatSocket(
   workspaceId: string,
   sessionId: string | null,
@@ -265,6 +476,7 @@ async function connectChatSocket(
   })
   await ws.connect()
   ensureAgentStreamListener(ws, get, set)
+  ensureSandboxListener(ws, get, set)
   return ws
 }
 
@@ -282,6 +494,68 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     url: null,
     startedAt: null,
   },
+  sandbox: {
+    active: false,
+    status: "idle",
+    title: "",
+    message: "",
+    error: null,
+    sandboxId: null,
+    previewUrl: null,
+    backendUrl: null,
+    frontendPort: null,
+    backendPort: null,
+  },
+  setSandboxState: (patch) =>
+    set((state) => ({ sandbox: { ...state.sandbox, ...patch } })),
+  dismissSandbox: () => {
+    if (sandboxReadyTimer) {
+      clearTimeout(sandboxReadyTimer)
+      sandboxReadyTimer = null
+    }
+    set((state) => ({
+      sandbox: {
+        ...state.sandbox,
+        active: false,
+      },
+    }))
+  },
+  retrySandbox: async () => {
+    const { workspace, activeSessionId } = get()
+    if (!workspace || !workspace.id) return
+    set((state) => ({
+      sandbox: {
+        ...state.sandbox,
+        active: true,
+        status: "starting",
+        title: "Reconnecting Sandbox",
+        message: "Attempting to reconnect and start sandbox container...",
+        error: null,
+      },
+    }))
+    try {
+      const ws = await connectChatSocket(
+        workspace.id,
+        activeSessionId,
+        get,
+        set
+      )
+      ws.send("agent:start", {
+        workspace_id: workspace.id,
+        session_id: activeSessionId,
+      })
+    } catch (err) {
+      set((state) => ({
+        sandbox: {
+          ...state.sandbox,
+          status: "error",
+          title: "Retry Failed",
+          message: err instanceof Error ? err.message : "Failed to reconnect",
+          error: err instanceof Error ? err.message : "Failed to reconnect",
+        },
+      }))
+    }
+  },
   loading: false,
   chatLoading: false,
   streamingMessageId: null,
@@ -297,6 +571,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   loadWorkspace: async (workspaceId, sessionId = null) => {
     clearAgentStreamListener()
+    clearSandboxListener()
     set({ loading: true, error: null })
     try {
       const [workspaceDetail, files, terminalLines] = await Promise.all([
@@ -517,7 +792,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         attachments,
       })
 
-      ws.sendAgentQuery(trimmed || "Review my attachments")
+      ws.sendAgentQuery(trimmed || "Review my attachments", sessionId)
     } catch (error) {
       activeAgentStream = null
       set({
@@ -537,3 +812,37 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setWorkspaceTab: (tab) => set({ workspaceTab: tab }),
   setBottomPanel: (panel) => set({ bottomPanel: panel }),
 }))
+
+if (typeof window !== "undefined") {
+  ;(window as unknown as Record<string, unknown>).__cloudAgentTestSandbox = (
+    status: SandboxStatus = "starting",
+    message = "Allocating Docker container and ports..."
+  ) => {
+    useWorkspaceStore.getState().setSandboxState({
+      active: true,
+      status,
+      title:
+        status === "error"
+          ? "Docker Container Failure"
+          : status === "ready"
+            ? "Sandbox Ready"
+            : status === "provisioning"
+              ? "Provisioning Docker Environment"
+              : status === "resuming"
+                ? "Resuming Sandbox"
+                : "Starting Sandbox Runtime",
+      message,
+      stage:
+        status === "provisioning"
+          ? "ports"
+          : status === "ready"
+            ? "ready"
+            : "container",
+      error:
+        status === "error"
+          ? "Docker daemon error: Failed starting Docker sandbox: container port 5173 already allocated"
+          : null,
+    })
+  }
+}
+

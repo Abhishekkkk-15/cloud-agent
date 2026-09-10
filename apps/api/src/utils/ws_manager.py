@@ -6,6 +6,9 @@ from pydantic import BaseModel
 from typing import Any
 
 
+from starlette.websockets import WebSocketState
+
+
 class WSMessage(BaseModel):
     type: str
     data: Any
@@ -17,6 +20,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
         self.active_connections.append(websocket)
+
     async def receive(self, websocket: WebSocket) -> WSMessage:
         data = await websocket.receive_json()
         print(data)
@@ -24,11 +28,17 @@ class ConnectionManager:
             type=data["type"],
             data=data.get("data"),
         )
-    async def send_json(self,data:dict[str,str],websocket:WebSocket):
-        await websocket.send_json(data=data)
+
+    async def send_json(self, data: Any, websocket: WebSocket):
+        try:
+            if websocket.client_state == WebSocketState.CONNECTED:
+                await websocket.send_json(data=data)
+        except Exception:
+            pass
 
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
 
     async def send_personal_message(self, message: str, websocket: WebSocket):
         await websocket.send_text(message)

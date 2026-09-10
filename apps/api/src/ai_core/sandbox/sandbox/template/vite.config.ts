@@ -14,6 +14,9 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 4000,
     allowedHosts: true,
+    hmr: {
+      clientPort: 8000,
+    },
     watch: {
       usePolling: true,
       interval: 100,

@@ -1,4 +1,4 @@
-import { string, z } from "zod"
+import { z } from "zod"
 
 import { defaultFileTree, defaultTerminalBoot } from "@/data/stubs"
 import { messagesToThread } from "@/lib/session-messages"

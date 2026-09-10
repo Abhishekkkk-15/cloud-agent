@@ -295,10 +295,11 @@ export function DashboardSidebar() {
                                 ))}
                                 <SidebarMenuSubItem>
                                   <SidebarMenuSubButton
-                                    disabled={
+                                    aria-disabled={
                                       creatingSessionFor === workspaceId
                                     }
                                     onClick={() => {
+                                      if (creatingSessionFor === workspaceId) return
                                       void handleNewSession(workspaceId)
                                     }}
                                   >

@@ -1,3 +1,4 @@
+from typing import Any
 import asyncio
 import logging
 from bson import ObjectId
@@ -195,15 +196,46 @@ class SubdomainProxyMiddleware:
         if query_string:
             target_ws_url += f"?{query_string}"
 
-        # Accept client connection
-        await send({"type": "websocket.accept"})
+        # Extract subprotocols requested by the client (e.g. ['vite-hmr'])
+        subprotocols: list[str] = list(scope.get("subprotocols", []))
+        if not subprotocols:
+            headers = dict(scope.get("headers", []))
+            raw_subprotocol = headers.get(b"sec-websocket-protocol", b"").decode("latin1")
+            if raw_subprotocol:
+                subprotocols = [s.strip() for s in raw_subprotocol.split(",") if s.strip()]
+
+        client_closed = False
+
+        async def safe_send(msg: dict[str, Any]) -> None:
+            nonlocal client_closed
+            if client_closed:
+                return
+            try:
+                await send(msg)
+                if msg.get("type") == "websocket.close":
+                    client_closed = True
+            except Exception:
+                client_closed = True
+
+        connect_kwargs: dict[str, Any] = {}
+        if subprotocols:
+            connect_kwargs["subprotocols"] = subprotocols
 
         try:
-            async with websockets.connect(target_ws_url) as server_ws:
+            async with websockets.connect(target_ws_url, **connect_kwargs) as server_ws:
+                # Accept client connection with negotiated subprotocol (RFC 6455 requires echoing matched subprotocol)
+                accept_msg: dict[str, Any] = {"type": "websocket.accept"}
+                server_subprotocol = getattr(server_ws, "subprotocol", None)
+                if server_subprotocol:
+                    accept_msg["subprotocol"] = str(server_subprotocol)
+                elif subprotocols:
+                    accept_msg["subprotocol"] = subprotocols[0]
+                await safe_send(accept_msg)
 
                 async def client_to_server() -> None:
+                    nonlocal client_closed
                     try:
-                        while True:
+                        while not client_closed:
                             msg = await receive()
                             if msg["type"] == "websocket.receive":
                                 if "text" in msg:
@@ -211,29 +243,34 @@ class SubdomainProxyMiddleware:
                                 elif "bytes" in msg:
                                     await server_ws.send(msg["bytes"])
                             elif msg["type"] == "websocket.disconnect":
+                                client_closed = True
                                 break
                     except Exception:
                         pass
+                    finally:
+                        try:
+                            await server_ws.close()
+                        except Exception:
+                            pass
 
                 async def server_to_client() -> None:
                     try:
                         async for msg in server_ws:
                             if isinstance(msg, str):
-                                await send({"type": "websocket.send", "text": msg})
+                                await safe_send({"type": "websocket.send", "text": msg})
                             elif isinstance(msg, bytes):
-                                await send({"type": "websocket.send", "bytes": msg})
+                                await safe_send({"type": "websocket.send", "bytes": msg})
                     except Exception:
                         pass
+                    finally:
+                        await safe_send({"type": "websocket.close", "code": 1000})
 
                 await asyncio.gather(
                     client_to_server(), server_to_client(), return_exceptions=True
                 )
         except Exception as exc:
             logger.error(f"[Proxy WebSocket Error] {target_ws_url}: {exc}")
-            try:
-                await send({"type": "websocket.close", "code": 1011})
-            except Exception:
-                pass
+            await safe_send({"type": "websocket.close", "code": 1011})
 
     async def _send_not_found(self, send: Send, message: str) -> None:
         content = message.encode("utf-8")
