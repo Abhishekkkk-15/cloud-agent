@@ -22,7 +22,7 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     provider: "OpenAI",
     badge: "Auto",
     description: "Automatically selects the best model and reasoning depth",
-    supportsEffort: true,
+    supportsEffort: false,
     use_case: ["auto-routing", "intent-matching", "general"],
   },
   {

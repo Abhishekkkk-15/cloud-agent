@@ -75,7 +75,7 @@ export function ModelAndEffortSelector({
           provider: "OpenAI",
           badge: "Auto",
           description: "Automatically selects the best model comparing use cases",
-          supportsEffort: true,
+          supportsEffort: false,
           use_case: ["auto-routing", "intent-matching", "general"],
         }
         setModelsList(hasAuto ? mapped : [autoOption, ...mapped])
@@ -93,8 +93,9 @@ export function ModelAndEffortSelector({
     modelsList[0] ||
     AVAILABLE_MODELS[0]
 
+  const isAuto = currentModel.id === "auto"
   const currentEffort = EFFORT_CONFIG[selectedEffort] || EFFORT_CONFIG.high
-  const supportsEffort = currentModel.supportsEffort
+  const supportsEffort = currentModel.supportsEffort && !isAuto
 
   // Dynamic providers from active models
   const providers = Array.from(new Set(modelsList.map((m) => m.provider)))
@@ -155,7 +156,8 @@ export function ModelAndEffortSelector({
                 </div>
                 {models.map((model) => {
                   const isSelected = model.id === currentModel.id
-                  const modelSupportsEffort = model.supportsEffort
+                  const isAutoModel = model.id === "auto"
+                  const modelSupportsEffort = model.supportsEffort && !isAutoModel
 
                   const modelInfo = (
                     <div className="flex min-w-0 flex-1 flex-col gap-1 pr-1 text-left">
