@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from src.dependency.sandbox_dependency import SandboxRepo
 from src.dependency.port_depemdency import PortRepo
 from src.utils.config import config, build_preview_url
+from src.utils.workspace_utils import ensure_workspace_template
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.utils.port_manager import PortRole
 
@@ -49,8 +50,7 @@ async def start_chat(
             detail="Something wrong with the server",
         )
     workspace.source_path = str(config.workspace_base / workspace.id)
-    workspace_root = config.workspace_base / workspace.id
-    workspace_root.mkdir(parents=True, exist_ok=True)
+    workspace_root = ensure_workspace_template(workspace.id)
 
     allocated = port_manager.allocate_workspace_ports(workspace.id)
     docker_ports = port_manager.to_docker_ports(workspace.id)

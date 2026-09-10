@@ -14,6 +14,7 @@ from pi_sdk import AgentEvent
 from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
 from src.utils.config import config, build_preview_url
+from src.utils.workspace_utils import ensure_workspace_template
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.ai_core.intent_agent import IntentAgent
 from docker.errors import APIError, ContainerError, NotFound
@@ -71,8 +72,7 @@ async def websocket_endpoint(
             )
 
             workspace.source_path = str(config.workspace_base / workspace_id)
-            workspace_root = config.workspace_base / workspace_id
-            workspace_root.mkdir(parents=True, exist_ok=True)
+            workspace_root = ensure_workspace_template(workspace_id)
 
             # Allocate host ports for container (e.g., 5173 -> host_port)
             allocated = port_manager.allocate_workspace_ports(workspace_id)
@@ -190,8 +190,7 @@ async def websocket_endpoint(
                     ),
                 )
                 workspace.source_path = str(config.workspace_base / workspace_id)
-                workspace_root = config.workspace_base / workspace_id
-                workspace_root.mkdir(parents=True, exist_ok=True)
+                workspace_root = ensure_workspace_template(workspace_id)
 
                 # Allocate host ports for container (e.g., 5173 -> host_port)
                 allocated = port_manager.allocate_workspace_ports(workspace_id)

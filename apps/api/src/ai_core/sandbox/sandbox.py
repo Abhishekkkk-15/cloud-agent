@@ -1,6 +1,7 @@
 from src.ai_core.sandbox.client import get_sandbox_client
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.utils.config import config
+from src.utils.workspace_utils import ensure_workspace_template
 from docker import DockerClient
 from docker.errors import APIError, ContainerError, NotFound
 from docker.models.containers import Container
@@ -27,6 +28,9 @@ class Sandbox:
                     or "Docker sandbox is not available"
                 }
 
+            # Pre-seed template project files on host immediately
+            ensure_workspace_template(workspace_id)
+
             mount = Mount(
                 target="/app",
                 source=f"{config.docker_workspace_base}/{workspace_id}",
@@ -40,6 +44,14 @@ class Sandbox:
                 ports=ports,
             )
             print("2. Container created:", container.id)
+
+            # Ensure node_modules is linked instantly without slow bind mount copies
+            try:
+                container.exec_run(
+                    "sh -c 'if [ ! -f /app/node_modules/.bin/vite ]; then rm -rf /app/node_modules 2>/dev/null; ln -sf /template/node_modules /app/node_modules; fi'"
+                )
+            except Exception as e:
+                print(f"[Sandbox] Warning: node_modules link exec failed: {e}")
 
             print("3. Reloading container")
             container.reload()
