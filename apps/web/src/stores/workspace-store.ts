@@ -169,9 +169,12 @@ function applyAgentEvent(
   const { assistantId } = activeAgentStream
   let { textBuffer } = activeAgentStream
 
-  if (payload.type === "text_delta" || payload.type === "text") {
+  if (payload.type === "text_delta") {
     const chunk = wsPayloadText(payload) ?? ""
     if (chunk) textBuffer += chunk
+  } else if (payload.type === "text") {
+    const fullText = wsPayloadText(payload) ?? ""
+    if (fullText) textBuffer = fullText
   } else if (payload.type === "run_completed") {
     const finalText = wsPayloadText(payload)
     if (finalText && !textBuffer) textBuffer = finalText
