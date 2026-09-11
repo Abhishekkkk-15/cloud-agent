@@ -397,9 +397,11 @@ async def websocket_endpoint(
                 )
 
     except WebSocketDisconnect:
+        agent.abort()
         ws_manager.disconnect(ws)
     except Exception as e:
         print(f"[WebSocket Error]: {e}")
+        agent.abort()
         try:
             if ws.client_state == WebSocketState.CONNECTED:
                 await ws_manager.send_json(
@@ -408,6 +410,7 @@ async def websocket_endpoint(
         except Exception:
             pass
         finally:
+            agent.abort()
             ws_manager.disconnect(ws)
 
 

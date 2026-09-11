@@ -106,13 +106,18 @@ export type AgentWsEventPayload = {
   session_id?: string
   tool?: string
   tool_call_id?: string
+  /** @deprecated Live WS no longer sends full tool arguments (use `target`). */
   arguments?: unknown
+  /** @deprecated Live WS no longer sends full tool result bodies. */
   content?: string
+  /** Path/command label for tool activity (no file body). */
   target?: string
   details?: string
   denied?: boolean
   error?: string
   message?: string
+  /** Tool result success flag (slim payload). */
+  ok?: boolean
   usage?: AgentWsUsage
   done?: boolean
 }
@@ -269,6 +274,7 @@ export function parseAgentWsPayload(
     denied: record.denied === true,
     error: typeof record.error === "string" ? record.error : undefined,
     message: typeof record.message === "string" ? record.message : undefined,
+    ok: typeof record.ok === "boolean" ? record.ok : undefined,
     usage:
       record.usage && typeof record.usage === "object"
         ? (record.usage as AgentWsUsage)
@@ -301,6 +307,7 @@ export function wsEventToUiEvent(
   if (payload.denied) data.denied = payload.denied
   if (payload.error) data.error = payload.error
   if (payload.message) data.message = payload.message
+  if (payload.ok !== undefined) data.ok = payload.ok
   if (payload.usage) {
     data.prompt_tokens = payload.usage.prompt_tokens
     data.completion_tokens = payload.usage.completion_tokens

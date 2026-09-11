@@ -5,6 +5,12 @@ from typing import Any
 
 from pi_sdk import AgentEvent, EventType
 
+# Keys commonly used by file / shell tools for a UI label (never send full payloads).
+_PATH_KEYS = ("path", "file", "file_path", "target", "filename", "filepath")
+_CMD_KEYS = ("command", "cmd")
+_TARGET_MAX = 160
+_SUMMARY_MAX = 200
+
 
 @dataclass
 class WsEvent:
@@ -21,10 +27,84 @@ class WsEvent:
     error: str | None = None
     message: str | None = None
     usage: dict[str, Any] | None = None
+    ok: bool | None = None
     done: bool = False
 
     def to_dict(self) -> dict[str, Any]:
-        return {k: v for k, v in asdict(self).items() if v not in (None, "", False)}
+        out: dict[str, Any] = {}
+        for key, value in asdict(self).items():
+            if value is None or value == "":
+                continue
+            if value is False:
+                # ok=False must be sent; other flags default to false when absent
+                if key == "ok":
+                    out[key] = False
+                continue
+            out[key] = value
+        return out
+
+
+def _truncate(value: str, max_len: int = _TARGET_MAX) -> str:
+    text = value.strip()
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 1] + "…"
+
+
+def _as_nonempty_str(value: Any) -> str | None:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    return None
+
+
+def _tool_target(data: dict[str, Any]) -> str | None:
+    """Extract a short path/command label; never return file bodies."""
+    direct = (
+        _as_nonempty_str(data.get("target"))
+        or _as_nonempty_str(data.get("path"))
+        or _as_nonempty_str(data.get("file"))
+    )
+    if direct:
+        return _truncate(direct)
+
+    arguments = data.get("arguments")
+    if isinstance(arguments, dict):
+        for key in _PATH_KEYS:
+            path = _as_nonempty_str(arguments.get(key))
+            if path:
+                return _truncate(path)
+        for key in _CMD_KEYS:
+            cmd = _as_nonempty_str(arguments.get(key))
+            if cmd:
+                return _truncate(cmd, _TARGET_MAX)
+
+    return None
+
+
+def _tool_result_ok(data: dict[str, Any]) -> bool:
+    if data.get("is_error") is True or data.get("ok") is False:
+        return False
+    content = data.get("content")
+    if isinstance(content, str):
+        lowered = content[:80].lower()
+        if lowered.startswith("error") or "permission denied" in lowered:
+            return False
+    return True
+
+
+def _tool_result_summary(data: dict[str, Any], *, ok: bool) -> str | None:
+    """Optional short status line — never the full tool output."""
+    err = _as_nonempty_str(data.get("error"))
+    if err:
+        return _truncate(err, _SUMMARY_MAX)
+    if not ok:
+        content = data.get("content")
+        if isinstance(content, str) and content.strip():
+            # First line only, truncated — enough for UI, not a file dump.
+            first_line = content.strip().splitlines()[0]
+            return _truncate(first_line, _SUMMARY_MAX)
+    return None
 
 
 def event_handler(event: AgentEvent) -> WsEvent:
@@ -54,30 +134,36 @@ def event_handler(event: AgentEvent) -> WsEvent:
         return WsEvent(type="agent:text", text=text)
 
     if event.type == EventType.TOOL_CALL:
+        # Activity UI only needs tool name + path/command — not full arguments.
         return WsEvent(
             type="agent:tool_call",
             tool=data.get("name"),
             tool_call_id=data.get("id"),
-            arguments=data.get("arguments"),
+            target=_tool_target(data),
         )
 
     if event.type == EventType.TOOL_RESULT:
+        ok = _tool_result_ok(data)
+        summary = _tool_result_summary(data, ok=ok)
         return WsEvent(
             type="agent:tool_result",
             tool=data.get("name"),
             tool_call_id=data.get("id"),
-            content=data.get("content"),
-            text=str(data.get("content") or ""),
+            target=_tool_target(data),
+            ok=ok,
+            message=summary,
+            # Do not send content / text blobs (file bodies, grep dumps, etc.)
         )
 
     if event.type == EventType.PERMISSION_REQUEST:
+        details = _as_nonempty_str(data.get("details"))
         return WsEvent(
             type="agent:permission_request",
             tool=data.get("tool"),
             target=data.get("target"),
-            details=data.get("details"),
+            details=_truncate(details, _SUMMARY_MAX) if details else None,
             denied=bool(data.get("denied", False)),
-            text=str(data.get("details") or ""),
+            text=_truncate(details, _SUMMARY_MAX) if details else "",
         )
 
     if event.type == EventType.COMPACTION:

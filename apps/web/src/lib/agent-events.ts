@@ -40,6 +40,11 @@ export function formatUsageDetail(data: Record<string, unknown>): string {
 }
 
 function toolTarget(data: Record<string, unknown>): string | undefined {
+  // Prefer slim top-level target from live WS (no full arguments payload).
+  const direct =
+    asString(data.target) ?? asString(data.path) ?? asString(data.file)
+  if (direct) return direct
+
   const args = data.arguments
   if (args && typeof args === "object" && !Array.isArray(args)) {
     const record = args as Record<string, unknown>
@@ -50,12 +55,7 @@ function toolTarget(data: Record<string, unknown>): string | undefined {
       asString(record.command)
     )
   }
-  return (
-    asString(data.target) ??
-    asString(data.path) ??
-    asString(data.file) ??
-    asString(data.name)
-  )
+  return asString(data.name)
 }
 
 export type AgentActionKind =
