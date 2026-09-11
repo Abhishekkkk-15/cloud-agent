@@ -18,18 +18,22 @@ from src.middleware.subdomain_proxy_middleware import SubdomainProxyMiddleware
 
 app = FastAPI(lifespan=db_lifespan)
 
+import os
+
 origins = [
     "http://localhost:3000",    
     "http://localhost:5173",
     "http://127.0.0.1:5173", 
     "http://localhost:8001",     
-    "https://yourfrontend.com",  
+    "https://cloud-agent.abhishekkkk.in",
 ]
+if os.getenv("FRONTEND_URL"):
+    origins.append(os.getenv("FRONTEND_URL").strip())
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"^https?://([a-zA-Z0-9_-]+\.)*lvh\.me(:\d+)?$",
+    allow_origin_regex=r"^https?://([a-zA-Z0-9_-]+\.)*(lvh\.me|abhishekkkk\.in)(:\d+)?$",
     allow_credentials=True,           
     allow_methods=["*"],                
     allow_headers=["*"],              
