@@ -50,21 +50,26 @@ class ConnectionManager:
 
 async def authenticate_websocket(
     websocket: WebSocket,
-    user_repo:UserRepo
+    user_repo: UserRepo
 ) -> User:
-    token = websocket.cookies.get("ca_access_token")
+    token = websocket.cookies.get("ca_access_token") or websocket.query_params.get("token")
     if not token:
         await websocket.close(code=1008)
-        raise RuntimeError()
+        raise RuntimeError("Missing authentication token in websocket cookie or query params")
 
-    payload = decode_access_token(token)
+    try:
+        payload = decode_access_token(token)
+    except Exception as e:
+        print(f"[WebSocket Auth] Token decode error: {e}")
+        await websocket.close(code=1008)
+        raise RuntimeError("Invalid token") from e
 
     user = await user_repo.find_by_id(payload)
 
     if not user:
-        print("from user    ")
+        print("[WebSocket Auth] User not found")
         await websocket.close(code=1008)
-        raise RuntimeError()
+        raise RuntimeError("User not found")
 
     return user
 

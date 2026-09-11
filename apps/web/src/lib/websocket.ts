@@ -259,6 +259,10 @@ export function get_wehsocket(
   if (queryParameters.page != null) {
     searchParams.set("page", String(queryParameters.page))
   }
+  const token = getAccessToken()
+  if (token) {
+    searchParams.set("token", token)
+  }
 
   const wsBase = (import.meta.env.VITE_WS_URL || "").replace(/\/$/, "")
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"

@@ -34,6 +34,7 @@ async def websocket_endpoint(
 ):
     await ws_manager.connect(ws)
     print("Websocket connection established")
+    agent: CloudAgentCore | None = None
 
     try:
         # 1. Authenticate once upon connection
@@ -397,11 +398,13 @@ async def websocket_endpoint(
                 )
 
     except WebSocketDisconnect:
-        agent.abort()
+        if agent:
+            agent.abort()
         ws_manager.disconnect(ws)
     except Exception as e:
         print(f"[WebSocket Error]: {e}")
-        agent.abort()
+        if agent:
+            agent.abort()
         try:
             if ws.client_state == WebSocketState.CONNECTED:
                 await ws_manager.send_json(
@@ -410,7 +413,8 @@ async def websocket_endpoint(
         except Exception:
             pass
         finally:
-            agent.abort()
+            if agent:
+                agent.abort()
             ws_manager.disconnect(ws)
 
 
