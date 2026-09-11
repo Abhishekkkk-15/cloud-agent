@@ -260,8 +260,12 @@ export function get_wehsocket(
     searchParams.set("page", String(queryParameters.page))
   }
 
+  const wsBase = (import.meta.env.VITE_WS_URL || "").replace(/\/$/, "")
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-  const url = `${protocol}//${window.location.host}/ws?${searchParams.toString()}`
+  const baseUrl = wsBase
+    ? `${wsBase}/ws`
+    : `${protocol}//${window.location.host}/ws`
+  const url = `${baseUrl}?${searchParams.toString()}`
 
   ws = new WebSocketManager(url)
   wsWorkspaceId = key

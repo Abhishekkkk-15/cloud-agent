@@ -32,8 +32,10 @@ export function getApiErrorMessage(error: unknown, fallback = "Request failed") 
   return fallback
 }
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
+
 export const http = axios.create({
-  baseURL: "/api",
+  baseURL: API_BASE_URL || "/api",
   timeout: 12000,
 })
 
@@ -50,7 +52,8 @@ let refreshing: Promise<string | null> | null = null
 async function refreshAccessToken() {
   const refreshToken = getRefreshToken()
   if (!refreshToken) return null
-  const { data } = await axios.post("/api/auth/refresh", {
+  const refreshEndpoint = API_BASE_URL ? `${API_BASE_URL}/auth/refresh` : "/api/auth/refresh"
+  const { data } = await axios.post(refreshEndpoint, {
     refresh_token: refreshToken,
   })
   setTokens(data.access_token, data.refresh_token)

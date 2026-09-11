@@ -28,13 +28,6 @@ import { useWorkspaceStore } from "@/stores/workspace-store"
 import type { ChatAttachment } from "@/types/chat-ui"
 import { cn } from "@/lib/utils"
 
-const suggestions = [
-  "Explain what this workspace does",
-  "Add a dark mode toggle",
-  "Fix any TypeScript errors",
-  "Improve the landing page copy",
-]
-
 const MAX_FILES = 5
 const MAX_BYTES = 5 * 1024 * 1024
 
