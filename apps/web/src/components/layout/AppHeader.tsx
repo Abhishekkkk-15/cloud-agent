@@ -3,8 +3,6 @@ import {
   CloudIcon,
   LayoutDashboardIcon,
   LogOutIcon,
-  MoonIcon,
-  SunIcon,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -19,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
-import { useTheme } from "@/components/theme-provider"
+import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useAuthStore } from "@/stores/auth-store"
 import { cn } from "@/lib/utils"
 
@@ -31,12 +29,6 @@ type AppHeaderProps = {
 export function AppHeader({ className, dense }: AppHeaderProps) {
   const user = useAuthStore((s) => s.user)
   const signOut = useAuthStore((s) => s.signOut)
-  const { theme, setTheme } = useTheme()
-  const isDark =
-    theme === "dark" ||
-    (theme === "system" &&
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches)
 
   return (
     <header
@@ -70,14 +62,7 @@ export function AppHeader({ className, dense }: AppHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-          aria-label="Toggle theme"
-        >
-          {isDark ? <SunIcon /> : <MoonIcon />}
-        </Button>
+        <ThemeSwitcher />
 
         {user ? (
           <DropdownMenu>

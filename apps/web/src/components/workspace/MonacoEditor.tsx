@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react"
 import Editor, { type OnMount } from "@monaco-editor/react"
 
-import { useTheme } from "@/components/theme-provider"
+import { useTheme, type Theme } from "@/components/theme-provider"
 import { Skeleton } from "@/components/ui/skeleton"
 
-function resolveMonacoTheme(theme: "dark" | "light" | "system") {
+function resolveMonacoTheme(theme: Theme, colorMode: "dark" | "light") {
   if (theme === "system") {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "vs-dark"
-      : "light"
+    return colorMode === "dark" ? "vs-dark" : "light"
   }
-  return theme === "dark" ? "vs-dark" : "light"
+  // ocean / forest / dark share dark editor chrome
+  return colorMode === "dark" ? "vs-dark" : "light"
 }
 
 const extensionLanguageMap: Record<string, string> = {
@@ -68,23 +67,18 @@ export function MonacoEditor({
   value,
   onChange,
 }: MonacoEditorProps) {
-  const { theme } = useTheme()
+  const { theme, colorMode } = useTheme()
   const fileIdRef = useRef(fileId)
   fileIdRef.current = fileId
 
   const monacoLanguage = languageFromFile(fileName, language)
   const [monacoTheme, setMonacoTheme] = useState(() =>
-    resolveMonacoTheme(theme)
+    resolveMonacoTheme(theme, colorMode)
   )
 
   useEffect(() => {
-    setMonacoTheme(resolveMonacoTheme(theme))
-    if (theme !== "system") return
-    const media = window.matchMedia("(prefers-color-scheme: dark)")
-    const handler = () => setMonacoTheme(resolveMonacoTheme("system"))
-    media.addEventListener("change", handler)
-    return () => media.removeEventListener("change", handler)
-  }, [theme])
+    setMonacoTheme(resolveMonacoTheme(theme, colorMode))
+  }, [theme, colorMode])
 
   const handleMount: OnMount = (editor) => {
     editor.focus()

@@ -3,9 +3,7 @@ import { useNavigate } from "react-router-dom"
 import {
   FolderIcon,
   MessageSquareIcon,
-  MoonIcon,
   SearchIcon,
-  SunIcon,
 } from "lucide-react"
 
 import {
@@ -33,19 +31,13 @@ import {
 } from "@/components/ui/input-group"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { useTheme } from "@/components/theme-provider"
+import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 
 export function DashboardHeader() {
   const navigate = useNavigate()
   const workspaces = useWorkspaceListStore((s) => s.workspaces)
-  const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
-  const isDark =
-    theme === "dark" ||
-    (theme === "system" &&
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches)
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -98,14 +90,7 @@ export function DashboardHeader() {
         >
           <SearchIcon />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-          aria-label="Toggle theme"
-        >
-          {isDark ? <SunIcon /> : <MoonIcon />}
-        </Button>
+        <ThemeSwitcher />
       </div>
 
       <CommandDialog

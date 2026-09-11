@@ -323,6 +323,7 @@ async def websocket_endpoint(
             is_abort = user_query.type == "agent:abort"                
             if is_abort:
                  agent.abort()
+                 break
             query_text = user_query.data.get("query") if user_query.data else ""
             req_session_id = (
                 (user_query.data.get("session_id") if user_query.data else None)
