@@ -60,13 +60,20 @@ class WebSocketManager {
   private handlers = new Map<string, Set<MessageHandler>>()
   private reconnectAttempts = 0
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  /** When true, onclose must not schedule reconnect (intentional disconnect). */
+  private intentionalClose = false
 
   constructor(url: string) {
     this.url = url
   }
 
+  get isOpen(): boolean {
+    return this.socket?.readyState === WebSocket.OPEN
+  }
+
   connect(): Promise<void> {
     syncWsAuthCookie()
+    this.intentionalClose = false
 
     return new Promise((resolve, reject) => {
       if (
@@ -78,14 +85,15 @@ class WebSocketManager {
         return
       }
 
-      this.socket = new WebSocket(this.url)
+      const socket = new WebSocket(this.url)
+      this.socket = socket
 
-      this.socket.onopen = () => {
+      socket.onopen = () => {
         this.reconnectAttempts = 0
         resolve()
       }
 
-      this.socket.onmessage = (event) => {
+      socket.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data)
           const normalized = normalizeIncomingMessage(message)
@@ -105,22 +113,35 @@ class WebSocketManager {
         }
       }
 
-      this.socket.onclose = () => {
-        this.socket = null
+      socket.onclose = () => {
+        if (this.socket === socket) {
+          this.socket = null
+        }
+        if (this.intentionalClose) return
         this.reconnect()
       }
 
-      this.socket.onerror = reject
+      socket.onerror = () => {
+        // Only reject the connect() promise if we never opened; otherwise
+        // onclose will drive reconnect for unexpected drops.
+        if (socket.readyState !== WebSocket.OPEN) {
+          reject(new Error("WebSocket connection failed"))
+        }
+      }
     })
   }
 
   private reconnect() {
+    if (this.intentionalClose) return
     if (this.reconnectTimer) return
     const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 10000)
     this.reconnectAttempts += 1
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null
-      void this.connect()
+      if (this.intentionalClose) return
+      void this.connect().catch(() => {
+        // connect() failed; onclose/reconnect will retry if still unintended
+      })
     }, delay)
   }
 
@@ -182,49 +203,73 @@ class WebSocketManager {
   }
 
   disconnect() {
+    this.intentionalClose = true
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
 
-    this.socket?.close()
+    const socket = this.socket
     this.socket = null
     this.reconnectAttempts = 0
+
+    if (socket) {
+      // Prevent reconnect from a late onclose after we tear down
+      socket.onclose = null
+      socket.onerror = null
+      socket.onmessage = null
+      socket.onopen = null
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING
+      ) {
+        socket.close()
+      }
+    }
   }
 }
 
 let ws: WebSocketManager | null = null
-let wsKey: string | null = null
+/** Singleton key is workspace_id only — session lives in message payloads. */
+let wsWorkspaceId: string | null = null
 
 export function get_wehsocket(
   queryParameters: QueryParameters<WorkspaceKeys>
 ): WebSocketManager {
-  const key = JSON.stringify(queryParameters)
+  const workspaceId = queryParameters.workspace_id
+  if (workspaceId == null || workspaceId === "") {
+    throw new Error("workspace_id is required for websocket")
+  }
 
-  if (ws && wsKey === key) {
+  const key = String(workspaceId)
+
+  if (ws && wsWorkspaceId === key) {
     return ws
   }
 
   ws?.disconnect()
 
   const searchParams = new URLSearchParams()
-
-  Object.entries(queryParameters).forEach(([key, value]) => {
-    if (value != null) {
-      searchParams.set(key, String(value))
-    }
-  })
+  searchParams.set("workspace_id", key)
+  // session_id is optional hint only; do not include in singleton key
+  if (queryParameters.session_id != null && queryParameters.session_id !== "") {
+    searchParams.set("session_id", String(queryParameters.session_id))
+  }
+  if (queryParameters.page != null) {
+    searchParams.set("page", String(queryParameters.page))
+  }
 
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
   const url = `${protocol}//${window.location.host}/ws?${searchParams.toString()}`
 
   ws = new WebSocketManager(url)
-  wsKey = key
+  wsWorkspaceId = key
   return ws
 }
 
 export function reset_websocket() {
   ws?.disconnect()
   ws = null
-  wsKey = null
+  wsWorkspaceId = null
 }

@@ -7,7 +7,7 @@ import {
   getWorkspace,
   runCommand,
 } from "@/lib/api"
-import { get_wehsocket } from "@/lib/websocket"
+import { get_wehsocket, reset_websocket } from "@/lib/websocket"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 import { appendAgentEvent } from "@/lib/agent-events"
 import {
@@ -27,12 +27,7 @@ import type {
 import type { ReasoningEffort } from "@/types/models"
 
 export type SandboxStatus =
-  | "idle"
-  | "starting"
-  | "provisioning"
-  | "resuming"
-  | "ready"
-  | "error"
+  "idle" | "starting" | "provisioning" | "resuming" | "ready" | "error"
 
 export type SandboxState = {
   active: boolean
@@ -60,7 +55,10 @@ export function getPreviewUrl(workspaceId: string, _port?: number): string {
   // Uses wildcard domain lvh.me routed through the central FastAPI proxy
   const baseDomain = import.meta.env.VITE_PREVIEW_DOMAIN || "lvh.me"
   const proxyPort = import.meta.env.VITE_PREVIEW_PORT || "8000"
-  const portSuffix = proxyPort && proxyPort !== "80" && proxyPort !== "443" ? `:${proxyPort}` : ""
+  const portSuffix =
+    proxyPort && proxyPort !== "80" && proxyPort !== "443"
+      ? `:${proxyPort}`
+      : ""
   return `http://${workspaceId}.${baseDomain}${portSuffix}`
 }
 function updateFileContent(
@@ -119,6 +117,7 @@ type WorkspaceState = {
   setSandboxState: (patch: Partial<SandboxState>) => void
   dismissSandbox: () => void
   retrySandbox: () => Promise<void>
+  teardownConnection: () => void
   selectedModel: string
   selectedEffort: ReasoningEffort
   setSelectedModel: (model: string) => void
@@ -408,8 +407,7 @@ function applySandboxEvent(
           (normalized === "provisioning"
             ? "Provisioning Sandbox"
             : "Starting Sandbox"),
-        message:
-          data.message ?? "Setting up isolated container runtime...",
+        message: data.message ?? "Setting up isolated container runtime...",
         stage: data.stage ?? "container",
         error: null,
       },
@@ -480,6 +478,7 @@ async function connectChatSocket(
       | ((state: WorkspaceState) => Partial<WorkspaceState>)
   ) => void
 ) {
+  // Singleton is keyed by workspace_id only; session is sent on messages.
   const ws = get_wehsocket({
     workspace_id: workspaceId,
     session_id: sessionId,
@@ -488,6 +487,12 @@ async function connectChatSocket(
   ensureAgentStreamListener(ws, get, set)
   ensureSandboxListener(ws, get, set)
   return ws
+}
+
+function teardownWorkspaceConnection() {
+  clearAgentStreamListener()
+  clearSandboxListener()
+  reset_websocket()
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -536,8 +541,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       : "gpt-5.6-luna",
   selectedEffort:
     typeof window !== "undefined"
-      ? ((localStorage.getItem("ca_selected_effort") as ReasoningEffort) ||
-        "high")
+      ? (localStorage.getItem("ca_selected_effort") as ReasoningEffort) ||
+        "high"
       : "high",
   setSelectedModel: (model: string) => {
     if (typeof window !== "undefined") {
@@ -551,6 +556,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
     set({ selectedEffort: effort })
   },
+  teardownConnection: () => {
+    teardownWorkspaceConnection()
+  },
+
   retrySandbox: async () => {
     const { workspace, activeSessionId } = get()
     if (!workspace || !workspace.id) return
@@ -603,8 +612,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   loadWorkspace: async (workspaceId, sessionId = null) => {
-    clearAgentStreamListener()
-    clearSandboxListener()
+    const previousWorkspaceId = get().workspace?.id ?? null
+    // Switching workspaces: drop the old socket so it cannot reconnect.
+    if (previousWorkspaceId && previousWorkspaceId !== workspaceId) {
+      teardownWorkspaceConnection()
+    } else {
+      clearAgentStreamListener()
+      clearSandboxListener()
+    }
     set({ loading: true, error: null })
     try {
       const [workspaceDetail, files, terminalLines] = await Promise.all([
@@ -612,7 +627,6 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         getFileTree(workspaceId),
         getTerminalBoot(),
       ])
-      console.log(workspaceDetail)
       const flat = flattenFiles(files)
       const firstFile = flat[0]
       const resolvedSessionId =
@@ -841,7 +855,19 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
   },
 
-  stopStreaming: () => {
+  stopStreaming: async () => {
+    const workspace = get().workspace
+    if (!workspace?.id) {
+      set({ error: "Workspace is not loaded" })
+      return
+    }
+    const ws = await connectChatSocket(
+      workspace.id,
+      get().activeSessionId,
+      get,
+      set
+    )
+    ws.send("agent:abort", { query: "abort" })
     chatAbortController?.abort()
     chatAbortController = null
   },
@@ -886,4 +912,3 @@ if (typeof window !== "undefined") {
     })
   }
 }
-

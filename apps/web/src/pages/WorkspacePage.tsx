@@ -48,6 +48,12 @@ export function WorkspacePage() {
     }
   }, [workspaceId, sessionId, loadWorkspace])
 
+  useEffect(() => {
+    return () => {
+      useWorkspaceStore.getState().teardownConnection()
+    }
+  }, [])
+
   if (loading) {
     return (
       <div className="flex h-svh flex-col gap-2 p-3">

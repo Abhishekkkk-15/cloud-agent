@@ -1,7 +1,7 @@
 from pi_sdk import Agent, RunResult
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
 from src.utils.config import config
-
+from pathlib import Path
 DEFAULT_DOCKER_WORKDIR = "/app"
 
 
@@ -27,8 +27,10 @@ class CloudAgentCore:
         selected_model = model or sys_config.model
         selected_base_url = base_url or sys_config.base_url
         selected_api_key = api_key or sys_config.api_key
-        selected_effort = reasoning_effort or "high"
+        selected_effort = reasoning_effort or "high"  
+        skills_dir = "D:/python/cloud-agent/.agents/skills"
 
+        
         self.client = Agent.create(
             api_key=selected_api_key,
             provider=selected_provider,
@@ -36,6 +38,7 @@ class CloudAgentCore:
             autonomous=sys_config.autonomous,
             model=selected_model,
             storage="mongodb",
+            skills_dirs=[skills_dir],
             reasoning_effort=selected_effort,
             mongodb_uri=sys_config.database_uri,
             mongodb_db=sys_config.database_name,
@@ -214,6 +217,10 @@ class CloudAgentCore:
     async def resume(self, session_id: str) -> Agent:
         print("Resumed")
         return await self.client.resume(session_id)
+      
+    def abort(self):
+      self.client.abort()  
+      
     async def stream(self,msg:str):
         async for event in self.client.stream(msg):
             print(event.type.value, event.data)

@@ -25,31 +25,29 @@ export const PI_SDK_EVENT_TYPES = [
 export type PiSdkEventType = (typeof PI_SDK_EVENT_TYPES)[number]
 
 /** Useful `event.data` keys per pi_sdk event type. */
-export const PI_SDK_EVENT_DATA_KEYS: Record<
-  PiSdkEventType,
-  readonly string[]
-> = {
-  RUN_STARTED: ["prompt", "session_id"],
-  USER_MESSAGE: ["text"],
-  THINKING_DELTA: ["text"],
-  THINKING: ["text"],
-  TEXT_DELTA: ["text"],
-  TEXT: ["text"],
-  TOOL_CALL: ["name", "arguments", "id"],
-  TOOL_RESULT: ["name", "content", "id"],
-  PERMISSION_REQUEST: ["tool", "target", "details"],
-  COMPACTION: ["message"],
-  USAGE: [
-    "prompt_tokens",
-    "completion_tokens",
-    "total_tokens",
-    "estimated_cost_usd",
-  ],
-  ERROR: ["error"],
-  STATUS: ["message"],
-  RUN_COMPLETED: ["text", "session_id"],
-  RUN_FAILED: ["error", "session_id"],
-}
+export const PI_SDK_EVENT_DATA_KEYS: Record<PiSdkEventType, readonly string[]> =
+  {
+    RUN_STARTED: ["prompt", "session_id"],
+    USER_MESSAGE: ["text"],
+    THINKING_DELTA: ["text"],
+    THINKING: ["text"],
+    TEXT_DELTA: ["text"],
+    TEXT: ["text"],
+    TOOL_CALL: ["name", "arguments", "id"],
+    TOOL_RESULT: ["name", "content", "id"],
+    PERMISSION_REQUEST: ["tool", "target", "details"],
+    COMPACTION: ["message"],
+    USAGE: [
+      "prompt_tokens",
+      "completion_tokens",
+      "total_tokens",
+      "estimated_cost_usd",
+    ],
+    ERROR: ["error"],
+    STATUS: ["message"],
+    RUN_COMPLETED: ["text", "session_id"],
+    RUN_FAILED: ["error", "session_id"],
+  }
 
 /** Flat JSON the API sends over WS (`WsEvent.to_dict()`). Not pi_sdk's internal shape. */
 export type BackendWsWireMessage = {
@@ -136,15 +134,21 @@ export const SANDBOX_WS_EVENT_NAMES = [
 ] as const
 
 export type SandboxWsEvent =
-  | (typeof SANDBOX_WS_EVENT_NAMES)[number]
-  | `sandbox:${string}`
+  (typeof SANDBOX_WS_EVENT_NAMES)[number] | `sandbox:${string}`
 
 export type SandboxWsPayload = {
   sandbox_id?: string
   status?: string
   title?: string
   message?: string
-  stage?: "provisioning" | "container" | "ports" | "network" | "runtime" | "ready" | string
+  stage?:
+    | "provisioning"
+    | "container"
+    | "ports"
+    | "network"
+    | "runtime"
+    | "ready"
+    | string
   details?: string
   error?: string
   frontend_port?: number
@@ -154,13 +158,10 @@ export type SandboxWsPayload = {
   [key: string]: unknown
 }
 
-export type AgentOutgoingEvent = "agent:send" | "agent:start"
+export type AgentOutgoingEvent = "agent:send" | "agent:start" | "agent:abort"
 
 export type WsOutgoingEvent = AgentOutgoingEvent
-export type WsIncomingEvent =
-  | WorkspaceWsEvent
-  | SandboxWsEvent
-  | AgentWsChannel
+export type WsIncomingEvent = WorkspaceWsEvent | SandboxWsEvent | AgentWsChannel
 
 const AGENT_WS_EVENT_NAME_SET = new Set<string>(AGENT_WS_EVENT_NAMES)
 
@@ -209,7 +210,9 @@ export function isAgentWsEventName(value: string): value is AgentWsEventName {
 }
 
 /** pi_sdk: `event.text` ≈ `data.text` | `data.content` */
-export function wsPayloadText(payload: AgentWsEventPayload): string | undefined {
+export function wsPayloadText(
+  payload: AgentWsEventPayload
+): string | undefined {
   if (payload.text) return payload.text
   if (payload.content) return payload.content
   if (payload.error) return payload.error
@@ -258,9 +261,7 @@ export function parseAgentWsPayload(
       typeof record.session_id === "string" ? record.session_id : undefined,
     tool: typeof record.tool === "string" ? record.tool : undefined,
     tool_call_id:
-      typeof record.tool_call_id === "string"
-        ? record.tool_call_id
-        : undefined,
+      typeof record.tool_call_id === "string" ? record.tool_call_id : undefined,
     arguments: record.arguments,
     content: typeof record.content === "string" ? record.content : undefined,
     target: typeof record.target === "string" ? record.target : undefined,

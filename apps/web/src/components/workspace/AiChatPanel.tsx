@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import {
-  PaperclipIcon,
-  SendIcon,
-  SquareIcon,
-} from "lucide-react"
+import { PaperclipIcon, SendIcon, SquareIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { AgentEventTurn } from "@/components/workspace/AgentEventTurn"
@@ -175,7 +171,8 @@ export function AiChatPanel() {
                               <BubbleContent>
                                 {isUser ? (
                                   <span className="whitespace-pre-wrap">
-                                    {message.content || (isStreaming ? " " : "")}
+                                    {message.content ||
+                                      (isStreaming ? " " : "")}
                                   </span>
                                 ) : (
                                   <ChatMarkdown
@@ -198,7 +195,7 @@ export function AiChatPanel() {
         </MessageScrollerProvider>
       </div>
 
-      {messages.length === 0 && !busy && (
+      {/* {messages.length === 0 && !busy && (
         <div className="flex flex-wrap gap-2 border-t px-3 py-2">
           {suggestions.map((item) => (
             <Button
@@ -211,16 +208,16 @@ export function AiChatPanel() {
             </Button>
           ))}
         </div>
-      )}
+      )} */}
 
-      <div className="border-t p-3 bg-background">
+      <div className="border-t bg-background p-3">
         <form
           onSubmit={(e) => {
             e.preventDefault()
             void submit(prompt)
           }}
           className={cn(
-            "relative flex flex-col rounded-xl border border-border/80 bg-muted/20 dark:bg-muted/10 p-2 shadow-xs transition-colors focus-within:border-ring/80 focus-within:ring-2 focus-within:ring-ring/20",
+            "relative flex flex-col rounded-xl border border-border/80 bg-muted/20 p-2 shadow-xs transition-colors focus-within:border-ring/80 focus-within:ring-2 focus-within:ring-ring/20 dark:bg-muted/10",
             dragging && "border-primary/50 bg-muted/40"
           )}
           onDragEnter={(e) => {
@@ -255,7 +252,7 @@ export function AiChatPanel() {
             onChange={(e) => setPrompt(e.target.value)}
             placeholder="Plan, Build, / for skills, @ for context"
             rows={2}
-            className="min-h-[48px] max-h-44 w-full resize-none border-0 bg-transparent p-1.5 text-sm shadow-none outline-none focus-visible:ring-0 placeholder:text-muted-foreground/60 dark:placeholder:text-muted-foreground/50"
+            className="max-h-44 min-h-[48px] w-full resize-none border-0 bg-transparent p-1.5 text-sm shadow-none outline-none placeholder:text-muted-foreground/60 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
             disabled={busy}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -286,7 +283,7 @@ export function AiChatPanel() {
                 type="button"
                 variant="ghost"
                 size="icon-xs"
-                className="size-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                className="size-7 rounded-md text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                 disabled={busy || attachments.length >= MAX_FILES}
                 onClick={() => fileInputRef.current?.click()}
                 title="Attach files (max 5 files / 5MB)"
@@ -312,7 +309,7 @@ export function AiChatPanel() {
                   className={cn(
                     "size-7 rounded-md transition-all",
                     !prompt.trim() && attachments.length === 0
-                      ? "opacity-30 cursor-not-allowed"
+                      ? "cursor-not-allowed opacity-30"
                       : "bg-primary text-primary-foreground hover:bg-primary/90"
                   )}
                   disabled={!prompt.trim() && attachments.length === 0}

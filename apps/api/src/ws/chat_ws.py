@@ -318,8 +318,11 @@ async def websocket_endpoint(
             try:
                 user_query = await ws_manager.receive(ws)
             except (WebSocketDisconnect, RuntimeError):
+                agent.abort()
                 break
-
+            is_abort = user_query.type == "agent:abort"                
+            if is_abort:
+                 agent.abort()
             query_text = user_query.data.get("query") if user_query.data else ""
             req_session_id = (
                 (user_query.data.get("session_id") if user_query.data else None)
