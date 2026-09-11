@@ -1,7 +1,8 @@
+import os
+from pathlib import Path
 from pi_sdk import Agent, RunResult
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
 from src.utils.config import config
-from pathlib import Path
 DEFAULT_DOCKER_WORKDIR = "/app"
 
 
@@ -28,7 +29,8 @@ class CloudAgentCore:
         selected_base_url = base_url or sys_config.base_url
         selected_api_key = api_key or sys_config.api_key
         selected_effort = reasoning_effort or "high"  
-        skills_dir = "D:/python/cloud-agent/.agents/skills"
+        repo_root = Path(__file__).resolve().parents[4]
+        skills_dir = os.getenv("SKILLS_DIR", str(repo_root / ".agents" / "skills"))
 
         
         self.client = Agent.create(

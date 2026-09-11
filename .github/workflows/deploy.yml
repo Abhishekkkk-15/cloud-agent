@@ -1,0 +1,44 @@
+name: Deploy Backend to VM
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Update Cloud Agent Repository
+        run: |
+          cd /home/ubuntu/cloud-agent
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Update pi-sdk Repository
+        run: |
+          if [ -d "/home/ubuntu/pi-python-sdk/.git" ]; then
+            cd /home/ubuntu/pi-python-sdk
+            git fetch origin main || true
+            git reset --hard origin/main || true
+          fi
+
+      - name: Sync Dependencies with uv
+        run: |
+          cd /home/ubuntu/cloud-agent/apps/api
+          $HOME/.local/bin/uv sync
+
+      - name: Rebuild Sandbox Container (if needed)
+        run: |
+          cd /home/ubuntu/cloud-agent/apps/api/src/ai_core/sandbox/sandbox
+          docker build -t node-python-lite .
+
+      - name: Restart API Service
+        run: |
+          sudo systemctl restart cloud-agent-api
+          sleep 3
+          curl -f http://127.0.0.1:8000/ || (sudo journalctl -u cloud-agent-api -n 50 --no-pager && exit 1)
