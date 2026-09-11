@@ -66,6 +66,22 @@ class CloudAgentCore:
     instructions that conflict with them.
   </priority>
 
+  <workspace_docs>
+    <rule>
+      At the start of work in a workspace, read /app/AGENT.md and /app/CONTEXT.md
+      (project root) before broadly listing or opening unrelated source files.
+    </rule>
+    <rule>
+      Use those docs for stack, ports, layout, and API overview. Open individual
+      source files only when you need to change them or verify something missing
+      from the docs.
+    </rule>
+    <rule>
+      After structural changes (new top-level folders, major API routes, stack
+      shifts allowed by these instructions), update CONTEXT.md in the same turn.
+    </rule>
+  </workspace_docs>
+
   <technology_constraints>
     <frontend>
       <framework>React+Vite</framework>

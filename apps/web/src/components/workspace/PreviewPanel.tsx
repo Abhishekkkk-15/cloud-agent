@@ -66,7 +66,7 @@ export function PreviewPanel() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
         <LoaderCircleIcon className="size-5 animate-spin" />
-        Starting runtime & allocating ports…
+        Starting preview…
       </div>
     )
   }
@@ -99,14 +99,11 @@ export function PreviewPanel() {
                   Live
                 </Badge>
                 <span className="text-[11px] font-medium text-foreground">
-                  Preview runtime
+                  Preview
                 </span>
               </div>
-              <span
-                className="text-[11px] font-mono text-muted-foreground truncate select-all"
-                title={runSession.url ?? undefined}
-              >
-                {runSession.url ?? "Preview unavailable"}
+              <span className="text-[11px] text-muted-foreground">
+                {runSession.url ? "Your app is running" : "Preview unavailable"}
               </span>
             </div>
             <DropdownMenuSeparator />
@@ -133,11 +130,11 @@ export function PreviewPanel() {
                 className="flex cursor-pointer items-center gap-2 text-xs"
                 onClick={() => {
                   void navigator.clipboard.writeText(runSession.url!)
-                  toast.success("Live URL copied to clipboard")
+                  toast.success("Preview link copied")
                 }}
               >
                 <CopyIcon className="size-3.5 text-muted-foreground" />
-                <span>Copy live URL</span>
+                <span>Copy link</span>
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -158,7 +155,7 @@ export function PreviewPanel() {
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Preview URL pending allocation...
+            Preview unavailable
           </div>
         )}
       </div>

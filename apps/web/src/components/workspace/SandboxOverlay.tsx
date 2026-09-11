@@ -15,8 +15,8 @@ import { useWorkspaceStore } from "@/stores/workspace-store"
 
 const STAGES = [
   { id: "container", label: "Container" },
-  { id: "network", label: "Network & Ports" },
-  { id: "runtime", label: "Runtime Ready" },
+  { id: "network", label: "Networking" },
+  { id: "runtime", label: "Ready" },
 ] as const
 
 export function SandboxOverlay() {
@@ -61,7 +61,7 @@ export function SandboxOverlay() {
       : isReady
         ? "Docker container and proxy routes are online."
         : isResuming
-          ? "Restoring container runtime and mapped ports..."
+          ? "Restoring your development environment..."
           : isProvisioning
             ? "Allocating resources and configuring environment..."
             : "Preparing Docker container runtime...")

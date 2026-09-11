@@ -883,31 +883,31 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 if (typeof window !== "undefined") {
   ;(window as unknown as Record<string, unknown>).__cloudAgentTestSandbox = (
     status: SandboxStatus = "starting",
-    message = "Allocating Docker container and ports..."
+    message = "Setting up your development environment..."
   ) => {
     useWorkspaceStore.getState().setSandboxState({
       active: true,
       status,
       title:
         status === "error"
-          ? "Docker Container Failure"
+          ? "Sandbox failed to start"
           : status === "ready"
             ? "Sandbox Ready"
             : status === "provisioning"
-              ? "Provisioning Docker Environment"
+              ? "Provisioning environment"
               : status === "resuming"
                 ? "Resuming Sandbox"
                 : "Starting Sandbox Runtime",
       message,
       stage:
         status === "provisioning"
-          ? "ports"
+          ? "network"
           : status === "ready"
             ? "ready"
             : "container",
       error:
         status === "error"
-          ? "Docker daemon error: Failed starting Docker sandbox: container port 5173 already allocated"
+          ? "Something went wrong while starting the sandbox. Please try again."
           : null,
     })
   }

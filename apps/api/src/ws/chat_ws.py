@@ -85,7 +85,7 @@ async def websocket_endpoint(
                         "type": "sandbox:status",
                         "data": {
                             "title": "Configuring Networking",
-                            "message": "Allocating host ports and reverse proxy routes...",
+                            "message": "Setting up networking for your preview...",
                             "stage": "network",
                         },
                     }
@@ -203,7 +203,7 @@ async def websocket_endpoint(
                             "type": "sandbox:status",
                             "data": {
                                 "title": "Configuring Networking",
-                                "message": "Allocating host ports and reverse proxy routes...",
+                                "message": "Setting up networking for your preview...",
                                 "stage": "network",
                             },
                         }
