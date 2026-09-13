@@ -318,11 +318,15 @@ async def websocket_endpoint(
         while True:
             try:
                 user_query = await ws_manager.receive(ws)
+                print(user_query)
             except (WebSocketDisconnect, RuntimeError):
+                print("Called abort from websocket disconnect")
+
                 agent.abort()
                 break
             is_abort = user_query.type == "agent:abort"                
             if is_abort:
+                 print("Called abort from abort")
                  agent.abort()
                  break
             query_text = user_query.data.get("query") if user_query.data else ""

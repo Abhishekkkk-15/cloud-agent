@@ -82,4 +82,4 @@ def build_preview_url(workspace_id: str, is_backend: bool = False) -> str:
     port_str = f":{port}" if port not in (80, 443) else ""
     scheme = "https" if port == 443 else "http"
     prefix = f"{workspace_id}-api" if is_backend else workspace_id
-    return f"{scheme}://{prefix}.{base_domain}{port_str}"
+    return f"{scheme}://{prefix}.{base_domain}{port_str}"
