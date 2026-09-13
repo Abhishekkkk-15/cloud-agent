@@ -42,7 +42,7 @@ def get_sandbox_client() -> DockerClient:
     _bypass_broken_creds_store()
 
     try:
-        timeout = int(os.getenv("DOCKER_TIMEOUT", "10"))
+        timeout = int(os.getenv("DOCKER_TIMEOUT", "20"))
         docker_host = (os.getenv("DOCKER_WSL_IP") or "").strip().strip('"').strip("'")
 
         # Prefer Docker Desktop named pipe / DOCKER_HOST via from_env.

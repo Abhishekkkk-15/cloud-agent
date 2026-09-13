@@ -3,6 +3,7 @@ import {
   CloudIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  SettingsIcon,
 } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -101,6 +102,10 @@ export function AppHeader({ className, dense }: AppHeaderProps) {
                 >
                   <LayoutDashboardIcon />
                   Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem render={<Link to="/settings" />}>
+                  <SettingsIcon />
+                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut}>
                   <LogOutIcon />

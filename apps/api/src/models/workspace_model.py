@@ -21,6 +21,13 @@ class Workspace(BaseModel):
     
     initial_prompt:str =""
     status: WorkspaceStatus = WorkspaceStatus.PENDING
+
+    github_repo_full_name: str | None = None
+    github_repo_url: str | None = None
+    github_clone_url: str | None = None
+    github_default_branch: str | None = None
+    github_owner: str | None = None
+    github_name: str | None = None
     
     created_at:datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at:datetime = Field(default_factory=lambda: datetime.now(UTC))

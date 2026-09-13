@@ -12,6 +12,10 @@ import {
   userSchema,
   workspaceWithSessionSchema,
   llmModelSchema,
+  githubAuthorizeResponseSchema,
+  githubStatusResponseSchema,
+  githubReposResponseSchema,
+  importGithubWorkspaceRequestSchema,
   type LLMModel,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
@@ -21,6 +25,9 @@ import {
   type TerminalLine,
   type User,
   type WorkspaceWithSession,
+  type GitHubRepoItem,
+  type GitHubStatusResponse,
+  type ImportGithubWorkspaceRequest,
 } from "@cloud-agent/shared"
 
 const fileTrees: Record<string, FileNode[]> = {}
@@ -209,5 +216,37 @@ export async function listModels(useCase?: string): Promise<LLMModel[]> {
   const params = useCase ? { use_case: useCase } : undefined
   const { data } = await http.get("/models", { params })
   return z.array(llmModelSchema).parse(data)
+}
+
+export async function getGitHubAuthorizeUrl(): Promise<string> {
+  const { data } = await http.get("/integrations/github/authorize")
+  return githubAuthorizeResponseSchema.parse(data).url
+}
+
+export async function getGitHubStatus(): Promise<GitHubStatusResponse> {
+  const { data } = await http.get("/integrations/github/status")
+  return githubStatusResponseSchema.parse(data)
+}
+
+export async function disconnectGitHub(): Promise<GitHubStatusResponse> {
+  const { data } = await http.delete("/integrations/github")
+  return githubStatusResponseSchema.parse(data)
+}
+
+export async function listGitHubRepos(query?: string): Promise<GitHubRepoItem[]> {
+  const { data } = await http.get("/integrations/github/repos", {
+    params: query?.trim() ? { q: query.trim() } : undefined,
+  })
+  return githubReposResponseSchema.parse(data).repos
+}
+
+export async function importGithubWorkspace(
+  input: ImportGithubWorkspaceRequest
+): Promise<CreateWorkspaceResponse> {
+  const body = importGithubWorkspaceRequestSchema.parse(input)
+  const { data } = await http.post("/workspaces/import", body)
+  const created = createWorkspaceResponseSchema.parse(data)
+  fileTrees[created.workspace_id] = [...defaultFileTree]
+  return created
 }
 

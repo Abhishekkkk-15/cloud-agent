@@ -14,6 +14,8 @@ def _doc_to_user(doc: dict) -> User:
         extras["created_at"] = doc["created_at"]
     if doc.get("updated_at"):
         extras["updated_at"] = doc["updated_at"]
+    if doc.get("github_connected_at"):
+        extras["github_connected_at"] = doc["github_connected_at"]
     return User(
         id=str(doc["_id"]),
         name=doc["name"],
@@ -25,6 +27,10 @@ def _doc_to_user(doc: dict) -> User:
         plan=doc.get("plan", "free"),
         is_active=doc.get("is_active", True),
         is_verified=doc.get("is_verified", False),
+        github_id=doc.get("github_id"),
+        github_login=doc.get("github_login"),
+        github_avatar_url=doc.get("github_avatar_url"),
+        github_access_token_enc=doc.get("github_access_token_enc"),
         **extras,
     )
 

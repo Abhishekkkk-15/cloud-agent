@@ -8,6 +8,8 @@ export const userSchema = z.object({
   username: z.string(),
   avatarUrl: z.string().nullable(),
   plan: z.enum(["free", "hacker", "pro"]),
+  githubConnected: z.boolean().default(false),
+  githubLogin: z.string().nullable().default(null),
 });
 
 export const googleAuthRequestSchema = z.object({
@@ -65,6 +67,12 @@ export const workspaceSchema = z.object({
   frontend_port: z.number().nullable(),
   backend_port: z.number().nullable(),
   preview_url: z.string().nullable(),
+  github_repo_full_name: z.string().nullable().optional(),
+  github_repo_url: z.string().nullable().optional(),
+  github_clone_url: z.string().nullable().optional(),
+  github_default_branch: z.string().nullable().optional(),
+  github_owner: z.string().nullable().optional(),
+  github_name: z.string().nullable().optional(),
 });
 
 /** Matches `MinimalSession` (`id` / `_id`) */
@@ -272,4 +280,51 @@ export const llmModelSchema = z.object({
 
 export type LLMModel = z.infer<typeof llmModelSchema>;
 
+export const githubAuthorizeResponseSchema = z.object({
+  url: z.string().url(),
+});
+
+export const githubStatusResponseSchema = z.object({
+  connected: z.boolean(),
+  login: z.string().nullable(),
+  avatarUrl: z.string().nullable(),
+});
+
+export const githubRepoItemSchema = z.object({
+  id: z.number(),
+  name: z.string(),
+  full_name: z.string(),
+  private: z.boolean(),
+  html_url: z.string(),
+  clone_url: z.string(),
+  default_branch: z.string(),
+  description: z.string().nullable(),
+  owner_login: z.string(),
+  owner_avatar_url: z.string().nullable().optional(),
+  updated_at: z.string().nullable(),
+});
+
+export const githubReposResponseSchema = z.object({
+  repos: z.array(githubRepoItemSchema),
+});
+
+export const importGithubWorkspaceRequestSchema = z.object({
+  owner: z.string().min(1),
+  name: z.string().min(1),
+  full_name: z.string().min(3),
+  default_branch: z.string().min(1),
+  clone_url: z.string().min(1),
+  html_url: z.string().min(1),
+  private: z.boolean().default(false),
+});
+
+export type GitHubAuthorizeResponse = z.infer<
+  typeof githubAuthorizeResponseSchema
+>;
+export type GitHubStatusResponse = z.infer<typeof githubStatusResponseSchema>;
+export type GitHubRepoItem = z.infer<typeof githubRepoItemSchema>;
+export type GitHubReposResponse = z.infer<typeof githubReposResponseSchema>;
+export type ImportGithubWorkspaceRequest = z.infer<
+  typeof importGithubWorkspaceRequestSchema
+>;
 

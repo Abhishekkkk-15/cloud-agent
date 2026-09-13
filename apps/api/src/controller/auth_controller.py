@@ -31,6 +31,8 @@ def to_public_user(user: User) -> PublicUser:
         username=user.username,
         avatarUrl=user.avatar_url,
         plan=user.plan,
+        githubConnected=bool(user.github_access_token_enc),
+        githubLogin=user.github_login,
     )
 
 

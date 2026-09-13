@@ -7,6 +7,7 @@ import {
   LogOutIcon,
   MessageSquareIcon,
   PlusIcon,
+  SettingsIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -353,6 +354,10 @@ export function DashboardSidebar() {
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboardIcon />
                     Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/settings")}>
+                    <SettingsIcon />
+                    Settings
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={signOut}>
                     <LogOutIcon />

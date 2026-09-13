@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
 import { LandingPage } from "@/pages/LandingPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { SettingsPage } from "@/pages/SettingsPage"
 import { WorkspacePage } from "@/pages/WorkspacePage"
 import { useAuthStore } from "@/stores/auth-store"
 import { getSubdomain } from "./lib/preview_subdomain"
@@ -29,6 +30,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />

@@ -15,5 +15,10 @@ class User(BaseModel):
     plan: Literal["free", "hacker", "pro"] = "free"
     is_active: bool = True
     is_verified: bool = False
+    github_id: str | None = None
+    github_login: str | None = None
+    github_avatar_url: str | None = None
+    github_access_token_enc: str | None = None
+    github_connected_at: datetime | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

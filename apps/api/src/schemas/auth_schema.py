@@ -18,6 +18,8 @@ class PublicUser(BaseModel):
     username: str
     avatarUrl: str | None = None
     plan: Literal["free", "hacker", "pro"] = "free"
+    githubConnected: bool = False
+    githubLogin: str | None = None
 
 
 class TokenPairResponse(BaseModel):

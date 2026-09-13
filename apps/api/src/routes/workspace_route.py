@@ -5,11 +5,10 @@ from src.controller.workspace_controller import (
     delete_workspace,
     get_all_workspace,
     get_workspace_details,
+    import_github_workspace,
     update_workspace,
 )
-from src.models.workspace_model import Workspace
 from src.schemas.workspace_schema import (
-    CreateWorkspaceRequest,
     CreateWorkspaceResponse,
     WorkspaceWithSession,
 )
@@ -17,6 +16,11 @@ from src.schemas.workspace_schema import (
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 
 router.get("", response_model=list[WorkspaceWithSession])(get_all_workspace)
+router.post(
+    "/import",
+    response_model=CreateWorkspaceResponse,
+    status_code=status.HTTP_201_CREATED,
+)(import_github_workspace)
 router.get("/{workspace_id}", response_model=WorkspaceWithSession)(
     get_workspace_details
 )

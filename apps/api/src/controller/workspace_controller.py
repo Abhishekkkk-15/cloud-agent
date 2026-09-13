@@ -2,12 +2,15 @@ from collections import defaultdict
 
 from fastapi import HTTPException, status
 from pymongo.errors import WriteError
+
 from src.ai_core.intent_agent import IntentAgent
+from src.controller.github_controller import _require_connected_token
 from src.dependency.auth_dependency import CurrentUser
 from src.models.workspace_model import Workspace
 from src.repository.message_repository import MessageRepo
 from src.repository.session_repository import SessionRepo
 from src.repository.workspace_repository import WorkspaceRepo
+from src.schemas.github_schema import ImportGithubWorkspaceRequest
 from src.schemas.workspace_schema import (
     CreateWorkspaceRequest,
     CreateWorkspaceResponse,
@@ -49,6 +52,55 @@ async def create_workspace(
         )
         workspace = await repo.create(workspace_obj)
 
+        return CreateWorkspaceResponse(
+            workspace_id=workspace.id,
+            redirect_url=f"/workspace/{workspace.id}",
+            workspace_name=workspace.title,
+            workspace=workspace,
+        )
+    except WriteError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error : [{e}]",
+        ) from e
+
+
+async def import_github_workspace(
+    body: ImportGithubWorkspaceRequest,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized",
+        )
+
+    # Ensures the user has a linked GitHub token; clone is intentionally out of scope.
+    _require_connected_token(current_user)
+
+    expected = f"{body.owner}/{body.name}"
+    if body.full_name != expected:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="full_name must match owner/name",
+        )
+
+    try:
+        workspace_obj = Workspace(
+            title=body.full_name,
+            user_id=current_user.id,
+            target_path="/app",
+            source_path="/",
+            initial_prompt=f"Imported from {body.html_url}",
+            github_repo_full_name=body.full_name,
+            github_repo_url=body.html_url,
+            github_clone_url=body.clone_url,
+            github_default_branch=body.default_branch,
+            github_owner=body.owner,
+            github_name=body.name,
+        )
+        workspace = await repo.create(workspace_obj)
         return CreateWorkspaceResponse(
             workspace_id=workspace.id,
             redirect_url=f"/workspace/{workspace.id}",
