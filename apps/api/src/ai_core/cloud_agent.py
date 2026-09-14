@@ -230,6 +230,7 @@ class CloudAgentCore:
 
     async def run(self, msg: str) -> RunResult:
         print("\n Run \n")
+        self.client.create
         return await self.client.run(msg)
 
     async def new_session(self, title: str = "New session"):

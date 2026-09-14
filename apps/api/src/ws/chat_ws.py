@@ -10,6 +10,10 @@ from src.repository.model_repository import ModelRepo
 from src.models.workspace_model import WorkspaceStatus
 from src.utils.event_handler import event_handler
 from src.utils.port_manager import PortRole
+from src.utils.agent_model import (
+    agent_fingerprint as compute_agent_fingerprint,
+    build_agent_kwargs_from_request,
+)
 from pi_sdk import AgentEvent
 from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
@@ -40,6 +44,8 @@ async def websocket_endpoint(
     try:
         # 1. Authenticate once upon connection
         user = await authenticate_websocket(ws, user_repo)
+        if not user or not user.id:
+            raise WebSocketException(code=1002,reason="Handshake fails")
         workspace_id = ws.query_params.get("workspace_id")
 
         if not workspace_id:
@@ -287,29 +293,10 @@ async def websocket_endpoint(
             except Exception:
                 pass
 
-        # Resolve requested model and reasoning effort from query params
-        requested_model_id = ws.query_params.get("model")
-        requested_effort = ws.query_params.get("reasoning_effort") or ws.query_params.get("effort")
-
-        target_model = None
-        if requested_model_id and requested_model_id != "auto":
-            target_model = await model_repo.find_by_id(requested_model_id)
-        elif requested_model_id == "auto":
-            target_model = await model_repo.find_default()
-
-        agent_kwargs = {}
-        if target_model:
-            agent_kwargs["model"] = target_model.model_id
-            agent_kwargs["provider"] = target_model.provider
-            if target_model.url or target_model.base_url:
-                agent_kwargs["base_url"] = target_model.url or target_model.base_url
-            if target_model.api_key:
-                agent_kwargs["api_key"] = target_model.api_key
-            if requested_effort:
-                agent_kwargs["reasoning_effort"] = requested_effort
-            elif target_model.supports_effort and target_model.default_effort:
-                agent_kwargs["reasoning_effort"] = target_model.default_effort
-
+        # Default agent from env/config. Recreate later only when message
+        # model / reasoning_effort resolves to a different fingerprint.
+        agent_kwargs: dict = {}
+        current_fingerprint = compute_agent_fingerprint(agent_kwargs)
         agent = CloudAgentCore(
             workspace_id, workspace.sandbox_id, user.id, on_event, **agent_kwargs
         )
@@ -318,6 +305,47 @@ async def websocket_endpoint(
         active_session_id = ws.query_params.get("session_id")
         agent_task: asyncio.Task | None = None
         host_workspace = str(config.workspace_base / workspace_id)
+
+        async def _ensure_agent_for_request(data: dict | None) -> None:
+            """Recreate CloudAgentCore only when model or effort actually changes."""
+            nonlocal agent, agent_kwargs, current_fingerprint
+
+            payload = data or {}
+            requested_model = payload.get("model") or None
+            requested_effort = (
+                payload.get("reasoning_effort") or payload.get("effort") or None
+            )
+
+            # No model/effort on message → keep current agent (config default or last)
+            if not requested_model and not requested_effort:
+                return
+
+            next_kwargs = await build_agent_kwargs_from_request(
+                model_repo,
+                model_key=requested_model,
+                effort=requested_effort,
+            )
+            # If only effort was sent, merge onto current model kwargs
+            if not requested_model and requested_effort:
+                next_kwargs = {**agent_kwargs, "reasoning_effort": requested_effort}
+
+            next_fp = compute_agent_fingerprint(next_kwargs)
+            if next_fp == current_fingerprint:
+                return
+
+            print(
+                f"[chat_ws] recreating agent: {current_fingerprint} -> {next_fp}"
+            )
+            agent = CloudAgentCore(
+                workspace_id,
+                workspace.sandbox_id,
+                user.id,
+                on_event,
+                **next_kwargs,
+            )
+            agent_kwargs = next_kwargs
+            current_fingerprint = next_fp
+            # Session re-bind happens in handle_run (resume / new_session).
 
         async def _ensure_session_host_cwd(session_id: str) -> bool:
             """Fix legacy API stubs that stored workspace='/app' before resume."""
@@ -371,6 +399,10 @@ async def websocket_endpoint(
             nonlocal active_session_id
             nonlocal workspace
 
+            await _ensure_agent_for_request(
+                user_query.data if user_query.data else None
+            )
+
             query_text = (
                 (user_query.data.get("query") if user_query.data else "") or ""
             ).strip()
@@ -384,7 +416,7 @@ async def websocket_endpoint(
             fresh_workspace = await workspace_repo.find_by_id(workspace_id)
             if fresh_workspace:
                 workspace = fresh_workspace
-
+            
             # PENDING WORKSPACE — first-ever agent turn
             if workspace.status == WorkspaceStatus.PENDING and not active_session_id:
                 workspace.status = WorkspaceStatus.RUNNING
@@ -420,7 +452,7 @@ async def websocket_endpoint(
                                 "data": f"Session not found: {active_session_id}",
                             }
                         ),
-                    )
+                    )   
                     return
 
                 await agent.resume(active_session_id)
