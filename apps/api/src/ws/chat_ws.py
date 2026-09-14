@@ -19,6 +19,7 @@ from src.schemas.sandbox_schema import SandboxRunResult
 from src.ai_core.intent_agent import IntentAgent
 from docker.errors import APIError, ContainerError, NotFound
 from starlette.websockets import WebSocketState
+import asyncio
 
 router = APIRouter()
 
@@ -315,38 +316,32 @@ async def websocket_endpoint(
 
         # 3. Message processing loop
         active_session_id = ws.query_params.get("session_id")
-        while True:
-            try:
-                user_query = await ws_manager.receive(ws)
-                print(user_query)
-            except (WebSocketDisconnect, RuntimeError):
-                print("Called abort from websocket disconnect")
+        agent_task: asyncio.Task | None = None
+        async def handle_run(user_query):
+            nonlocal active_session_id
+            nonlocal workspace
 
-                agent.abort()
-                break
-            is_abort = user_query.type == "agent:abort"                
-            if is_abort:
-                 print("Called abort from abort")
-                 agent.abort()
-                 break
             query_text = user_query.data.get("query") if user_query.data else ""
+
             req_session_id = (
                 (user_query.data.get("session_id") if user_query.data else None)
                 or ws.query_params.get("session_id")
                 or active_session_id
             )
 
-            # If no session_id in query or params, check if workspace already has an existing session in DB
             if not req_session_id:
                 existing_session = await session_repo.find_by_workspace(workspace_id)
                 if existing_session:
                     req_session_id = existing_session.id
                     active_session_id = existing_session.id
 
-            # Re-fetch workspace in case status was updated
             fresh_workspace = await workspace_repo.find_by_id(workspace_id)
             if fresh_workspace:
                 workspace = fresh_workspace
+
+            # -------------------------
+            # PENDING WORKSPACE
+            # -------------------------
 
             if workspace.status == WorkspaceStatus.PENDING and not active_session_id:
                 workspace.status = WorkspaceStatus.RUNNING
@@ -354,11 +349,18 @@ async def websocket_endpoint(
 
                 try:
                     agent_res = await agent.run(workspace.initial_prompt)
+
                     active_session_id = agent_res.session_id
 
-                    session = await session_repo.find_by_id(agent_res.session_id)
+                    session = await session_repo.find_by_id(
+                        agent_res.session_id
+                    )
+
                     if session:
-                        intent_res = await intent_agent.analyze(workspace.initial_prompt)
+                        intent_res = await intent_agent.analyze(
+                            workspace.initial_prompt
+                        )
+
                         session.title = intent_res.title
                         await session_repo.save(session)
 
@@ -368,25 +370,44 @@ async def websocket_endpoint(
                     await ws_manager.send_json(
                         websocket=ws,
                         data=jsonable_encoder(
-                            {"type": "session:create", "data": {"session_id": active_session_id}}
-                        ),
+                            {
+                                "type": "session:create",
+                                "data": {
+                                    "session_id": active_session_id
+                                }
+                            }
+                        )
                     )
-                except Exception as err:
+
+                finally:
                     workspace.status = WorkspaceStatus.READY
                     await workspace_repo.save(workspace)
-                    raise err
+
+            # -------------------------
+            # EXISTING SESSION
+            # -------------------------
 
             elif req_session_id and query_text:
                 active_session_id = req_session_id
+
                 await agent.resume(active_session_id)
                 await agent.run(query_text)
 
+            # -------------------------
+            # NEW SESSION
+            # -------------------------
+
             elif not req_session_id and query_text:
                 agent_res = await agent.run(query_text)
+
                 active_session_id = agent_res.session_id
 
                 intent_res = await intent_agent.analyze(query_text)
-                session = await session_repo.find_by_id(active_session_id)
+
+                session = await session_repo.find_by_id(
+                    active_session_id
+                )
+
                 if session:
                     session.title = intent_res.title
                     await session_repo.save(session)
@@ -397,9 +418,126 @@ async def websocket_endpoint(
                 await ws_manager.send_json(
                     websocket=ws,
                     data=jsonable_encoder(
-                        {"type": "session:create", "data": {"session_id": active_session_id}}
-                    ),
+                        {
+                            "type": "session:create",
+                            "data": {
+                                "session_id": active_session_id
+                            }
+                        }
+                    )
                 )
+        while True:
+           user_query = await ws_manager.receive(ws)
+
+           if user_query.type == "agent:abort":
+               agent.abort()
+               continue
+           
+           if agent_task and not agent_task.done():
+               await ws_manager.send_json(
+                   websocket=ws,
+                   data={
+                       "type": "agent:busy"
+                   }
+               )
+               continue
+           
+           agent_task = asyncio.create_task(
+               handle_run(user_query)
+           )
+            # try:
+            #     user_query = await ws_manager.receive(ws)
+            #     print(user_query)
+            # except (WebSocketDisconnect, RuntimeError):
+            #     print("Called abort from websocket disconnect")
+
+            #     agent.abort()
+            #     break
+            # if user_query.type == "agent:abort":
+            #     print("Called abort")
+
+            #     agent.abort()
+
+            #     if agent_task and not agent_task.done():
+            #         agent_task.cancel()
+
+            #         try:
+            #             await agent_task
+            #         except asyncio.CancelledError:
+            #             pass
+                    
+            #     continue
+            # query_text = user_query.data.get("query") if user_query.data else ""
+            # req_session_id = (
+            #     (user_query.data.get("session_id") if user_query.data else None)
+            #     or ws.query_params.get("session_id")
+            #     or active_session_id
+            # )
+
+            # # If no session_id in query or params, check if workspace already has an existing session in DB
+            # if not req_session_id:
+            #     existing_session = await session_repo.find_by_workspace(workspace_id)
+            #     if existing_session:
+            #         req_session_id = existing_session.id
+            #         active_session_id = existing_session.id
+
+            # # Re-fetch workspace in case status was updated
+            # fresh_workspace = await workspace_repo.find_by_id(workspace_id)
+            # if fresh_workspace:
+            #     workspace = fresh_workspace
+
+            # if workspace.status == WorkspaceStatus.PENDING and not active_session_id:
+            #     workspace.status = WorkspaceStatus.RUNNING
+            #     await workspace_repo.save(workspace)
+
+            #     try:
+            #         agent_res = await agent.run(workspace.initial_prompt)
+            #         active_session_id = agent_res.session_id
+
+            #         session = await session_repo.find_by_id(agent_res.session_id)
+            #         if session:
+            #             intent_res = await intent_agent.analyze(workspace.initial_prompt)
+            #             session.title = intent_res.title
+            #             await session_repo.save(session)
+
+            #         workspace.status = WorkspaceStatus.READY
+            #         await workspace_repo.save(workspace)
+
+            #         await ws_manager.send_json(
+            #             websocket=ws,
+            #             data=jsonable_encoder(
+            #                 {"type": "session:create", "data": {"session_id": active_session_id}}
+            #             ),
+            #         )
+            #     except Exception as err:
+            #         workspace.status = WorkspaceStatus.READY
+            #         await workspace_repo.save(workspace)
+            #         raise err
+
+            # elif req_session_id and query_text:
+            #     active_session_id = req_session_id
+            #     await agent.resume(active_session_id)
+            #     await agent.run(query_text)
+
+            # elif not req_session_id and query_text:
+            #     agent_res = await agent.run(query_text)
+            #     active_session_id = agent_res.session_id
+
+            #     intent_res = await intent_agent.analyze(query_text)
+            #     session = await session_repo.find_by_id(active_session_id)
+            #     if session:
+            #         session.title = intent_res.title
+            #         await session_repo.save(session)
+
+            #     workspace.status = WorkspaceStatus.READY
+            #     await workspace_repo.save(workspace)
+
+            #     await ws_manager.send_json(
+            #         websocket=ws,
+            #         data=jsonable_encoder(
+            #             {"type": "session:create", "data": {"session_id": active_session_id}}
+            #         ),
+            #     )
 
     except WebSocketDisconnect:
         if agent:
