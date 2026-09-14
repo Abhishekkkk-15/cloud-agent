@@ -128,10 +128,10 @@ class CloudAgentCore:
         <rule>Run scripts with: npm run &lt;script&gt;</rule>
         <rule>Do not create or rely on pnpm-lock.yaml; use package-lock.json when locking deps.</rule>
         <rule>
-          Run all project shell commands (including npm) with workdir /app.
-          After npm install, verify the package exists under node_modules once
-          before continuing. On failure, fix and retry once — do not reinstall in a loop.
-          Use a long timeout (180–300s) for npm install.
+          Use docker_bash with only `command` (optional timeout / is_background).
+          Do not pass container or workdir — the workspace sandbox and /app are
+          already bound. After npm install, verify the package under node_modules
+          once. On failure, fix and retry once — do not reinstall in a loop.
         </rule>
       </rules>
     </package_manager>

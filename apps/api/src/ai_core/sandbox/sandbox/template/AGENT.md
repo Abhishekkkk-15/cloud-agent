@@ -49,15 +49,22 @@ npm install <pkg>     # add npm dependency
 npx shadcn@latest add <component>
 ```
 
-All `docker_bash` / shell work for this project runs with workdir **`/app`**.
+### `docker_bash` tool
+
+- Pass **only** `command` (and optionally `timeout` / `is_background`).
+- Do **not** pass a container ID or workdir — this workspace sandbox and `/app` are already bound.
+- Example: `{ "command": "ls" }` or `{ "command": "npm install framer-motion", "timeout": 300 }`.
+
+All project shell work runs in `/app` inside the sandbox.
 
 ## Installing npm packages (do this correctly once)
 
 When you need a library (e.g. `framer-motion`):
 
-1. Run from `/app`: `npm install <package>` with a **long timeout** (at least **180–300 seconds**).
-2. **Verify once:** `test -d node_modules/<package>` (or `node -e "require.resolve('<package>')"` for CJS).
-3. If install fails: read stderr, fix the cause (network, name, permissions), retry **once**. Do not reinstall blindly in a loop.
+1. `docker_bash`: `{ "command": "npm install <package>", "timeout": 300 }`  
+   (container + `/app` are already bound — do not pass them.)
+2. **Verify once:** `{ "command": "test -d node_modules/<package> && echo ok" }`.
+3. If install fails: read stderr, fix the cause, retry **once**. Do not reinstall blindly in a loop.
 4. Then continue the feature. Do not keep reopening AGENT/CONTEXT/ui primitives after a successful install.
 
 ## How to build features

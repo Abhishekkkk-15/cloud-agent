@@ -195,11 +195,13 @@ async def execute_docker_bash(
 
 
 DOCKER_BASH_DESCRIPTION = (
-    "Run shell/bash commands inside the sandbox Docker container via docker exec. "
-    "Project root is /app (default workdir). Use for npm, builds, and server commands. "
-    "For npm install: use workdir /app, set timeout to at least 180–300 seconds, then "
-    "verify with `test -d node_modules/<pkg>` before continuing. Do not leave workdir empty "
-    "when installing packages."
+    "Run a shell command inside this workspace's sandbox container. "
+    "The sandbox container and workdir (/app) are already bound — do not guess "
+    "or pass a container ID. Pass only `command` (and optionally `timeout` / "
+    "`is_background`). Use for npm, builds, ls, and other project shell work. "
+    "After `npm install <pkg>`, verify with `test -d node_modules/<pkg>` once. "
+    "Timeout auto-extends for npm install / npx shadcn; you may still set "
+    "timeout to 300 for slow installs."
 )
 
 DOCKER_BASH_PARAMETERS = {
@@ -207,37 +209,24 @@ DOCKER_BASH_PARAMETERS = {
     "properties": {
         "command": {
             "type": "string",
-            "description": "Bash command string to execute inside the container.",
-        },
-        "container": {
-            "type": "string",
             "description": (
-                "Docker container name or ID. "
-                "Defaults to Agent.create(docker_container=...), then "
-                "PI_SDK_DOCKER_CONTAINER or DOCKER_CONTAINER env var."
+                "Bash command to run in /app inside the workspace sandbox. "
+                "Example: ls, npm install framer-motion, npm run build."
             ),
-        },
-        "workdir": {
-            "type": "string",
-            "description": (
-                "Working directory inside the container (docker exec -w). "
-                "Defaults to /app for this sandbox. Prefer /app for npm and project scripts."
-            ),
-        },
-        "user": {
-            "type": "string",
-            "description": "User to run as inside the container (docker exec -u).",
         },
         "timeout": {
             "type": "integer",
             "description": (
-                "Maximum seconds to wait for completion (default: 120). "
-                "Use 180–300 for npm install / npx shadcn add."
+                "Max seconds to wait (default 120). npm install / npx shadcn "
+                "are auto-raised to at least 300."
             ),
         },
         "is_background": {
             "type": "boolean",
-            "description": "Set to true for long-running background tasks or dev servers.",
+            "description": (
+                "True for long-running processes (e.g. npm run dev). "
+                "Default false."
+            ),
         },
     },
     "required": ["command"],
@@ -250,18 +239,17 @@ def build_docker_bash_tool(
 ) -> ToolSpec:
     async def handler(
         command: str,
-        container: Optional[str] = None,
-        workdir: Optional[str] = None,
-        user: Optional[str] = None,
         timeout: int = 120,
         is_background: bool = False,
         **_: object,
     ) -> str:
+        # container / workdir are intentionally not model-facing; always use
+        # the sandbox defaults closed over at agent create time.
         return await execute_docker_bash(
             command,
-            container=container,
-            workdir=workdir,
-            user=user,
+            container=None,
+            workdir=None,
+            user=None,
             timeout=timeout,
             is_background=is_background,
             default_container=default_container,
