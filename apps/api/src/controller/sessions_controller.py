@@ -4,6 +4,7 @@ from src.deps import CurrentUser
 from src.models.pi_sdk_models import MongoSessionDocument
 from src.repository.message_repository import MessageRepo
 from src.repository.session_repository import SessionRepo, generate_session_id
+from src.utils.config import config
 
 
 async def get_session(
@@ -44,10 +45,11 @@ async def create_session(
             detail="Unauthorized",
         )
 
+    # Host cwd for this workspace (pi_sdk resume/new_session use session.workspace).
     session_obj = MongoSessionDocument(
         id=generate_session_id(),
         title="New session",
-        workspace="/app",
+        workspace=str(config.workspace_base / workspace_id),
         workspace_id=workspace_id,
         user_id=current_user.id,
     )

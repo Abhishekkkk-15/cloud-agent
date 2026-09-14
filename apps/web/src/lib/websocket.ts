@@ -41,7 +41,10 @@ function normalizeIncomingMessage(
 
   if (
     WORKSPACE_EVENTS.has(type as WorkspaceWsEvent) ||
-    type.startsWith("sandbox:")
+    type.startsWith("sandbox:") ||
+    type === "session:create" ||
+    type === "agent:busy" ||
+    type === "error"
   ) {
     return { type, data: message.data ?? message }
   }

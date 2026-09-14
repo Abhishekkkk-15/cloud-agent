@@ -317,112 +317,147 @@ async def websocket_endpoint(
         # 3. Message processing loop
         active_session_id = ws.query_params.get("session_id")
         agent_task: asyncio.Task | None = None
+        host_workspace = str(config.workspace_base / workspace_id)
+
+        async def _ensure_session_host_cwd(session_id: str) -> bool:
+            """Fix legacy API stubs that stored workspace='/app' before resume."""
+            session = await session_repo.find_by_id(session_id)
+            if not session:
+                return False
+            dirty = False
+            if session.workspace != host_workspace:
+                session.workspace = host_workspace
+                dirty = True
+            if session.workspace_id != workspace_id:
+                session.workspace_id = workspace_id
+                dirty = True
+            if dirty:
+                await session_repo.save(session)
+            return True
+
+        def _messages_are_fresh(messages) -> bool:
+            for m in messages or []:
+                role = getattr(m, "role", None)
+                role_val = getattr(role, "value", role)
+                if str(role_val).lower() != "system":
+                    return False
+            return True
+
+        async def _title_session(session_id: str, prompt: str) -> None:
+            session = await session_repo.find_by_id(session_id)
+            if not session:
+                return
+            if session.title and session.title not in ("", "New session"):
+                return
+            try:
+                intent_res = await intent_agent.analyze(prompt)
+                session.title = intent_res.title
+                await session_repo.save(session)
+            except Exception as e:
+                print(f"[chat_ws] intent title failed: {e}")
+
+        async def _emit_session_create(session_id: str) -> None:
+            await ws_manager.send_json(
+                websocket=ws,
+                data=jsonable_encoder(
+                    {
+                        "type": "session:create",
+                        "data": {"session_id": session_id},
+                    }
+                ),
+            )
+
         async def handle_run(user_query):
             nonlocal active_session_id
             nonlocal workspace
 
-            query_text = user_query.data.get("query") if user_query.data else ""
+            query_text = (
+                (user_query.data.get("query") if user_query.data else "") or ""
+            ).strip()
 
+            # Prefer message session_id — WS singleton is workspace-scoped only.
+            # Do NOT steal find_by_workspace: that blocks true fresh sessions.
             req_session_id = (
-                (user_query.data.get("session_id") if user_query.data else None)
-                or ws.query_params.get("session_id")
-                or active_session_id
-            )
-
-            if not req_session_id:
-                existing_session = await session_repo.find_by_workspace(workspace_id)
-                if existing_session:
-                    req_session_id = existing_session.id
-                    active_session_id = existing_session.id
+                user_query.data.get("session_id") if user_query.data else None
+            ) or None
 
             fresh_workspace = await workspace_repo.find_by_id(workspace_id)
             if fresh_workspace:
                 workspace = fresh_workspace
 
-            # PENDING WORKSPACE
-
+            # PENDING WORKSPACE — first-ever agent turn
             if workspace.status == WorkspaceStatus.PENDING and not active_session_id:
                 workspace.status = WorkspaceStatus.RUNNING
                 await workspace_repo.save(workspace)
 
                 try:
-                    agent_res = await agent.run(workspace.initial_prompt)
+                    session = await agent.new_session("New session")
+                    active_session_id = session.id
+                    await _emit_session_create(active_session_id)
 
-                    active_session_id = agent_res.session_id
-
-                    session = await session_repo.find_by_id(
-                        agent_res.session_id
+                    await agent.run(workspace.initial_prompt)
+                    await _title_session(
+                        active_session_id, workspace.initial_prompt
                     )
-
-                    if session:
-                        intent_res = await intent_agent.analyze(
-                            workspace.initial_prompt
-                        )
-
-                        session.title = intent_res.title
-                        await session_repo.save(session)
 
                     workspace.status = WorkspaceStatus.READY
                     await workspace_repo.save(workspace)
-
-                    await ws_manager.send_json(
-                        websocket=ws,
-                        data=jsonable_encoder(
-                            {
-                                "type": "session:create",
-                                "data": {
-                                    "session_id": active_session_id
-                                }
-                            }
-                        )
-                    )
 
                 finally:
                     workspace.status = WorkspaceStatus.READY
                     await workspace_repo.save(workspace)
 
-            # EXISTING SESSION
-
+            # EXISTING SESSION (resume) — has a concrete session_id from the client
             elif req_session_id and query_text:
                 active_session_id = req_session_id
 
+                if not await _ensure_session_host_cwd(active_session_id):
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder(
+                            {
+                                "type": "error",
+                                "data": f"Session not found: {active_session_id}",
+                            }
+                        ),
+                    )
+                    return
+
                 await agent.resume(active_session_id)
-                
-                messages = agent.get_messages()
-                print(messages)
+                is_fresh = _messages_are_fresh(agent.get_messages())
                 await agent.run(query_text)
+                if is_fresh:
+                    await _title_session(active_session_id, query_text)
 
-            # NEW SESSION
-
+            # FRESH SESSION — sidebar "New Session" / first message without id
+            # Uses pi_sdk Agent.new_session() so the reused CloudAgent drops the
+            # previous session and creates one with the correct host workspace.
             elif not req_session_id and query_text:
-                agent_res = await agent.run(query_text)
+                session = await agent.new_session("New session")
+                active_session_id = session.id
+                await _emit_session_create(active_session_id)
 
-                active_session_id = agent_res.session_id
-
-                intent_res = await intent_agent.analyze(query_text)
-
-                session = await session_repo.find_by_id(
-                    active_session_id
-                )
-
-                if session:
-                    session.title = intent_res.title
-                    await session_repo.save(session)
+                await agent.run(query_text)
+                await _title_session(active_session_id, query_text)
 
                 workspace.status = WorkspaceStatus.READY
                 await workspace_repo.save(workspace)
 
-                await ws_manager.send_json(
-                    websocket=ws,
-                    data=jsonable_encoder(
-                        {
-                            "type": "session:create",
-                            "data": {
-                                "session_id": active_session_id
-                            }
-                        }
+        async def run_agent_task(user_query) -> None:
+            try:
+                await handle_run(user_query)
+            except Exception as e:
+                print(f"[chat_ws] agent task failed: {e}")
+                try:
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder(
+                            {"type": "error", "data": str(e)}
+                        ),
                     )
-                )
+                except Exception:
+                    pass
+
         while True:
            user_query = await ws_manager.receive(ws)
 
@@ -439,9 +474,7 @@ async def websocket_endpoint(
                )
                continue
            
-           agent_task = asyncio.create_task(
-               handle_run(user_query)
-           )
+           agent_task = asyncio.create_task(run_agent_task(user_query))
 
     except WebSocketDisconnect:
         if agent:

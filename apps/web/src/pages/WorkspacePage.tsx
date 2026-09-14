@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react"
-import { useParams, useSearchParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 
 import { AiChatPanel } from "@/components/workspace/AiChatPanel"
@@ -22,8 +22,12 @@ import { cn } from "@/lib/utils"
 export function WorkspacePage() {
   const { workspaceId = "" } = useParams()
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const sessionId = searchParams.get("session")
+  const wantsNew = searchParams.get("new") === "1"
   const loadWorkspace = useWorkspaceStore((s) => s.loadWorkspace)
+  const activeSessionId = useWorkspaceStore((s) => s.activeSessionId)
+  const pendingNewSession = useWorkspaceStore((s) => s.pendingNewSession)
   const loading = useWorkspaceStore((s) => s.loading)
   const error = useWorkspaceStore((s) => s.error)
   const workspaceTab = useWorkspaceStore((s) => s.workspaceTab)
@@ -43,10 +47,37 @@ export function WorkspacePage() {
   }, [chatCollapsed])
 
   useEffect(() => {
-    if (workspaceId) {
-      loadWorkspace(workspaceId, sessionId)
+    if (!workspaceId) return
+
+    // URL catch-up after session:create — don't reload and wipe the live stream
+    const state = useWorkspaceStore.getState()
+    if (
+      !wantsNew &&
+      sessionId &&
+      state.workspace?.id === workspaceId &&
+      state.activeSessionId === sessionId &&
+      !state.pendingNewSession
+    ) {
+      return
     }
-  }, [workspaceId, sessionId, loadWorkspace])
+
+    void loadWorkspace(workspaceId, sessionId, { startFresh: wantsNew })
+  }, [workspaceId, sessionId, wantsNew, loadWorkspace])
+
+  // After pi_sdk creates the session, drop ?new=1 and pin ?session=
+  useEffect(() => {
+    if (!workspaceId || pendingNewSession || !activeSessionId) return
+    if (!wantsNew) return
+    navigate(`/workspace/${workspaceId}?session=${activeSessionId}`, {
+      replace: true,
+    })
+  }, [
+    workspaceId,
+    pendingNewSession,
+    activeSessionId,
+    wantsNew,
+    navigate,
+  ])
 
   useEffect(() => {
     return () => {

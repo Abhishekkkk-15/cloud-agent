@@ -85,6 +85,8 @@ export type WorkspaceTab = "preview" | "code" | "console"
 type WorkspaceState = {
   workspace: Workspace | null
   activeSessionId: string | null
+  /** True after "New Session" until pi_sdk creates one via session:create */
+  pendingNewSession: boolean
   files: FileNode[]
   openFileIds: string[]
   activeFileId: string | null
@@ -99,7 +101,8 @@ type WorkspaceState = {
   error: string | null
   loadWorkspace: (
     workspaceId: string,
-    sessionId?: string | null
+    sessionId?: string | null,
+    options?: { startFresh?: boolean }
   ) => Promise<void>
   openFile: (fileId: string) => void
   closeFile: (fileId: string) => void
@@ -131,6 +134,7 @@ type WorkspaceState = {
 
 let chatAbortController: AbortController | null = null
 let agentStreamUnsubscribe: (() => void) | null = null
+let controlEventUnsubscribe: (() => void) | null = null
 let sandboxUnsubscribe: (() => void) | null = null
 let sandboxReadyTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -153,7 +157,22 @@ let activeAgentStream: ActiveAgentStream | null = null
 function clearAgentStreamListener() {
   agentStreamUnsubscribe?.()
   agentStreamUnsubscribe = null
+  controlEventUnsubscribe?.()
+  controlEventUnsubscribe = null
   activeAgentStream = null
+}
+
+function resetChatBusyState(
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void
+) {
+  chatAbortController?.abort()
+  chatAbortController = null
+  activeAgentStream = null
+  set({ chatLoading: false, streamingMessageId: null, error: null })
 }
 
 function applyAgentEvent(
@@ -196,7 +215,9 @@ function applyAgentEvent(
           }
         : msg
     ),
-    ...(payload.session_id ? { activeSessionId: payload.session_id } : {}),
+    ...(payload.session_id
+      ? { activeSessionId: payload.session_id, pendingNewSession: false }
+      : {}),
   }))
 
   if (isTerminalAgentEvent(payload)) {
@@ -297,6 +318,64 @@ function ensureAgentStreamListener(
     if (!activeAgentStream) return
     applyAgentEvent(payload, set)
   })
+}
+
+function ensureControlEventListener(
+  ws: ReturnType<typeof get_wehsocket>,
+  _get: () => WorkspaceState,
+  set: (
+    partial:
+      | Partial<WorkspaceState>
+      | ((state: WorkspaceState) => Partial<WorkspaceState>)
+  ) => void
+) {
+  if (controlEventUnsubscribe) return
+
+  const onSessionCreate = (raw: unknown) => {
+    const data = raw as { session_id?: string } | null
+    const sessionId = data?.session_id
+    if (!sessionId) return
+    set({
+      activeSessionId: sessionId,
+      pendingNewSession: false,
+    })
+    void useWorkspaceListStore.getState().fetchWorkspaces()
+  }
+
+  const onBusy = () => {
+    activeAgentStream = null
+    set({
+      chatLoading: false,
+      streamingMessageId: null,
+      error: "Agent is busy — wait for the current run to finish, or stop it.",
+    })
+  }
+
+  const onError = (raw: unknown) => {
+    const message =
+      typeof raw === "string"
+        ? raw
+        : raw && typeof raw === "object" && "message" in raw
+          ? String((raw as { message: unknown }).message)
+          : raw != null
+            ? String(raw)
+            : "Agent error"
+    activeAgentStream = null
+    set({
+      chatLoading: false,
+      streamingMessageId: null,
+      error: message,
+    })
+  }
+
+  const unsubs = [
+    ws.subscribe("session:create", onSessionCreate),
+    ws.subscribe("agent:busy", onBusy),
+    ws.subscribe("error", onError),
+  ]
+  controlEventUnsubscribe = () => {
+    unsubs.forEach((u) => u())
+  }
 }
 
 function applySandboxEvent(
@@ -488,6 +567,7 @@ async function connectChatSocket(
   })
   await ws.connect()
   ensureAgentStreamListener(ws, get, set)
+  ensureControlEventListener(ws, get, set)
   ensureSandboxListener(ws, get, set)
   return ws
 }
@@ -501,6 +581,7 @@ function teardownWorkspaceConnection() {
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   workspace: null,
   activeSessionId: null,
+  pendingNewSession: false,
   files: [],
   openFileIds: [],
   activeFileId: null,
@@ -614,8 +695,32 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     return flattenFiles(files).find((f) => f.id === activeFileId) ?? null
   },
 
-  loadWorkspace: async (workspaceId, sessionId = null) => {
+  loadWorkspace: async (workspaceId, sessionId = null, options) => {
     const previousWorkspaceId = get().workspace?.id ?? null
+    const previousSessionId = get().activeSessionId
+    const startFresh = options?.startFresh === true
+
+    // Abort in-flight agent when switching session / starting fresh on same WS
+    if (
+      previousWorkspaceId === workspaceId &&
+      (startFresh ||
+        (sessionId != null &&
+          previousSessionId != null &&
+          sessionId !== previousSessionId))
+    ) {
+      try {
+        const existing = get_wehsocket({
+          workspace_id: workspaceId,
+          session_id: previousSessionId,
+        })
+        if (existing.isOpen) {
+          existing.send("agent:abort", { query: "abort" })
+        }
+      } catch {
+        // not connected yet
+      }
+    }
+
     // Switching workspaces: drop the old socket so it cannot reconnect.
     if (previousWorkspaceId && previousWorkspaceId !== workspaceId) {
       teardownWorkspaceConnection()
@@ -623,6 +728,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       clearAgentStreamListener()
       clearSandboxListener()
     }
+    resetChatBusyState(set)
     set({ loading: true, error: null })
     try {
       const [workspaceDetail, files, terminalLines] = await Promise.all([
@@ -632,8 +738,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       ])
       const flat = flattenFiles(files)
       const firstFile = flat[0]
-      const resolvedSessionId =
-        sessionId ?? workspaceDetail.sessions[0]?.id ?? null
+      // Fresh chat: do not fall back to an old session in the sidebar list
+      const resolvedSessionId = startFresh
+        ? null
+        : (sessionId ?? workspaceDetail.sessions[0]?.id ?? null)
 
       let chatMessages: ThreadMessage[] = []
       if (resolvedSessionId) {
@@ -647,12 +755,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       set({
         workspace: workspaceDetail,
         activeSessionId: resolvedSessionId,
+        pendingNewSession: startFresh,
         files,
         terminalLines,
         chatMessages,
         openFileIds: firstFile ? [firstFile.id] : [],
         activeFileId: firstFile?.id ?? null,
         loading: false,
+        chatLoading: false,
+        streamingMessageId: null,
         workspaceTab: "preview",
         runSession: {
           id: "run_idle",
@@ -801,7 +912,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     chatAbortController = controller
 
     const sessionId = get().activeSessionId
-    if (!sessionId) {
+    const pendingNew = get().pendingNewSession
+    // Fresh "New Session" may have no id yet — pi_sdk new_session creates it.
+    if (!sessionId && !pendingNew) {
       set({ error: "No active session. Create or select a session first." })
       return
     }
@@ -837,16 +950,21 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       )
 
       streamAssistantId = beginAgentStream(get, set, {
-        sessionId,
+        sessionId: sessionId ?? "pending",
         userContent: trimmed || "(attached files)",
         attachments,
       })
 
       const { selectedModel, selectedEffort } = get()
-      ws.sendAgentQuery(trimmed || "Review my attachments", sessionId, {
-        model: selectedModel,
-        reasoning_effort: selectedEffort,
-      })
+      // Omit session_id for pending new sessions so chat_ws uses new_session()
+      ws.sendAgentQuery(
+        trimmed || "Review my attachments",
+        pendingNew ? null : sessionId,
+        {
+          model: selectedModel,
+          reasoning_effort: selectedEffort,
+        }
+      )
     } catch (error) {
       activeAgentStream = null
       set({

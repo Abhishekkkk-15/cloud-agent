@@ -59,10 +59,6 @@ export function DashboardSidebar() {
   const workspaces = useWorkspaceListStore((s) => s.workspaces)
   const loading = useWorkspaceListStore((s) => s.loading)
   const error = useWorkspaceListStore((s) => s.error)
-  const creatingSessionFor = useWorkspaceListStore((s) => s.creatingSessionFor)
-  const createSessionForWorkspace = useWorkspaceListStore(
-    (s) => s.createSessionForWorkspace
-  )
   const renameWorkspace = useWorkspaceListStore((s) => s.renameWorkspace)
   const renameSession = useWorkspaceListStore((s) => s.renameSession)
   const removeWorkspace = useWorkspaceListStore((s) => s.removeWorkspace)
@@ -73,6 +69,7 @@ export function DashboardSidebar() {
   )
   const search = new URLSearchParams(location.search)
   const activeSession = search.get("session")
+  const startingFresh = search.get("new") === "1"
   const initials =
     user?.name
       .split(" ")
@@ -84,13 +81,11 @@ export function DashboardSidebar() {
     document.getElementById("build-prompt")?.focus()
   }
 
-  async function handleNewSession(workspaceId: string) {
-    try {
-      const session = await createSessionForWorkspace(workspaceId)
-      navigate(`/workspace/${workspaceId}?session=${session.id}`)
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not create session"))
-    }
+  function handleNewSession(workspaceId: string) {
+    // Do not pre-create via API — pi_sdk Agent.new_session() creates the
+    // real session on the first message (chat_ws fresh path).
+    navigate(`/workspace/${workspaceId}?new=1`)
+    focusComposer()
   }
 
   async function handleSave(name: string) {
@@ -296,12 +291,12 @@ export function DashboardSidebar() {
                                 ))}
                                 <SidebarMenuSubItem>
                                   <SidebarMenuSubButton
-                                    aria-disabled={
-                                      creatingSessionFor === workspaceId
+                                    isActive={
+                                      startingFresh &&
+                                      location.pathname.includes(workspaceId)
                                     }
                                     onClick={() => {
-                                      if (creatingSessionFor === workspaceId) return
-                                      void handleNewSession(workspaceId)
+                                      handleNewSession(workspaceId)
                                     }}
                                   >
                                     <PlusIcon />
