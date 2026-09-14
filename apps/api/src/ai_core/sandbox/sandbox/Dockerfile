@@ -13,12 +13,9 @@ RUN apk add --no-cache \
 ENV CHOKIDAR_USEPOLLING=true
 ENV WATCHPACK_POLLING=true
 
-# Pre-seed the fullstack project template
+# Project template source only (no preinstalled node_modules — install happens on /app)
 WORKDIR /template
 COPY template/ /template/
-
-# Pre-install deps with npm (avoids pnpm symlink issues on bind mounts / Windows)
-RUN npm install && npm cache clean --force
 
 # Copy entrypoint script and normalize line endings for Linux
 COPY entrypoint.sh /entrypoint.sh
