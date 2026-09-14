@@ -32,7 +32,17 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Default",
     description: "Next-gen flagship reasoning and agentic execution",
     supportsEffort: true,
+    isDefault: true,
     use_case: ["coding", "fullstack", "architecture", "deep-reasoning"],
+  },
+  {
+    id: "gpt-5.4-mini",
+    name: "GPT-5.4 Mini",
+    provider: "OpenAI",
+    badge: "Fast",
+    description: "Faster GPT-5.4 variant for everyday coding and agent tasks",
+    supportsEffort: true,
+    use_case: ["coding", "fast-agent", "fullstack", "general"],
   },
   {
     id: "claude-3-7-sonnet",
