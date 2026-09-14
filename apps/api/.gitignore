@@ -10,7 +10,9 @@ wheels/
 .venv
 .env
 web/
-server/
+# Only ignore a top-level apps/api/server/ folder — not the sandbox template
+# at src/ai_core/sandbox/sandbox/template/server/
+/server/
 .pi_history
 .pi-python/
 skills/
