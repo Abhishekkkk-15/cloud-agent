@@ -28,9 +28,7 @@ type WorkspaceListState = {
   error: string | null
   setQuery: (query: string) => void
   fetchWorkspaces: (query?: string) => Promise<void>
-  create: (
-    input: CreateWorkspaceRequest
-  ) => Promise<CreateWorkspaceResponse>
+  create: (input: CreateWorkspaceRequest) => Promise<CreateWorkspaceResponse>
   createSessionForWorkspace: (workspaceId: string) => Promise<Session>
   renameWorkspace: (workspaceId: string, title: string) => Promise<void>
   renameSession: (

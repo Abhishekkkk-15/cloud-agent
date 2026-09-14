@@ -3,7 +3,7 @@ from fastapi import HTTPException, status
 from src.deps import CurrentUser
 from src.models.pi_sdk_models import MongoSessionDocument
 from src.repository.message_repository import MessageRepo
-from src.repository.session_repository import SessionRepo
+from src.repository.session_repository import SessionRepo, generate_session_id
 
 
 async def get_session(
@@ -45,7 +45,7 @@ async def create_session(
         )
 
     session_obj = MongoSessionDocument(
-        id="000000000000000000000000",
+        id=generate_session_id(),
         title="New session",
         workspace="/app",
         workspace_id=workspace_id,

@@ -230,8 +230,16 @@ class CloudAgentCore:
 
     async def run(self, msg: str) -> RunResult:
         print("\n Run \n")
+        self.client.new_session
         return await self.client.run(msg)
 
+    async def new_session(self,title:str):
+        print("Fresh Session")
+        await self.client.new_session(title)
+
+    def get_messages(self):
+       self.client.messages
+  
     async def resume(self, session_id: str) -> Agent:
         print("Resumed")
         return await self.client.resume(session_id)

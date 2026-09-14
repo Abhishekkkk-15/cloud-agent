@@ -1,4 +1,5 @@
 from typing import Annotated, Any
+from uuid import uuid4
 
 from bson import ObjectId
 from fastapi import Depends
@@ -6,6 +7,11 @@ from pymongo.asynchronous.collection import AsyncCollection
 
 from src.models.pi_sdk_models import MongoSessionDocument
 from src.utils.db_client import get_db
+
+
+def generate_session_id() -> str:
+    """Match pi_sdk `generate_chat_id()` — hex UUID string, not ObjectId."""
+    return uuid4().hex
 
 
 def _normalize_workspace_id(value) -> str | None:
@@ -17,9 +23,15 @@ def _normalize_workspace_id(value) -> str | None:
 
 
 def _session_id_query(session_id: str) -> dict:
+    """Support legacy ObjectId docs and pi_sdk / new string hex ids."""
     clauses: list[dict] = [{"_id": session_id}]
-    if ObjectId.is_valid(session_id):
-        clauses.append({"_id": ObjectId(session_id)})
+    if ObjectId.is_valid(session_id) and len(session_id) == 24:
+        # ObjectId.is_valid is true for some 32-char hex UUIDs; only try BSON
+        # ObjectId when the value looks like a 24-char ObjectId hex.
+        try:
+            clauses.append({"_id": ObjectId(session_id)})
+        except Exception:
+            pass
     if len(clauses) == 1:
         return clauses[0]
     return {"$or": clauses}
@@ -50,9 +62,13 @@ class SessionRepository:
         self.collection = collection
 
     async def create(self, session: MongoSessionDocument) -> MongoSessionDocument:
+        # Always persist string hex `_id` (same as pi_sdk), never rely on
+        # MongoDB's default ObjectId generation.
+        session_id = session.id if session.id and session.id != "0" * 24 else generate_session_id()
+        session.id = session_id
         data = session.model_dump(exclude={"id"}, by_alias=False)
-        result = await self.collection.insert_one(data)
-        session.id = str(result.inserted_id)
+        data["_id"] = session_id
+        await self.collection.insert_one(data)
         return session
 
     async def find_by_id(self, id: str) -> MongoSessionDocument | None:
