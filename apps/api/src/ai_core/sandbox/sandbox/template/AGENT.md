@@ -11,7 +11,7 @@ Read **CONTEXT.md** first for the project map. Do **not** re-scan the whole tree
 | UI | shadcn/ui (`src/components/ui/*`) |
 | Backend | Express.js + TypeScript |
 | Data | In-memory mock DB (`server/db/mockDb.ts`) — no external DB |
-| Package manager | **pnpm** |
+| Package manager | **npm** |
 
 Do not switch frameworks, languages, CSS systems, or package managers. If the user asks for something conflicting, keep this stack and still implement the feature.
 
@@ -29,10 +29,10 @@ Do not switch frameworks, languages, CSS systems, or package managers. If the us
 ## Commands
 
 ```bash
-pnpm dev              # client + server together
-pnpm dev:client       # Vite only
-pnpm dev:server       # Express only
-pnpm add <pkg>        # add dependency
+npm run dev           # client + server together
+npm run dev:client    # Vite only
+npm run dev:server    # Express only
+npm install <pkg>     # add dependency
 ```
 
 Prefer editing the existing app over scaffolding a new project from scratch.
@@ -53,7 +53,7 @@ Prefer editing the existing app over scaffolding a new project from scratch.
 ## Efficiency
 
 - Trust CONTEXT.md for structure; open files only when you need to change them.
-- After meaningful backend/frontend changes, keep `pnpm dev` running (or restart if needed) so the preview updates.
+- After meaningful backend/frontend changes, keep `npm run dev` running (or restart if needed) so the preview updates.
 - Prefer small, focused diffs over rewriting the template.
 
 ## When docs drift

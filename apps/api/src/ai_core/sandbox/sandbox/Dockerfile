@@ -9,21 +9,16 @@ RUN apk add --no-cache \
     curl \
     git
 
-# Configure and enable pnpm
-ENV PNPM_HOME="/root/.local/share/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
 # Enable file watching polling across Docker bind mounts (fixes host reload on Windows)
 ENV CHOKIDAR_USEPOLLING=true
 ENV WATCHPACK_POLLING=true
-RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
 # Pre-seed the fullstack project template
 WORKDIR /template
 COPY template/ /template/
 
-# Pre-install all dependencies during image build so new sandboxes start instantaneously
-RUN pnpm install --no-frozen-lockfile && \
-    pnpm store prune
+# Pre-install deps with npm (avoids pnpm symlink issues on bind mounts / Windows)
+RUN npm install && npm cache clean --force
 
 # Copy entrypoint script and normalize line endings for Linux
 COPY entrypoint.sh /entrypoint.sh

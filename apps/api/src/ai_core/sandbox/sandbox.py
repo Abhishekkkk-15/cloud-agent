@@ -45,13 +45,23 @@ class Sandbox:
             )
             print("2. Container created:", container.id)
 
-            # Ensure node_modules is linked instantly without slow bind mount copies
+            # Ensure node_modules exists in the bind mount (copy, not symlink —
+            # npm layout; avoids Windows/bind-mount symlink breakage).
             try:
                 container.exec_run(
-                    "sh -c 'if [ ! -f /app/node_modules/.bin/vite ]; then rm -rf /app/node_modules 2>/dev/null; ln -sf /template/node_modules /app/node_modules; fi'"
+                    "sh -c '"
+                    "if [ ! -f /app/node_modules/.bin/vite ]; then "
+                    "  rm -rf /app/node_modules 2>/dev/null; "
+                    "  if [ -d /template/node_modules ]; then "
+                    "    cp -a /template/node_modules /app/node_modules; "
+                    "  else "
+                    "    (cd /app && npm install); "
+                    "  fi; "
+                    "fi"
+                    "'"
                 )
             except Exception as e:
-                print(f"[Sandbox] Warning: node_modules link exec failed: {e}")
+                print(f"[Sandbox] Warning: node_modules copy exec failed: {e}")
 
             print("3. Reloading container")
             container.reload()

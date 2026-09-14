@@ -10,7 +10,7 @@ A **fullstack starter** already wired for the sandbox:
 - **Backend:** Express + TypeScript (`tsx`)
 - **Storage:** In-memory mock database (not a real DB)
 
-Dev command `pnpm dev` runs both processes via `concurrently`.
+Dev command `npm run dev` runs both processes via `concurrently`.
 
 ## Directory map
 
@@ -18,7 +18,8 @@ Dev command `pnpm dev` runs both processes via `concurrently`.
 /app
 ├── AGENT.md                 # Agent rules (read first)
 ├── CONTEXT.md               # This file
-├── package.json             # Scripts + deps (pnpm)
+├── package.json             # Scripts + deps (npm)
+├── package-lock.json        # npm lockfile (when present)
 ├── components.json          # shadcn config
 ├── index.html
 ├── vite.config.ts           # Alias @ → src; port 4000; /api proxy
@@ -100,10 +101,10 @@ await db.collection('items').delete(id)
 
 | Script | What it runs |
 |--------|----------------|
-| `pnpm dev` | Vite `:4000` + `tsx watch server/index.ts` |
-| `pnpm dev:client` | Vite only |
-| `pnpm dev:server` | Express only |
-| `pnpm build` | `tsc -b && vite build` |
+| `npm run dev` | Vite `:4000` + `tsx watch server/index.ts` |
+| `npm run dev:client` | Vite only |
+| `npm run dev:server` | Express only |
+| `npm run build` | `tsc -b && vite build` |
 
 ## Dependencies worth knowing
 

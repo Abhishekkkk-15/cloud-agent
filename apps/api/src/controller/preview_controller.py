@@ -57,7 +57,7 @@ async def start_preview(
     await repo.save(workspace)
 
     # Bind inside the container to fixed ports that were published at create time
-    front_cmd = "pnpm dev"
+    front_cmd = "npm run dev"
     # Best-effort start; starts both Vite (4000) and Express (3000) via concurrently
     sandbox_manager.run_exec(sandbox_id=sandbox.id, cmd=front_cmd)
 

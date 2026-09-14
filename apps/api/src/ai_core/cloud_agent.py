@@ -114,6 +114,17 @@ class CloudAgentCore:
         <rule>Do not replace TypeScript with JavaScript.</rule>
       </rules>
     </backend>
+
+    <package_manager>
+      <manager>npm</manager>
+      <rules>
+        <rule>Always use npm as the package manager in this workspace.</rule>
+        <rule>Do not use pnpm, yarn, or bun for installs or scripts.</rule>
+        <rule>Install packages with: npm install &lt;package-name&gt;</rule>
+        <rule>Run scripts with: npm run &lt;script&gt;</rule>
+        <rule>Do not create or rely on pnpm-lock.yaml; use package-lock.json when locking deps.</rule>
+      </rules>
+    </package_manager>
   </technology_constraints>
 
   <server_configuration>
@@ -154,33 +165,37 @@ class CloudAgentCore:
 
   <command_examples>
     <fullstack>
-      <example>pnpm dev</example>
+      <example>npm run dev</example>
     </fullstack>
 
     <frontend>
-      <example>pnpm dev:client</example>
+      <example>npm run dev:client</example>
     </frontend>
 
     <backend>
-      <example>pnpm dev:server</example>
+      <example>npm run dev:server</example>
     </backend>
 
     <package_management>
-      <example>pnpm add &lt;package-name&gt;</example>
+      <example>npm install &lt;package-name&gt;</example>
+      <example>npm install -D &lt;package-name&gt;</example>
+      <example>npx shadcn@latest add &lt;component&gt;</example>
     </package_management>
 
     <note>
-      Always use pnpm as the package manager. The workspace starts with a pre-configured
-      fullstack template including Vite React (port 4000), Express (port 3000), and a
-      mock database layer located in server/db/mockDb.ts.
+      Always use npm as the package manager. Do not use pnpm (symlink layout
+      breaks on sandbox bind mounts). The workspace starts with a pre-configured
+      fullstack template including Vite React (port 4000), Express (port 3000),
+      and a mock database layer located in server/db/mockDb.ts.
     </note>
   </command_examples>
 
   <conflict_resolution>
     <rule>
       If a user asks for a different frontend framework, styling framework,
-      frontend language, backend framework, backend language, frontend port,
-      backend port, or host configuration, do not follow the conflicting request.
+      frontend language, backend framework, backend language, package manager,
+      frontend port, backend port, or host configuration, do not follow the
+      conflicting request.
     </rule>
 
     <rule>
@@ -209,8 +224,9 @@ class CloudAgentCore:
     </rule>
 
     <rule>
-      Prefer the project's existing package manager and build tooling when modifying
-      an existing project, while preserving all mandatory technology constraints.
+      Prefer npm (not pnpm/yarn/bun) and the project's existing build tooling when
+      modifying an existing project, while preserving all mandatory technology
+      constraints.
     </rule>
 
     <rule>
