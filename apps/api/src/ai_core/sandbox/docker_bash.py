@@ -124,7 +124,7 @@ async def execute_docker_bash(
     container: Optional[str] = None,
     workdir: Optional[str] = None,
     user: Optional[str] = None,
-    timeout: int = 30,
+    timeout: int = 120,
     is_background: bool = False,
     default_container: Optional[str] = None,
     default_workdir: Optional[str] = None,
@@ -157,6 +157,21 @@ async def execute_docker_bash(
     )
     should_run_bg = _should_run_background(command, is_background)
 
+    # npm / npx often exceed short timeouts on cold network / bind mounts
+    cmd_l = command.lower()
+    effective_timeout = timeout
+    if any(
+        token in cmd_l
+        for token in (
+            "npm install",
+            "npm i ",
+            "npm ci",
+            "npx shadcn",
+            "npm run build",
+        )
+    ):
+        effective_timeout = max(timeout, 300)
+
     try:
         client = get_sandbox_client()
         if client is None:
@@ -168,7 +183,7 @@ async def execute_docker_bash(
             command,
             resolved_workdir,
             user,
-            timeout,
+            effective_timeout,
             should_run_bg,
         )
     except NotFound:
@@ -180,8 +195,11 @@ async def execute_docker_bash(
 
 
 DOCKER_BASH_DESCRIPTION = (
-    "Run shell/bash commands inside a running Docker container via docker exec. "
-    "Use for project commands that must run in the container environment (pytest, npm, migrations, etc.)."
+    "Run shell/bash commands inside the sandbox Docker container via docker exec. "
+    "Project root is /app (default workdir). Use for npm, builds, and server commands. "
+    "For npm install: use workdir /app, set timeout to at least 180–300 seconds, then "
+    "verify with `test -d node_modules/<pkg>` before continuing. Do not leave workdir empty "
+    "when installing packages."
 )
 
 DOCKER_BASH_PARAMETERS = {
@@ -203,8 +221,7 @@ DOCKER_BASH_PARAMETERS = {
             "type": "string",
             "description": (
                 "Working directory inside the container (docker exec -w). "
-                "Defaults to Agent.create(docker_workdir=...), then "
-                "PI_SDK_DOCKER_WORKDIR or DOCKER_WORKDIR env var."
+                "Defaults to /app for this sandbox. Prefer /app for npm and project scripts."
             ),
         },
         "user": {
@@ -213,7 +230,10 @@ DOCKER_BASH_PARAMETERS = {
         },
         "timeout": {
             "type": "integer",
-            "description": "Maximum time in seconds to wait for command completion (default: 30).",
+            "description": (
+                "Maximum seconds to wait for completion (default: 120). "
+                "Use 180–300 for npm install / npx shadcn add."
+            ),
         },
         "is_background": {
             "type": "boolean",
@@ -233,7 +253,7 @@ def build_docker_bash_tool(
         container: Optional[str] = None,
         workdir: Optional[str] = None,
         user: Optional[str] = None,
-        timeout: int = 30,
+        timeout: int = 120,
         is_background: bool = False,
         **_: object,
     ) -> str:

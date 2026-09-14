@@ -29,7 +29,8 @@ Dev command `npm run dev` runs both processes via `concurrently`.
 │   ├── App.tsx              # Main UI (status cards + tasks demo)
 │   ├── styles.css           # Tailwind + CSS variables
 │   ├── lib/utils.ts         # cn() helper
-│   └── components/ui/       # shadcn: button, card, badge, input, …
+│   └── components/ui/       # shadcn (installed): button, card, badge, input
+                             # Add more via: npx shadcn@latest add <name>
 └── server/
     ├── index.ts             # Express app, listen 0.0.0.0:3000
     ├── routes/api.ts        # /api/health, /api/items, /api/db/stats
@@ -61,7 +62,7 @@ Preview/proxy infrastructure outside this app maps host traffic to these binds. 
 | `src/main.tsx` | Mounts `<App />`, Sonner toasts |
 | `src/App.tsx` | Demo: health/status cards + items CRUD UI |
 | `src/styles.css` | Design tokens + Tailwind import |
-| `src/components/ui/*` | shadcn primitives — prefer these |
+| `src/components/ui/*` | Installed: Button, Card, Badge, Input — follow shadcn skill; add more with CLI |
 
 Import UI with: `import { Button } from '@/components/ui/button'`.
 

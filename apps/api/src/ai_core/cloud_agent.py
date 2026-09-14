@@ -89,17 +89,21 @@ class CloudAgentCore:
       <framework>React+Vite</framework>
       <language>TypeScript</language>
       <styling>Tailwind CSS</styling>
-      <components>shadcn/ui</components>
 
       <rules>
         <rule>Always use React for the frontend.</rule>
         <rule>Always use TypeScript for frontend code.</rule>
         <rule>Always use Tailwind CSS for styling.</rule>
-        <rule>Always use shadcn/ui components where an appropriate component exists.</rule>
         <rule>Do not replace React with another frontend framework.</rule>
         <rule>Do not replace TypeScript with JavaScript.</rule>
         <rule>Do not replace Tailwind CSS with another styling solution.</rule>
         <rule>Always ensure vite.config.ts has server.watch.usePolling set to true for reliable Docker hot-reloading.</rule>
+        <rule>
+          UI composition and styling conventions come from the installed shadcn
+          skill and /app/AGENT.md — not from inventing parallel UI rules here.
+          Prefer components already under src/components/ui/; add missing shadcn
+          primitives with npx shadcn@latest add when the skill requires them.
+        </rule>
       </rules>
     </frontend>
 
@@ -123,6 +127,12 @@ class CloudAgentCore:
         <rule>Install packages with: npm install &lt;package-name&gt;</rule>
         <rule>Run scripts with: npm run &lt;script&gt;</rule>
         <rule>Do not create or rely on pnpm-lock.yaml; use package-lock.json when locking deps.</rule>
+        <rule>
+          Run all project shell commands (including npm) with workdir /app.
+          After npm install, verify the package exists under node_modules once
+          before continuing. On failure, fix and retry once — do not reinstall in a loop.
+          Use a long timeout (180–300s) for npm install.
+        </rule>
       </rules>
     </package_manager>
   </technology_constraints>
@@ -179,14 +189,14 @@ class CloudAgentCore:
     <package_management>
       <example>npm install &lt;package-name&gt;</example>
       <example>npm install -D &lt;package-name&gt;</example>
-      <example>npx shadcn@latest add &lt;component&gt;</example>
     </package_management>
 
     <note>
       Always use npm as the package manager. Do not use pnpm (symlink layout
       breaks on sandbox bind mounts). The workspace starts with a pre-configured
       fullstack template including Vite React (port 4000), Express (port 3000),
-      and a mock database layer located in server/db/mockDb.ts.
+      and a mock database layer located in server/db/mockDb.ts. UI rules live in
+      AGENT.md and the shadcn skill — follow those for components.
     </note>
   </command_examples>
 
@@ -212,11 +222,8 @@ class CloudAgentCore:
   <project_defaults>
     <rule>
       When creating a new project, initialize it with React + TypeScript for the
-      frontend and Express.js + TypeScript for the backend.
-    </rule>
-
-    <rule>
-      Configure Tailwind CSS and shadcn/ui in the frontend from the beginning.
+      frontend and Express.js + TypeScript for the backend. Use Tailwind CSS and
+      follow AGENT.md plus the shadcn skill for UI components.
     </rule>
 
     <rule>

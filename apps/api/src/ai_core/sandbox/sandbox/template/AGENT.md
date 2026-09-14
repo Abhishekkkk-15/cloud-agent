@@ -8,12 +8,25 @@ Read **CONTEXT.md** first for the project map. Do **not** re-scan the whole tree
 |--------|----------|
 | Frontend | React + Vite + TypeScript |
 | Styling | Tailwind CSS v4 |
-| UI | shadcn/ui (`src/components/ui/*`) |
+| UI | shadcn/ui under `src/components/ui/` |
 | Backend | Express.js + TypeScript |
 | Data | In-memory mock DB (`server/db/mockDb.ts`) — no external DB |
 | Package manager | **npm** |
 
 Do not switch frameworks, languages, CSS systems, or package managers. If the user asks for something conflicting, keep this stack and still implement the feature.
+
+## UI components (mandatory)
+
+**Installed now:** `Button`, `Card` (+ header/title/description/content/footer), `Badge`, `Input`.
+
+1. Prefer these installed components before inventing custom markup.
+2. Follow the **shadcn skill** for composition and styling (`gap-*` not `space-y-*`, semantic colors, `data-icon` on Button icons, full Card composition, etc.).
+3. Need another shadcn primitive (e.g. `Separator`, `Tabs`)? Add it with:
+   ```bash
+   npx shadcn@latest add <component>
+   ```
+   then use it. Do not hand-roll a substitute.
+4. Do **not** rewrite existing `src/components/ui/*` mid-feature to chase skill purity — they are already skill-aligned. Build the product with them.
 
 ## Server bind rules (required)
 
@@ -32,18 +45,28 @@ Do not switch frameworks, languages, CSS systems, or package managers. If the us
 npm run dev           # client + server together
 npm run dev:client    # Vite only
 npm run dev:server    # Express only
-npm install <pkg>     # add dependency
+npm install <pkg>     # add npm dependency
+npx shadcn@latest add <component>
 ```
 
-Prefer editing the existing app over scaffolding a new project from scratch.
+All `docker_bash` / shell work for this project runs with workdir **`/app`**.
+
+## Installing npm packages (do this correctly once)
+
+When you need a library (e.g. `framer-motion`):
+
+1. Run from `/app`: `npm install <package>` with a **long timeout** (at least **180–300 seconds**).
+2. **Verify once:** `test -d node_modules/<package>` (or `node -e "require.resolve('<package>')"` for CJS).
+3. If install fails: read stderr, fix the cause (network, name, permissions), retry **once**. Do not reinstall blindly in a loop.
+4. Then continue the feature. Do not keep reopening AGENT/CONTEXT/ui primitives after a successful install.
 
 ## How to build features
 
-1. **UI** — Prefer existing shadcn components (`Button`, `Card`, `Badge`, `Input`, …). Add new shadcn components under `src/components/ui/` when needed; use the `@/` alias.
-2. **Pages / app shell** — Start from `src/App.tsx` and `src/main.tsx`. Split into `src/components/` as the app grows.
-3. **API** — Add routes in `server/routes/api.ts` (or new routers mounted from `server/index.ts`). Keep paths under `/api/...`.
-4. **Data** — Extend `server/db/schema.ts`, seed in `server/db/seed.ts`, use `db.collection(...)` from `mockDb.ts`. Do not introduce Postgres/Mongo/SQLite unless explicitly required by a higher-priority system rule.
-5. **Frontend ↔ API** — Call `/api/...` from the client (same origin via Vite proxy). Do not hardcode container host ports in the UI.
+1. **UI** — Compose with installed shadcn components; add via CLI only when needed. Use the `@/` alias.
+2. **Pages** — Start from `src/App.tsx`. Prefer **small files** under `src/components/` over one huge App rewrite (avoids truncated writes).
+3. **API** — Routes in `server/routes/api.ts` (or new routers from `server/index.ts`). Paths under `/api/...`.
+4. **Data** — Extend `server/db/schema.ts`, seed in `server/db/seed.ts`, use `db.collection(...)` from `mockDb.ts`.
+5. **Frontend ↔ API** — Call `/api/...` via the Vite proxy. Do not hardcode host ports in the UI.
 
 ## UX / preview rules
 
@@ -53,8 +76,8 @@ Prefer editing the existing app over scaffolding a new project from scratch.
 ## Efficiency
 
 - Trust CONTEXT.md for structure; open files only when you need to change them.
-- After meaningful backend/frontend changes, keep `npm run dev` running (or restart if needed) so the preview updates.
-- Prefer small, focused diffs over rewriting the template.
+- After meaningful changes, keep `npm run dev` running (or restart) so the preview updates.
+- Prefer small, focused diffs. One install → one verify → build the feature.
 
 ## When docs drift
 
