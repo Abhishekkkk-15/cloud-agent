@@ -46,21 +46,22 @@ def host_workspace_path(workspace: Workspace) -> Path:
     raise WorkspaceGitError("Workspace has no id or source_path")
 
 
-def _slug(value: str, *, max_len: int) -> str:
-    cleaned = re.sub(r"[^a-zA-Z0-9._-]+", "-", value.strip()).strip("-._")
-    return cleaned[:max_len]
+def _slug_repo_name(value: str, *, max_len: int = 60) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9-]+", "-", (value or "").strip().lower())
+    cleaned = re.sub(r"-{2,}", "-", cleaned).strip("-")
+    return cleaned[:max_len].strip("-")
 
 
-def suggest_repo_name(user: User, workspace: Workspace) -> str:
-    parts: list[str] = []
-    if user.username:
-        parts.append(_slug(user.username, max_len=24))
-    if workspace.title:
-        parts.append(_slug(workspace.title, max_len=32))
-    wid = _slug(workspace.id or "workspace", max_len=24) or "workspace"
-    parts.append(wid)
-    name = "-".join(p for p in parts if p) or wid
-    return name[:100].strip("-._") or wid
+def suggest_repo_name(workspace: Workspace) -> str:
+    """GitHub repo name = kebab-case of the workspace title (same product name)."""
+    base = _slug_repo_name(workspace.title or "", max_len=60)
+    if base and base not in {"workspace", "project", "app", "new"}:
+        return base
+    prompt = _slug_repo_name(
+        " ".join((workspace.initial_prompt or "").split()[:6]),
+        max_len=40,
+    )
+    return prompt or "cloud-app"
 
 
 def _apply_repo_payload(workspace: Workspace, data: dict, *, auth_source: Literal["user", "platform"]) -> None:
@@ -112,6 +113,44 @@ def _sync_blocking(
     return committed
 
 
+async def _create_unique_repo(
+    token: str,
+    *,
+    base_name: str,
+    workspace: Workspace,
+) -> dict:
+    """Create a repo; on name conflict append a short workspace-id suffix."""
+    description = workspace.title or "Created by Cloud Agent"
+    candidates = [base_name]
+    wid = (workspace.id or "")[-6:]
+    if wid:
+        candidates.append(_slug_repo_name(f"{base_name}-{wid}", max_len=60))
+    candidates.append(_slug_repo_name(f"{base_name}-{wid or 'app'}-1", max_len=60))
+
+    last_error: Exception | None = None
+    for name in candidates:
+        if not name:
+            continue
+        try:
+            return await create_github_repo(
+                token,
+                name=name,
+                private=True,
+                auto_init=False,
+                description=description,
+            )
+        except GitHubAPIError as exc:
+            last_error = exc
+            # 422 = validation failed (often name already exists)
+            if exc.status_code != 422:
+                raise
+            logger.info("GitHub repo name %r taken; trying another", name)
+            continue
+    if last_error:
+        raise last_error
+    raise GitHubAPIError(500, "Failed to create GitHub repository")
+
+
 async def sync_workspace_to_github(
     user: User,
     workspace: Workspace,
@@ -131,12 +170,11 @@ async def sync_workspace_to_github(
         auth_source = auth.source
 
         if not workspace.github_clone_url:
-            data = await create_github_repo(
+            repo_name = suggest_repo_name(workspace)
+            data = await _create_unique_repo(
                 auth.token,
-                name=suggest_repo_name(user, workspace),
-                private=True,
-                auto_init=False,
-                description=workspace.title or "Created by Cloud Agent",
+                base_name=repo_name,
+                workspace=workspace,
             )
             _apply_repo_payload(workspace, data, auth_source=auth.source)
 
