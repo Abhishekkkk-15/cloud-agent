@@ -118,7 +118,7 @@ async def sync_workspace_to_github(
     workspace_repo: WorkspaceRepository,
     *,
     message: str = "cloud-agent sync",
-) -> GithubSyncResult:
+) -> tuple[Workspace,GithubSyncResult]:
     """Ensure a GitHub remote exists, commit+push host files, persist workspace fields.
 
     Mutates and saves ``workspace``. Best-effort friendly: returns ok=False on failure
@@ -147,7 +147,7 @@ async def sync_workspace_to_github(
         workspace = await workspace_repo.save(workspace)
 
         if not workspace.github_clone_url:
-            return GithubSyncResult(
+            return workspace,GithubSyncResult(
                 ok=False,
                 committed=False,
                 auth_source=auth_source,
@@ -169,7 +169,7 @@ async def sync_workspace_to_github(
         )
 
         workspace = await workspace_repo.save(workspace)
-        return GithubSyncResult(
+        return  workspace,GithubSyncResult(
             ok=True,
             committed=committed,
             auth_source=auth.source,
@@ -182,7 +182,7 @@ async def sync_workspace_to_github(
             workspace.id,
             exc,
         )
-        return GithubSyncResult(
+        return workspace, GithubSyncResult(
             ok=False,
             committed=False,
             auth_source=auth_source,
@@ -192,7 +192,7 @@ async def sync_workspace_to_github(
         )
     except (WorkspaceGitError, GitHubAPIError) as exc:
         logger.exception("Git sync failed for workspace %s", workspace.id)
-        return GithubSyncResult(
+        return  workspace,GithubSyncResult(
             ok=False,
             committed=False,
             auth_source=auth_source,
@@ -205,7 +205,7 @@ async def sync_workspace_to_github(
             "Unexpected GitHub sync failure for workspace %s",
             workspace.id,
         )
-        return GithubSyncResult(
+        return  workspace,GithubSyncResult(
             ok=False,
             committed=False,
             auth_source=auth_source,

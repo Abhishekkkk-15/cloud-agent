@@ -44,7 +44,8 @@ function normalizeIncomingMessage(
     type.startsWith("sandbox:") ||
     type === "session:create" ||
     type === "agent:busy" ||
-    type === "error"
+    type === "error" ||
+    type === "github:sync"
   ) {
     return { type, data: message.data ?? message }
   }

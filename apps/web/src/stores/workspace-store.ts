@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { toast } from "sonner"
 
 import {
   getFileTree,
@@ -15,6 +16,7 @@ import {
   wsEventToUiEvent,
   wsPayloadText,
   type AgentWsEventPayload,
+  type GithubSyncWsPayload,
   type SandboxWsPayload,
 } from "@/types/agent-ws-events"
 import type { ChatAttachment, ThreadMessage } from "@/types/chat-ui"
@@ -368,10 +370,47 @@ function ensureControlEventListener(
     })
   }
 
+  const GITHUB_SYNC_TOAST_ID = "github-sync"
+
+  const onGithubSync = (raw: unknown) => {
+    const data = (raw ?? {}) as GithubSyncWsPayload
+    const status = data.status
+
+    if (status === "started") {
+      toast.loading("Saving workspace to GitHub…", {
+        id: GITHUB_SYNC_TOAST_ID,
+      })
+      return
+    }
+
+    if (status === "ok") {
+      const description = [
+        data.commit_message,
+        data.repo ? `Repo: ${data.repo}` : null,
+        data.committed === false ? "No new changes to commit" : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+      toast.success("Saved to GitHub", {
+        id: GITHUB_SYNC_TOAST_ID,
+        description: description || undefined,
+      })
+      return
+    }
+
+    if (status === "error") {
+      toast.error("GitHub sync failed", {
+        id: GITHUB_SYNC_TOAST_ID,
+        description: data.error || data.error_code || "Unknown error",
+      })
+    }
+  }
+
   const unsubs = [
     ws.subscribe("session:create", onSessionCreate),
     ws.subscribe("agent:busy", onBusy),
     ws.subscribe("error", onError),
+    ws.subscribe("github:sync", onGithubSync),
   ]
   controlEventUnsubscribe = () => {
     unsubs.forEach((u) => u())

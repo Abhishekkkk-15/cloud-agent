@@ -1,13 +1,28 @@
 from pathlib import Path
 from typing import Optional,Dict,List
 import os
+import shutil
 import subprocess
+import sys
 from urllib.parse import urlparse, urlunparse
 import re
 import tempfile
 import stat
+import base64
+
 class WorkspaceGitError(Exception):
     pass
+
+_ASKPASS_PY = r"""import os
+import sys
+
+prompt = " ".join(sys.argv[1:]).lower()
+if "username" in prompt:
+    sys.stdout.write(os.environ.get("GIT_USERNAME", "x-access-token"))
+else:
+    # Password / passphrases / Token prompts
+    sys.stdout.write(os.environ.get("GIT_PASSWORD", ""))
+"""
 
 class WorkspaceGitService:
     def __init__(self,host_path:Path) -> None:
@@ -92,6 +107,29 @@ class WorkspaceGitService:
     def has_changes(self) -> bool:
         result = self._run(["status","--porcelain"])
         return len(result.stdout.strip()) > 0
+
+    def change_summary(self, *, max_len: int = 2500) -> str:
+        """Working-tree change summary for commit-message generation (before commit)."""
+        if not self.host_path.exists():
+            return ""
+        chunks: list[str] = []
+        status = self._run(["status", "--porcelain"], check=False)
+        if status.returncode == 0 and (status.stdout or "").strip():
+            chunks.append("status:\n" + status.stdout.strip())
+
+        # Prefer diff against HEAD when history exists so renames/stats are meaningful.
+        head = self._run(["rev-parse", "--verify", "HEAD"], check=False)
+        if head.returncode == 0:
+            diff = self._run(["diff", "--stat", "HEAD"], check=False)
+        else:
+            diff = self._run(["diff", "--stat"], check=False)
+        if diff.returncode == 0 and (diff.stdout or "").strip():
+            chunks.append("diff --stat:\n" + diff.stdout.strip())
+
+        text = "\n\n".join(chunks).strip()
+        if len(text) > max_len:
+            return text[: max_len - 3].rstrip() + "..."
+        return text
     
     def commit_all(self,messages:str,author_name:str = "Cloud Agent",author_email:str = "agent@users.noreply.github.com") -> bool:
         if not self.has_changes():
@@ -162,43 +200,53 @@ class WorkspaceGitService:
         cwd: Path | None = None,
         use_git_c: bool = True,
     ) -> subprocess.CompletedProcess:
-        is_windows = os.name == "nt"
-        askpass_file = None
+        """Run a networked git command with ephemeral credentials.
 
+        Token is never written into the remote URL or ``.git/config``.
+        On Windows we use a Python askpass helper (cmd findstr was unreliable)
+        and also set ``http.extraHeader`` for this process only.
+        """
+        askpass_dir: Path | None = None
         try:
-            if is_windows:
-                fd, path_str = tempfile.mkstemp(prefix="git-askpass-", suffix=".cmd")
-                os.close(fd)
-                askpass_file = Path(path_str)
-                askpass_file.write_text(
-                    "@echo off\n"
-                    "echo %* | findstr /I \"Username\" >nul && echo %GIT_USERNAME% && exit /b 0\n"
-                    "echo %* | findstr /I \"Password\" >nul && echo %GIT_PASSWORD% && exit /b 0\n"
-                    "echo.\n",
+            askpass_dir = Path(tempfile.mkdtemp(prefix="cloud-agent-git-"))
+            script = askpass_dir / "askpass.py"
+            script.write_text(_ASKPASS_PY, encoding="utf-8")
+
+            if os.name == "nt":
+                wrapper = askpass_dir / "askpass.cmd"
+                wrapper.write_text(
+                    "@echo off\r\n"
+                    f'"{sys.executable}" "{script}" %*\r\n',
                     encoding="utf-8",
                 )
+                askpass_path = str(wrapper)
             else:
-                fd, path_str = tempfile.mkstemp(prefix="git-askpass-", suffix=".sh")
-                os.close(fd)
-                askpass_file = Path(path_str)
-                askpass_file.write_text(
+                wrapper = askpass_dir / "askpass.sh"
+                wrapper.write_text(
                     "#!/bin/sh\n"
-                    'case "$1" in\n'
-                    '  *Username*) echo "${GIT_USERNAME}" ;;\n'
-                    '  *Password*) echo "${GIT_PASSWORD}" ;;\n'
-                    "esac\n",
+                    f'exec "{sys.executable}" "{script}" "$@"\n',
                     encoding="utf-8",
                 )
-                askpass_file.chmod(stat.S_IRWXU)
+                wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR)
+                askpass_path = str(wrapper)
+
+            # Bearer header is the most reliable path on Windows (avoids GCM /
+            # broken cmd askpass). Askpass remains as a fallback for prompts.
+            basic = base64.b64encode(
+                f"x-access-token:{token}".encode("utf-8")
+            ).decode("ascii")
+
             auth_env = {
-                "GIT_ASKPASS": str(askpass_file),
+                "GIT_ASKPASS": askpass_path,
                 "GIT_USERNAME": "x-access-token",
                 "GIT_PASSWORD": token,
                 "GIT_TERMINAL_PROMPT": "0",
-                # Force-disable credential helpers so git doesn't save the password to disk/store
-                "GIT_CONFIG_COUNT": "1",
+                "GCM_INTERACTIVE": "never",
+                "GIT_CONFIG_COUNT": "2",
                 "GIT_CONFIG_KEY_0": "credential.helper",
                 "GIT_CONFIG_VALUE_0": "",
+                "GIT_CONFIG_KEY_1": "http.extraHeader",
+                "GIT_CONFIG_VALUE_1": f"Authorization: Basic {basic}",
             }
             result = self._run(
                 args,
@@ -211,8 +259,8 @@ class WorkspaceGitService:
                 self.assert_clean_remote()
             return result
         finally:
-            if askpass_file and askpass_file.exists():
-                askpass_file.unlink(missing_ok=True)
+            if askpass_dir is not None:
+                shutil.rmtree(askpass_dir, ignore_errors=True)
 
     def push(self, token: str, remote_name: str = "origin", branch: str = "main") -> None:
         self._run_with_auth(["push", "-u", remote_name, branch], token=token)

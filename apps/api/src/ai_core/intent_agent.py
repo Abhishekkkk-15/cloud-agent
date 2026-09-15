@@ -9,6 +9,10 @@ class IntentResponse(BaseModel):
     title: str
 
 
+class CommitMessageResponse(BaseModel):
+    subject: str
+
+
 class IntentAgent:
     def __init__(self):
         self.client = AsyncOpenAI(
@@ -58,4 +62,46 @@ Rules:
             response_format=IntentResponse,
         )
 
-        return response.choices[0].message.parsed #type:ignore
+        return response.choices[0].message.parsed  # type:ignore
+
+    async def suggest_commit_message(
+        self,
+        *,
+        user_query: str = "",
+        agent_summary: str = "",
+        diff_stat: str = "",
+    ) -> str:
+        """Return a conventional-commit style subject (≤72 chars)."""
+        response = await self.client.beta.chat.completions.parse(
+            model=config.intent_model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": """
+You write git commit subjects for an AI coding agent.
+
+Return JSON with:
+- subject: one line, imperative mood, preferably conventional commits
+  (feat/fix/chore/refactor/docs/style/perf/test), max 72 characters.
+
+Rules:
+- Describe what changed for the user, not that an agent ran.
+- Prefer the diff/stat over vague agent prose when they conflict.
+- No trailing period, no quotes, no markdown, no body/paragraphs.
+- Do not invent files that are not in the diff.
+- If the change is unclear, use chore: update project files
+""",
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"User request:\n{(user_query or '').strip() or '(none)'}\n\n"
+                        f"Agent summary:\n{(agent_summary or '').strip() or '(none)'}\n\n"
+                        f"Git changes:\n{(diff_stat or '').strip() or '(none)'}"
+                    ),
+                },
+            ],
+            response_format=CommitMessageResponse,
+        )
+        parsed = response.choices[0].message.parsed
+        return (parsed.subject if parsed else "").strip()

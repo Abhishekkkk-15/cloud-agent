@@ -25,6 +25,11 @@ from src.ai_core.intent_agent import IntentAgent
 from docker.errors import APIError, ContainerError, NotFound
 from starlette.websockets import WebSocketState
 import asyncio
+from src.services.workspace_github_sync import (
+    host_workspace_path,
+    sync_workspace_to_github,
+)
+from src.services.commit_message import build_commit_message
 
 router = APIRouter()
 
@@ -462,24 +467,32 @@ async def websocket_endpoint(
             fresh_workspace = await workspace_repo.find_by_id(workspace_id)
             if fresh_workspace:
                 workspace = fresh_workspace
-            
+            if not workspace:
+                return
             # PENDING WORKSPACE — first-ever agent turn
             if workspace.status == WorkspaceStatus.PENDING and not active_session_id:
                 workspace.status = WorkspaceStatus.RUNNING
                 await workspace_repo.save(workspace)
 
                 try:
+                    if not agent:
+                        raise WebSocketException(code=1002,reason="Agent not initilized")
                     session = await agent.new_session("New session")
                     active_session_id = session.id
                     await _emit_session_create(active_session_id)
 
-                    await agent.run(workspace.initial_prompt)
+                    run_result = await agent.run(workspace.initial_prompt)
                     await _title_session(
                         active_session_id, workspace.initial_prompt
                     )
 
                     workspace.status = WorkspaceStatus.READY
                     await workspace_repo.save(workspace)
+                    await _persist_to_github(
+                        reason="initial",
+                        user_query=workspace.initial_prompt,
+                        agent_summary=getattr(run_result, "text", "") or "",
+                    )
 
                 finally:
                     workspace.status = WorkspaceStatus.READY
@@ -503,9 +516,14 @@ async def websocket_endpoint(
 
                 await agent.resume(active_session_id)
                 is_fresh = _messages_are_fresh(agent.get_messages())
-                await agent.run(query_text)
+                run_result = await agent.run(query_text)
                 if is_fresh:
                     await _title_session(active_session_id, query_text)
+                await _persist_to_github(
+                    reason="turn",
+                    user_query=query_text,
+                    agent_summary=getattr(run_result, "text", "") or "",
+                )
 
             # FRESH SESSION — sidebar "New Session" / first message without id
             # Uses pi_sdk Agent.new_session() so the reused CloudAgent drops the
@@ -515,11 +533,16 @@ async def websocket_endpoint(
                 active_session_id = session.id
                 await _emit_session_create(active_session_id)
 
-                await agent.run(query_text)
+                run_result = await agent.run(query_text)
                 await _title_session(active_session_id, query_text)
 
                 workspace.status = WorkspaceStatus.READY
                 await workspace_repo.save(workspace)
+                await _persist_to_github(
+                    reason="new_session",
+                    user_query=query_text,
+                    agent_summary=getattr(run_result, "text", "") or "",
+                )
 
         async def run_agent_task(user_query) -> None:
             try:
@@ -535,6 +558,74 @@ async def websocket_endpoint(
                     )
                 except Exception:
                     pass
+
+        async def _persist_to_github(
+            *,
+            reason: str,
+            user_query: str = "",
+            agent_summary: str = "",
+        ) -> None:
+            nonlocal workspace
+            # Skip if nothing can auth
+            has_user = bool(user.github_access_token_enc)
+            has_platform = bool(config.GITHUB_DEFAULT_TOKEN)
+            if not has_user and not has_platform:
+                return
+
+            try:
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder({
+                        "type": "github:sync",
+                        "data": {"status": "started", "reason": reason},
+                    }),
+                )
+            except Exception:
+                pass
+
+            try:
+                host_path = host_workspace_path(workspace)
+            except Exception:
+                host_path = config.workspace_base / workspace_id
+
+            commit_message = await build_commit_message(
+                host_path=host_path,
+                user_query=user_query,
+                agent_summary=agent_summary,
+                intent_agent=intent_agent,
+            )
+
+            fresh_workspace, result = await sync_workspace_to_github(
+                user,
+                workspace,
+                workspace_repo,
+                message=commit_message,
+            )
+            if fresh_workspace:
+                workspace = fresh_workspace
+
+            payload = {
+                "status": "ok" if result.ok else "error",
+                "reason": reason,
+                "committed": result.committed,
+                "commit_message": commit_message,
+                "auth_source": result.auth_source,
+                "repo": result.repo_full_name,
+                "error": result.error,
+                "error_code": result.error_code,
+            }
+            try:
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder({"type": "github:sync", "data": payload}),
+                )
+                if result.ok:
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder({"type": "workspace:info", "data": workspace}),
+                    )
+            except Exception:
+                pass
 
         while True:
            user_query = await ws_manager.receive(ws)
@@ -553,7 +644,7 @@ async def websocket_endpoint(
                continue
            
            agent_task = asyncio.create_task(run_agent_task(user_query))
-
+        
     except WebSocketDisconnect:
         if agent:
             agent.abort()

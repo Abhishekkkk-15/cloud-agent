@@ -124,6 +124,20 @@ export type AgentWsEventPayload = {
 
 export type WorkspaceWsEvent = "workspace:info" | "workspace:update"
 
+export type GithubSyncWsEvent = "github:sync"
+
+export type GithubSyncWsPayload = {
+  status?: "started" | "ok" | "error" | string
+  reason?: string
+  committed?: boolean
+  commit_message?: string
+  auth_source?: "user" | "platform" | string | null
+  repo?: string | null
+  error?: string | null
+  error_code?: string | null
+  [key: string]: unknown
+}
+
 export const SANDBOX_WS_EVENT_NAMES = [
   "sandbox:start",
   "sandbox:ready",
@@ -166,7 +180,11 @@ export type SandboxWsPayload = {
 export type AgentOutgoingEvent = "agent:send" | "agent:start" | "agent:abort"
 
 export type WsOutgoingEvent = AgentOutgoingEvent
-export type WsIncomingEvent = WorkspaceWsEvent | SandboxWsEvent | AgentWsChannel
+export type WsIncomingEvent =
+  | WorkspaceWsEvent
+  | SandboxWsEvent
+  | AgentWsChannel
+  | GithubSyncWsEvent
 
 const AGENT_WS_EVENT_NAME_SET = new Set<string>(AGENT_WS_EVENT_NAMES)
 
