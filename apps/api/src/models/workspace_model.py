@@ -2,6 +2,7 @@ from pydantic import BaseModel,Field
 import uuid
 from datetime import datetime, UTC
 from enum import Enum
+from typing import Literal
 class WorkspaceStatus(str, Enum):
     PENDING = "pending"    # Created in DB, waiting for WS connection & agent execution
     RUNNING = "running"    # Sandbox initialized, agent currently executing
@@ -39,3 +40,5 @@ class Workspace(BaseModel):
     preview_url: str | None = None
     preview_status: str | None = None
     backend_url: str | None = None
+    
+    github_auth_source: Literal["user", "platform"] | None = None

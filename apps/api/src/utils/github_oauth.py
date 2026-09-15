@@ -11,12 +11,37 @@ from jwt.exceptions import InvalidTokenError
 from src.utils.config import config
 from src.utils.jwt_utils import SECRET_KEY, ALGORITHM
 
-from typing import Optional,Dict
+from typing import Optional,Dict,Literal
+from dataclasses import dataclass
+
+from src.models import User, Workspace
+from src.utils.token_crypto import decrypt_token
+
+
 GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_API_BASE = "https://api.github.com"
 GITHUB_SCOPES = "repo read:user"
 OAUTH_STATE_TTL_MINUTES = 10
+
+
+@dataclass(frozen=True)
+class GitHubAuth:
+    token: str
+    login: str
+    source: Literal["user", "platform"]
+
+    @property
+    def email(self) -> str:
+        return f"{self.login}@users.noreply.github.com"
+
+
+class GitHubAuthError(Exception):
+    def __init__(self, message: str, *, code: str):
+        self.code = code
+        self.message = message
+        super().__init__(f"GitHub Auth Error [{code}]: {message}")
+
 
 class GitHubAPIError(Exception):
     """Raised when GitHub API returns a non-2xx status code."""
@@ -195,3 +220,84 @@ async def create_github_repo(
     # Calls POST /user/repos to create repo for authenticated user
     repo_data = await github_api_post("/user/repos", token=token, json_data=payload)
     return repo_data
+
+
+async def resolve_github_auth(
+    user: User,
+    workspace: Workspace | None = None,
+) -> GitHubAuth:
+    """Pick user OAuth or platform default credentials for git/GitHub API ops.
+
+    Once ``workspace.github_auth_source`` is set, that source is required so a
+    platform-owned repo is not pushed with the user's token (and vice versa).
+    """
+    required = workspace.github_auth_source if workspace is not None else None
+
+    async def _from_user() -> GitHubAuth:
+        if not user.github_access_token_enc:
+            raise GitHubAuthError(
+                "Connect GitHub before continuing",
+                code="github_not_connected",
+            )
+        try:
+            token = decrypt_token(user.github_access_token_enc)
+        except ValueError as exc:
+            raise GitHubAuthError(
+                "GitHub token could not be decrypted; reconnect GitHub",
+                code="github_token_invalid",
+            ) from exc
+        if not token:
+            raise GitHubAuthError(
+                "GitHub token is empty; reconnect GitHub",
+                code="github_token_invalid",
+            )
+        login = (user.github_login or "").strip() or None
+        if not login:
+            gh_user = await fetch_github_user(token)
+            login = str(gh_user.get("login") or "").strip() or None
+        if not login:
+            raise GitHubAuthError(
+                "GitHub login is unavailable; reconnect GitHub",
+                code="github_token_invalid",
+            )
+        return GitHubAuth(token=token, login=login, source="user")
+
+    async def _from_platform() -> GitHubAuth:
+        token = (config.GITHUB_DEFAULT_TOKEN or "").strip() or None
+        if not token:
+            raise GitHubAuthError(
+                "Platform GitHub is not configured (GITHUB_DEFAULT_TOKEN)",
+                code="github_platform_not_configured",
+            )
+        # Env PAT is plaintext — never run decrypt_token on it.
+        login = (config.GITHUB_DEFAULT_LOGIN or "").strip() or None
+        if not login:
+            gh_user = await fetch_github_user(token)
+            login = str(gh_user.get("login") or "").strip() or None
+        if not login:
+            raise GitHubAuthError(
+                "Platform GitHub login is unavailable; set GITHUB_DEFAULT_LOGIN",
+                code="github_platform_invalid",
+            )
+        return GitHubAuth(token=token, login=login, source="platform")
+
+    if required == "user":
+        return await _from_user()
+    if required == "platform":
+        return await _from_platform()
+
+    # Unbound workspace / first link: prefer user, then platform fallback.
+    if user.github_access_token_enc:
+        try:
+            return await _from_user()
+        except GitHubAuthError:
+            # Fall through to platform if user token is unusable.
+            pass
+
+    if config.GITHUB_DEFAULT_TOKEN:
+        return await _from_platform()
+
+    raise GitHubAuthError(
+        "Connect GitHub, or configure GITHUB_DEFAULT_TOKEN on the server",
+        code="github_not_available",
+    )

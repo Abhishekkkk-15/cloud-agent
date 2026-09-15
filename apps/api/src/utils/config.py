@@ -73,6 +73,9 @@ class Config:
             or os.getenv("FRONTEND_URL")
             or "http://localhost:5173"
         ).rstrip("/")
+        self.GITHUB_DEFAULT_TOKEN = os.getenv("GITHUB_DEFAULT_TOKEN",None)
+        self.GITHUB_DEFAULT_LOGIN = os.getenv("GITHUB_DEFAULT_LOGIN",None)
+        
 config = Config()
 
 
