@@ -21,7 +21,13 @@ class Sandbox:
             self.client = None
             self._client_error = str(e)
 
-    def run_sandbox(self, workspace_id: str,ports:dict[str, int]) -> dict[str, str] | SandboxRunResult:
+    def run_sandbox(
+        self,
+        workspace_id: str,
+        ports: dict[str, int],
+        *,
+        skip_template_seed: bool = False,
+    ) -> dict[str, str] | SandboxRunResult:
         try:
             if not self.client:
                 return {
@@ -38,12 +44,14 @@ class Sandbox:
                 source=f"{config.docker_workspace_base}/{workspace_id}",
                 type="bind",
             )
+            environment = {"SKIP_TEMPLATE_SEED": "1"} if skip_template_seed else None
             container = self.client.containers.run(
                 "node-python-lite",
                 command="tail -f /dev/null",
                 detach=True,
                 mounts=[mount],
                 ports=ports,
+                environment=environment,
             )
             print("2. Container created:", container.id)
 

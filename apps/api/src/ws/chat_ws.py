@@ -124,7 +124,14 @@ async def websocket_endpoint(
                 ),
             )
 
-            sandbox = sandbox_repo.run_sandbox(workspace_id, docker_ports)
+            sandbox = sandbox_repo.run_sandbox(
+                workspace_id,
+                docker_ports,
+                skip_template_seed=(
+                    getattr(workspace, "workspace_origin", "template")
+                    == "github_import"
+                ),
+            )
             if not isinstance(sandbox, SandboxRunResult):
                 port_manager.release_workspace_ports(workspace_id)
                 await ws_manager.send_json(
@@ -260,7 +267,14 @@ async def websocket_endpoint(
                     ),
                 )
 
-                sandbox = sandbox_repo.run_sandbox(workspace_id, docker_ports)
+                sandbox = sandbox_repo.run_sandbox(
+                    workspace_id,
+                    docker_ports,
+                    skip_template_seed=(
+                        getattr(workspace, "workspace_origin", "template")
+                        == "github_import"
+                    ),
+                )
                 if not isinstance(sandbox, SandboxRunResult):
                     port_manager.release_workspace_ports(workspace_id)
                     await ws_manager.send_json(
