@@ -73,6 +73,8 @@ export const workspaceSchema = z.object({
   github_default_branch: z.string().nullable().optional(),
   github_owner: z.string().nullable().optional(),
   github_name: z.string().nullable().optional(),
+  github_auth_source: z.enum(["user", "platform"]).nullable().optional(),
+  workspace_origin: z.enum(["template", "github_import"]).optional(),
 });
 
 /** Matches `MinimalSession` (`id` / `_id`) */

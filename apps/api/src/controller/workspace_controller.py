@@ -49,6 +49,7 @@ async def create_workspace(
             target_path="/app",
             source_path="/",
             initial_prompt=body.prompt,
+            workspace_origin="template",
         )
         workspace = await repo.create(workspace_obj)
 
@@ -76,7 +77,7 @@ async def import_github_workspace(
             detail="Not authorized",
         )
 
-    # Ensures the user has a linked GitHub token; clone is intentionally out of scope.
+    # User OAuth required for import; clone happens later in prepare_workspace.
     _require_connected_token(current_user)
 
     expected = f"{body.owner}/{body.name}"
@@ -99,6 +100,8 @@ async def import_github_workspace(
             github_default_branch=body.default_branch,
             github_owner=body.owner,
             github_name=body.name,
+            github_auth_source="user",
+            workspace_origin="github_import",
         )
         workspace = await repo.create(workspace_obj)
         return CreateWorkspaceResponse(

@@ -18,7 +18,8 @@ from pi_sdk import AgentEvent
 from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
 from src.utils.config import config, build_preview_url
-from src.utils.workspace_utils import ensure_workspace_template
+from src.utils.workspace_utils import prepare_workspace
+from src.services.workspace_git import WorkspaceGitError
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.ai_core.intent_agent import IntentAgent
 from docker.errors import APIError, ContainerError, NotFound
@@ -80,7 +81,25 @@ async def websocket_endpoint(
             )
 
             workspace.source_path = str(config.workspace_base / workspace_id)
-            workspace_root = ensure_workspace_template(workspace_id)
+            try:
+                workspace_root = await prepare_workspace(user, workspace)
+                workspace.source_path = str(workspace_root)
+                await workspace_repo.save(workspace)
+            except (WorkspaceGitError, Exception) as prep_err:
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder(
+                        {
+                            "type": "sandbox:error",
+                            "data": {
+                                "title": "Workspace prepare failed",
+                                "error": str(prep_err),
+                                "details": "Failed to seed template or clone GitHub repo",
+                            },
+                        }
+                    ),
+                )
+                raise WebSocketException(code=1011, reason=str(prep_err)) from prep_err
 
             # Allocate host ports for container (e.g., 5173 -> host_port)
             allocated = port_manager.allocate_workspace_ports(workspace_id)
@@ -198,7 +217,25 @@ async def websocket_endpoint(
                     ),
                 )
                 workspace.source_path = str(config.workspace_base / workspace_id)
-                workspace_root = ensure_workspace_template(workspace_id)
+                try:
+                    workspace_root = await prepare_workspace(user, workspace)
+                    workspace.source_path = str(workspace_root)
+                    await workspace_repo.save(workspace)
+                except (WorkspaceGitError, Exception) as prep_err:
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder(
+                            {
+                                "type": "sandbox:error",
+                                "data": {
+                                    "title": "Workspace prepare failed",
+                                    "error": str(prep_err),
+                                    "details": "Failed to seed template or clone GitHub repo",
+                                },
+                            }
+                        ),
+                    )
+                    raise WebSocketException(code=1011, reason=str(prep_err)) from prep_err
 
                 # Allocate host ports for container (e.g., 5173 -> host_port)
                 allocated = port_manager.allocate_workspace_ports(workspace_id)
@@ -295,7 +332,10 @@ async def websocket_endpoint(
 
         # Default agent from env/config. Recreate later only when message
         # model / reasoning_effort resolves to a different fingerprint.
-        agent_kwargs: dict = {}
+        agent_kwargs: dict = {
+            "workspace_origin": getattr(workspace, "workspace_origin", "template")
+            or "template",
+        }
         current_fingerprint = compute_agent_fingerprint(agent_kwargs)
         agent = CloudAgentCore(
             workspace_id, workspace.sandbox_id, user.id, on_event, **agent_kwargs
@@ -328,6 +368,12 @@ async def websocket_endpoint(
             # If only effort was sent, merge onto current model kwargs
             if not requested_model and requested_effort:
                 next_kwargs = {**agent_kwargs, "reasoning_effort": requested_effort}
+
+            # Keep workspace prompt mode stable across model recreations.
+            next_kwargs["workspace_origin"] = agent_kwargs.get(
+                "workspace_origin",
+                getattr(workspace, "workspace_origin", "template") or "template",
+            )
 
             next_fp = compute_agent_fingerprint(next_kwargs)
             if next_fp == current_fingerprint:

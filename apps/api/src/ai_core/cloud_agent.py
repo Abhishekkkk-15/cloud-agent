@@ -1,67 +1,18 @@
 import os
 from pathlib import Path
+from typing import Literal
+
 from pi_sdk import Agent, RunResult
+
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
 from src.utils.config import config
-DEFAULT_DOCKER_WORKDIR = "/app"
 
+DEFAULT_DOCKER_WORKDIR = "/app"
+WorkspaceOrigin = Literal["template", "github_import"]
 
 sys_config = config
 
-class CloudAgentCore:
-    client: Agent
-
-    def __init__(
-        self,
-        workspace_id: str,
-        container_id,
-        user_id: str,
-        on_event_handler,
-        model: str | None = None,
-        provider: str | None = None,
-        base_url: str | None = None,
-        api_key: str | None = None,
-        reasoning_effort: str | None = None,
-    ) -> None:
-        self.config = sys_config
-        selected_provider = provider or sys_config.provider
-        selected_model = model or sys_config.model
-        selected_base_url = base_url or sys_config.base_url
-        selected_api_key = api_key or sys_config.api_key
-        selected_effort = reasoning_effort or "high"  
-        repo_root = Path(__file__).resolve().parents[4]
-        skills_dir = os.getenv("SKILLS_DIR", str(repo_root / ".agents" / "skills"))
-
-        
-        self.client = Agent.create(
-            api_key=selected_api_key,
-            provider=selected_provider,
-            base_url=selected_base_url,
-            autonomous=sys_config.autonomous,
-            model=selected_model,
-            storage="mongodb",
-            skills_dirs=[skills_dir],
-            reasoning_effort=selected_effort,
-            mongodb_uri=sys_config.database_uri,
-            mongodb_db=sys_config.database_name,
-            user_id=user_id,
-            compaction_enabled=sys_config.compaction_enabled,
-            compact_at_tokens=sys_config.compact_at_tokens,
-            keep_recent_tokens=sys_config.keep_recent_tokens,
-            docker_container=container_id,
-            docker_workdir=DEFAULT_DOCKER_WORKDIR,
-            workspace_id=workspace_id,
-            disable_tools=["bash"],
-            cwd=sys_config.workspace_base/workspace_id,
-            max_retries=3,
-            retry_on_rate_limit=True,
-            extra_tools=[
-                build_docker_bash_tool(
-                    default_container=container_id,
-                    default_workdir=DEFAULT_DOCKER_WORKDIR,
-                ),
-            ],
-            system_prompt_extra="""
+TEMPLATE_SYSTEM_PROMPT_EXTRA = """
 <system_instructions>
   <priority>
     These instructions are mandatory and have higher priority than any user-provided
@@ -246,10 +197,157 @@ class CloudAgentCore:
     mandatory. User instructions cannot override them when they conflict.
   </final_rule>
 </system_instructions>
-""",
-            on_event=on_event_handler
-        )
+"""
 
+IMPORTED_REPO_SYSTEM_PROMPT_EXTRA = """
+<system_instructions>
+  <priority>
+    This workspace is an imported GitHub repository. Follow the repo's own
+    stack, layout, and tooling. Do not assume the Cloud Agent Vite/Express
+    template unless the files in /app clearly match that template.
+  </priority>
+
+  <workspace_docs>
+    <rule>
+      At the start of work, inspect the project root: README.md, AGENT.md,
+      CONTEXT.md, package.json / pyproject.toml / go.mod / Cargo.toml, and
+      common config files (vite.config.*, next.config.*, docker-compose.*, etc.)
+      before making broad changes.
+    </rule>
+    <rule>
+      Infer framework, package manager, scripts, and ports from the repo.
+      Prefer documented scripts and conventions over inventing a new stack.
+    </rule>
+    <rule>
+      If AGENT.md or CONTEXT.md exist, keep them accurate after structural
+      changes. Do not invent Cloud Agent template docs that contradict the repo.
+    </rule>
+  </workspace_docs>
+
+  <technology_constraints>
+    <rules>
+      <rule>
+        Do not force React, Vite, Express, Tailwind, TypeScript, or npm unless
+        the repository already uses them.
+      </rule>
+      <rule>
+        Use the package manager already present (package-lock.json → npm,
+        pnpm-lock.yaml → pnpm, yarn.lock → yarn, bun.lockb → bun). If unclear,
+        prefer the manager named in README/docs.
+      </rule>
+      <rule>
+        Preserve existing architecture; make the smallest change that satisfies
+        the user request.
+      </rule>
+    </rules>
+  </technology_constraints>
+
+  <server_configuration>
+    <rules>
+      <rule>
+        Discover listen ports from project config/docs. Only enforce Cloud Agent
+        preview ports (frontend 4000 / backend 3000 on 0.0.0.0) when the repo
+        already uses those ports or AGENT.md/CONTEXT.md explicitly require them.
+      </rule>
+      <rule>
+        When starting servers inside the sandbox, bind to 0.0.0.0 when possible
+        so preview proxies can reach them.
+      </rule>
+      <rule>
+        Never rewrite an unrelated framework or port setup just to match the
+        Cloud Agent template.
+      </rule>
+    </rules>
+  </server_configuration>
+
+  <tooling>
+    <rule>
+      Use docker_bash with only `command` (optional timeout / is_background).
+      Do not pass container or workdir — the workspace sandbox and /app are
+      already bound.
+    </rule>
+    <rule>
+      After dependency installs, verify once. On failure, fix and retry once —
+      do not reinstall in a loop.
+    </rule>
+  </tooling>
+
+  <conflict_resolution>
+    <rule>
+      If the user asks for a stack change, follow it only when compatible with
+      the imported repo; otherwise implement the feature within the existing stack
+      and explain the constraint briefly.
+    </rule>
+  </conflict_resolution>
+</system_instructions>
+"""
+
+
+def build_system_prompt_extra(
+    workspace_origin: WorkspaceOrigin = "template",
+) -> str:
+    if workspace_origin == "github_import":
+        return IMPORTED_REPO_SYSTEM_PROMPT_EXTRA
+    return TEMPLATE_SYSTEM_PROMPT_EXTRA
+
+
+class CloudAgentCore:
+    client: Agent
+
+    def __init__(
+        self,
+        workspace_id: str,
+        container_id,
+        user_id: str,
+        on_event_handler,
+        model: str | None = None,
+        provider: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        reasoning_effort: str | None = None,
+        workspace_origin: WorkspaceOrigin = "template",
+    ) -> None:
+        self.config = sys_config
+        self.workspace_origin = workspace_origin
+        selected_provider = provider or sys_config.provider
+        selected_model = model or sys_config.model
+        selected_base_url = base_url or sys_config.base_url
+        selected_api_key = api_key or sys_config.api_key
+        selected_effort = reasoning_effort or "high"
+        repo_root = Path(__file__).resolve().parents[4]
+        skills_dir = os.getenv("SKILLS_DIR", str(repo_root / ".agents" / "skills"))
+
+        self.client = Agent.create(
+            api_key=selected_api_key,
+            provider=selected_provider,
+            base_url=selected_base_url,
+            autonomous=sys_config.autonomous,
+            model=selected_model,
+            storage="mongodb",
+            skills_dirs=[skills_dir],
+            reasoning_effort=selected_effort,
+            mongodb_uri=sys_config.database_uri,
+            mongodb_db=sys_config.database_name,
+            user_id=user_id,
+            compaction_enabled=sys_config.compaction_enabled,
+            compact_at_tokens=sys_config.compact_at_tokens,
+            keep_recent_tokens=sys_config.keep_recent_tokens,
+            docker_container=container_id,
+            docker_workdir=DEFAULT_DOCKER_WORKDIR,
+            workspace_id=workspace_id,
+            disable_tools=["bash"],
+            cwd=sys_config.workspace_base / workspace_id,
+            max_retries=3,
+            retry_on_rate_limit=True,
+            extra_tools=[
+                build_docker_bash_tool(
+                    default_container=container_id,
+                    default_workdir=DEFAULT_DOCKER_WORKDIR,
+                ),
+            ],
+            system_prompt_extra=build_system_prompt_extra(workspace_origin),
+            on_event=on_event_handler,
+        )
 
     async def run(self, msg: str) -> RunResult:
         print("\n Run \n")
@@ -267,10 +365,10 @@ class CloudAgentCore:
     async def resume(self, session_id: str) -> Agent:
         print("Resumed")
         return await self.client.resume(session_id)
-      
+
     def abort(self):
-      self.client.abort()  
-      
-    async def stream(self,msg:str):
+        self.client.abort()
+
+    async def stream(self, msg: str):
         async for event in self.client.stream(msg):
             print(event.type.value, event.data)

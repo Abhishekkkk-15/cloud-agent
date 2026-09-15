@@ -42,3 +42,5 @@ class Workspace(BaseModel):
     backend_url: str | None = None
     
     github_auth_source: Literal["user", "platform"] | None = None
+    workspace_origin:Literal["template","github_import"] = "template"
+    

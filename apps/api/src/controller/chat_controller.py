@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 from src.dependency.sandbox_dependency import SandboxRepo
 from src.dependency.port_depemdency import PortRepo
 from src.utils.config import config, build_preview_url
-from src.utils.workspace_utils import ensure_workspace_template
+from src.utils.workspace_utils import prepare_workspace
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.utils.port_manager import PortRole
 
@@ -42,6 +42,7 @@ async def start_chat(
         source_path="/app",
         sandbox_id="somid",
         initial_prompt=query_intent_title,
+        workspace_origin="template",
     )
     workspace = await workspace_repo.create(workspace_obj)
     if not workspace.id:
@@ -50,7 +51,9 @@ async def start_chat(
             detail="Something wrong with the server",
         )
     workspace.source_path = str(config.workspace_base / workspace.id)
-    workspace_root = ensure_workspace_template(workspace.id)
+    workspace_root = await prepare_workspace(current_user, workspace)
+    workspace.source_path = str(workspace_root)
+    await workspace_repo.save(workspace)
 
     allocated = port_manager.allocate_workspace_ports(workspace.id)
     docker_ports = port_manager.to_docker_ports(workspace.id)
@@ -75,7 +78,15 @@ async def start_chat(
 
     workspace.sandbox_id = sandbox_res.id
     await workspace_repo.save(workspace)
-    agent = CloudAgentCore(workspace.id, sandbox_res.id, current_user.id)
+    agent = CloudAgentCore(
+        workspace.id,
+        sandbox_res.id,
+        current_user.id,
+        None,
+        workspace_origin=getattr(workspace, "workspace_origin", "template")
+        or "template",
+    )
+
     res = await agent.run(msg=body.query)
     # agent = CloudAgentCore()
     # agent.run()

@@ -36,6 +36,7 @@ def _doc_to_workspace(doc: dict) -> Workspace:
         github_owner=doc.get("github_owner"),
         github_name=doc.get("github_name"),
         github_auth_source=doc.get("github_auth_source"),
+        workspace_origin=doc.get("workspace_origin") or "template",
         frontend_port=doc.get("frontend_port"),
         backend_port=doc.get("backend_port"),
         preview_port=doc.get("preview_port"),

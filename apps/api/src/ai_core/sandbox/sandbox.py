@@ -1,7 +1,8 @@
 from src.ai_core.sandbox.client import get_sandbox_client
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.utils.config import config
-from src.utils.workspace_utils import ensure_workspace_template
+from pathlib import Path
+
 from docker import DockerClient
 from docker.errors import APIError, ContainerError, NotFound
 from docker.models.containers import Container
@@ -28,8 +29,9 @@ class Sandbox:
                     or "Docker sandbox is not available"
                 }
 
-            # Pre-seed template project files on host immediately
-            ensure_workspace_template(workspace_id)
+            # Callers must prepare files first (prepare_workspace). Only ensure the
+            # mount directory exists so Docker bind-mount succeeds.
+            Path(config.workspace_base / workspace_id).mkdir(parents=True, exist_ok=True)
 
             mount = Mount(
                 target="/app",

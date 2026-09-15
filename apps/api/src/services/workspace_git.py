@@ -13,24 +13,47 @@ class WorkspaceGitService:
     def __init__(self,host_path:Path) -> None:
         self.host_path = host_path
         
-    def _run(self,args:list[str],env:Optional[Dict[str,str]] = None,check:bool=True):
-        if not self.host_path.exists():
-            raise WorkspaceGitError(f"Directory does not exist : {self.host_path}")
-        # Ensure base environment is passed along with custom variables
+    def _run(
+        self,
+        args: list[str],
+        env: Optional[Dict[str, str]] = None,
+        check: bool = True,
+        *,
+        cwd: Path | None = None,
+        use_git_c: bool = True,
+    ):
         run_env = {**os.environ}
         if env:
             run_env.update(env)
-            
-        cmd = ["git","-C",str(self.host_path),"-c",f"core.hooksPath={os.devnull}"] + args
+
+        if use_git_c:
+            if not self.host_path.exists():
+                raise WorkspaceGitError(f"Directory does not exist : {self.host_path}")
+            cmd = [
+                "git",
+                "-C",
+                str(self.host_path),
+                "-c",
+                f"core.hooksPath={os.devnull}",
+                *args,
+            ]
+            run_cwd = None
+        else:
+            # Used by clone: destination may not exist yet; run from parent.
+            run_cwd = cwd or self.host_path.parent
+            run_cwd.mkdir(parents=True, exist_ok=True)
+            cmd = ["git", "-c", f"core.hooksPath={os.devnull}", *args]
+
         try:
             result = subprocess.run(
                 cmd,
+                cwd=str(run_cwd) if run_cwd is not None else None,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
                 env=run_env,
-                check=False
+                check=False,
             )
             if check and result.returncode != 0:
                 raise WorkspaceGitError(
@@ -131,13 +154,20 @@ class WorkspaceGitService:
             if re.search(r"https?://[^/\s]+:[^/\s]+@", content):
                 raise WorkspaceGitError("CRITICAL SECURITY VIOLATION: Auth pattern found inside .git/config file!")
             
-    def _run_with_auth(self,args:List[str],token:str) -> subprocess.CompletedProcess:
+    def _run_with_auth(
+        self,
+        args: List[str],
+        token: str,
+        *,
+        cwd: Path | None = None,
+        use_git_c: bool = True,
+    ) -> subprocess.CompletedProcess:
         is_windows = os.name == "nt"
         askpass_file = None
-        
+
         try:
             if is_windows:
-                fd,path_str = tempfile.mkstemp(prefix="git-askpass-",suffix=".cmd")
+                fd, path_str = tempfile.mkstemp(prefix="git-askpass-", suffix=".cmd")
                 os.close(fd)
                 askpass_file = Path(path_str)
                 askpass_file.write_text(
@@ -148,7 +178,7 @@ class WorkspaceGitService:
                     encoding="utf-8",
                 )
             else:
-                fd,path_str = tempfile.mkstemp(prefix="git-askpass-",suffix=".sh")
+                fd, path_str = tempfile.mkstemp(prefix="git-askpass-", suffix=".sh")
                 os.close(fd)
                 askpass_file = Path(path_str)
                 askpass_file.write_text(
@@ -169,13 +199,21 @@ class WorkspaceGitService:
                 "GIT_CONFIG_COUNT": "1",
                 "GIT_CONFIG_KEY_0": "credential.helper",
                 "GIT_CONFIG_VALUE_0": "",
-            }    
-            result = self._run(args,env=auth_env,check=True)
-            self.assert_clean_remote()
+            }
+            result = self._run(
+                args,
+                env=auth_env,
+                check=True,
+                cwd=cwd,
+                use_git_c=use_git_c,
+            )
+            if self.is_git_repo():
+                self.assert_clean_remote()
             return result
         finally:
             if askpass_file and askpass_file.exists():
                 askpass_file.unlink(missing_ok=True)
+
     def push(self, token: str, remote_name: str = "origin", branch: str = "main") -> None:
         self._run_with_auth(["push", "-u", remote_name, branch], token=token)
 
@@ -184,3 +222,33 @@ class WorkspaceGitService:
 
     def pull(self, token: str, remote_name: str = "origin", branch: str = "main") -> None:
         self._run_with_auth(["pull", remote_name, branch], token=token)
+
+    def clone(
+        self,
+        token: str,
+        remote_url: str,
+        branch: str | None = "main",
+    ) -> None:
+        """Clone into ``self.host_path``. Path must be missing or empty."""
+        clean_url = self._clean_https_clone_url(remote_url)
+        parent = self.host_path.parent
+        parent.mkdir(parents=True, exist_ok=True)
+
+        if self.host_path.exists():
+            if (self.host_path / ".git").exists():
+                raise WorkspaceGitError(
+                    f"Refusing to clone into existing git repo: {self.host_path}"
+                )
+            if any(self.host_path.iterdir()):
+                raise WorkspaceGitError(
+                    f"Refusing to clone into non-empty path: {self.host_path}"
+                )
+            self.host_path.rmdir()
+
+        args = ["clone"]
+        if branch:
+            args.extend(["--branch", branch, "--single-branch"])
+        args.extend([clean_url, str(self.host_path)])
+        self._run_with_auth(args, token, cwd=parent, use_git_c=False)
+        # Defense in depth: remote must stay credential-free.
+        self.set_remote(clean_url)

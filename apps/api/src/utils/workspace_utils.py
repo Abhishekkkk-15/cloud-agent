@@ -1,8 +1,13 @@
+import asyncio
 import logging
-from pathlib import Path
 import shutil
+from pathlib import Path
 
+from src.models.user_model import User
+from src.models.workspace_model import Workspace
+from src.services.workspace_git import WorkspaceGitError, WorkspaceGitService
 from src.utils.config import config
+from src.utils.github_oauth import resolve_github_auth
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +18,62 @@ TEMPLATE_DIR = (
     / "sandbox"
     / "template"
 )
+
+
+def is_empty_dir(p: Path) -> bool:
+    if not p.exists() or not p.is_dir():
+        return True
+    return not any(p.iterdir())
+
+
+def host_path_for_workspace(workspace: Workspace) -> Path:
+    if not workspace.id:
+        raise WorkspaceGitError("workspace.id is required to prepare files")
+    return config.workspace_base / workspace.id
+
+
+async def prepare_workspace(user: User, workspace: Workspace) -> Path:
+    """Ensure host mount files exist: seed template or clone imported repo.
+
+    Never seeds the Cloud Agent template into a github_import workspace.
+    """
+    host_path = host_path_for_workspace(workspace)
+
+    if workspace.workspace_origin == "template":
+        ensure_workspace_template(workspace.id)  # type: ignore[arg-type]
+        WorkspaceGitService(host_path).init()
+        return host_path
+
+    if workspace.workspace_origin == "github_import":
+        if not workspace.github_clone_url:
+            raise WorkspaceGitError("github clone url missing")
+
+        # Imports always use the user's GitHub credentials.
+        if workspace.github_auth_source is None:
+            workspace.github_auth_source = "user"
+
+        auth = await resolve_github_auth(user, workspace)
+        git = WorkspaceGitService(host_path)
+
+        if git.is_git_repo():
+            logger.info("Import workspace %s already cloned at %s", workspace.id, host_path)
+            return host_path
+
+        if host_path.exists() and not is_empty_dir(host_path):
+            raise WorkspaceGitError(
+                f"Import path is non-empty and not a git repo: {host_path}"
+            )
+
+        branch = workspace.github_default_branch or "main"
+        await asyncio.to_thread(
+            git.clone,
+            auth.token,
+            workspace.github_clone_url,
+            branch,
+        )
+        return host_path
+
+    raise WorkspaceGitError(f"Unknown workspace_origin: {workspace.workspace_origin!r}")
 
 
 def ensure_workspace_template(workspace_id: str) -> Path:
