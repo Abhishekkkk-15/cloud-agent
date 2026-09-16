@@ -129,6 +129,9 @@ class SessionRepository:
         result = await self.collection.delete_one(_session_id_query(session_id))
         return result.deleted_count > 0
 
+    async def count_total(self, filter_query: dict[str, Any] | None = None) -> int:
+        return await self.collection.count_documents(filter_query or {})
+
     async def delete_by_workspace(self, workspace_id: str) -> int:
         query_ids: list = [workspace_id]
         if ObjectId.is_valid(workspace_id):

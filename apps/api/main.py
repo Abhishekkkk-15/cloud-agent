@@ -14,6 +14,7 @@ from src.ws.chat_ws import router as WSRouter
 from src.routes.preview_route import router as PreviewRouter
 from src.routes.model_route import router as ModelRouter
 from src.routes.github_route import router as GitHubRouter
+from src.routes.admin_route import router as AdminRouter
 
 from src.middleware.subdomain_proxy_middleware import SubdomainProxyMiddleware
 
@@ -55,6 +56,7 @@ app.include_router(WSRouter)
 app.include_router(PreviewRouter)  
 app.include_router(ModelRouter)
 app.include_router(GitHubRouter)
+app.include_router(AdminRouter)
  
 print("STARTED LISTNINIG")
     

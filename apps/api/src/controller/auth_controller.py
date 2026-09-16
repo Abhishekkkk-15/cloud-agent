@@ -31,6 +31,8 @@ def to_public_user(user: User) -> PublicUser:
         username=user.username,
         avatarUrl=user.avatar_url,
         plan=user.plan,
+        role=user.role,
+        isActive=user.is_active,
         githubConnected=bool(user.github_access_token_enc),
         githubLogin=user.github_login,
     )
@@ -82,6 +84,7 @@ async def google_login(body: GoogleAuthRequest, repo: UserRepo) -> JSONResponse:
             google_id=google_id,
             avatar_url=avatar_url,
             plan="free",
+            role="user",
             is_active=True,
             is_verified=True,
             created_at=now,

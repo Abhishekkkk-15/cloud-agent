@@ -13,6 +13,7 @@ class User(BaseModel):
     google_id: str | None = None
     avatar_url: str | None = None
     plan: Literal["free", "hacker", "pro"] = "free"
+    role: Literal["user", "admin"] = "user"
     is_active: bool = True
     is_verified: bool = False
     github_id: str | None = None

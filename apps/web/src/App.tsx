@@ -4,11 +4,13 @@ import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute"
+import { AdminProtectedRoute } from "@/components/auth/AdminProtectedRoute"
 import { LandingPage } from "@/pages/LandingPage"
 import { LoginPage } from "@/pages/LoginPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { SettingsPage } from "@/pages/SettingsPage"
 import { WorkspacePage } from "@/pages/WorkspacePage"
+import { AdminPage } from "@/pages/AdminPage"
 import { useAuthStore } from "@/stores/auth-store"
 import { getSubdomain } from "./lib/preview_subdomain"
 export function App() {
@@ -47,6 +49,14 @@ export function App() {
               <ProtectedRoute>
                 <WorkspacePage />
               </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <AdminProtectedRoute>
+                <AdminPage />
+              </AdminProtectedRoute>
             }
           />
           <Route path="*" element={<Navigate to="/" replace />} />

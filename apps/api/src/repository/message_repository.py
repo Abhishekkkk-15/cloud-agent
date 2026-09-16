@@ -92,6 +92,9 @@ class MessageRepository:
 
         return result.deleted_count
 
+    async def count_total(self, filter_query: dict[str, Any] | None = None) -> int:
+        return await self.collection.count_documents(filter_query or {})
+
 async def get_message_repo(db: Annotated[Any, Depends(get_db)]) -> MessageRepository:
     return MessageRepository(db["messages"])
 
