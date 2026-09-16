@@ -47,6 +47,8 @@ class Config:
         self.intent_base_url= os.getenv("INTENT_BASE_URL") or ""
         self.intent_model_key= os.getenv("INTENT_MODEL_KEY") or ""
         self.preview_base_domain = os.getenv("PREVIEW_BASE_DOMAIN") or "lvh.me"
+        self.preview_scheme = os.getenv("PREVIEW_SCHEME")
+        self.preview_port = os.getenv("PREVIEW_PORT")
         self.workspace_base =Path(
     os.getenv(
         "WORKSPACE_BASE",
@@ -83,9 +85,24 @@ config = Config()
 
 
 def build_preview_url(workspace_id: str, is_backend: bool = False) -> str:
-    base_domain = getattr(config, "preview_base_domain", "lvh.me")
-    port = getattr(config, "port", 8000)
-    port_str = f":{port}" if port not in (80, 443) else ""
-    scheme = "https" if port == 443 else "http"
+    base_domain = getattr(config, "preview_base_domain", "lvh.me").strip()
+    is_local = base_domain in ("lvh.me", "localhost", "127.0.0.1")
+
+    explicit_scheme = getattr(config, "preview_scheme", None)
+    if explicit_scheme:
+        scheme = explicit_scheme.strip().rstrip(":/")
+    else:
+        scheme = "http" if is_local else "https"
+
+    explicit_port = getattr(config, "preview_port", None)
+    if explicit_port is not None and str(explicit_port).strip() != "":
+        port_val = str(explicit_port).strip()
+        port_str = f":{port_val}" if port_val not in ("80", "443") else ""
+    elif is_local:
+        port = getattr(config, "port", 8000)
+        port_str = f":{port}" if port not in (80, 443) else ""
+    else:
+        port_str = ""
+
     prefix = f"{workspace_id}-api" if is_backend else workspace_id
     return f"{scheme}://{prefix}.{base_domain}{port_str}"

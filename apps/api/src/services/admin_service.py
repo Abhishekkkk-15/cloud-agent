@@ -274,6 +274,7 @@ class AdminService:
             "docker_wsl_ip": os.getenv("DOCKER_WSL_IP", "Not configured"),
             "sandbox_mount": os.getenv("SANDBOX_MOUNT", "Not configured"),
             "database_name": os.getenv("DATABASE_NAME", "cloud-agent"),
+            "preview_base_domain": os.getenv("PREVIEW_BASE_DOMAIN", "lvh.me"),
         }
 
         # System resource telemetry (CPU, RAM, Disk)

@@ -6,6 +6,7 @@ from src.dependency.auth_dependency import CurrentUser
 from src.dependency.port_depemdency import PortRepo
 from src.dependency.sandbox_dependency import SandboxRepo
 from src.repository.workspace_repository import WorkspaceRepo
+from src.utils.config import build_preview_url
 from src.utils.port_manager import PortRole
 
 
@@ -47,8 +48,8 @@ async def start_preview(
         workspace.frontend_port = frontend.host_port
         workspace.backend_port = backend.host_port
         workspace.preview_port = frontend.host_port
-        workspace.preview_url = frontend.url
-        workspace.backend_url = backend.url
+        workspace.preview_url = build_preview_url(workspace_id, is_backend=False)
+        workspace.backend_url = build_preview_url(workspace_id, is_backend=True)
 
     frontend_host = workspace.frontend_port
     backend_host = workspace.backend_port
@@ -62,9 +63,9 @@ async def start_preview(
     sandbox_manager.run_exec(sandbox_id=sandbox.id, cmd=front_cmd)
 
     workspace.preview_port = frontend_host
-    workspace.preview_url = f"http://127.0.0.1:{frontend_host}"
+    workspace.preview_url = build_preview_url(workspace_id, is_backend=False)
     workspace.backend_url = (
-        f"http://127.0.0.1:{backend_host}" if backend_host else None
+        build_preview_url(workspace_id, is_backend=True) if backend_host else None
     )
     workspace.preview_status = "started"
     await repo.save(workspace)

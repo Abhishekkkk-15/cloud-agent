@@ -323,7 +323,12 @@ export function AdminSystemTab({ stats, loading, onRefresh }: Props) {
             </div>
             <div className="flex justify-between py-1.5">
               <span className="text-muted-foreground">Wildcard Domain Proxy:</span>
-              <span className="font-mono">*.lvh.me:8000</span>
+              <span className="font-mono">
+                {(() => {
+                  const domain = (stats?.environment?.preview_base_domain as string) || "lvh.me"
+                  return domain === "lvh.me" ? `*.${domain}:8000` : `*.${domain}`
+                })()}
+              </span>
             </div>
           </CardContent>
         </Card>

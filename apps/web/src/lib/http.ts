@@ -32,7 +32,7 @@ export function getApiErrorMessage(error: unknown, fallback = "Request failed") 
   return fallback
 }
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
+export const API_BASE_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "")
 
 export const http = axios.create({
   baseURL: API_BASE_URL || "/api",

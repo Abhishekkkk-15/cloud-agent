@@ -2,7 +2,7 @@ import { z } from "zod"
 
 import { defaultFileTree, defaultTerminalBoot } from "@/data/stubs"
 import { messagesToThread } from "@/lib/session-messages"
-import { clearTokens, getAccessToken, http } from "@/lib/http"
+import { API_BASE_URL, clearTokens, getAccessToken, http } from "@/lib/http"
 import {
   createWorkspaceRequestSchema,
   createWorkspaceResponseSchema,
@@ -223,7 +223,8 @@ export async function runCommand(command: string): Promise<TerminalLine[]> {
 //   return response.data
 // }
 export function preview(workspaceId: string): string {
-  return `http://localhost:8000/workspaces/preview/${workspaceId}/`
+  const base = API_BASE_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000")
+  return `${base}/workspaces/preview/${workspaceId}/`
 }
 
 export async function listModels(useCase?: string): Promise<LLMModel[]> {

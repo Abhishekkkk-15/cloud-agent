@@ -54,14 +54,34 @@ function flattenFiles(nodes: FileNode[], acc: FileNode[] = []): FileNode[] {
   return acc
 }
 export function getPreviewUrl(workspaceId: string, _port?: number): string {
-  // Uses wildcard domain lvh.me routed through the central FastAPI proxy
+  // Uses wildcard domain (e.g. lvh.me locally or production domain) routed through proxy
   const baseDomain = import.meta.env.VITE_PREVIEW_DOMAIN || "lvh.me"
-  const proxyPort = import.meta.env.VITE_PREVIEW_PORT || "8000"
-  const portSuffix =
-    proxyPort && proxyPort !== "80" && proxyPort !== "443"
-      ? `:${proxyPort}`
-      : ""
-  return `http://${workspaceId}.${baseDomain}${portSuffix}`
+  const proxyPort = import.meta.env.VITE_PREVIEW_PORT
+  const isLocal =
+    baseDomain === "lvh.me" ||
+    baseDomain === "localhost" ||
+    baseDomain === "127.0.0.1"
+
+  let scheme = import.meta.env.VITE_PREVIEW_SCHEME
+  if (!scheme) {
+    if (typeof window !== "undefined" && window.location.protocol) {
+      scheme = window.location.protocol.replace(":", "")
+    } else {
+      scheme = isLocal ? "http" : "https"
+    }
+  }
+
+  let portSuffix = ""
+  if (proxyPort !== undefined && proxyPort !== null && String(proxyPort).trim() !== "") {
+    const p = String(proxyPort).trim()
+    if (p !== "80" && p !== "443") {
+      portSuffix = `:${p}`
+    }
+  } else if (isLocal) {
+    portSuffix = ":8000"
+  }
+
+  return `${scheme}://${workspaceId}.${baseDomain}${portSuffix}`
 }
 function updateFileContent(
   nodes: FileNode[],
