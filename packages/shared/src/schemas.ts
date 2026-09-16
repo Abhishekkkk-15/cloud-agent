@@ -8,6 +8,8 @@ export const userSchema = z.object({
   username: z.string(),
   avatarUrl: z.string().nullable(),
   plan: z.enum(["free", "hacker", "pro"]),
+  role: z.enum(["user", "admin"]).default("user"),
+  isActive: z.boolean().default(true).optional(),
   githubConnected: z.boolean().default(false),
   githubLogin: z.string().nullable().default(null),
 });
@@ -329,4 +331,135 @@ export type GitHubReposResponse = z.infer<typeof githubReposResponseSchema>;
 export type ImportGithubWorkspaceRequest = z.infer<
   typeof importGithubWorkspaceRequestSchema
 >;
+
+/** Admin System Health & Statistics */
+export const adminDockerHealthSchema = z.object({
+  status: z.enum(["online", "offline"]),
+  version: z.string().nullable().optional(),
+  containers_count: z.number().default(0),
+  running_containers_count: z.number().default(0),
+  error: z.string().nullable().optional(),
+});
+
+export const adminMongoHealthSchema = z.object({
+  status: z.enum(["connected", "disconnected"]),
+  ping_ms: z.number().default(0),
+  error: z.string().nullable().optional(),
+});
+
+export const adminSystemStatsSchema = z.object({
+  total_users: z.number().default(0),
+  total_workspaces: z.number().default(0),
+  total_sessions: z.number().default(0),
+  total_messages: z.number().default(0),
+  total_models: z.number().default(0),
+  active_models: z.number().default(0),
+  docker: adminDockerHealthSchema,
+  mongo: adminMongoHealthSchema,
+  environment: z.record(z.string(), z.unknown()).default({}),
+});
+
+export type AdminSystemStats = z.infer<typeof adminSystemStatsSchema>;
+
+/** Admin Docker Container */
+export const adminContainerSchema = z.object({
+  id: z.string(),
+  short_id: z.string(),
+  name: z.string(),
+  image: z.string(),
+  status: z.string(),
+  state: z.string().optional(),
+  created: z.string().nullable().optional(),
+  ports: z.record(z.string(), z.union([z.number(), z.string(), z.array(z.unknown())])).default({}),
+  workspace_id: z.string().nullable().optional(),
+});
+
+export type AdminContainer = z.infer<typeof adminContainerSchema>;
+
+export const adminContainerListResponseSchema = z.object({
+  docker_available: z.boolean(),
+  docker_error: z.string().nullable().optional(),
+  containers: z.array(adminContainerSchema),
+});
+
+export type AdminContainerListResponse = z.infer<
+  typeof adminContainerListResponseSchema
+>;
+
+export const adminContainerLogsSchema = z.object({
+  container_id: z.string(),
+  logs: z.string(),
+});
+
+export type AdminContainerLogs = z.infer<typeof adminContainerLogsSchema>;
+
+/** Admin User Management */
+export const adminUserSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  username: z.string(),
+  avatarUrl: z.string().nullable().optional(),
+  plan: z.enum(["free", "hacker", "pro"]),
+  role: z.enum(["user", "admin"]),
+  is_active: z.boolean().default(true),
+  is_verified: z.boolean().default(false),
+  githubConnected: z.boolean().default(false),
+  githubLogin: z.string().nullable().optional(),
+  created_at: z.string().nullable().optional(),
+  workspaces_count: z.number().default(0),
+  sessions_count: z.number().default(0),
+});
+
+export type AdminUser = z.infer<typeof adminUserSchema>;
+
+export const adminUserListResponseSchema = z.object({
+  users: z.array(adminUserSchema),
+  total: z.number(),
+});
+
+export type AdminUserListResponse = z.infer<typeof adminUserListResponseSchema>;
+
+export const adminUpdateUserRoleRequestSchema = z.object({
+  role: z.enum(["user", "admin"]),
+});
+
+export const adminUpdateUserPlanRequestSchema = z.object({
+  plan: z.enum(["free", "hacker", "pro"]),
+});
+
+export const adminUpdateUserStatusRequestSchema = z.object({
+  is_active: z.boolean(),
+});
+
+/** Admin Workspace Management */
+export const adminWorkspaceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  user_id: z.string(),
+  user_name: z.string().optional(),
+  user_email: z.string().optional(),
+  target_path: z.string(),
+  sandbox_id: z.string().nullable().optional(),
+  status: workspaceStatusSchema,
+  frontend_port: z.number().nullable().optional(),
+  backend_port: z.number().nullable().optional(),
+  preview_url: z.string().nullable().optional(),
+  github_repo_full_name: z.string().nullable().optional(),
+  workspace_origin: z.string().optional(),
+  created_at: z.string().nullable().optional(),
+  sessions_count: z.number().default(0),
+});
+
+export type AdminWorkspace = z.infer<typeof adminWorkspaceSchema>;
+
+export const adminWorkspaceListResponseSchema = z.object({
+  workspaces: z.array(adminWorkspaceSchema),
+  total: z.number(),
+});
+
+export type AdminWorkspaceListResponse = z.infer<
+  typeof adminWorkspaceListResponseSchema
+>;
+
 

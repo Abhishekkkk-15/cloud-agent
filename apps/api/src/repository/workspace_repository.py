@@ -78,6 +78,32 @@ class WorkspaceRepository:
         )
         return workspace
 
+    async def find_all_admin(
+        self,
+        search: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+        skip: int = 0,
+    ) -> list[Workspace]:
+        filter_query: dict[str, Any] = {}
+        if search:
+            regex = {"$regex": search, "$options": "i"}
+            filter_query["$or"] = [
+                {"title": regex},
+                {"target_path": regex},
+                {"user_id": regex},
+                {"sandbox_id": regex},
+            ]
+        if status:
+            filter_query["status"] = status
+
+        cursor = self.collection.find(filter_query).sort("created_at", -1).skip(skip).limit(limit)
+        docs = await cursor.to_list(length=None)
+        return [_doc_to_workspace(doc) for doc in docs]
+
+    async def count_total(self, filter_query: dict[str, Any] | None = None) -> int:
+        return await self.collection.count_documents(filter_query or {})
+
     async def delete(self, workspace_id: str) -> bool:
         if not ObjectId.is_valid(workspace_id):
             return False

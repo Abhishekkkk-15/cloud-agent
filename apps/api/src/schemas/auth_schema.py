@@ -18,6 +18,8 @@ class PublicUser(BaseModel):
     username: str
     avatarUrl: str | None = None
     plan: Literal["free", "hacker", "pro"] = "free"
+    role: Literal["user", "admin"] = "user"
+    isActive: bool = True
     githubConnected: bool = False
     githubLogin: str | None = None
 

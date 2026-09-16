@@ -16,6 +16,16 @@ import {
   githubStatusResponseSchema,
   githubReposResponseSchema,
   importGithubWorkspaceRequestSchema,
+  adminContainerListResponseSchema,
+  adminContainerLogsSchema,
+  adminSystemStatsSchema,
+  adminUserListResponseSchema,
+  adminWorkspaceListResponseSchema,
+  type AdminContainerListResponse,
+  type AdminContainerLogs,
+  type AdminSystemStats,
+  type AdminUserListResponse,
+  type AdminWorkspaceListResponse,
   type LLMModel,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
@@ -249,4 +259,140 @@ export async function importGithubWorkspace(
   fileTrees[created.workspace_id] = [...defaultFileTree]
   return created
 }
+
+// ---------------- Admin API ----------------
+
+export async function getAdminStats(): Promise<AdminSystemStats> {
+  const { data } = await http.get("/admin/stats")
+  return adminSystemStatsSchema.parse(data)
+}
+
+export async function getAdminContainers(): Promise<AdminContainerListResponse> {
+  const { data } = await http.get("/admin/containers")
+  return adminContainerListResponseSchema.parse(data)
+}
+
+export async function startAdminContainer(containerId: string) {
+  const { data } = await http.post(`/admin/containers/${containerId}/start`)
+  return data
+}
+
+export async function stopAdminContainer(containerId: string) {
+  const { data } = await http.post(`/admin/containers/${containerId}/stop`)
+  return data
+}
+
+export async function restartAdminContainer(containerId: string) {
+  const { data } = await http.post(`/admin/containers/${containerId}/restart`)
+  return data
+}
+
+export async function removeAdminContainer(containerId: string) {
+  const { data } = await http.delete(`/admin/containers/${containerId}`)
+  return data
+}
+
+export async function getAdminContainerLogs(
+  containerId: string,
+  tail = 150
+): Promise<AdminContainerLogs> {
+  const { data } = await http.get(`/admin/containers/${containerId}/logs`, {
+    params: { tail },
+  })
+  return adminContainerLogsSchema.parse(data)
+}
+
+export async function pruneAdminContainers() {
+  const { data } = await http.post("/admin/containers/prune")
+  return data
+}
+
+export async function getAdminUsers(params?: {
+  search?: string
+  role?: string
+  plan?: string
+  limit?: number
+  skip?: number
+}): Promise<AdminUserListResponse> {
+  const { data } = await http.get("/admin/users", { params })
+  return adminUserListResponseSchema.parse(data)
+}
+
+export async function updateAdminUserRole(
+  userId: string,
+  role: "user" | "admin"
+) {
+  const { data } = await http.patch(`/admin/users/${userId}/role`, { role })
+  return data
+}
+
+export async function updateAdminUserPlan(
+  userId: string,
+  plan: "free" | "hacker" | "pro"
+) {
+  const { data } = await http.patch(`/admin/users/${userId}/plan`, { plan })
+  return data
+}
+
+export async function updateAdminUserStatus(userId: string, isActive: boolean) {
+  const { data } = await http.patch(`/admin/users/${userId}/status`, {
+    is_active: isActive,
+  })
+  return data
+}
+
+export async function deleteAdminUser(userId: string) {
+  const { data } = await http.delete(`/admin/users/${userId}`)
+  return data
+}
+
+export async function getAdminWorkspaces(params?: {
+  search?: string
+  status?: string
+  limit?: number
+  skip?: number
+}): Promise<AdminWorkspaceListResponse> {
+  const { data } = await http.get("/admin/workspaces", { params })
+  return adminWorkspaceListResponseSchema.parse(data)
+}
+
+export async function stopAdminWorkspace(workspaceId: string) {
+  const { data } = await http.post(`/admin/workspaces/${workspaceId}/stop`)
+  return data
+}
+
+export async function deleteAdminWorkspace(workspaceId: string) {
+  const { data } = await http.delete(`/admin/workspaces/${workspaceId}`)
+  return data
+}
+
+export async function getAllModels(): Promise<LLMModel[]> {
+  const { data } = await http.get("/models/all")
+  return z.array(llmModelSchema).parse(data)
+}
+
+export async function createModel(
+  body: Record<string, unknown>
+): Promise<LLMModel> {
+  const { data } = await http.post("/models", body)
+  return llmModelSchema.parse(data)
+}
+
+export async function updateModel(
+  modelId: string,
+  body: Record<string, unknown>
+): Promise<LLMModel> {
+  const { data } = await http.put(`/models/${modelId}`, body)
+  return llmModelSchema.parse(data)
+}
+
+export async function deleteModel(modelId: string): Promise<void> {
+  await http.delete(`/models/${modelId}`)
+}
+
+export async function seedDefaultModels(): Promise<{ seeded: number }> {
+  const { data } = await http.post("/models/seed")
+  return data
+}
+
 
