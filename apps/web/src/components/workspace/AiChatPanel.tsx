@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { AgentEventTurn } from "@/components/workspace/AgentEventTurn"
 import { ChatAttachmentList } from "@/components/workspace/ChatAttachmentList"
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown"
+import { ContextUsageIndicator } from "@/components/workspace/ContextUsageIndicator"
 import { ModelAndEffortSelector } from "@/components/workspace/ModelAndEffortSelector"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -255,9 +256,10 @@ export function AiChatPanel() {
             }}
           />
           <div className="flex items-center justify-between gap-2 pt-1">
-            {/* Left: Model & Effort hover selector */}
-            <div className="flex items-center gap-1">
+            {/* Left: Model & Effort hover selector & Context Window Badge */}
+            <div className="flex items-center gap-1.5 overflow-hidden">
               <ModelAndEffortSelector disabled={busy} />
+              <ContextUsageIndicator />
             </div>
 
             {/* Right: Attach & Send/Stop action buttons */}

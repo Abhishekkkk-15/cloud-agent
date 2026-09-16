@@ -184,6 +184,14 @@ export const messageSchema = z.object({
 export const sessionDetailResponseSchema = z.object({
   session: sessionSchema,
   messages: z.array(messageSchema),
+  context_usage: z
+    .object({
+      filled_tokens: z.number(),
+      total_tokens: z.number(),
+      remaining_tokens: z.number(),
+      percent_used: z.number(),
+    })
+    .optional(),
 });
 
 export const sandboxRunResultSchema = z.object({

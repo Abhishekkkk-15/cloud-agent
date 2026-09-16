@@ -3,11 +3,12 @@ import { toast } from "sonner"
 
 import {
   getFileTree,
-  getSessionMessages,
+  getSessionDetail,
   getTerminalBoot,
   getWorkspace,
   runCommand,
 } from "@/lib/api"
+import { messagesToThread } from "@/lib/session-messages"
 import { get_wehsocket, reset_websocket } from "@/lib/websocket"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 import { appendAgentEvent } from "@/lib/agent-events"
@@ -152,6 +153,12 @@ type WorkspaceState = {
   toggleChatCollapsed: () => void
   previewKey: number
   reloadPreview: () => void
+  contextUsage: {
+    filled_tokens: number
+    total_tokens: number
+    remaining_tokens: number
+    percent_used: number
+  } | null
 }
 
 let chatAbortController: AbortController | null = null
@@ -451,6 +458,52 @@ function ensureControlEventListener(
     }
   }
 
+  const onContextUsage = (raw: unknown) => {
+    const data = raw as {
+      filled_tokens?: number
+      total_tokens?: number
+      remaining_tokens?: number
+      percent_used?: number
+    }
+    if (data && typeof data.filled_tokens === "number") {
+      set({
+        contextUsage: {
+          filled_tokens: data.filled_tokens,
+          total_tokens: data.total_tokens || 128000,
+          remaining_tokens: data.remaining_tokens || 0,
+          percent_used: data.percent_used || 0,
+        },
+      })
+    }
+  }
+
+  const onAgentUsage = (raw: unknown) => {
+    const data = raw as {
+      usage?: {
+        context_tokens?: number
+        context_window?: number
+        context_percent?: number
+      }
+      context_tokens?: number
+      context_window?: number
+      context_percent?: number
+    }
+    const usage = data?.usage || data
+    if (usage && typeof usage.context_tokens === "number") {
+      const win = usage.context_window || 128000
+      set({
+        contextUsage: {
+          filled_tokens: usage.context_tokens,
+          total_tokens: win,
+          remaining_tokens: Math.max(0, win - usage.context_tokens),
+          percent_used:
+            usage.context_percent ??
+            Number(((usage.context_tokens / win) * 100).toFixed(2)),
+        },
+      })
+    }
+  }
+
   const unsubs = [
     ws.subscribe("session:create", onSessionCreate),
     ws.subscribe("agent:busy", onBusy),
@@ -458,6 +511,8 @@ function ensureControlEventListener(
     ws.subscribe("github:sync", onGithubSync),
     ws.subscribe("agent:budget_exceeded", onBudgetExceeded),
     ws.subscribe("agent:budget_warning", onBudgetWarning),
+    ws.subscribe("agent:context_usage", onContextUsage),
+    ws.subscribe("agent:usage", onAgentUsage),
   ]
   controlEventUnsubscribe = () => {
     unsubs.forEach((u) => u())
@@ -705,6 +760,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       },
     }))
   },
+  contextUsage: null,
   selectedModel:
     typeof window !== "undefined"
       ? localStorage.getItem("ca_selected_model") || "gpt-5.6-luna"
@@ -830,9 +886,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         : (sessionId ?? workspaceDetail.sessions[0]?.id ?? null)
 
       let chatMessages: ThreadMessage[] = []
+      let initialContextUsage: WorkspaceState["contextUsage"] = null
       if (resolvedSessionId) {
         try {
-          chatMessages = await getSessionMessages(resolvedSessionId)
+          const detail = await getSessionDetail(resolvedSessionId)
+          chatMessages = messagesToThread(detail.messages, detail.session)
+          if (detail.context_usage) {
+            initialContextUsage = detail.context_usage
+          }
         } catch {
           chatMessages = []
         }
@@ -845,6 +906,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         files,
         terminalLines,
         chatMessages,
+        contextUsage: initialContextUsage,
         openFileIds: firstFile ? [firstFile.id] : [],
         activeFileId: firstFile?.id ?? null,
         loading: false,

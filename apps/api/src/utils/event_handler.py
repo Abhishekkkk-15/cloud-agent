@@ -181,6 +181,9 @@ def event_handler(event: AgentEvent) -> WsEvent:
                 "completion_tokens": data.get("completion_tokens"),
                 "total_tokens": data.get("total_tokens"),
                 "estimated_cost_usd": data.get("estimated_cost_usd"),
+                "context_tokens": data.get("context_tokens"),
+                "context_window": data.get("context_window"),
+                "context_percent": data.get("context_percent"),
             },
         )
 

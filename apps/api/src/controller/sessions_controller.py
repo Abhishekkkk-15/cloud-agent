@@ -28,9 +28,27 @@ async def get_session(
         )
 
     messages = await message_repo.find_by_session(session_id)
+    model_window = 128000
+    if messages:
+        active_msgs = messages[session.compacted_until:] if session.compacted_until < len(messages) else messages
+        comp_summary_tokens = len(session.compaction_summary.split()) * 2 if session.compaction_summary else 0
+        active_words = sum(len((m.content or "").split()) for m in active_msgs)
+        msg_tokens = int(active_words * 1.3)
+        filled = min(model_window, max(0, 350 + comp_summary_tokens + msg_tokens))
+    else:
+        filled = 0
+
+    context_usage = {
+        "filled_tokens": filled,
+        "total_tokens": model_window,
+        "remaining_tokens": max(0, model_window - filled),
+        "percent_used": round((filled / model_window) * 100, 2),
+    }
+
     return {
         "session": session.model_dump(by_alias=True),
         "messages": [message.model_dump() for message in messages],
+        "context_usage": context_usage,
     }
 
 

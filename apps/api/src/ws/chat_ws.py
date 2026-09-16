@@ -374,10 +374,12 @@ async def websocket_endpoint(
 
                     if cost_val <= 0.0 and (p_tok > 0 or c_tok > 0):
                         db_model = await model_repo.find_by_model_id(active_model)
-                        if db_model:
-                            in_rate = getattr(db_model, "input_price_per_mtok", 0.0) or 0.0
-                            out_rate = getattr(db_model, "output_price_per_mtok", 0.0) or 0.0
-                            cost_val = (p_tok * in_rate / 1_000_000.0) + (c_tok * out_rate / 1_000_000.0)
+                        in_rate = (getattr(db_model, "input_price_per_mtok", 0.0) or 0.0) if db_model else 0.0
+                        out_rate = (getattr(db_model, "output_price_per_mtok", 0.0) or 0.0) if db_model else 0.0
+                        if in_rate <= 0.0 and out_rate <= 0.0:
+                            in_rate = 2.0
+                            out_rate = 8.0
+                        cost_val = (p_tok * in_rate / 1_000_000.0) + (c_tok * out_rate / 1_000_000.0)
 
                     await usage_repo.record_usage(
                         user_id=user.id,
@@ -672,6 +674,20 @@ async def websocket_endpoint(
                     user_query=query_text,
                     agent_summary=getattr(run_result, "text", "") or "",
                 )
+
+            # Emit real-time context window usage breakdown to client
+            if agent:
+                try:
+                    ctx_usage = agent.get_context_window_usage()
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder({
+                            "type": "agent:context_usage",
+                            "data": ctx_usage,
+                        }),
+                    )
+                except Exception as ctx_err:
+                    print(f"[chat_ws] failed to broadcast context usage: {ctx_err}")
 
         async def run_agent_task(user_query) -> None:
             try:

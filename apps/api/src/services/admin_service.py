@@ -395,6 +395,7 @@ class AdminService:
         user_repo: UserRepository,
     ) -> dict[str, Any]:
         period = current_period_str()
+        await usage_repo.sync_from_sessions(period)
         days_left = days_left_in_month()
         plan_budgets = await settings_repo.get_plan_budgets()
         platform_usage = await usage_repo.get_platform_total_usage(period)

@@ -114,6 +114,7 @@ export async function getSessionDetail(
   return {
     session: parsed.session,
     messages: parsed.messages,
+    context_usage: parsed.context_usage,
   }
 }
 

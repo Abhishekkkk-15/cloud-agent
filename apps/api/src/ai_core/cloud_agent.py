@@ -387,6 +387,13 @@ class CloudAgentCore:
     def abort(self):
         self.client.abort()
 
+    def get_context_window_usage(self, model_name: str | None = None) -> dict[str, Any]:
+        return self.client.get_context_window_usage(model_name)
+
+    @property
+    def filled_context_tokens(self) -> int:
+        return self.client.filled_context_tokens
+
     async def stream(self, msg: str):
         async for event in self.client.stream(msg):
             print(event.type.value, event.data)
