@@ -23,6 +23,8 @@ import {
   adminWorkspaceListResponseSchema,
   adminAgentConfigSchema,
   adminSandboxConfigSchema,
+  adminCostAnalyticsSchema,
+  planBudgetConfigSchema,
   type AdminContainerListResponse,
   type AdminContainerLogs,
   type AdminSystemStats,
@@ -30,6 +32,8 @@ import {
   type AdminWorkspaceListResponse,
   type AdminAgentConfig,
   type AdminSandboxConfig,
+  type AdminCostAnalytics,
+  type PlanBudgetConfig,
   type LLMModel,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
@@ -423,6 +427,19 @@ export async function updateAdminSandboxConfig(
   const { data } = await http.put("/admin/sandbox-config", body)
   return adminSandboxConfigSchema.parse(data)
 }
+
+export async function getAdminCostAnalytics(): Promise<AdminCostAnalytics> {
+  const { data } = await http.get("/admin/costs")
+  return adminCostAnalyticsSchema.parse(data)
+}
+
+export async function updateAdminPlanBudgets(
+  body: Partial<PlanBudgetConfig>
+): Promise<PlanBudgetConfig> {
+  const { data } = await http.put("/admin/plan-budgets", body)
+  return planBudgetConfigSchema.parse(data)
+}
+
 
 
 

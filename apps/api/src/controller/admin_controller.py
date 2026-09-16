@@ -7,11 +7,14 @@ from src.repository.message_repository import MessageRepo
 from src.repository.model_repository import ModelRepo
 from src.repository.session_repository import SessionRepo
 from src.repository.settings_repository import SettingsRepo
+from src.repository.usage_repository import UsageRepo
 from src.repository.user_repository import UserRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.schemas.admin_schema import (
     AdminAgentConfigResponse,
+    AdminCostAnalyticsResponse,
     AdminSandboxConfigResponse,
+    AdminUpdatePlanBudgetsRequest,
     AdminUpdateSandboxConfigRequest,
     AdminContainerListResponse,
     AdminContainerLogsResponse,
@@ -24,6 +27,7 @@ from src.schemas.admin_schema import (
     AdminUserResponse,
     AdminWorkspaceListResponse,
     AdminWorkspaceResponse,
+    PlanBudgetConfig,
 )
 from src.services.admin_service import AdminService
 from src.utils.db_client import get_db
@@ -369,5 +373,26 @@ async def update_sandbox_config(
     updates = body.model_dump(exclude_unset=True)
     updated = await AdminService.update_sandbox_config(settings_repo, updates)
     return AdminSandboxConfigResponse(**updated)
+
+
+async def get_cost_analytics(
+    admin: CurrentAdmin,
+    usage_repo: UsageRepo,
+    settings_repo: SettingsRepo,
+    user_repo: UserRepo,
+) -> AdminCostAnalyticsResponse:
+    data = await AdminService.get_cost_analytics(usage_repo, settings_repo, user_repo)
+    return AdminCostAnalyticsResponse(**data)
+
+
+async def update_plan_budgets(
+    body: AdminUpdatePlanBudgetsRequest,
+    admin: CurrentAdmin,
+    settings_repo: SettingsRepo,
+) -> PlanBudgetConfig:
+    updates = body.model_dump(exclude_unset=True)
+    updated = await AdminService.update_plan_budgets(settings_repo, updates)
+    return PlanBudgetConfig(**updated)
+
 
 

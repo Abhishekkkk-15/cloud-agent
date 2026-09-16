@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import {
   BotIcon,
   BoxIcon,
+  CoinsIcon,
   CpuIcon,
   FolderGit2Icon,
   LayoutDashboardIcon,
@@ -13,6 +14,7 @@ import {
 
 import { AdminAgentTab } from "@/components/admin/AdminAgentTab"
 import { AdminContainersTab } from "@/components/admin/AdminContainersTab"
+import { AdminCostsTab } from "@/components/admin/AdminCostsTab"
 import { AdminModelsTab } from "@/components/admin/AdminModelsTab"
 import { AdminOverviewTab } from "@/components/admin/AdminOverviewTab"
 import { AdminSystemTab } from "@/components/admin/AdminSystemTab"
@@ -118,6 +120,10 @@ export function AdminPage() {
                   <BotIcon className="size-3.5" />
                   Agent Config
                 </TabsTrigger>
+                <TabsTrigger value="costs" className="gap-1.5 text-xs">
+                  <CoinsIcon className="size-3.5" />
+                  Costs & Budgets
+                </TabsTrigger>
                 <TabsTrigger value="users" className="gap-1.5 text-xs">
                   <UsersIcon className="size-3.5" />
                   Users
@@ -157,6 +163,10 @@ export function AdminPage() {
 
             <TabsContent value="agent" className="mt-0 outline-none">
               <AdminAgentTab />
+            </TabsContent>
+
+            <TabsContent value="costs" className="mt-0 outline-none">
+              <AdminCostsTab />
             </TabsContent>
 
             <TabsContent value="users" className="mt-0 outline-none">

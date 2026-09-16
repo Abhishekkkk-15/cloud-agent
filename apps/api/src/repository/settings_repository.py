@@ -59,6 +59,28 @@ class SettingsRepository:
             )
         return await self.get_sandbox_config()
 
+    async def get_plan_budgets(self) -> dict[str, Any]:
+        doc = await self.collection.find_one({"_id": "plan_budgets"})
+        if not doc:
+            doc = {}
+        return {
+            "free": float(doc.get("free", 5.0)),
+            "hacker": float(doc.get("hacker", 20.0)),
+            "pro": float(doc.get("pro", 50.0)),
+            "soft_cap_percent": int(doc.get("soft_cap_percent", 80)),
+            "enabled": bool(doc.get("enabled", True)),
+        }
+
+    async def update_plan_budgets(self, updates: dict[str, Any]) -> dict[str, Any]:
+        clean_updates = {k: v for k, v in updates.items() if v is not None}
+        if clean_updates:
+            await self.collection.update_one(
+                {"_id": "plan_budgets"},
+                {"$set": clean_updates},
+                upsert=True,
+            )
+        return await self.get_plan_budgets()
+
 
 async def get_settings_repo(db: Annotated[Any, Depends(get_db)]) -> SettingsRepository:
     return SettingsRepository(db["settings"])

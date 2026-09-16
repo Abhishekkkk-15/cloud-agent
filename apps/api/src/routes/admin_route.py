@@ -6,6 +6,7 @@ from src.controller.admin_controller import (
     delete_workspace,
     get_agent_config,
     get_container_logs,
+    get_cost_analytics,
     get_sandbox_config,
     get_system_stats,
     list_containers,
@@ -18,6 +19,7 @@ from src.controller.admin_controller import (
     stop_container,
     stop_workspace,
     update_agent_config,
+    update_plan_budgets,
     update_sandbox_config,
     update_user_plan,
     update_user_role,
@@ -25,12 +27,14 @@ from src.controller.admin_controller import (
 )
 from src.schemas.admin_schema import (
     AdminAgentConfigResponse,
+    AdminCostAnalyticsResponse,
     AdminSandboxConfigResponse,
     AdminContainerListResponse,
     AdminContainerLogsResponse,
     AdminStatsResponse,
     AdminUserListResponse,
     AdminWorkspaceListResponse,
+    PlanBudgetConfig,
 )
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -42,6 +46,10 @@ router.put("/agent-config", response_model=AdminAgentConfigResponse)(update_agen
 # Sandbox Container Configuration
 router.get("/sandbox-config", response_model=AdminSandboxConfigResponse)(get_sandbox_config)
 router.put("/sandbox-config", response_model=AdminSandboxConfigResponse)(update_sandbox_config)
+
+# Token & Cost Analytics & Monthly Budgets
+router.get("/costs", response_model=AdminCostAnalyticsResponse)(get_cost_analytics)
+router.put("/plan-budgets", response_model=PlanBudgetConfig)(update_plan_budgets)
 
 # System Stats
 router.get("/stats", response_model=AdminStatsResponse)(get_system_stats)

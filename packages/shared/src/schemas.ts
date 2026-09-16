@@ -512,5 +512,63 @@ export const adminSandboxConfigSchema = z.object({
 
 export type AdminSandboxConfig = z.infer<typeof adminSandboxConfigSchema>;
 
+/** Plan Budget Configuration */
+export const planBudgetConfigSchema = z.object({
+  free: z.number().min(0).default(5.0),
+  hacker: z.number().min(0).default(20.0),
+  pro: z.number().min(0).default(50.0),
+  soft_cap_percent: z.number().int().min(10).max(100).default(80),
+  enabled: z.boolean().default(true),
+});
+
+export type PlanBudgetConfig = z.infer<typeof planBudgetConfigSchema>;
+
+/** User Cost / Usage Summary item */
+export const userUsageSummarySchema = z.object({
+  user_id: z.string(),
+  name: z.string().default("Unknown"),
+  email: z.string().default(""),
+  plan: z.string().default("free"),
+  role: z.string().default("user"),
+  total_tokens: z.number().default(0),
+  prompt_tokens: z.number().default(0),
+  completion_tokens: z.number().default(0),
+  estimated_cost_usd: z.number().default(0.0),
+  budget_usd: z.number().default(5.0),
+  percent_used: z.number().default(0.0),
+  is_blocked: z.boolean().default(false),
+});
+
+export type UserUsageSummary = z.infer<typeof userUsageSummarySchema>;
+
+/** Model Spend Summary item */
+export const modelSpendSummarySchema = z.object({
+  model_id: z.string(),
+  provider: z.string().default("unknown"),
+  cost_usd: z.number().default(0.0),
+  total_tokens: z.number().default(0),
+  turn_count: z.number().default(0),
+});
+
+export type ModelSpendSummary = z.infer<typeof modelSpendSummarySchema>;
+
+/** Cost Analytics Response */
+export const adminCostAnalyticsSchema = z.object({
+  current_period: z.string(),
+  period_days_left: z.number().default(0),
+  total_spend_usd: z.number().default(0.0),
+  projected_spend_usd: z.number().default(0.0),
+  total_tokens: z.number().default(0),
+  total_prompt_tokens: z.number().default(0),
+  total_completion_tokens: z.number().default(0),
+  active_users_count: z.number().default(0),
+  plan_budgets: planBudgetConfigSchema,
+  spend_by_model: z.array(modelSpendSummarySchema).default([]),
+  top_users: z.array(userUsageSummarySchema).default([]),
+});
+
+export type AdminCostAnalytics = z.infer<typeof adminCostAnalyticsSchema>;
+
+
 
 

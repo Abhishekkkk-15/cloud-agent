@@ -426,11 +426,38 @@ function ensureControlEventListener(
     }
   }
 
+  const onBudgetExceeded = (raw: unknown) => {
+    activeAgentStream = null
+    const data = raw as { message?: string }
+    const msg = data?.message || "Monthly budget exceeded."
+    set({
+      chatLoading: false,
+      streamingMessageId: null,
+      error: msg,
+    })
+    toast.error("Monthly Budget Exceeded", {
+      description: msg,
+      duration: 10000,
+    })
+  }
+
+  const onBudgetWarning = (raw: unknown) => {
+    const data = raw as { message?: string }
+    if (data?.message) {
+      toast.warning("Monthly Budget Notice", {
+        description: data.message,
+        duration: 8000,
+      })
+    }
+  }
+
   const unsubs = [
     ws.subscribe("session:create", onSessionCreate),
     ws.subscribe("agent:busy", onBusy),
     ws.subscribe("error", onError),
     ws.subscribe("github:sync", onGithubSync),
+    ws.subscribe("agent:budget_exceeded", onBudgetExceeded),
+    ws.subscribe("agent:budget_warning", onBudgetWarning),
   ]
   controlEventUnsubscribe = () => {
     unsubs.forEach((u) => u())

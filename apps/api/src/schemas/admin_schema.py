@@ -175,3 +175,57 @@ class AdminUpdateSandboxConfigRequest(BaseModel):
     memory_swap_limit_mb: int | None = None
     apply_to_running: bool = False
 
+
+class PlanBudgetConfig(BaseModel):
+    free: float = 5.0
+    hacker: float = 20.0
+    pro: float = 50.0
+    soft_cap_percent: int = 80
+    enabled: bool = True
+
+
+class AdminUpdatePlanBudgetsRequest(BaseModel):
+    free: float | None = None
+    hacker: float | None = None
+    pro: float | None = None
+    soft_cap_percent: int | None = None
+    enabled: bool | None = None
+
+
+class UserUsageSummary(BaseModel):
+    user_id: str
+    name: str = "Unknown"
+    email: str = ""
+    plan: str = "free"
+    role: str = "user"
+    total_tokens: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    estimated_cost_usd: float = 0.0
+    budget_usd: float = 5.0
+    percent_used: float = 0.0
+    is_blocked: bool = False
+
+
+class ModelSpendSummary(BaseModel):
+    model_id: str
+    provider: str = "unknown"
+    cost_usd: float = 0.0
+    total_tokens: int = 0
+    turn_count: int = 0
+
+
+class AdminCostAnalyticsResponse(BaseModel):
+    current_period: str
+    period_days_left: int = 0
+    total_spend_usd: float = 0.0
+    projected_spend_usd: float = 0.0
+    total_tokens: int = 0
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    active_users_count: int = 0
+    plan_budgets: PlanBudgetConfig = Field(default_factory=PlanBudgetConfig)
+    spend_by_model: list[ModelSpendSummary] = Field(default_factory=list)
+    top_users: list[UserUsageSummary] = Field(default_factory=list)
+
+

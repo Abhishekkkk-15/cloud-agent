@@ -8,6 +8,7 @@ from src.dependency.port_depemdency import PortRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.repository.model_repository import ModelRepo
 from src.repository.settings_repository import SettingsRepo
+from src.repository.usage_repository import UsageRepo
 from src.models.workspace_model import WorkspaceStatus
 from src.utils.event_handler import event_handler
 from src.utils.port_manager import PortRole
@@ -15,7 +16,7 @@ from src.utils.agent_model import (
     agent_fingerprint as compute_agent_fingerprint,
     build_agent_kwargs_from_request,
 )
-from pi_sdk import AgentEvent
+from pi_sdk import AgentEvent, EventType
 from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
 from src.utils.config import config, build_preview_url
@@ -26,6 +27,7 @@ from src.ai_core.intent_agent import IntentAgent
 from docker.errors import APIError, ContainerError, NotFound
 from starlette.websockets import WebSocketState
 import asyncio
+from datetime import datetime, timezone, timedelta
 from src.services.workspace_github_sync import (
     host_workspace_path,
     sync_workspace_to_github,
@@ -44,6 +46,7 @@ async def websocket_endpoint(
     port_manager: PortRepo,
     model_repo: ModelRepo,
     settings_repo: SettingsRepo,
+    usage_repo: UsageRepo,
 ):
     await ws_manager.connect(ws)
     print("Websocket connection established")
@@ -349,15 +352,67 @@ async def websocket_endpoint(
         )
 
         intent_agent = IntentAgent()
+        warned_soft_cap = False
 
         async def on_event(event: AgentEvent) -> None:
+            nonlocal warned_soft_cap
             if ws.client_state != WebSocketState.CONNECTED:
                 return
             try:
                 payload = event_handler(event).to_dict()
                 await ws_manager.send_json(websocket=ws, data=payload)
-            except Exception:
-                pass
+
+                if event.type == EventType.USAGE:
+                    u_data = event.data or {}
+                    p_tok = int(u_data.get("prompt_tokens") or 0)
+                    c_tok = int(u_data.get("completion_tokens") or 0)
+                    cached_tok = int(u_data.get("cached_tokens") or 0)
+                    cost_val = float(u_data.get("estimated_cost_usd") or 0.0)
+
+                    active_model = agent_kwargs.get("model") or config.model
+                    active_provider = agent_kwargs.get("provider") or config.provider
+
+                    if cost_val <= 0.0 and (p_tok > 0 or c_tok > 0):
+                        db_model = await model_repo.find_by_model_id(active_model)
+                        if db_model:
+                            in_rate = getattr(db_model, "input_price_per_mtok", 0.0) or 0.0
+                            out_rate = getattr(db_model, "output_price_per_mtok", 0.0) or 0.0
+                            cost_val = (p_tok * in_rate / 1_000_000.0) + (c_tok * out_rate / 1_000_000.0)
+
+                    await usage_repo.record_usage(
+                        user_id=user.id,
+                        model_id=active_model,
+                        provider=active_provider,
+                        prompt_tokens=p_tok,
+                        completion_tokens=c_tok,
+                        cached_tokens=cached_tok,
+                        cost_usd=cost_val,
+                    )
+
+                    if not warned_soft_cap and user.role != "admin":
+                        budgets = await settings_repo.get_plan_budgets()
+                        if budgets.get("enabled", True):
+                            user_plan = getattr(user, "plan", "free") or "free"
+                            budget_cap = float(budgets.get(user_plan, 5.0))
+                            soft_pct = int(budgets.get("soft_cap_percent", 80))
+                            threshold = budget_cap * (soft_pct / 100.0)
+                            current_spend = await usage_repo.get_user_month_spend(user.id)
+                            if threshold <= current_spend < budget_cap:
+                                warned_soft_cap = True
+                                await ws_manager.send_json(
+                                    websocket=ws,
+                                    data=jsonable_encoder({
+                                        "type": "agent:budget_warning",
+                                        "data": {
+                                            "message": f"Monthly budget notice: you have used {round(current_spend / budget_cap * 100)}% of your monthly allowance (${current_spend:.2f} / ${budget_cap:.2f}).",
+                                            "current_spend": round(current_spend, 2),
+                                            "budget_limit": round(budget_cap, 2),
+                                            "percent_used": round(current_spend / budget_cap * 100, 1),
+                                        },
+                                    }),
+                                )
+            except Exception as e:
+                print(f"[chat_ws] on_event usage tracking error: {e}")
 
         # Default agent from admin settings or env/config. Recreate later only when
         # model / reasoning_effort / settings resolve to a different fingerprint.
@@ -472,6 +527,33 @@ async def websocket_endpoint(
                 ),
             )
 
+        async def _check_budget() -> tuple[bool, str | None, dict | None]:
+            if user.role == "admin":
+                return True, None, None
+
+            budgets = await settings_repo.get_plan_budgets()
+            if not budgets.get("enabled", True):
+                return True, None, None
+
+            user_plan = getattr(user, "plan", "free") or "free"
+            budget_cap = float(budgets.get(user_plan, 5.0))
+            current_spend = await usage_repo.get_user_month_spend(user.id)
+
+            if current_spend >= budget_cap:
+                now = datetime.now(timezone.utc)
+                next_month = (now.replace(day=28) + timedelta(days=4)).replace(day=1)
+                reset_date = next_month.strftime("%B 1, %Y")
+                detail = {
+                    "current_spend": round(current_spend, 2),
+                    "budget_limit": round(budget_cap, 2),
+                    "plan": user_plan,
+                    "resets_at": reset_date,
+                    "message": f"Monthly budget limit reached (${current_spend:.2f} / ${budget_cap:.2f}). Resets on {reset_date} or contact admin to upgrade your plan.",
+                }
+                return False, detail["message"], detail
+
+            return True, None, None
+
         async def handle_run(user_query):
             nonlocal active_session_id
             nonlocal workspace
@@ -494,6 +576,27 @@ async def websocket_endpoint(
             if fresh_workspace:
                 workspace = fresh_workspace
             if not workspace:
+                return
+
+            # Pre-flight monthly budget check
+            budget_ok, budget_err, budget_meta = await _check_budget()
+            if not budget_ok:
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder({
+                        "type": "agent:budget_exceeded",
+                        "data": budget_meta,
+                    }),
+                )
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder({
+                        "type": "error",
+                        "data": budget_err,
+                    }),
+                )
+                workspace.status = WorkspaceStatus.READY
+                await workspace_repo.save(workspace)
                 return
             # PENDING WORKSPACE — first-ever agent turn
             if workspace.status == WorkspaceStatus.PENDING and not active_session_id:

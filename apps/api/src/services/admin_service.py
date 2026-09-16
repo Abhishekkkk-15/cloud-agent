@@ -10,6 +10,11 @@ from src.repository.message_repository import MessageRepository
 from src.repository.model_repository import ModelRepository
 from src.repository.session_repository import SessionRepository
 from src.repository.settings_repository import SettingsRepository
+from src.repository.usage_repository import (
+    UsageRepository,
+    current_period_str,
+    days_left_in_month,
+)
 from src.repository.user_repository import UserRepository
 from src.repository.workspace_repository import WorkspaceRepository
 from src.utils.port_manager import PortManager
@@ -382,4 +387,67 @@ class AdminService:
                     except Exception as e:
                         print(f"[AdminService] error iterating running containers: {e}")
         return updated
+
+    @staticmethod
+    async def get_cost_analytics(
+        usage_repo: UsageRepository,
+        settings_repo: SettingsRepository,
+        user_repo: UserRepository,
+    ) -> dict[str, Any]:
+        period = current_period_str()
+        days_left = days_left_in_month()
+        plan_budgets = await settings_repo.get_plan_budgets()
+        platform_usage = await usage_repo.get_platform_total_usage(period)
+        model_spend = await usage_repo.get_model_spend(period)
+        top_spenders_raw = await usage_repo.get_top_spenders(period, limit=50)
+
+        enriched_top_users = []
+        for item in top_spenders_raw:
+            uid = item.get("user_id")
+            user = await user_repo.find_by_id(uid) if uid else None
+            plan = user.plan if user else "free"
+            role = user.role if user else "user"
+            name = user.name if user else (user.username if user else "Deleted User")
+            email = str(user.email) if user and user.email else ""
+
+            budget_usd = float(plan_budgets.get(plan, 5.0)) if role != "admin" else 0.0
+            cost_usd = float(item.get("estimated_cost_usd", 0.0))
+            percent_used = round((cost_usd / budget_usd * 100), 1) if budget_usd > 0 else 0.0
+            is_blocked = bool(percent_used >= 100 and role != "admin" and plan_budgets.get("enabled", True))
+
+            enriched_top_users.append({
+                "user_id": uid or "unknown",
+                "name": name,
+                "email": email,
+                "plan": plan,
+                "role": role,
+                "total_tokens": item.get("total_tokens", 0),
+                "prompt_tokens": item.get("prompt_tokens", 0),
+                "completion_tokens": item.get("completion_tokens", 0),
+                "estimated_cost_usd": cost_usd,
+                "budget_usd": budget_usd,
+                "percent_used": percent_used,
+                "is_blocked": is_blocked,
+            })
+
+        return {
+            "current_period": period,
+            "period_days_left": days_left,
+            "total_spend_usd": platform_usage.get("total_spend_usd", 0.0),
+            "projected_spend_usd": platform_usage.get("projected_spend_usd", 0.0),
+            "total_tokens": platform_usage.get("total_tokens", 0),
+            "total_prompt_tokens": platform_usage.get("total_prompt_tokens", 0),
+            "total_completion_tokens": platform_usage.get("total_completion_tokens", 0),
+            "active_users_count": platform_usage.get("active_users_count", 0),
+            "plan_budgets": plan_budgets,
+            "spend_by_model": model_spend,
+            "top_users": enriched_top_users,
+        }
+
+    @staticmethod
+    async def update_plan_budgets(
+        settings_repo: SettingsRepository, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        return await settings_repo.update_plan_budgets(data)
+
 
