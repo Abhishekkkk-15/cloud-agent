@@ -76,31 +76,38 @@ class AdminService:
             containers = client.containers.list(all=True)
             results = []
             for c in containers:
-                attrs = c.attrs or {}
-                state_obj = attrs.get("State", {})
-                state_str = state_obj.get("Status") or c.status
-                created_str = attrs.get("Created")
-                ports_dict = _format_ports(attrs.get("NetworkSettings", {}).get("Ports"))
+                try:
+                    attrs = c.attrs or {}
+                    state_obj = attrs.get("State", {})
+                    state_str = state_obj.get("Status") or c.status
+                    created_str = attrs.get("Created")
+                    ports_dict = _format_ports(attrs.get("NetworkSettings", {}).get("Ports"))
 
-                image_name = (
-                    c.image.tags[0]
-                    if c.image and c.image.tags
-                    else (c.image.short_id if c.image else "unknown")
-                )
+                    # Fallback to Config.Image if image was deleted/pruned locally
+                    image_name = attrs.get("Config", {}).get("Image") or attrs.get("Image") or "unknown"
+                    try:
+                        if c.image and c.image.tags:
+                            image_name = c.image.tags[0]
+                        elif c.image:
+                            image_name = c.image.short_id
+                    except Exception:
+                        pass
 
-                results.append(
-                    {
-                        "id": c.id,
-                        "short_id": c.short_id,
-                        "name": c.name,
-                        "image": image_name,
-                        "status": c.status,
-                        "state": state_str,
-                        "created": created_str,
-                        "ports": ports_dict,
-                        "workspace_id": _extract_workspace_id(c),
-                    }
-                )
+                    results.append(
+                        {
+                            "id": c.id,
+                            "short_id": c.short_id,
+                            "name": c.name,
+                            "image": image_name,
+                            "status": c.status,
+                            "state": state_str,
+                            "created": created_str,
+                            "ports": ports_dict,
+                            "workspace_id": _extract_workspace_id(c),
+                        }
+                    )
+                except Exception:
+                    continue
             return {
                 "docker_available": True,
                 "docker_error": None,
