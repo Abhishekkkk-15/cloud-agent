@@ -257,13 +257,21 @@ export function AdminModelsTab() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          {m.supports_effort ? (
-                            <Badge variant="outline" className="text-[10px]">
-                              Effort: {m.default_effort || "supported"}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-[11px]">Standard</span>
-                          )}
+                          <div className="flex flex-col gap-1 items-start">
+                            {m.supports_effort && (
+                              <Badge variant="outline" className="text-[10px]">
+                                Effort: {m.default_effort || "supported"}
+                              </Badge>
+                            )}
+                            {m.is_multi_model && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                Multimodal
+                              </Badge>
+                            )}
+                            {!m.supports_effort && !m.is_multi_model && (
+                              <span className="text-muted-foreground text-[11px]">Standard</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           {m.is_default ? (

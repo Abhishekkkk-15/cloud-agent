@@ -14,6 +14,7 @@ class AIModel(BaseModel):
     is_active: bool = True
     is_default: bool = False
     supports_effort: bool = False
+    is_multi_model: bool = False
     default_effort: str | None = None
     use_case: list[str] = Field(default_factory=list)
     badge: str | None = None

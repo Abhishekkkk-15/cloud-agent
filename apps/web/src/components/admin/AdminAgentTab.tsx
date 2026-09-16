@@ -196,6 +196,11 @@ export function AdminAgentTab() {
                       Supports Reasoning Effort
                     </Badge>
                   )}
+                  {selectedModel.is_multi_model && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Multimodal
+                    </Badge>
+                  )}
                   {selectedModel.badge && (
                     <Badge variant="secondary" className="text-[10px]">
                       {selectedModel.badge}

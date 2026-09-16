@@ -270,6 +270,7 @@ export const llmModelSchema = z.object({
   is_active: z.boolean().default(true),
   is_default: z.boolean().default(false),
   supports_effort: z.boolean().default(false),
+  is_multi_model: z.boolean().default(false),
   default_effort: z.string().nullable().optional(),
   use_case: z.array(z.string()).default([]),
   badge: z.string().nullable().optional(),

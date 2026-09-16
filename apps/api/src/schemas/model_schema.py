@@ -13,6 +13,7 @@ class CreateModelRequest(BaseModel):
     is_active: bool = True
     is_default: bool = False
     supports_effort: bool = False
+    is_multi_model: bool = False
     default_effort: str | None = None
     use_case: list[str] = Field(default_factory=list)
     badge: str | None = None
@@ -34,6 +35,7 @@ class UpdateModelRequest(BaseModel):
     is_active: bool | None = None
     is_default: bool | None = None
     supports_effort: bool | None = None
+    is_multi_model: bool | None = None
     default_effort: str | None = None
     use_case: list[str] | None = None
     badge: str | None = None
@@ -56,6 +58,7 @@ class ModelResponse(BaseModel):
     is_active: bool
     is_default: bool
     supports_effort: bool
+    is_multi_model: bool = False
     default_effort: str | None = None
     use_case: list[str] = Field(default_factory=list)
     badge: str | None = None

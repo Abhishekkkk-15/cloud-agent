@@ -41,6 +41,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
   const [inputPrice, setInputPrice] = useState<number | "">("")
   const [outputPrice, setOutputPrice] = useState<number | "">("")
   const [supportsEffort, setSupportsEffort] = useState(false)
+  const [isMultiModel, setIsMultiModel] = useState(false)
   const [defaultEffort, setDefaultEffort] = useState<string>("medium")
   const [isActive, setIsActive] = useState(true)
   const [isDefault, setIsDefault] = useState(false)
@@ -60,6 +61,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
       setInputPrice(model.input_price_per_mtok ?? "")
       setOutputPrice(model.output_price_per_mtok ?? "")
       setSupportsEffort(Boolean(model.supports_effort))
+      setIsMultiModel(Boolean(model.is_multi_model))
       setDefaultEffort(model.default_effort || "medium")
       setIsActive(model.is_active)
       setIsDefault(model.is_default)
@@ -77,6 +79,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
       setInputPrice("")
       setOutputPrice("")
       setSupportsEffort(false)
+      setIsMultiModel(false)
       setDefaultEffort("medium")
       setIsActive(true)
       setIsDefault(false)
@@ -106,6 +109,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
         input_price_per_mtok: inputPrice === "" ? 0 : Number(inputPrice),
         output_price_per_mtok: outputPrice === "" ? 0 : Number(outputPrice),
         supports_effort: supportsEffort,
+        is_multi_model: isMultiModel,
         default_effort: supportsEffort ? defaultEffort : null,
         is_active: isActive,
         is_default: isDefault,
@@ -323,6 +327,22 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
                 </select>
               </div>
             )}
+
+            <div className="flex items-center justify-between border-t pt-3">
+              <div>
+                <Label htmlFor="model-multimodal" className="font-medium">
+                  Multimodal Support (is_multi_model)
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Model natively processes multimodal inputs (images, audio, documents)
+                </p>
+              </div>
+              <Switch
+                id="model-multimodal"
+                checked={isMultiModel}
+                onCheckedChange={setIsMultiModel}
+              />
+            </div>
 
             <div className="flex items-center justify-between border-t pt-3">
               <div>

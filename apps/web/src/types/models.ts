@@ -10,6 +10,7 @@ export type ModelOption = {
   badge?: string
   description: string
   supportsEffort: boolean
+  is_multi_model?: boolean
   use_case?: string[]
   isActive?: boolean
   isDefault?: boolean
