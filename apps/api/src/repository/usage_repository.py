@@ -154,7 +154,8 @@ class UsageRepository:
                 }
             },
         ]
-        results = await self.user_usage_coll.aggregate(pipeline).to_list(length=1)
+        cursor = await self.user_usage_coll.aggregate(pipeline)
+        results = await cursor.to_list(length=1)
         if results:
             r = results[0]
             total_spend = round(float(r.get("total_spend_usd", 0.0)), 4)
