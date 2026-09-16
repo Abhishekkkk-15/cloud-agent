@@ -27,6 +27,9 @@ class Sandbox:
         ports: dict[str, int],
         *,
         skip_template_seed: bool = False,
+        memory_limit_mb: int | None = None,
+        cpu_limit: float | None = None,
+        pids_limit: int | None = None,
     ) -> dict[str, str] | SandboxRunResult:
         try:
             if not self.client:
@@ -45,13 +48,29 @@ class Sandbox:
                 type="bind",
             )
             environment = {"SKIP_TEMPLATE_SEED": "1"} if skip_template_seed else None
+
+            # Apply container resource limits (RAM, CPU, and PIDs) to prevent system exhaustion
+            effective_mem = memory_limit_mb or getattr(config, "sandbox_memory_limit_mb", 2048)
+            effective_cpu = cpu_limit or getattr(config, "sandbox_cpu_limit", 2.0)
+            effective_pids = pids_limit or getattr(config, "sandbox_pids_limit", 500)
+
+            run_kwargs: dict = {
+                "command": "tail -f /dev/null",
+                "detach": True,
+                "mounts": [mount],
+                "ports": ports,
+                "environment": environment,
+            }
+            if effective_mem and effective_mem > 0:
+                run_kwargs["mem_limit"] = f"{int(effective_mem)}m"
+            if effective_cpu and effective_cpu > 0:
+                run_kwargs["nano_cpus"] = int(effective_cpu * 1e9)
+            if effective_pids and effective_pids > 0:
+                run_kwargs["pids_limit"] = int(effective_pids)
+
             container = self.client.containers.run(
                 "node-python-lite",
-                command="tail -f /dev/null",
-                detach=True,
-                mounts=[mount],
-                ports=ports,
-                environment=environment,
+                **run_kwargs,
             )
             print("2. Container created:", container.id)
 

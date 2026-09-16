@@ -6,6 +6,7 @@ from src.controller.admin_controller import (
     delete_workspace,
     get_agent_config,
     get_container_logs,
+    get_sandbox_config,
     get_system_stats,
     list_containers,
     list_users,
@@ -17,12 +18,14 @@ from src.controller.admin_controller import (
     stop_container,
     stop_workspace,
     update_agent_config,
+    update_sandbox_config,
     update_user_plan,
     update_user_role,
     update_user_status,
 )
 from src.schemas.admin_schema import (
     AdminAgentConfigResponse,
+    AdminSandboxConfigResponse,
     AdminContainerListResponse,
     AdminContainerLogsResponse,
     AdminStatsResponse,
@@ -35,6 +38,10 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 # Agent Configuration
 router.get("/agent-config", response_model=AdminAgentConfigResponse)(get_agent_config)
 router.put("/agent-config", response_model=AdminAgentConfigResponse)(update_agent_config)
+
+# Sandbox Container Configuration
+router.get("/sandbox-config", response_model=AdminSandboxConfigResponse)(get_sandbox_config)
+router.put("/sandbox-config", response_model=AdminSandboxConfigResponse)(update_sandbox_config)
 
 # System Stats
 router.get("/stats", response_model=AdminStatsResponse)(get_system_stats)

@@ -22,12 +22,14 @@ import {
   adminUserListResponseSchema,
   adminWorkspaceListResponseSchema,
   adminAgentConfigSchema,
+  adminSandboxConfigSchema,
   type AdminContainerListResponse,
   type AdminContainerLogs,
   type AdminSystemStats,
   type AdminUserListResponse,
   type AdminWorkspaceListResponse,
   type AdminAgentConfig,
+  type AdminSandboxConfig,
   type LLMModel,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
@@ -408,5 +410,18 @@ export async function updateAdminAgentConfig(
   const { data } = await http.put("/admin/agent-config", body)
   return adminAgentConfigSchema.parse(data)
 }
+
+export async function getAdminSandboxConfig(): Promise<AdminSandboxConfig> {
+  const { data } = await http.get("/admin/sandbox-config")
+  return adminSandboxConfigSchema.parse(data)
+}
+
+export async function updateAdminSandboxConfig(
+  body: Partial<AdminSandboxConfig>
+): Promise<AdminSandboxConfig> {
+  const { data } = await http.put("/admin/sandbox-config", body)
+  return adminSandboxConfigSchema.parse(data)
+}
+
 
 

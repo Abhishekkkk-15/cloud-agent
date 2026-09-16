@@ -11,6 +11,8 @@ from src.repository.user_repository import UserRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.schemas.admin_schema import (
     AdminAgentConfigResponse,
+    AdminSandboxConfigResponse,
+    AdminUpdateSandboxConfigRequest,
     AdminContainerListResponse,
     AdminContainerLogsResponse,
     AdminStatsResponse,
@@ -349,4 +351,23 @@ async def update_agent_config(
     updates = body.model_dump(exclude_unset=True)
     updated = await AdminService.update_agent_config(settings_repo, updates)
     return AdminAgentConfigResponse(**updated)
+
+
+async def get_sandbox_config(
+    admin: CurrentAdmin,
+    settings_repo: SettingsRepo,
+) -> AdminSandboxConfigResponse:
+    cfg = await AdminService.get_sandbox_config(settings_repo)
+    return AdminSandboxConfigResponse(**cfg)
+
+
+async def update_sandbox_config(
+    body: AdminUpdateSandboxConfigRequest,
+    admin: CurrentAdmin,
+    settings_repo: SettingsRepo,
+) -> AdminSandboxConfigResponse:
+    updates = body.model_dump(exclude_unset=True)
+    updated = await AdminService.update_sandbox_config(settings_repo, updates)
+    return AdminSandboxConfigResponse(**updated)
+
 

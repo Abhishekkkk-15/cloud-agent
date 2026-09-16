@@ -75,6 +75,9 @@ class Config:
         ).rstrip("/")
         self.GITHUB_DEFAULT_TOKEN = os.getenv("GITHUB_DEFAULT_TOKEN",None)
         self.GITHUB_DEFAULT_LOGIN = os.getenv("GITHUB_DEFAULT_LOGIN",None)
+        self.sandbox_memory_limit_mb = int(os.getenv("SANDBOX_MEMORY_LIMIT_MB", "2048"))
+        self.sandbox_cpu_limit = float(os.getenv("SANDBOX_CPU_LIMIT", "2.0"))
+        self.sandbox_pids_limit = int(os.getenv("SANDBOX_PIDS_LIMIT", "500"))
         
 config = Config()
 

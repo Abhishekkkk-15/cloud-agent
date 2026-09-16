@@ -6,6 +6,7 @@ from src.utils.config import config
 from src.utils.db_client import get_db
 
 SETTINGS_DOC_ID = "agent_config"
+SANDBOX_SETTINGS_DOC_ID = "sandbox_config"
 
 
 class SettingsRepository:
@@ -36,6 +37,27 @@ class SettingsRepository:
                 upsert=True,
             )
         return await self.get_agent_config()
+
+    async def get_sandbox_config(self) -> dict[str, Any]:
+        doc = await self.collection.find_one({"_id": SANDBOX_SETTINGS_DOC_ID})
+        if not doc:
+            doc = {}
+        return {
+            "memory_limit_mb": int(doc.get("memory_limit_mb", config.sandbox_memory_limit_mb)),
+            "cpu_limit": float(doc.get("cpu_limit", config.sandbox_cpu_limit)),
+            "pids_limit": int(doc.get("pids_limit", config.sandbox_pids_limit)),
+            "memory_swap_limit_mb": int(doc.get("memory_swap_limit_mb", -1)),
+        }
+
+    async def update_sandbox_config(self, updates: dict[str, Any]) -> dict[str, Any]:
+        clean_updates = {k: v for k, v in updates.items() if v is not None and k != "apply_to_running"}
+        if clean_updates:
+            await self.collection.update_one(
+                {"_id": SANDBOX_SETTINGS_DOC_ID},
+                {"$set": clean_updates},
+                upsert=True,
+            )
+        return await self.get_sandbox_config()
 
 
 async def get_settings_repo(db: Annotated[Any, Depends(get_db)]) -> SettingsRepository:

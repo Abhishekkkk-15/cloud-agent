@@ -276,6 +276,50 @@ class AdminService:
             "database_name": os.getenv("DATABASE_NAME", "cloud-agent"),
         }
 
+        # System resource telemetry (CPU, RAM, Disk)
+        cpu_usage = 0.0
+        logical_cores = 1
+        physical_cores = 1
+        mem_data = {"total_bytes": 0, "used_bytes": 0, "available_bytes": 0, "percent": 0.0}
+        disk_data = {"total_bytes": 0, "used_bytes": 0, "free_bytes": 0, "percent": 0.0, "path": ""}
+
+        try:
+            import psutil
+
+            cpu_usage = float(psutil.cpu_percent(interval=None))
+            logical_cores = int(psutil.cpu_count(logical=True) or 1)
+            physical_cores = int(psutil.cpu_count(logical=False) or logical_cores)
+
+            vm = psutil.virtual_memory()
+            mem_data = {
+                "total_bytes": int(vm.total),
+                "used_bytes": int(vm.used),
+                "available_bytes": int(vm.available),
+                "percent": float(vm.percent),
+            }
+
+            root_path = os.path.splitdrive(os.getcwd())[0] + os.path.sep if os.name == "nt" else "/"
+            du = psutil.disk_usage(root_path)
+            disk_data = {
+                "total_bytes": int(du.total),
+                "used_bytes": int(du.used),
+                "free_bytes": int(du.free),
+                "percent": float(du.percent),
+                "path": root_path,
+            }
+        except Exception as e:
+            print(f"[AdminService] error collecting system resources: {e}")
+
+        system_resources = {
+            "cpu": {
+                "percent": cpu_usage,
+                "logical_cores": logical_cores,
+                "physical_cores": physical_cores,
+            },
+            "memory": mem_data,
+            "disk": disk_data,
+        }
+
         return {
             "total_users": total_users,
             "total_workspaces": total_workspaces,
@@ -289,6 +333,7 @@ class AdminService:
                 "ping_ms": ping_ms,
                 "error": mongo_error,
             },
+            "system_resources": system_resources,
             "environment": env_summary,
         }
 
@@ -301,4 +346,39 @@ class AdminService:
         settings_repo: SettingsRepository, data: dict[str, Any]
     ) -> dict[str, Any]:
         return await settings_repo.update_agent_config(data)
+
+    @staticmethod
+    async def get_sandbox_config(settings_repo: SettingsRepository) -> dict[str, Any]:
+        return await settings_repo.get_sandbox_config()
+
+    @staticmethod
+    async def update_sandbox_config(
+        settings_repo: SettingsRepository, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        updated = await settings_repo.update_sandbox_config(data)
+        if data.get("apply_to_running"):
+            client, _ = _safe_get_docker()
+            if client:
+                mem_mb = updated.get("memory_limit_mb")
+                cpus = updated.get("cpu_limit")
+                pids = updated.get("pids_limit")
+                update_kwargs: dict[str, Any] = {}
+                if mem_mb and mem_mb > 0:
+                    update_kwargs["mem_limit"] = f"{int(mem_mb)}m"
+                if cpus and cpus > 0:
+                    update_kwargs["nano_cpus"] = int(cpus * 1e9)
+                if pids and pids > 0:
+                    update_kwargs["pids_limit"] = int(pids)
+
+                if update_kwargs:
+                    try:
+                        containers = client.containers.list()
+                        for c in containers:
+                            try:
+                                c.update(**update_kwargs)
+                            except Exception as ce:
+                                print(f"[AdminService] failed updating container {c.id}: {ce}")
+                    except Exception as e:
+                        print(f"[AdminService] error iterating running containers: {e}")
+        return updated
 

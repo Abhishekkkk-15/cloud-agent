@@ -4,6 +4,7 @@ import {
   CpuIcon,
   DatabaseIcon,
   FolderGit2Icon,
+  HardDriveIcon,
   LayersIcon,
   MessageSquareIcon,
   RefreshCwIcon,
@@ -31,6 +32,14 @@ type Props = {
   loading: boolean
   onRefresh: () => void
   onNavigateTab: (tab: string) => void
+}
+
+function formatBytes(bytes: number, decimals = 1): string {
+  if (!bytes || bytes === 0) return "0 GB"
+  const gb = bytes / (1024 * 1024 * 1024)
+  if (gb >= 1) return `${gb.toFixed(decimals)} GB`
+  const mb = bytes / (1024 * 1024)
+  return `${mb.toFixed(decimals)} MB`
 }
 
 export function AdminOverviewTab({
@@ -222,6 +231,129 @@ export function AdminOverviewTab({
             <span className="text-xs text-muted-foreground">Chat messages stored</span>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Host System Resources (CPU, Memory, Storage) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CpuIcon className="size-4 text-primary" />
+            <h3 className="text-sm font-semibold tracking-tight">Host System Resources</h3>
+          </div>
+          {stats?.system_resources?.cpu && (
+            <Badge variant="outline" className="text-[11px] font-mono">
+              {stats.system_resources.cpu.logical_cores} Cores ({stats.system_resources.cpu.physical_cores} Physical)
+            </Badge>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {/* CPU Usage Card */}
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">CPU Utilization</span>
+                <CpuIcon className="size-4 text-muted-foreground" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <CardTitle className="text-2xl font-bold font-mono">
+                  {(stats?.system_resources?.cpu.percent ?? 0).toFixed(1)}%
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">system load</span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-2">
+              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full transition-all rounded-full ${
+                    (stats?.system_resources?.cpu.percent ?? 0) > 85
+                      ? "bg-destructive"
+                      : (stats?.system_resources?.cpu.percent ?? 0) > 65
+                      ? "bg-amber-500"
+                      : "bg-primary"
+                  }`}
+                  style={{ width: `${Math.min(100, Math.max(0, stats?.system_resources?.cpu.percent ?? 0))}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] text-muted-foreground">
+                <span>Logical Cores: {stats?.system_resources?.cpu.logical_cores ?? 1}</span>
+                <span>Active</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* RAM Usage Card */}
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">RAM (Memory)</span>
+                <LayersIcon className="size-4 text-muted-foreground" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <CardTitle className="text-2xl font-bold font-mono">
+                  {(stats?.system_resources?.memory.percent ?? 0).toFixed(1)}%
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  {formatBytes(stats?.system_resources?.memory.used_bytes ?? 0)} / {formatBytes(stats?.system_resources?.memory.total_bytes ?? 0)}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-2">
+              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full transition-all rounded-full ${
+                    (stats?.system_resources?.memory.percent ?? 0) > 85
+                      ? "bg-destructive"
+                      : (stats?.system_resources?.memory.percent ?? 0) > 70
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                  }`}
+                  style={{ width: `${Math.min(100, Math.max(0, stats?.system_resources?.memory.percent ?? 0))}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] text-muted-foreground">
+                <span>Available: {formatBytes(stats?.system_resources?.memory.available_bytes ?? 0)}</span>
+                <span>Total: {formatBytes(stats?.system_resources?.memory.total_bytes ?? 0)}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Storage (Disk) Card */}
+          <Card>
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Disk Storage</span>
+                <HardDriveIcon className="size-4 text-muted-foreground" />
+              </div>
+              <div className="flex items-baseline gap-2">
+                <CardTitle className="text-2xl font-bold font-mono">
+                  {(stats?.system_resources?.disk.percent ?? 0).toFixed(1)}%
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  {formatBytes(stats?.system_resources?.disk.used_bytes ?? 0)} / {formatBytes(stats?.system_resources?.disk.total_bytes ?? 0)}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 pt-2 space-y-2">
+              <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full transition-all rounded-full ${
+                    (stats?.system_resources?.disk.percent ?? 0) > 90
+                      ? "bg-destructive"
+                      : (stats?.system_resources?.disk.percent ?? 0) > 75
+                      ? "bg-amber-500"
+                      : "bg-sky-500"
+                  }`}
+                  style={{ width: `${Math.min(100, Math.max(0, stats?.system_resources?.disk.percent ?? 0))}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] text-muted-foreground">
+                <span>Free: {formatBytes(stats?.system_resources?.disk.free_bytes ?? 0)}</span>
+                <span>Drive: {stats?.system_resources?.disk.path || "/"}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Infrastructure Health Status */}

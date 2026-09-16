@@ -348,6 +348,29 @@ export const adminMongoHealthSchema = z.object({
   error: z.string().nullable().optional(),
 });
 
+export const adminSystemResourcesSchema = z.object({
+  cpu: z.object({
+    percent: z.number().default(0),
+    logical_cores: z.number().default(1),
+    physical_cores: z.number().default(1),
+  }).default({ percent: 0, logical_cores: 1, physical_cores: 1 }),
+  memory: z.object({
+    total_bytes: z.number().default(0),
+    used_bytes: z.number().default(0),
+    available_bytes: z.number().default(0),
+    percent: z.number().default(0),
+  }).default({ total_bytes: 0, used_bytes: 0, available_bytes: 0, percent: 0 }),
+  disk: z.object({
+    total_bytes: z.number().default(0),
+    used_bytes: z.number().default(0),
+    free_bytes: z.number().default(0),
+    percent: z.number().default(0),
+    path: z.string().default(""),
+  }).default({ total_bytes: 0, used_bytes: 0, free_bytes: 0, percent: 0, path: "" }),
+});
+
+export type AdminSystemResources = z.infer<typeof adminSystemResourcesSchema>;
+
 export const adminSystemStatsSchema = z.object({
   total_users: z.number().default(0),
   total_workspaces: z.number().default(0),
@@ -357,6 +380,7 @@ export const adminSystemStatsSchema = z.object({
   active_models: z.number().default(0),
   docker: adminDockerHealthSchema,
   mongo: adminMongoHealthSchema,
+  system_resources: adminSystemResourcesSchema.optional(),
   environment: z.record(z.string(), z.unknown()).default({}),
 });
 
@@ -476,6 +500,17 @@ export const adminAgentConfigSchema = z.object({
 });
 
 export type AdminAgentConfig = z.infer<typeof adminAgentConfigSchema>;
+
+/** Admin Sandbox Container Resource Configuration */
+export const adminSandboxConfigSchema = z.object({
+  memory_limit_mb: z.number().int().min(256).max(65536).default(2048),
+  cpu_limit: z.number().min(0.1).max(64).default(2.0),
+  pids_limit: z.number().int().min(50).max(10000).default(500),
+  memory_swap_limit_mb: z.number().int().default(-1),
+  apply_to_running: z.boolean().default(false),
+});
+
+export type AdminSandboxConfig = z.infer<typeof adminSandboxConfigSchema>;
 
 
 

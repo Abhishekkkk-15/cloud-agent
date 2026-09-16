@@ -96,6 +96,33 @@ class AdminMongoHealth(BaseModel):
     error: str | None = None
 
 
+class AdminCPUStats(BaseModel):
+    percent: float = 0.0
+    logical_cores: int = 1
+    physical_cores: int = 1
+
+
+class AdminMemoryStats(BaseModel):
+    total_bytes: int = 0
+    used_bytes: int = 0
+    available_bytes: int = 0
+    percent: float = 0.0
+
+
+class AdminDiskStats(BaseModel):
+    total_bytes: int = 0
+    used_bytes: int = 0
+    free_bytes: int = 0
+    percent: float = 0.0
+    path: str = ""
+
+
+class AdminSystemResources(BaseModel):
+    cpu: AdminCPUStats = Field(default_factory=AdminCPUStats)
+    memory: AdminMemoryStats = Field(default_factory=AdminMemoryStats)
+    disk: AdminDiskStats = Field(default_factory=AdminDiskStats)
+
+
 class AdminStatsResponse(BaseModel):
     total_users: int
     total_workspaces: int
@@ -105,7 +132,11 @@ class AdminStatsResponse(BaseModel):
     active_models: int
     docker: AdminDockerHealth
     mongo: AdminMongoHealth
+    system_resources: AdminSystemResources | None = None
     environment: dict[str, Any] = Field(default_factory=dict)
+
+
+AdminSystemStatsResponse = AdminStatsResponse
 
 
 class AdminAgentConfigResponse(BaseModel):
@@ -128,4 +159,19 @@ class AdminUpdateAgentConfigRequest(BaseModel):
     compact_at_tokens: int | None = None
     keep_recent_tokens: int | None = None
     system_prompt_prefix: str | None = None
+
+
+class AdminSandboxConfigResponse(BaseModel):
+    memory_limit_mb: int = 2048
+    cpu_limit: float = 2.0
+    pids_limit: int = 500
+    memory_swap_limit_mb: int = -1
+
+
+class AdminUpdateSandboxConfigRequest(BaseModel):
+    memory_limit_mb: int | None = None
+    cpu_limit: float | None = None
+    pids_limit: int | None = None
+    memory_swap_limit_mb: int | None = None
+    apply_to_running: bool = False
 

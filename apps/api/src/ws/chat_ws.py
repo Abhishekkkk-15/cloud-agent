@@ -126,6 +126,7 @@ async def websocket_endpoint(
                 ),
             )
 
+            sandbox_cfg = await settings_repo.get_sandbox_config()
             sandbox = sandbox_repo.run_sandbox(
                 workspace_id,
                 docker_ports,
@@ -133,6 +134,9 @@ async def websocket_endpoint(
                     getattr(workspace, "workspace_origin", "template")
                     == "github_import"
                 ),
+                memory_limit_mb=sandbox_cfg.get("memory_limit_mb"),
+                cpu_limit=sandbox_cfg.get("cpu_limit"),
+                pids_limit=sandbox_cfg.get("pids_limit"),
             )
             if not isinstance(sandbox, SandboxRunResult):
                 port_manager.release_workspace_ports(workspace_id)
@@ -269,6 +273,7 @@ async def websocket_endpoint(
                     ),
                 )
 
+                sandbox_cfg = await settings_repo.get_sandbox_config()
                 sandbox = sandbox_repo.run_sandbox(
                     workspace_id,
                     docker_ports,
@@ -276,6 +281,9 @@ async def websocket_endpoint(
                         getattr(workspace, "workspace_origin", "template")
                         == "github_import"
                     ),
+                    memory_limit_mb=sandbox_cfg.get("memory_limit_mb"),
+                    cpu_limit=sandbox_cfg.get("cpu_limit"),
+                    pids_limit=sandbox_cfg.get("pids_limit"),
                 )
                 if not isinstance(sandbox, SandboxRunResult):
                     port_manager.release_workspace_ports(workspace_id)
