@@ -9,6 +9,7 @@ from src.ai_core.sandbox.client import get_sandbox_client
 from src.repository.message_repository import MessageRepository
 from src.repository.model_repository import ModelRepository
 from src.repository.session_repository import SessionRepository
+from src.repository.settings_repository import SettingsRepository
 from src.repository.user_repository import UserRepository
 from src.repository.workspace_repository import WorkspaceRepository
 from src.utils.port_manager import PortManager
@@ -290,3 +291,14 @@ class AdminService:
             },
             "environment": env_summary,
         }
+
+    @staticmethod
+    async def get_agent_config(settings_repo: SettingsRepository) -> dict[str, Any]:
+        return await settings_repo.get_agent_config()
+
+    @staticmethod
+    async def update_agent_config(
+        settings_repo: SettingsRepository, data: dict[str, Any]
+    ) -> dict[str, Any]:
+        return await settings_repo.update_agent_config(data)
+

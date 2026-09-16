@@ -7,6 +7,7 @@ from src.dependency.sandbox_dependency import SandboxRepo
 from src.dependency.port_depemdency import PortRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.repository.model_repository import ModelRepo
+from src.repository.settings_repository import SettingsRepo
 from src.models.workspace_model import WorkspaceStatus
 from src.utils.event_handler import event_handler
 from src.utils.port_manager import PortRole
@@ -42,6 +43,7 @@ async def websocket_endpoint(
     session_repo: SessionRepo,
     port_manager: PortRepo,
     model_repo: ModelRepo,
+    settings_repo: SettingsRepo,
 ):
     await ws_manager.connect(ws)
     print("Websocket connection established")
@@ -349,12 +351,17 @@ async def websocket_endpoint(
             except Exception:
                 pass
 
-        # Default agent from env/config. Recreate later only when message
-        # model / reasoning_effort resolves to a different fingerprint.
-        agent_kwargs: dict = {
-            "workspace_origin": getattr(workspace, "workspace_origin", "template")
-            or "template",
-        }
+        # Default agent from admin settings or env/config. Recreate later only when
+        # model / reasoning_effort / settings resolve to a different fingerprint.
+        agent_kwargs = await build_agent_kwargs_from_request(
+            model_repo,
+            settings_repo=settings_repo,
+            model_key=None,
+            effort=None,
+        )
+        agent_kwargs["workspace_origin"] = (
+            getattr(workspace, "workspace_origin", "template") or "template"
+        )
         current_fingerprint = compute_agent_fingerprint(agent_kwargs)
         agent = CloudAgentCore(
             workspace_id, workspace.sandbox_id, user.id, on_event, **agent_kwargs
@@ -366,7 +373,7 @@ async def websocket_endpoint(
         host_workspace = str(config.workspace_base / workspace_id)
 
         async def _ensure_agent_for_request(data: dict | None) -> None:
-            """Recreate CloudAgentCore only when model or effort actually changes."""
+            """Recreate CloudAgentCore only when model, effort, or settings change."""
             nonlocal agent, agent_kwargs, current_fingerprint
 
             payload = data or {}
@@ -375,18 +382,15 @@ async def websocket_endpoint(
                 payload.get("reasoning_effort") or payload.get("effort") or None
             )
 
-            # No model/effort on message → keep current agent (config default or last)
-            if not requested_model and not requested_effort:
-                return
-
             next_kwargs = await build_agent_kwargs_from_request(
                 model_repo,
+                settings_repo=settings_repo,
                 model_key=requested_model,
                 effort=requested_effort,
             )
-            # If only effort was sent, merge onto current model kwargs
+            # If only effort was sent without a model, retain current model settings
             if not requested_model and requested_effort:
-                next_kwargs = {**agent_kwargs, "reasoning_effort": requested_effort}
+                next_kwargs = {**agent_kwargs, **next_kwargs, "reasoning_effort": requested_effort}
 
             # Keep workspace prompt mode stable across model recreations.
             next_kwargs["workspace_origin"] = agent_kwargs.get(

@@ -462,4 +462,19 @@ export type AdminWorkspaceListResponse = z.infer<
   typeof adminWorkspaceListResponseSchema
 >;
 
+/** Admin Agent Configuration */
+export const adminAgentConfigSchema = z.object({
+  default_model_id: z.string().nullable().default(null),
+  default_effort: z.enum(["low", "medium", "high"]).default("high"),
+  autonomous_mode: z.boolean().default(true),
+  max_retries: z.number().int().min(1).max(10).default(3),
+  compaction_enabled: z.boolean().default(true),
+  compact_at_tokens: z.number().int().min(1000).default(20000),
+  keep_recent_tokens: z.number().int().min(500).default(6000),
+  system_prompt_prefix: z.string().nullable().default(null),
+});
+
+export type AdminAgentConfig = z.infer<typeof adminAgentConfigSchema>;
+
+
 

@@ -21,11 +21,13 @@ import {
   adminSystemStatsSchema,
   adminUserListResponseSchema,
   adminWorkspaceListResponseSchema,
+  adminAgentConfigSchema,
   type AdminContainerListResponse,
   type AdminContainerLogs,
   type AdminSystemStats,
   type AdminUserListResponse,
   type AdminWorkspaceListResponse,
+  type AdminAgentConfig,
   type LLMModel,
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
@@ -393,6 +395,18 @@ export async function deleteModel(modelId: string): Promise<void> {
 export async function seedDefaultModels(): Promise<{ seeded: number }> {
   const { data } = await http.post("/models/seed")
   return data
+}
+
+export async function getAdminAgentConfig(): Promise<AdminAgentConfig> {
+  const { data } = await http.get("/admin/agent-config")
+  return adminAgentConfigSchema.parse(data)
+}
+
+export async function updateAdminAgentConfig(
+  body: Partial<AdminAgentConfig>
+): Promise<AdminAgentConfig> {
+  const { data } = await http.put("/admin/agent-config", body)
+  return adminAgentConfigSchema.parse(data)
 }
 
 

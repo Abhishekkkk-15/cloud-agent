@@ -6,12 +6,15 @@ from src.deps import CurrentAdmin
 from src.repository.message_repository import MessageRepo
 from src.repository.model_repository import ModelRepo
 from src.repository.session_repository import SessionRepo
+from src.repository.settings_repository import SettingsRepo
 from src.repository.user_repository import UserRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.schemas.admin_schema import (
+    AdminAgentConfigResponse,
     AdminContainerListResponse,
     AdminContainerLogsResponse,
     AdminStatsResponse,
+    AdminUpdateAgentConfigRequest,
     AdminUpdatePlanRequest,
     AdminUpdateRoleRequest,
     AdminUpdateStatusRequest,
@@ -328,3 +331,22 @@ async def delete_workspace(
     await session_repo.delete_by_workspace(workspace_id)
     await workspace_repo.delete(workspace_id)
     return {"success": True, "deleted_id": workspace_id}
+
+
+async def get_agent_config(
+    admin: CurrentAdmin,
+    settings_repo: SettingsRepo,
+) -> AdminAgentConfigResponse:
+    cfg = await AdminService.get_agent_config(settings_repo)
+    return AdminAgentConfigResponse(**cfg)
+
+
+async def update_agent_config(
+    body: AdminUpdateAgentConfigRequest,
+    admin: CurrentAdmin,
+    settings_repo: SettingsRepo,
+) -> AdminAgentConfigResponse:
+    updates = body.model_dump(exclude_unset=True)
+    updated = await AdminService.update_agent_config(settings_repo, updates)
+    return AdminAgentConfigResponse(**updated)
+

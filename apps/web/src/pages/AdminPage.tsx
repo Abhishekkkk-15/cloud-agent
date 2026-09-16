@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
+  BotIcon,
   BoxIcon,
   CpuIcon,
   FolderGit2Icon,
@@ -10,6 +11,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 
+import { AdminAgentTab } from "@/components/admin/AdminAgentTab"
 import { AdminContainersTab } from "@/components/admin/AdminContainersTab"
 import { AdminModelsTab } from "@/components/admin/AdminModelsTab"
 import { AdminOverviewTab } from "@/components/admin/AdminOverviewTab"
@@ -112,6 +114,10 @@ export function AdminPage() {
                   <CpuIcon className="size-3.5" />
                   AI Models
                 </TabsTrigger>
+                <TabsTrigger value="agent" className="gap-1.5 text-xs">
+                  <BotIcon className="size-3.5" />
+                  Agent Config
+                </TabsTrigger>
                 <TabsTrigger value="users" className="gap-1.5 text-xs">
                   <UsersIcon className="size-3.5" />
                   Users
@@ -147,6 +153,10 @@ export function AdminPage() {
 
             <TabsContent value="models" className="mt-0 outline-none">
               <AdminModelsTab />
+            </TabsContent>
+
+            <TabsContent value="agent" className="mt-0 outline-none">
+              <AdminAgentTab />
             </TabsContent>
 
             <TabsContent value="users" className="mt-0 outline-none">

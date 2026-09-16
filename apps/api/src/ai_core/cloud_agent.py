@@ -306,6 +306,12 @@ class CloudAgentCore:
         api_key: str | None = None,
         reasoning_effort: str | None = None,
         workspace_origin: WorkspaceOrigin = "template",
+        autonomous: bool | None = None,
+        compaction_enabled: bool | None = None,
+        compact_at_tokens: int | None = None,
+        keep_recent_tokens: int | None = None,
+        max_retries: int | None = None,
+        system_prompt_prefix: str | None = None,
     ) -> None:
         self.config = sys_config
         self.workspace_origin = workspace_origin
@@ -314,6 +320,18 @@ class CloudAgentCore:
         selected_base_url = base_url or sys_config.base_url
         selected_api_key = api_key or sys_config.api_key
         selected_effort = reasoning_effort or "high"
+        selected_autonomous = autonomous if autonomous is not None else sys_config.autonomous
+        selected_compaction = (
+            compaction_enabled if compaction_enabled is not None else sys_config.compaction_enabled
+        )
+        selected_compact_tokens = compact_at_tokens or sys_config.compact_at_tokens
+        selected_keep_recent = keep_recent_tokens or sys_config.keep_recent_tokens
+        selected_max_retries = max_retries if max_retries is not None else 3
+
+        prompt_extra = build_system_prompt_extra(workspace_origin)
+        if system_prompt_prefix and system_prompt_prefix.strip():
+            prompt_extra = f"{system_prompt_prefix.strip()}\n\n{prompt_extra}"
+
         repo_root = Path(__file__).resolve().parents[4]
         skills_dir = os.getenv("SKILLS_DIR", str(repo_root / ".agents" / "skills"))
 
@@ -321,7 +339,7 @@ class CloudAgentCore:
             api_key=selected_api_key,
             provider=selected_provider,
             base_url=selected_base_url,
-            autonomous=sys_config.autonomous,
+            autonomous=selected_autonomous,
             model=selected_model,
             storage="mongodb",
             skills_dirs=[skills_dir],
@@ -329,15 +347,15 @@ class CloudAgentCore:
             mongodb_uri=sys_config.database_uri,
             mongodb_db=sys_config.database_name,
             user_id=user_id,
-            compaction_enabled=sys_config.compaction_enabled,
-            compact_at_tokens=sys_config.compact_at_tokens,
-            keep_recent_tokens=sys_config.keep_recent_tokens,
+            compaction_enabled=selected_compaction,
+            compact_at_tokens=selected_compact_tokens,
+            keep_recent_tokens=selected_keep_recent,
             docker_container=container_id,
             docker_workdir=DEFAULT_DOCKER_WORKDIR,
             workspace_id=workspace_id,
             disable_tools=["bash"],
             cwd=sys_config.workspace_base / workspace_id,
-            max_retries=3,
+            max_retries=selected_max_retries,
             retry_on_rate_limit=True,
             extra_tools=[
                 build_docker_bash_tool(
@@ -345,7 +363,7 @@ class CloudAgentCore:
                     default_workdir=DEFAULT_DOCKER_WORKDIR,
                 ),
             ],
-            system_prompt_extra=build_system_prompt_extra(workspace_origin),
+            system_prompt_extra=prompt_extra,
             on_event=on_event_handler,
         )
 

@@ -106,3 +106,26 @@ class AdminStatsResponse(BaseModel):
     docker: AdminDockerHealth
     mongo: AdminMongoHealth
     environment: dict[str, Any] = Field(default_factory=dict)
+
+
+class AdminAgentConfigResponse(BaseModel):
+    default_model_id: str | None = None
+    default_effort: Literal["low", "medium", "high"] = "high"
+    autonomous_mode: bool = True
+    max_retries: int = 3
+    compaction_enabled: bool = True
+    compact_at_tokens: int = 20000
+    keep_recent_tokens: int = 6000
+    system_prompt_prefix: str | None = None
+
+
+class AdminUpdateAgentConfigRequest(BaseModel):
+    default_model_id: str | None = None
+    default_effort: Literal["low", "medium", "high"] | None = None
+    autonomous_mode: bool | None = None
+    max_retries: int | None = None
+    compaction_enabled: bool | None = None
+    compact_at_tokens: int | None = None
+    keep_recent_tokens: int | None = None
+    system_prompt_prefix: str | None = None
+

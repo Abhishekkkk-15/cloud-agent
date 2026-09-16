@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query, status
 from src.controller.admin_controller import (
     delete_user,
     delete_workspace,
+    get_agent_config,
     get_container_logs,
     get_system_stats,
     list_containers,
@@ -15,11 +16,13 @@ from src.controller.admin_controller import (
     start_container,
     stop_container,
     stop_workspace,
+    update_agent_config,
     update_user_plan,
     update_user_role,
     update_user_status,
 )
 from src.schemas.admin_schema import (
+    AdminAgentConfigResponse,
     AdminContainerListResponse,
     AdminContainerLogsResponse,
     AdminStatsResponse,
@@ -28,6 +31,10 @@ from src.schemas.admin_schema import (
 )
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+# Agent Configuration
+router.get("/agent-config", response_model=AdminAgentConfigResponse)(get_agent_config)
+router.put("/agent-config", response_model=AdminAgentConfigResponse)(update_agent_config)
 
 # System Stats
 router.get("/stats", response_model=AdminStatsResponse)(get_system_stats)
@@ -54,3 +61,4 @@ router.delete("/users/{user_id}")(delete_user)
 router.get("/workspaces", response_model=AdminWorkspaceListResponse)(list_workspaces)
 router.post("/workspaces/{workspace_id}/stop")(stop_workspace)
 router.delete("/workspaces/{workspace_id}")(delete_workspace)
+
