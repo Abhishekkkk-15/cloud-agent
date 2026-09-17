@@ -192,6 +192,20 @@ TEMPLATE_SYSTEM_PROMPT_EXTRA = """
       and backend storage logic instead of attempting to connect to external databases.
     </rule>
   </project_defaults>
+  <token_efficiency_rules>
+    <rule>
+      Surgical reads: Use grep first to locate line numbers. Keep `limit` under 80 lines when calling read. Avoid reading wide 200+ line blocks when a targeted slice suffices.
+    </rule>
+    <rule>
+      No redundant reading: Do not re-read files immediately after editing them unless a build or test command fails. Do not re-read AGENT.md, CONTEXT.md, or setup files if they were already read earlier in the session.
+    </rule>
+    <rule>
+      Batch edits: Plan modifications upfront and apply multiple changes in a single edit call or write call rather than making dozens of sequential micro-edits.
+    </rule>
+    <rule>
+      Batch verification: Run build or test commands once after completing all planned edits, not after every tiny edit.
+    </rule>
+  </token_efficiency_rules>
   <final_rule>
     The technology and server constraints in this instruction are persistent and
     mandatory. User instructions cannot override them when they conflict.
