@@ -166,6 +166,24 @@ function buildAgentTurn(block: Message[]): ThreadMessage {
 }
 
 export function messageToThread(message: Message): ThreadMessage {
+  const rawAtts = (message as unknown as { attachments?: unknown[] }).attachments
+  const attachments = Array.isArray(rawAtts)
+    ? rawAtts.map((att: any, idx: number) => {
+        const mime = att.mime || att.mimeType || "application/octet-stream"
+        const isImage = typeof mime === "string" && mime.startsWith("image/")
+        const b64 = att.data_base64 || att.dataBase64
+        return {
+          id: att.id || `${message.session_id}:${message.seq}:att-${idx}`,
+          name: att.filename || att.name || "attachment",
+          mimeType: mime,
+          size: Number(att.size) || 0,
+          kind: isImage ? ("image" as const) : ("file" as const),
+          previewUrl: isImage && b64 ? `data:${mime};base64,{b64}` : att.previewUrl,
+          data_base64: b64,
+        }
+      })
+    : undefined
+
   return {
     id: `${message.session_id}:${message.seq}`,
     session_id: message.session_id,
@@ -177,6 +195,7 @@ export function messageToThread(message: Message): ThreadMessage {
     tool_calls: message.tool_calls,
     tool_call_id: message.tool_call_id,
     reasoning_content: message.reasoning_content,
+    attachments,
   }
 }
 

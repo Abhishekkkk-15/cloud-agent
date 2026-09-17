@@ -610,6 +610,22 @@ async def websocket_endpoint(
                 workspace.status = WorkspaceStatus.READY
                 await workspace_repo.save(workspace)
                 return
+            raw_attachments = (
+                (user_query.data.get("attachments") if user_query.data else None)
+                or []
+            )
+            # Normalize to pi_sdk storage dict format: {data_base64, mime, filename, ...}
+            turn_attachments = []
+            for item in raw_attachments:
+                if isinstance(item, dict):
+                    turn_attachments.append({
+                        "data_base64": item.get("data_base64") or item.get("dataBase64"),
+                        "mime": item.get("mime") or item.get("mimeType"),
+                        "filename": item.get("filename") or item.get("name"),
+                        "url": item.get("url"),
+                        "path": item.get("path"),
+                    })
+
             # PENDING WORKSPACE — first-ever agent turn
             if workspace.status == WorkspaceStatus.PENDING and not active_session_id:
                 workspace.status = WorkspaceStatus.RUNNING
@@ -658,7 +674,9 @@ async def websocket_endpoint(
                     raise WebSocketException(code=1002,reason="Agent  initilization failed")
                 await agent.resume(active_session_id)
                 is_fresh = _messages_are_fresh(agent.get_messages())
-                run_result = await agent.run(query_text)
+                run_result = await agent.run(
+                    query_text, attachments=turn_attachments or None
+                )
                 if is_fresh:
                     await _title_session(active_session_id, query_text)
                 await _persist_to_github(
@@ -677,7 +695,9 @@ async def websocket_endpoint(
                 active_session_id = session.id
                 await _emit_session_create(active_session_id)
 
-                run_result = await agent.run(query_text)
+                run_result = await agent.run(
+                    query_text, attachments=turn_attachments or None
+                )
                 await _title_session(active_session_id, query_text)
 
                 workspace.status = WorkspaceStatus.READY

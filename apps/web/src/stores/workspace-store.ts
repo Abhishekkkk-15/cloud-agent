@@ -1129,6 +1129,18 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       })
 
       const { selectedModel, selectedEffort } = get()
+      // Normalize attachments for wire payload
+      const wireAttachments = (attachments || []).map((att) => ({
+        filename: att.name,
+        name: att.name,
+        mime: att.mimeType,
+        mimeType: att.mimeType,
+        data_base64: att.data_base64 || att.dataBase64,
+        dataBase64: att.data_base64 || att.dataBase64,
+        size: att.size,
+        kind: att.kind,
+      }))
+
       // Omit session_id for pending new sessions so chat_ws uses new_session()
       ws.sendAgentQuery(
         trimmed || "Review my attachments",
@@ -1136,6 +1148,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         {
           model: selectedModel,
           reasoning_effort: selectedEffort,
+          attachments: wireAttachments,
         }
       )
     } catch (error) {

@@ -179,6 +179,7 @@ export const messageSchema = z.object({
   tool_calls: z.array(z.unknown()).nullable().optional(),
   tool_call_id: z.string().nullable().optional(),
   reasoning_content: z.string().nullable().optional(),
+  attachments: z.array(z.unknown()).nullable().optional(),
 });
 
 export const sessionDetailResponseSchema = z.object({

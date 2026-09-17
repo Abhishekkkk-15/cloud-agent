@@ -45,6 +45,8 @@ export const chatAttachmentSchema = z.object({
   size: z.number().nonnegative(),
   kind: z.enum(["image", "file"]),
   previewUrl: z.string().optional(),
+  data_base64: z.string().optional(),
+  dataBase64: z.string().optional(),
 })
 
 /**

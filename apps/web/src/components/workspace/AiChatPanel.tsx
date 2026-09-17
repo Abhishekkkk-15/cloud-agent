@@ -57,33 +57,61 @@ export function AiChatPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  function addFiles(fileList: FileList | File[]) {
+  function readFileAsBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const res = reader.result as string
+        // Strip data:mime/type;base64, prefix to store raw base64
+        const commaIdx = res.indexOf(",")
+        resolve(commaIdx !== -1 ? res.slice(commaIdx + 1) : res)
+      }
+      reader.onerror = (err) => reject(err)
+      reader.readAsDataURL(file)
+    })
+  }
+
+  async function addFiles(fileList: FileList | File[]) {
     const incoming = Array.from(fileList)
     if (incoming.length === 0) return
 
-    setAttachments((prev) => {
-      const next = [...prev]
-      for (const file of incoming) {
-        if (next.length >= MAX_FILES) {
-          toast.error(`Max ${MAX_FILES} attachments`)
-          break
-        }
-        if (file.size > MAX_BYTES) {
-          toast.error(`${file.name} is larger than 5MB`)
+    for (const file of incoming) {
+      if (attachments.length >= MAX_FILES) {
+        toast.error(`Max ${MAX_FILES} attachments`)
+        break
+      }
+      if (file.size > MAX_BYTES) {
+        toast.error(`${file.name} is larger than 5MB`)
+        continue
+      }
+      const kind = file.type.startsWith("image/") ? "image" : "file"
+      let dataBase64: string | undefined = undefined
+      if (kind === "image") {
+        try {
+          dataBase64 = await readFileAsBase64(file)
+        } catch {
+          toast.error(`Failed to read ${file.name}`)
           continue
         }
-        const kind = file.type.startsWith("image/") ? "image" : "file"
-        next.push({
-          id: crypto.randomUUID(),
-          name: file.name,
-          mimeType: file.type || "application/octet-stream",
-          size: file.size,
-          kind,
-          previewUrl: kind === "image" ? URL.createObjectURL(file) : undefined,
-        })
       }
-      return next
-    })
+
+      setAttachments((prev) => {
+        if (prev.length >= MAX_FILES) return prev
+        return [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            name: file.name,
+            mimeType: file.type || "application/octet-stream",
+            size: file.size,
+            kind,
+            previewUrl: kind === "image" ? URL.createObjectURL(file) : undefined,
+            data_base64: dataBase64,
+            dataBase64: dataBase64,
+          },
+        ]
+      })
+    }
   }
 
   function removeAttachment(id: string) {

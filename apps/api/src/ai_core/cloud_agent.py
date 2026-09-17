@@ -381,10 +381,12 @@ class CloudAgentCore:
             on_event=on_event_handler,
         )
 
-    async def run(self, msg: str) -> RunResult:
+    async def run(
+        self, msg: str, attachments: list[Any] | None = None
+    ) -> RunResult:
         print("\n Run \n")
         self.client.create
-        return await self.client.run(msg)
+        return await self.client.run(msg, attachments=attachments)
 
     async def new_session(self, title: str = "New session"):
         """Reset in-memory conversation and create a fresh pi_sdk session."""

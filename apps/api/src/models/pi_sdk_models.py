@@ -54,3 +54,4 @@ class MongoMessageDocument(BaseModel):
     tool_calls: list[Any] | None = None
     tool_call_id: str | None = None
     reasoning_content: str | None = None
+    attachments: list[Any] | None = None

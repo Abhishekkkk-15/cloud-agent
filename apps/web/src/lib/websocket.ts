@@ -192,7 +192,11 @@ class WebSocketManager {
   sendAgentQuery(
     query: string,
     sessionId?: string | null,
-    options?: { model?: string; reasoning_effort?: string }
+    options?: {
+      model?: string
+      reasoning_effort?: string
+      attachments?: unknown[]
+    }
   ) {
     const payload: AgentOutgoingEvent = "agent:send"
     this.send(payload, {
@@ -201,6 +205,9 @@ class WebSocketManager {
       ...(options?.model ? { model: options.model } : {}),
       ...(options?.reasoning_effort
         ? { reasoning_effort: options.reasoning_effort }
+        : {}),
+      ...(options?.attachments && options.attachments.length > 0
+        ? { attachments: options.attachments }
         : {}),
     })
   }
