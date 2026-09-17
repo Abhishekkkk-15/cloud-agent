@@ -333,7 +333,7 @@ class CloudAgentCore:
         selected_model = model or sys_config.model
         selected_base_url = base_url or sys_config.base_url
         selected_api_key = api_key or sys_config.api_key
-        selected_effort = reasoning_effort or "high"
+        selected_effort = reasoning_effort or None
         selected_autonomous = autonomous if autonomous is not None else sys_config.autonomous
         selected_compaction = (
             compaction_enabled if compaction_enabled is not None else sys_config.compaction_enabled

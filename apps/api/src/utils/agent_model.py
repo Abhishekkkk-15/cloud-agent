@@ -41,7 +41,7 @@ def normalize_agent_kwargs(kwargs: dict) -> dict:
         "provider": kwargs.get("provider") or config.provider,
         "base_url": kwargs.get("base_url") or config.base_url,
         "api_key": kwargs.get("api_key") or config.api_key,
-        "reasoning_effort": kwargs.get("reasoning_effort") or "high",
+        "reasoning_effort": kwargs.get("reasoning_effort") or None,
         "autonomous": kwargs.get("autonomous") if kwargs.get("autonomous") is not None else config.autonomous,
         "compaction_enabled": kwargs.get("compaction_enabled") if kwargs.get("compaction_enabled") is not None else config.compaction_enabled,
         "compact_at_tokens": kwargs.get("compact_at_tokens") or config.compact_at_tokens,
@@ -105,21 +105,22 @@ async def build_agent_kwargs_from_request(
         default_from_settings = config_settings.get("default_model_id")
         if default_from_settings:
             resolved_model_key = default_from_settings
-        elif resolved_model_key == "auto":
-            resolved_model_key = "auto"
         else:
-            if target_effort:
-                kwargs["reasoning_effort"] = target_effort
-            return kwargs
+            # No explicit model and no admin setting — fall through to the DB
+            # default (is_default=True) so we never silently use .env MODEL.
+            resolved_model_key = "auto"
 
     if resolved_model_key == "auto":
         target_model = await model_repo.find_default()
     else:
         target_model = await model_repo.find_by_id(resolved_model_key)
-        if not target_model and (model_key == "auto" or not model_key):
+        if not target_model:
+            # Requested model not found — gracefully fall back to DB default.
             target_model = await model_repo.find_default()
 
     if not target_model:
+        # No model in DB at all — apply effort if we have it and let
+        # CloudAgentCore fall back to .env as last resort.
         if target_effort:
             kwargs["reasoning_effort"] = target_effort
         return kwargs
