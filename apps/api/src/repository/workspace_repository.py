@@ -110,6 +110,8 @@ class WorkspaceRepository:
         result = await self.collection.delete_one({"_id": ObjectId(workspace_id)})
         return result.deleted_count > 0
 
+def create_workspace_repo(db: Any) -> WorkspaceRepository:
+    return WorkspaceRepository(db["workspaces"])
 
 async def get_workspace_repo(db: Annotated[Any, Depends(get_db)]) -> WorkspaceRepository:
     return WorkspaceRepository(db["workspaces"])

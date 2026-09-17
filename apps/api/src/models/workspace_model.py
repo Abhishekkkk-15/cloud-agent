@@ -44,3 +44,4 @@ class Workspace(BaseModel):
     github_auth_source: Literal["user", "platform"] | None = None
     workspace_origin:Literal["template","github_import"] = "template"
     
+    version:int | None = None

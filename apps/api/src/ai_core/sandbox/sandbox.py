@@ -7,6 +7,7 @@ from docker import DockerClient
 from docker.errors import APIError, ContainerError, NotFound
 from docker.models.containers import Container
 from docker.types import Mount
+from src.utils.db_client import get_db
 
 
 class Sandbox:
@@ -217,6 +218,24 @@ class Sandbox:
         except Exception as e:
             return {"error": f"Failed to stop container: {e}"}
 
+    def delete_sandbox(self,container_id:str) -> dict[str, str] | None:
+        try:
+            if not self.client:
+                return {
+                    "error": self._client_error or "Docker is not available"
+                }
+            container = self.client.containers.get(container_id)
+            container.remove()
+            return None
+        except NotFound:
+            return {"error": f"Container '{container_id}' not found"}
+        except ContainerError as e:
+            return {"error": f"Container Error: {getattr(e, 'stderr', e)}"}
+        except APIError as e:
+            return {"error": f"Docker API Error: {e}"}
+        except Exception as e:
+            return {"error": f"Failed to delete container: {e}"}
+        
     def run_exec(self, sandbox_id: str, cmd: str | list[str]) -> dict[str, str] | bool:
         ctn = self.sandbox_get(sandbox_id=sandbox_id)
         if ctn is None:

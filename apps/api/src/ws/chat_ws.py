@@ -33,6 +33,9 @@ from src.services.workspace_github_sync import (
     sync_workspace_to_github,
 )
 from src.services.commit_message import build_commit_message
+from src.ai_core.sandbox.queue.sandbox_life_cycle import container_lifecycle_manager
+from src.models.workspace_model import Workspace, WorkspaceStatus
+
 
 router = APIRouter()
 
@@ -51,11 +54,12 @@ async def websocket_endpoint(
     await ws_manager.connect(ws)
     print("Websocket connection established")
     agent: CloudAgentCore | None = None
+    workspace : Workspace|None = None
 
     try:
         # 1. Authenticate once upon connection
         user = await authenticate_websocket(ws, user_repo)
-        if not user or not user.id:
+        if  not user.id:
             raise WebSocketException(code=1002,reason="Handshake fails")
         workspace_id = ws.query_params.get("workspace_id")
 
@@ -201,28 +205,29 @@ async def websocket_endpoint(
                     }
                 ),
             )
-            try:
-                resumed_sandbox = sandbox_repo.resume_sandbox(sandbox_id)
-                if not isinstance(resumed_sandbox, SandboxRunResult):
-                    port_manager.release_workspace_ports(workspace_id)
-                    await ws_manager.send_json(
-                        websocket=ws,
-                        data=jsonable_encoder(
-                            {
-                                "type": "sandbox:error",
-                                "data": {
-                                    "title": "Failed to Resume Sandbox",
-                                    "error": str(resumed_sandbox),
-                                    "details": "Could not resume paused container",
-                                },
-                            }
-                        ),
-                    )
-                    raise WebSocketException(
-                        code=1002,
-                        reason=f"Failed starting Docker sandbox: {resumed_sandbox}",
-                    )
-            except NotFound:
+            # try:
+            resumed_sandbox = sandbox_repo.resume_sandbox(sandbox_id)
+            if not isinstance(resumed_sandbox, SandboxRunResult):
+                port_manager.release_workspace_ports(workspace_id)
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder(
+                        {
+                            "type": "sandbox:error",
+                            "data": {
+                                "title": "Failed to Resume Sandbox",
+                                "error": str(resumed_sandbox),
+                                "details": "Could not resume paused container",
+                            },
+                        }
+                    ),
+                )
+                raise WebSocketException(
+                    code=1002,
+                    reason=f"Failed starting Docker sandbox: {resumed_sandbox}",
+                )
+            # excpt NotFound:
+            else:
                 print("Starting sandbox container...")
                 await ws_manager.send_json(
                     websocket=ws,
@@ -257,11 +262,9 @@ async def websocket_endpoint(
                         ),
                     )
                     raise WebSocketException(code=1011, reason=str(prep_err)) from prep_err
-
                 # Allocate host ports for container (e.g., 5173 -> host_port)
                 allocated = port_manager.allocate_workspace_ports(workspace_id)
                 docker_ports = port_manager.to_docker_ports(workspace_id)
-
                 await ws_manager.send_json(
                     websocket=ws,
                     data=jsonable_encoder(
@@ -275,7 +278,6 @@ async def websocket_endpoint(
                         }
                     ),
                 )
-
                 sandbox_cfg = await settings_repo.get_sandbox_config()
                 sandbox = sandbox_repo.run_sandbox(
                     workspace_id,
@@ -307,30 +309,24 @@ async def websocket_endpoint(
                         code=1002,
                         reason=f"Failed starting Docker sandbox: {sandbox}",
                     )
-
                 frontend = next(
                     (p for p in allocated if p.role == PortRole.FRONTEND), None
                 )
                 backend = next(
                     (p for p in allocated if p.role == PortRole.BACKEND), None
                 )
-
                 if frontend:
                     workspace.frontend_port = frontend.host_port
                     workspace.preview_port = frontend.host_port
                     # Format URL as central proxy: http://<workspace_id>.lvh.me:8000
                     workspace.preview_url = build_preview_url(workspace_id, is_backend=False)
-
                 if backend:
                     workspace.backend_port = backend.host_port
                     workspace.backend_url = build_preview_url(workspace_id, is_backend=True)
-
                 workspace.preview_status = "ports_ready"
                 workspace.sandbox_id = sandbox.id
                 sandbox_id = sandbox.id
-
                 await workspace_repo.save(workspace)
-
         # Notify client of active sandbox and ready wildcard URLs
         await ws_manager.send_json(
             websocket=ws,
@@ -351,6 +347,8 @@ async def websocket_endpoint(
             ),
         )
 
+        workspace.version = 1 if workspace.version == None else workspace.version+1;
+        await workspace_repo.save(workspace)
         intent_agent = IntentAgent()
         warned_soft_cap = False
 
@@ -437,7 +435,7 @@ async def websocket_endpoint(
         agent = CloudAgentCore(
             workspace_id, workspace.sandbox_id, user.id, on_event, **agent_kwargs
         )
-
+        
         # 3. Message processing loop
         active_session_id = ws.query_params.get("session_id")
         agent_task: asyncio.Task | None = None
@@ -650,7 +648,8 @@ async def websocket_endpoint(
                         ),
                     )   
                     return
-
+                if not agent:
+                    raise WebSocketException(code=1002,reason="Agent  initilization failed")
                 await agent.resume(active_session_id)
                 is_fresh = _messages_are_fresh(agent.get_messages())
                 run_result = await agent.run(query_text)
@@ -666,6 +665,8 @@ async def websocket_endpoint(
             # Uses pi_sdk Agent.new_session() so the reused CloudAgent drops the
             # previous session and creates one with the correct host workspace.
             elif not req_session_id and query_text:
+                if not agent:
+                    raise WebSocketException(code=1002,reason="Agent  initilization failed")
                 session = await agent.new_session("New session")
                 active_session_id = session.id
                 await _emit_session_create(active_session_id)
@@ -752,8 +753,10 @@ async def websocket_endpoint(
                 )
             except Exception:
                 pass
-
+            if not workspace:
+                    raise WebSocketException(code=1002,reason="Workspace not found")    
             try:
+                
                 host_path = host_workspace_path(workspace)
             except Exception:
                 host_path = config.workspace_base / workspace_id
@@ -764,7 +767,7 @@ async def websocket_endpoint(
                 agent_summary=agent_summary,
                 intent_agent=intent_agent,
             )
-
+            
             fresh_workspace, result = await sync_workspace_to_github(
                 user,
                 workspace,
@@ -816,13 +819,9 @@ async def websocket_endpoint(
            agent_task = asyncio.create_task(run_agent_task(user_query))
         
     except WebSocketDisconnect:
-        if agent:
-            agent.abort()
-        ws_manager.disconnect(ws)
+        pass
     except Exception as e:
         print(f"[WebSocket Error]: {e}")
-        if agent:
-            agent.abort()
         try:
             if ws.client_state == WebSocketState.CONNECTED:
                 await ws_manager.send_json(
@@ -830,10 +829,12 @@ async def websocket_endpoint(
                 )
         except Exception:
             pass
-        finally:
-            if agent:
-                agent.abort()
-            ws_manager.disconnect(ws)
+    finally:        
+        if workspace:      
+            ws_id = workspace.id
+            ws_v = workspace.version
+            if ws_id and ws_v:
+                await container_lifecycle_manager(ws_id,ws_v)
 
 
 router.websocket("/ws")(websocket_endpoint)
