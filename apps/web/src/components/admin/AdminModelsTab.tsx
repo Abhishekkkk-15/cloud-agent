@@ -255,6 +255,11 @@ export function AdminModelsTab() {
                           <div className="text-[10px]">
                             Out: ${m.output_price_per_mtok.toFixed(2)}
                           </div>
+                          {(m.cached_price_per_mtok ?? 0) > 0 && (
+                            <div className="text-[10px] text-blue-500">
+                              Cached: ${(m.cached_price_per_mtok ?? 0).toFixed(3)}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-1 items-start">

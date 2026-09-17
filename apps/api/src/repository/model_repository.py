@@ -39,6 +39,7 @@ def _doc_to_model(doc: dict) -> AIModel:
         max_tokens=doc.get("max_tokens"),
         input_price_per_mtok=float(doc.get("input_price_per_mtok", 0.0) or 0.0),
         output_price_per_mtok=float(doc.get("output_price_per_mtok", 0.0) or 0.0),
+        cached_price_per_mtok=float(doc.get("cached_price_per_mtok", 0.0) or 0.0),
         **extras,
     )
 

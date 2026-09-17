@@ -376,10 +376,16 @@ async def websocket_endpoint(
                         db_model = await model_repo.find_by_model_id(active_model)
                         in_rate = (getattr(db_model, "input_price_per_mtok", 0.0) or 0.0) if db_model else 0.0
                         out_rate = (getattr(db_model, "output_price_per_mtok", 0.0) or 0.0) if db_model else 0.0
+                        cached_rate = (getattr(db_model, "cached_price_per_mtok", 0.0) or 0.0) if db_model else 0.0
                         if in_rate <= 0.0 and out_rate <= 0.0:
                             in_rate = 2.0
                             out_rate = 8.0
-                        cost_val = (p_tok * in_rate / 1_000_000.0) + (c_tok * out_rate / 1_000_000.0)
+                            cached_rate = 1.0
+                        non_cached = max(0, p_tok - cached_tok)
+                        if cached_rate > 0:
+                            cost_val = (non_cached * in_rate + cached_tok * cached_rate) / 1_000_000.0 + (c_tok * out_rate / 1_000_000.0)
+                        else:
+                            cost_val = (p_tok * in_rate / 1_000_000.0) + (c_tok * out_rate / 1_000_000.0)
 
                     await usage_repo.record_usage(
                         user_id=user.id,

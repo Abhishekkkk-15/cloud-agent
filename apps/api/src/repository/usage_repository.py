@@ -118,24 +118,24 @@ class UsageRepository:
         now = datetime.now(timezone.utc)
         for uid, data in user_agg.items():
             user_doc_id = f"{uid}_{clean_period}"
-            existing = await self.user_usage_coll.find_one({"_id": user_doc_id})
-            if not existing or existing.get("total_tokens", 0) < data["total_tokens"]:
-                await self.user_usage_coll.update_one(
-                    {"_id": user_doc_id},
-                    {
-                        "$set": {
-                            "user_id": uid,
-                            "period": clean_period,
-                            "prompt_tokens": max(data["prompt_tokens"], existing.get("prompt_tokens", 0) if existing else 0),
-                            "completion_tokens": max(data["completion_tokens"], existing.get("completion_tokens", 0) if existing else 0),
-                            "total_tokens": max(data["total_tokens"], existing.get("total_tokens", 0) if existing else 0),
-                            "cached_tokens": max(data["cached_tokens"], existing.get("cached_tokens", 0) if existing else 0),
-                            "estimated_cost_usd": round(max(data["estimated_cost_usd"], existing.get("estimated_cost_usd", 0.0) if existing else 0.0), 6),
-                            "last_updated": now,
-                        }
-                    },
-                    upsert=True,
-                )
+            # Always overwrite with the ground-truth session aggregates.
+            # Using max() here would prevent correcting corrupted/inflated records.
+            await self.user_usage_coll.update_one(
+                {"_id": user_doc_id},
+                {
+                    "$set": {
+                        "user_id": uid,
+                        "period": clean_period,
+                        "prompt_tokens": data["prompt_tokens"],
+                        "completion_tokens": data["completion_tokens"],
+                        "total_tokens": data["total_tokens"],
+                        "cached_tokens": data["cached_tokens"],
+                        "estimated_cost_usd": round(data["estimated_cost_usd"], 6),
+                        "last_updated": now,
+                    }
+                },
+                upsert=True,
+            )
 
         model_count = await self.model_usage_coll.count_documents({"period": clean_period})
         if model_count == 0 and user_agg:

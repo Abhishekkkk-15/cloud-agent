@@ -31,6 +31,7 @@ def _to_response(model: AIModel) -> ModelResponse:
         max_tokens=model.max_tokens,
         input_price_per_mtok=model.input_price_per_mtok,
         output_price_per_mtok=model.output_price_per_mtok,
+        cached_price_per_mtok=model.cached_price_per_mtok,
         created_at=model.created_at,
         updated_at=model.updated_at,
     )
@@ -101,6 +102,7 @@ async def create_model(
         max_tokens=body.max_tokens,
         input_price_per_mtok=body.input_price_per_mtok,
         output_price_per_mtok=body.output_price_per_mtok,
+        cached_price_per_mtok=body.cached_price_per_mtok,
     )
     saved = await repo.create(model)
     return _to_response(saved)

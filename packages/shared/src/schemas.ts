@@ -289,6 +289,7 @@ export const llmModelSchema = z.object({
   max_tokens: z.number().nullable().optional(),
   input_price_per_mtok: z.number().default(0),
   output_price_per_mtok: z.number().default(0),
+  cached_price_per_mtok: z.number().default(0),
   created_at: isoTimestamp.optional(),
   updated_at: isoTimestamp.optional(),
 });

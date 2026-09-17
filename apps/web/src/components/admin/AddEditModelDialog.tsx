@@ -40,6 +40,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
   const [maxTokens, setMaxTokens] = useState<number | "">("")
   const [inputPrice, setInputPrice] = useState<number | "">("")
   const [outputPrice, setOutputPrice] = useState<number | "">("")
+  const [cachedPrice, setCachedPrice] = useState<number | "">("")
   const [supportsEffort, setSupportsEffort] = useState(false)
   const [isMultiModel, setIsMultiModel] = useState(false)
   const [defaultEffort, setDefaultEffort] = useState<string>("medium")
@@ -60,6 +61,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
       setMaxTokens(model.max_tokens ?? "")
       setInputPrice(model.input_price_per_mtok ?? "")
       setOutputPrice(model.output_price_per_mtok ?? "")
+      setCachedPrice(model.cached_price_per_mtok ?? "")
       setSupportsEffort(Boolean(model.supports_effort))
       setIsMultiModel(Boolean(model.is_multi_model))
       setDefaultEffort(model.default_effort || "medium")
@@ -78,6 +80,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
       setMaxTokens("")
       setInputPrice("")
       setOutputPrice("")
+      setCachedPrice("")
       setSupportsEffort(false)
       setIsMultiModel(false)
       setDefaultEffort("medium")
@@ -108,6 +111,7 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
         max_tokens: maxTokens === "" ? null : Number(maxTokens),
         input_price_per_mtok: inputPrice === "" ? 0 : Number(inputPrice),
         output_price_per_mtok: outputPrice === "" ? 0 : Number(outputPrice),
+        cached_price_per_mtok: cachedPrice === "" ? 0 : Number(cachedPrice),
         supports_effort: supportsEffort,
         is_multi_model: isMultiModel,
         default_effort: supportsEffort ? defaultEffort : null,
@@ -291,6 +295,20 @@ export function AddEditModelDialog({ open, model, onClose, onSuccess }: Props) {
                 value={outputPrice}
                 onChange={(e) =>
                   setOutputPrice(e.target.value === "" ? "" : Number(e.target.value))
+                }
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="model-cachedprice">Cached Price ($ / 1M tokens)</Label>
+              <Input
+                id="model-cachedprice"
+                type="number"
+                step="0.001"
+                placeholder="e.g. 1.25 (leave 0 for auto)"
+                value={cachedPrice}
+                onChange={(e) =>
+                  setCachedPrice(e.target.value === "" ? "" : Number(e.target.value))
                 }
               />
             </div>

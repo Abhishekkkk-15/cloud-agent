@@ -22,6 +22,7 @@ class CreateModelRequest(BaseModel):
     max_tokens: int | None = None
     input_price_per_mtok: float = 0.0
     output_price_per_mtok: float = 0.0
+    cached_price_per_mtok: float = 0.0
 
 
 class UpdateModelRequest(BaseModel):
@@ -44,6 +45,7 @@ class UpdateModelRequest(BaseModel):
     max_tokens: int | None = None
     input_price_per_mtok: float | None = None
     output_price_per_mtok: float | None = None
+    cached_price_per_mtok: float | None = None
 
 
 class ModelResponse(BaseModel):
@@ -67,6 +69,7 @@ class ModelResponse(BaseModel):
     max_tokens: int | None = None
     input_price_per_mtok: float = 0.0
     output_price_per_mtok: float = 0.0
+    cached_price_per_mtok: float = 0.0
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

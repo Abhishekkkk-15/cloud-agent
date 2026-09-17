@@ -23,6 +23,7 @@ class AIModel(BaseModel):
     max_tokens: int | None = None
     input_price_per_mtok: float = 0.0
     output_price_per_mtok: float = 0.0
+    cached_price_per_mtok: float = 0.0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -39,6 +40,7 @@ class AIModel(BaseModel):
             "reasoning_effort": self.default_effort if self.supports_effort else None,
             "input_price_per_mtok": self.input_price_per_mtok,
             "output_price_per_mtok": self.output_price_per_mtok,
+            "cached_price_per_mtok": self.cached_price_per_mtok if self.cached_price_per_mtok > 0 else None,
         }
 
 
