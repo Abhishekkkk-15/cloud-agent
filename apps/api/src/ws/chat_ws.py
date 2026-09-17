@@ -683,14 +683,20 @@ async def websocket_endpoint(
                     if not db_model:
                         db_model = await model_repo.get_default_model()
                     model_window = (db_model.context_window if (db_model and db_model.context_window) else None) or 128000
+
+                    compact_limit = int(agent_kwargs.get("compact_at_tokens") or config.compact_at_tokens or 80000)
+                    target_limit = compact_limit if agent_kwargs.get("compaction_enabled", True) else model_window
+
                     filled_tokens = agent.filled_context_tokens
-                    remaining_tokens = max(0, model_window - filled_tokens)
-                    percent_used = round((filled_tokens / model_window) * 100, 2) if model_window > 0 else 0.0
+                    remaining_tokens = max(0, target_limit - filled_tokens)
+                    percent_used = round((filled_tokens / target_limit) * 100, 2) if target_limit > 0 else 0.0
                     ctx_usage = {
                         "filled_tokens": filled_tokens,
-                        "total_tokens": model_window,
+                        "total_tokens": target_limit,
                         "remaining_tokens": remaining_tokens,
                         "percent_used": percent_used,
+                        "compact_at_tokens": compact_limit,
+                        "model_limit": model_window,
                     }
                     await ws_manager.send_json(
                         websocket=ws,

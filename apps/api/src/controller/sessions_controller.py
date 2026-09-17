@@ -7,6 +7,7 @@ from src.models.pi_sdk_models import MongoSessionDocument
 from src.repository.message_repository import MessageRepo
 from src.repository.model_repository import ModelRepo
 from src.repository.session_repository import SessionRepo, generate_session_id
+from src.repository.settings_repository import SettingsRepo
 from src.utils.config import config
 
 
@@ -16,6 +17,7 @@ async def get_session(
     session_id: str,
     message_repo: MessageRepo,
     model_repo: ModelRepo,
+    settings_repo: SettingsRepo,
     model: str | None = None,
 ):
     session = await session_repo.find_by_id(session_id)
@@ -38,6 +40,12 @@ async def get_session(
     if not db_model:
         db_model = await model_repo.get_default_model()
     model_window = (db_model.context_window if (db_model and db_model.context_window) else None) or 128000
+
+    # Resolve compaction threshold limit from admin settings / config
+    agent_cfg = await settings_repo.get_agent_config()
+    compact_limit = int(agent_cfg.get("compact_at_tokens") or config.compact_at_tokens or 80000)
+    target_limit = compact_limit if agent_cfg.get("compaction_enabled", True) else model_window
+
     filled = 0
     if messages:
         try:
@@ -67,13 +75,18 @@ async def get_session(
         except Exception:
             active_msgs = messages[session.compacted_until:] if session.compacted_until < len(messages) else messages
             active_words = sum(len((m.content or "").split()) for m in active_msgs)
-            filled = min(model_window, max(0, 350 + int(active_words * 1.3)))
+            filled = min(target_limit, max(0, 350 + int(active_words * 1.3)))
+
+    remaining_tokens = max(0, target_limit - filled)
+    percent_used = round((filled / target_limit) * 100, 2) if target_limit > 0 else 0.0
 
     context_usage = {
         "filled_tokens": filled,
-        "total_tokens": model_window,
-        "remaining_tokens": max(0, model_window - filled),
-        "percent_used": round((filled / model_window) * 100, 2),
+        "total_tokens": target_limit,
+        "remaining_tokens": remaining_tokens,
+        "percent_used": percent_used,
+        "compact_at_tokens": compact_limit,
+        "model_limit": model_window,
     }
 
     return {

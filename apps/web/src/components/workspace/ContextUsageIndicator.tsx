@@ -25,6 +25,8 @@ export function ContextUsageIndicator() {
   const total = contextUsage?.total_tokens || 128_000
   const remaining = Math.max(0, total - filled)
   const percent = contextUsage?.percent_used ?? (total > 0 ? Number(((filled / total) * 100).toFixed(1)) : 0)
+  const isCompacting = Boolean(contextUsage?.compact_at_tokens)
+  const modelLimit = contextUsage?.model_limit
 
   // Determine status color
   let colorClass = "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
@@ -89,7 +91,7 @@ export function ContextUsageIndicator() {
             <div className="flex items-center justify-between gap-2 border-b pb-1.5">
               <div className="flex items-center gap-1.5 text-xs font-semibold">
                 <GaugeIcon className="size-3.5 text-primary" />
-                <span>Context Window</span>
+                <span>{isCompacting ? "Context Compaction" : "Context Window"}</span>
               </div>
               <span className="text-xs font-mono font-medium">
                 {percent.toFixed(1)}%
@@ -108,17 +110,28 @@ export function ContextUsageIndicator() {
               <span className="text-muted-foreground">Filled Tokens:</span>
               <span className="font-mono text-right font-medium">{filled.toLocaleString()}</span>
 
-              <span className="text-muted-foreground">Model Limit:</span>
+              <span className="text-muted-foreground">{isCompacting ? "Compacts At:" : "Context Limit:"}</span>
               <span className="font-mono text-right">{total.toLocaleString()}</span>
 
-              <span className="text-muted-foreground">Available Room:</span>
+              <span className="text-muted-foreground">{isCompacting ? "Room to Compact:" : "Available Room:"}</span>
               <span className="font-mono text-right text-emerald-600 dark:text-emerald-400">
                 {remaining.toLocaleString()}
               </span>
+
+              {isCompacting && modelLimit ? (
+                <>
+                  <span className="text-muted-foreground">Model Context Limit:</span>
+                  <span className="font-mono text-right text-muted-foreground/80">
+                    {modelLimit.toLocaleString()}
+                  </span>
+                </>
+              ) : null}
             </div>
 
             <p className="text-[10px] text-muted-foreground/75 leading-tight pt-1 border-t">
-              Shows active context sent to the LLM (system prompt, working memory &amp; active conversation turns).
+              {isCompacting
+                ? "History automatically compacts when active context reaches the compaction threshold."
+                : "Shows active context sent to the LLM (system prompt, working memory & active conversation turns)."}
             </p>
           </div>
         </TooltipContent>

@@ -158,6 +158,8 @@ type WorkspaceState = {
     total_tokens: number
     remaining_tokens: number
     percent_used: number
+    compact_at_tokens?: number
+    model_limit?: number
   } | null
 }
 
@@ -464,6 +466,8 @@ function ensureControlEventListener(
       total_tokens?: number
       remaining_tokens?: number
       percent_used?: number
+      compact_at_tokens?: number
+      model_limit?: number
     }
     if (data && typeof data.filled_tokens === "number") {
       set({
@@ -472,6 +476,8 @@ function ensureControlEventListener(
           total_tokens: data.total_tokens || 128000,
           remaining_tokens: data.remaining_tokens || 0,
           percent_used: data.percent_used || 0,
+          compact_at_tokens: data.compact_at_tokens,
+          model_limit: data.model_limit,
         },
       })
     }
@@ -483,10 +489,14 @@ function ensureControlEventListener(
         context_tokens?: number
         context_window?: number
         context_percent?: number
+        compact_at_tokens?: number
+        model_limit?: number
       }
       context_tokens?: number
       context_window?: number
       context_percent?: number
+      compact_at_tokens?: number
+      model_limit?: number
     }
     const usage = data?.usage || data
     if (usage && typeof usage.context_tokens === "number") {
@@ -499,6 +509,8 @@ function ensureControlEventListener(
           percent_used:
             usage.context_percent ??
             Number(((usage.context_tokens / win) * 100).toFixed(2)),
+          compact_at_tokens: usage.compact_at_tokens,
+          model_limit: usage.model_limit,
         },
       })
     }

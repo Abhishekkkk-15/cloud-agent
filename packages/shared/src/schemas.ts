@@ -190,6 +190,8 @@ export const sessionDetailResponseSchema = z.object({
       total_tokens: z.number(),
       remaining_tokens: z.number(),
       percent_used: z.number(),
+      compact_at_tokens: z.number().optional(),
+      model_limit: z.number().optional(),
     })
     .optional(),
 });

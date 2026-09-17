@@ -184,6 +184,8 @@ def event_handler(event: AgentEvent) -> WsEvent:
                 "context_tokens": data.get("context_tokens"),
                 "context_window": data.get("context_window"),
                 "context_percent": data.get("context_percent"),
+                "compact_at_tokens": data.get("compact_at_tokens"),
+                "model_limit": data.get("model_limit"),
             },
         )
 
