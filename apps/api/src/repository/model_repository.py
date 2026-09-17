@@ -161,6 +161,10 @@ class ModelRepository:
             doc = await self.collection.find_one({"is_active": True})
         return _doc_to_model(doc) if doc else None
 
+    # Convenience aliases
+    find_by_model_id = find_by_id
+    get_default_model = find_default
+
     async def update(self, model_id_or_id: str, data: dict) -> AIModel | None:
         existing = await self.find_by_id(model_id_or_id)
         if not existing or not existing.id:

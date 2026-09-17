@@ -107,9 +107,12 @@ export async function createSession(workspaceId: string): Promise<Session> {
 }
 
 export async function getSessionDetail(
-  sessionId: string
+  sessionId: string,
+  modelId?: string
 ): Promise<SessionDetailResponse> {
-  const { data } = await http.get(`/sessions/${sessionId}`)
+  const { data } = await http.get(`/sessions/${sessionId}`, {
+    params: modelId ? { model: modelId } : undefined,
+  })
   const parsed = sessionDetailResponseSchema.parse(data)
   return {
     session: parsed.session,

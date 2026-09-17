@@ -775,6 +775,16 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       localStorage.setItem("ca_selected_model", model)
     }
     set({ selectedModel: model })
+    const { activeSessionId, contextUsage } = get()
+    if (activeSessionId && contextUsage) {
+      void getSessionDetail(activeSessionId, model)
+        .then((detail) => {
+          if (detail.context_usage) {
+            set({ contextUsage: detail.context_usage })
+          }
+        })
+        .catch(() => {})
+    }
   },
   setSelectedEffort: (effort: ReasoningEffort) => {
     if (typeof window !== "undefined") {
@@ -889,7 +899,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       let initialContextUsage: WorkspaceState["contextUsage"] = null
       if (resolvedSessionId) {
         try {
-          const detail = await getSessionDetail(resolvedSessionId)
+          const detail = await getSessionDetail(
+            resolvedSessionId,
+            get().selectedModel
+          )
           chatMessages = messagesToThread(detail.messages, detail.session)
           if (detail.context_usage) {
             initialContextUsage = detail.context_usage

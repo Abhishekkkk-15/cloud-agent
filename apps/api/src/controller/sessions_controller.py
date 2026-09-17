@@ -5,6 +5,7 @@ from pi_sdk.models import Message as SdkMessage, Role as SdkRole, Session as Sdk
 from src.deps import CurrentUser
 from src.models.pi_sdk_models import MongoSessionDocument
 from src.repository.message_repository import MessageRepo
+from src.repository.model_repository import ModelRepo
 from src.repository.session_repository import SessionRepo, generate_session_id
 from src.utils.config import config
 
@@ -14,10 +15,10 @@ async def get_session(
     session_repo: SessionRepo,
     session_id: str,
     message_repo: MessageRepo,
+    model_repo: ModelRepo,
+    model: str | None = None,
 ):
-    print("session_id",session_id)
     session = await session_repo.find_by_id(session_id)
-    print(session)
     if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -30,7 +31,13 @@ async def get_session(
         )
 
     messages = await message_repo.find_by_session(session_id)
-    model_window = 128000
+
+    # Resolve actual model context window from our models collection in database
+    target_model_id = model or config.model
+    db_model = await model_repo.find_by_model_id(target_model_id)
+    if not db_model:
+        db_model = await model_repo.get_default_model()
+    model_window = (db_model.context_window if (db_model and db_model.context_window) else None) or 128000
     filled = 0
     if messages:
         try:

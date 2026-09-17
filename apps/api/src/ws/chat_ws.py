@@ -675,10 +675,23 @@ async def websocket_endpoint(
                     agent_summary=getattr(run_result, "text", "") or "",
                 )
 
-            # Emit real-time context window usage breakdown to client
+            # Emit real-time context window usage breakdown to client using our database models
             if agent:
                 try:
-                    ctx_usage = agent.get_context_window_usage()
+                    active_model = agent_kwargs.get("model") or config.model
+                    db_model = await model_repo.find_by_model_id(active_model)
+                    if not db_model:
+                        db_model = await model_repo.get_default_model()
+                    model_window = (db_model.context_window if (db_model and db_model.context_window) else None) or 128000
+                    filled_tokens = agent.filled_context_tokens
+                    remaining_tokens = max(0, model_window - filled_tokens)
+                    percent_used = round((filled_tokens / model_window) * 100, 2) if model_window > 0 else 0.0
+                    ctx_usage = {
+                        "filled_tokens": filled_tokens,
+                        "total_tokens": model_window,
+                        "remaining_tokens": remaining_tokens,
+                        "percent_used": percent_used,
+                    }
                     await ws_manager.send_json(
                         websocket=ws,
                         data=jsonable_encoder({
