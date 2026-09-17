@@ -35,7 +35,8 @@ from src.services.workspace_github_sync import (
 from src.services.commit_message import build_commit_message
 from src.ai_core.sandbox.queue.sandbox_life_cycle import container_lifecycle_manager
 from src.models.workspace_model import Workspace, WorkspaceStatus
-
+from src.services.workspace_git import WorkspaceGitService
+from pathlib import Path
 
 router = APIRouter()
 
@@ -351,7 +352,12 @@ async def websocket_endpoint(
         await workspace_repo.save(workspace)
         intent_agent = IntentAgent()
         warned_soft_cap = False
-
+        
+        git = WorkspaceGitService(host_workspace_path(workspace))
+        
+        
+        
+        
         async def on_event(event: AgentEvent) -> None:
             nonlocal warned_soft_cap
             if ws.client_state != WebSocketState.CONNECTED:
@@ -738,6 +744,11 @@ async def websocket_endpoint(
         ) -> None:
             nonlocal workspace
             # Skip if nothing can auth
+            
+            has_changes = git.has_changes()
+            if not has_changes:
+                return
+            
             has_user = bool(user.github_access_token_enc)
             has_platform = bool(config.GITHUB_DEFAULT_TOKEN)
             if not has_user and not has_platform:
