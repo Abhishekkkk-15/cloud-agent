@@ -1,5 +1,7 @@
 from fastapi import HTTPException, status
 
+from pi_sdk.compaction import Compaction
+from pi_sdk.models import Message as SdkMessage, Role as SdkRole, Session as SdkSession
 from src.deps import CurrentUser
 from src.models.pi_sdk_models import MongoSessionDocument
 from src.repository.message_repository import MessageRepo
@@ -29,14 +31,36 @@ async def get_session(
 
     messages = await message_repo.find_by_session(session_id)
     model_window = 128000
+    filled = 0
     if messages:
-        active_msgs = messages[session.compacted_until:] if session.compacted_until < len(messages) else messages
-        comp_summary_tokens = len(session.compaction_summary.split()) * 2 if session.compaction_summary else 0
-        active_words = sum(len((m.content or "").split()) for m in active_msgs)
-        msg_tokens = int(active_words * 1.3)
-        filled = min(model_window, max(0, 350 + comp_summary_tokens + msg_tokens))
-    else:
-        filled = 0
+        try:
+            sdk_session = SdkSession(
+                id=session.id,
+                title=session.title,
+                workspace=session.workspace,
+                prompt_tokens=session.prompt_tokens,
+                completion_tokens=session.completion_tokens,
+                total_tokens=session.total_tokens,
+                cached_tokens=session.cached_tokens,
+                compaction_summary=session.compaction_summary or "",
+                compacted_until=session.compacted_until,
+            )
+            sdk_msgs = [
+                SdkMessage(
+                    role=SdkRole(getattr(m.role, "value", str(m.role)).lower()),
+                    content=m.content or "",
+                    name=m.name,
+                    tool_calls=m.tool_calls,
+                    tool_call_id=m.tool_call_id,
+                )
+                for m in messages
+            ]
+            comp = Compaction()
+            filled = comp.working_token_count(sdk_msgs, sdk_session)
+        except Exception:
+            active_msgs = messages[session.compacted_until:] if session.compacted_until < len(messages) else messages
+            active_words = sum(len((m.content or "").split()) for m in active_msgs)
+            filled = min(model_window, max(0, 350 + int(active_words * 1.3)))
 
     context_usage = {
         "filled_tokens": filled,
