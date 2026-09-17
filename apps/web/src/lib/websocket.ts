@@ -45,7 +45,10 @@ function normalizeIncomingMessage(
     type === "session:create" ||
     type === "agent:busy" ||
     type === "error" ||
-    type === "github:sync"
+    type === "github:sync" ||
+    type === "agent:context_usage" ||
+    type === "agent:budget_exceeded" ||
+    type === "agent:budget_warning"
   ) {
     return { type, data: message.data ?? message }
   }
@@ -55,7 +58,7 @@ function normalizeIncomingMessage(
     return { type: agentMessage.channel, data: agentMessage.payload }
   }
 
-  return null
+  return { type, data: message.data ?? message }
 }
 
 class WebSocketManager {

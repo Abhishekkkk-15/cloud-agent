@@ -96,6 +96,11 @@ export type AgentWsUsage = {
   completion_tokens?: number
   total_tokens?: number
   estimated_cost_usd?: number
+  context_tokens?: number
+  context_window?: number
+  context_percent?: number
+  compact_at_tokens?: number
+  model_limit?: number
 }
 
 /** Flat payload from backend `WsEvent.to_dict()`. */
