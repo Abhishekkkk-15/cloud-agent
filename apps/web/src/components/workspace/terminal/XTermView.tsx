@@ -5,7 +5,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links"
 import "@xterm/xterm/css/xterm.css"
 import { useTheme } from "@/components/theme-provider"
 import { getTerminalWsUrl } from "./terminal-url"
-import { Loader2Icon, RefreshCwIcon, TerminalIcon } from "lucide-react"
+import { Loader2Icon, RefreshCwIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 interface XTermViewProps {
