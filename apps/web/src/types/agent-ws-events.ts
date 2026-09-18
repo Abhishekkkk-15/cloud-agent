@@ -189,7 +189,35 @@ export type SandboxWsPayload = {
   [key: string]: unknown
 }
 
-export type AgentOutgoingEvent = "agent:send" | "agent:start" | "agent:abort"
+export type AskUserQuestionType =
+  | "text"
+  | "secret"
+  | "select"
+  | "multiselect"
+  | "confirm"
+
+export type AskUserQuestion = {
+  id: string
+  type: AskUserQuestionType
+  question: string
+  placeholder?: string
+  options?: string[]
+  default?: string | boolean | string[]
+  required?: boolean
+}
+
+export type AskUserPayload = {
+  request_id: string
+  title: string
+  description?: string
+  questions: AskUserQuestion[]
+}
+
+export type AgentOutgoingEvent =
+  | "agent:send"
+  | "agent:start"
+  | "agent:abort"
+  | "user:answer"
 
 export type WsOutgoingEvent = AgentOutgoingEvent
 export type WsIncomingEvent =
@@ -197,6 +225,7 @@ export type WsIncomingEvent =
   | SandboxWsEvent
   | AgentWsChannel
   | GithubSyncWsEvent
+  | "agent:ask_user"
 
 const AGENT_WS_EVENT_NAME_SET = new Set<string>(AGENT_WS_EVENT_NAMES)
 

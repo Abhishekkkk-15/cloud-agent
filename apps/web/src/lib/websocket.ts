@@ -48,7 +48,8 @@ function normalizeIncomingMessage(
     type === "github:sync" ||
     type === "agent:context_usage" ||
     type === "agent:budget_exceeded" ||
-    type === "agent:budget_warning"
+    type === "agent:budget_warning" ||
+    type === "agent:ask_user"
   ) {
     return { type, data: message.data ?? message }
   }

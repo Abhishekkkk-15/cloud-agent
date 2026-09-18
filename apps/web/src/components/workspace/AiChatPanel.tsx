@@ -3,6 +3,7 @@ import { PaperclipIcon, SendIcon, SquareIcon } from "lucide-react"
 import { toast } from "sonner"
 
 import { AgentEventTurn } from "@/components/workspace/AgentEventTurn"
+import { AskUserCard } from "@/components/workspace/AskUserCard"
 import { ChatAttachmentList } from "@/components/workspace/ChatAttachmentList"
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown"
 import { ContextUsageIndicator } from "@/components/workspace/ContextUsageIndicator"
@@ -44,6 +45,7 @@ export function AiChatPanel() {
   const streamingMessageId = useWorkspaceStore((s) => s.streamingMessageId)
   const sendChat = useWorkspaceStore((s) => s.sendChat)
   const stopStreaming = useWorkspaceStore((s) => s.stopStreaming)
+  const submitUserAnswer = useWorkspaceStore((s) => s.submitUserAnswer)
   const [prompt, setPrompt] = useState("")
   const [attachments, setAttachments] = useState<ChatAttachment[]>([])
   const [dragging, setDragging] = useState(false)
@@ -183,6 +185,18 @@ export function AiChatPanel() {
                               summary={message.content}
                               streaming={isStreaming}
                               defaultOpen={isStreaming}
+                            />
+                          ) : null}
+                          {message.askUser ? (
+                            <AskUserCard
+                              payload={message.askUser}
+                              answered={message.askUserAnswered}
+                              onSubmit={(answers) =>
+                                void submitUserAnswer(
+                                  message.askUser.request_id,
+                                  answers
+                                )
+                              }
                             />
                           ) : null}
                           {showBubble && (

@@ -17,6 +17,7 @@ import {
   wsEventToUiEvent,
   wsPayloadText,
   type AgentWsEventPayload,
+  type AskUserPayload,
   type GithubSyncWsPayload,
   type SandboxWsPayload,
 } from "@/types/agent-ws-events"
@@ -136,6 +137,7 @@ type WorkspaceState = {
   stopRun: () => void
   sendChat: (prompt: string, attachments?: ChatAttachment[]) => Promise<void>
   stopStreaming: () => void
+  submitUserAnswer: (requestId: string, answers: Record<string, unknown>) => Promise<void>
   setWorkspaceTab: (tab: WorkspaceTab) => void
   setBottomPanel: (panel: "console" | "shell") => void
   getActiveFile: () => FileNode | null
@@ -525,6 +527,31 @@ function ensureControlEventListener(
     ws.subscribe("agent:budget_warning", onBudgetWarning),
     ws.subscribe("agent:context_usage", onContextUsage),
     ws.subscribe("agent:usage", onAgentUsage),
+    ws.subscribe("agent:ask_user", (raw: unknown) => {
+      const data = raw as AskUserPayload
+      if (!data || !data.request_id) return
+      set((state) => {
+        const targetId =
+          activeAgentStream?.assistantId ||
+          state.streamingMessageId ||
+          (state.chatMessages.length > 0
+            ? state.chatMessages[state.chatMessages.length - 1].id
+            : null)
+        if (!targetId) return state
+
+        return {
+          chatMessages: state.chatMessages.map((msg) =>
+            msg.id === targetId
+              ? {
+                  ...msg,
+                  askUser: data,
+                  askUserAnswered: false,
+                }
+              : msg
+          ),
+        }
+      })
+    }),
   ]
   controlEventUnsubscribe = () => {
     unsubs.forEach((u) => u())
@@ -1177,6 +1204,36 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     ws.send("agent:abort", { query: "abort" })
     chatAbortController?.abort()
     chatAbortController = null
+  },
+
+  submitUserAnswer: async (requestId: string, answers: Record<string, unknown>) => {
+    const workspace = get().workspace
+    if (!workspace?.id) {
+      set({ error: "Workspace is not loaded" })
+      return
+    }
+    const ws = await connectChatSocket(
+      workspace.id,
+      get().activeSessionId,
+      get,
+      set
+    )
+    ws.send("user:answer", {
+      request_id: requestId,
+      answers,
+    })
+
+    // Mark the question as answered locally
+    set((state) => ({
+      chatMessages: state.chatMessages.map((msg) =>
+        msg.askUser?.request_id === requestId
+          ? {
+              ...msg,
+              askUserAnswered: true,
+            }
+          : msg
+      ),
+    }))
   },
 
   setWorkspaceTab: (tab) => set({ workspaceTab: tab }),

@@ -5,6 +5,7 @@ from typing import Literal,Any
 from pi_sdk import Agent, RunResult
 
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
+from src.ai_core.tools.ask_user_tool import build_ask_user_tool
 from src.utils.config import config
 
 DEFAULT_DOCKER_WORKDIR = "/app"
@@ -326,6 +327,8 @@ class CloudAgentCore:
         keep_recent_tokens: int | None = None,
         max_retries: int | None = None,
         system_prompt_prefix: str | None = None,
+        on_ask_user: Any = None,
+        pending_answers_map: dict[str, Any] | None = None,
     ) -> None:
         self.config = sys_config
         self.workspace_origin = workspace_origin
@@ -349,6 +352,20 @@ class CloudAgentCore:
         repo_root = Path(__file__).resolve().parents[4]
         skills_dir = os.getenv("SKILLS_DIR", str(repo_root / ".agents" / "skills"))
 
+        extra_tools = [
+            build_docker_bash_tool(
+                default_container=container_id,
+                default_workdir=DEFAULT_DOCKER_WORKDIR,
+            ),
+        ]
+        if on_ask_user and pending_answers_map is not None:
+            extra_tools.append(
+                build_ask_user_tool(
+                    on_ask_user=on_ask_user,
+                    pending_answers_map=pending_answers_map,
+                )
+            )
+
         self.client = Agent.create(
             api_key=selected_api_key,
             provider=selected_provider,
@@ -371,12 +388,7 @@ class CloudAgentCore:
             cwd=sys_config.workspace_base / workspace_id,
             max_retries=selected_max_retries,
             retry_on_rate_limit=True,
-            extra_tools=[
-                build_docker_bash_tool(
-                    default_container=container_id,
-                    default_workdir=DEFAULT_DOCKER_WORKDIR,
-                ),
-            ],
+            extra_tools=extra_tools,
             system_prompt_extra=prompt_extra,
             on_event=on_event_handler,
         )

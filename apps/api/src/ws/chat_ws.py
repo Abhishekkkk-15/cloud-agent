@@ -334,6 +334,19 @@ async def websocket_endpoint(
             except Exception as e:
                 print(f"[chat_ws] on_event usage tracking error: {e}")
 
+        # Map of request_id -> asyncio.Future for pausing agent on ask_user tool
+        pending_answers_map: dict[str, asyncio.Future] = {}
+
+        async def on_ask_user(payload: dict) -> None:
+            if ws.client_state == WebSocketState.CONNECTED:
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder({
+                        "type": "agent:ask_user",
+                        "data": payload,
+                    }),
+                )
+
         # Default agent from admin settings or env/config. Recreate later only when
         # model / reasoning_effort / settings resolve to a different fingerprint.
         agent_kwargs = await build_agent_kwargs_from_request(
@@ -347,7 +360,13 @@ async def websocket_endpoint(
         )
         current_fingerprint = compute_agent_fingerprint(agent_kwargs)
         agent = CloudAgentCore(
-            workspace_id, workspace.sandbox_id, user.id, on_event, **agent_kwargs
+            workspace_id,
+            workspace.sandbox_id,
+            user.id,
+            on_event,
+            on_ask_user=on_ask_user,
+            pending_answers_map=pending_answers_map,
+            **agent_kwargs,
         )
         
         # 3. Message processing loop
@@ -393,6 +412,8 @@ async def websocket_endpoint(
                 workspace.sandbox_id,
                 user.id,
                 on_event,
+                on_ask_user=on_ask_user,
+                pending_answers_map=pending_answers_map,
                 **next_kwargs,
             )
             agent_kwargs = next_kwargs
@@ -744,6 +765,16 @@ async def websocket_endpoint(
 
            if user_query.type == "agent:abort":
                agent.abort()
+               continue
+           
+           if user_query.type == "user:answer":
+               data = user_query.data or {}
+               request_id = data.get("request_id")
+               answers = data.get("answers")
+               if request_id and request_id in pending_answers_map:
+                   future = pending_answers_map[request_id]
+                   if not future.done():
+                       future.set_result(answers)
                continue
            
            if agent_task and not agent_task.done():

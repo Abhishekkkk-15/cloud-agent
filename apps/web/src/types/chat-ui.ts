@@ -68,6 +68,8 @@ export const threadMessageSchema = z.object({
   events: z.array(agentEventSchema).optional(),
   activities: z.array(agentActivitySchema).optional(),
   attachments: z.array(chatAttachmentSchema).optional(),
+  askUser: z.any().optional(),
+  askUserAnswered: z.boolean().optional(),
 })
 
 export type AgentEventType = z.infer<typeof agentEventTypeSchema>
