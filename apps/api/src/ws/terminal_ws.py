@@ -7,6 +7,9 @@ from src.models.workspace_model import Workspace
 from starlette.websockets import WebSocketState
 import asyncio
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def terminal_ws(
@@ -67,19 +70,47 @@ async def terminal_ws(
             socket=True,
         )
 
+        # On Linux / Unix, exec_start with socket=True returns a SocketIO or
+        # raw socket wrapper whose _sock or fileno provides the raw stream.
+        # Ensure we have the underlying object that supports recv/sendall.
+        raw_stream = getattr(sock, "_sock", sock)
+        if hasattr(raw_stream, "_sock"):
+            # Unwrap nested urllib3 / HTTPResponse socket if present
+            raw_stream = raw_stream._sock
+
         stop_event = asyncio.Event()
+
+        def _do_recv():
+            try:
+                if hasattr(raw_stream, "recv"):
+                    return raw_stream.recv(4096)
+                elif hasattr(raw_stream, "read"):
+                    return raw_stream.read(4096)
+            except Exception as e:
+                return b""
+            return b""
+
+        def _do_send(payload: bytes):
+            try:
+                if hasattr(raw_stream, "sendall"):
+                    raw_stream.sendall(payload)
+                elif hasattr(raw_stream, "write"):
+                    raw_stream.write(payload)
+                    if hasattr(raw_stream, "flush"):
+                        raw_stream.flush()
+            except Exception as e:
+                print(f"[Terminal Send Error]: {e}")
 
         async def stream_output():
             try:
                 while not stop_event.is_set():
-                    # Read blocking socket in thread pool without blocking the asyncio loop
-                    data = await asyncio.to_thread(sock.recv, 4096)
+                    data = await asyncio.to_thread(_do_recv)
                     if not data:
                         break
                     if ws.client_state == WebSocketState.CONNECTED:
                         await ws.send_bytes(data)
             except Exception as e:
-                pass
+                print(f"[Terminal Output Stream Error]: {e}")
             finally:
                 stop_event.set()
 
@@ -92,14 +123,14 @@ async def terminal_ws(
 
                     # Binary keystrokes
                     if "bytes" in msg and msg["bytes"]:
-                        await asyncio.to_thread(sock.sendall, msg["bytes"])
+                        await asyncio.to_thread(_do_send, msg["bytes"])
 
-                    # Text keystrokes or resize
+                    # Text keystrokes or resize control packet
                     elif "text" in msg and msg["text"]:
                         text = msg["text"]
                         try:
                             ctrl = json.loads(text)
-                            if ctrl.get("type") == "resize":
+                            if isinstance(ctrl, dict) and ctrl.get("type") == "resize":
                                 sandbox_client.api.exec_resize(
                                     exec_id,
                                     height=int(ctrl["rows"]),
@@ -109,9 +140,9 @@ async def terminal_ws(
                         except (ValueError, KeyError, TypeError):
                             pass
 
-                        await asyncio.to_thread(sock.sendall, text.encode("utf-8"))
+                        await asyncio.to_thread(_do_send, text.encode("utf-8"))
             except Exception as e:
-                pass
+                print(f"[Terminal Input Stream Error]: {e}")
             finally:
                 stop_event.set()
 

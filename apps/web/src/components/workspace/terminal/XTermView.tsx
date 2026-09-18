@@ -89,14 +89,20 @@ export function XTermView({
       }
     }
 
-    ws.onerror = () => {
+    ws.onerror = (err) => {
+      console.error("[Terminal WS Error]", err)
       updateStatus("error")
     }
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.warn("[Terminal WS Closed]", event.code, event.reason)
       if (wsRef.current === ws) {
         wsRef.current = null
         updateStatus("disconnected")
+        const term = termRef.current
+        if (term && event.code !== 1000) {
+          term.write(`\r\n\x1b[33m[Session disconnected: (code ${event.code}) ${event.reason || "Container connection ended"}]\x1b[0m\r\n`)
+        }
       }
     }
   }, [workspaceId, updateStatus])
