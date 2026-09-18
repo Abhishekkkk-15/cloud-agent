@@ -78,7 +78,42 @@ export function ModelAndEffortSelector({
           supportsEffort: false,
           use_case: ["auto-routing", "intent-matching", "general"],
         }
-        setModelsList(hasAuto ? mapped : [autoOption, ...mapped])
+        const fullList = hasAuto ? mapped : [autoOption, ...mapped]
+        setModelsList(fullList)
+
+        // Find the backend model configured as default
+        const backendDefault = mapped.find((m) => m.isDefault) || mapped[0]
+        if (backendDefault) {
+          const storedModel =
+            typeof window !== "undefined"
+              ? localStorage.getItem("ca_selected_model")
+              : null
+
+          // If no model selected, set to "auto" or previous hardcoded stale default "gpt-5.6-luna",
+          // synchronize to the backend's configured default model and effort:
+          if (
+            !storedModel ||
+            storedModel === "auto" ||
+            storedModel === "gpt-5.6-luna" ||
+            !mapped.some((m) => m.id === storedModel)
+          ) {
+            setSelectedModel(backendDefault.id)
+            // If the model specifies a default effort, sync that too
+            const storedEffort =
+              typeof window !== "undefined"
+                ? localStorage.getItem("ca_selected_effort")
+                : null
+            if (
+              !storedEffort &&
+              backendDefault.supportsEffort
+            ) {
+              const defaultEff = (backendModels.find(
+                (bm) => (bm.model_id || bm.id) === backendDefault.id
+              )?.default_effort || "medium") as ReasoningEffort
+              setSelectedEffort(defaultEff)
+            }
+          }
+        }
       })
       .catch((err) => {
         console.warn("Using default models fallback:", err)

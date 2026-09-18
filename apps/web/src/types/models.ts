@@ -33,7 +33,6 @@ export const AVAILABLE_MODELS: ModelOption[] = [
     badge: "Default",
     description: "Next-gen flagship reasoning and agentic execution",
     supportsEffort: true,
-    isDefault: true,
     use_case: ["coding", "fullstack", "architecture", "deep-reasoning"],
   },
   {

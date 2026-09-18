@@ -21,6 +21,7 @@ import {
   deleteModel,
   getAllModels,
   seedDefaultModels,
+  updateAdminAgentConfig,
   updateModel,
 } from "@/lib/api"
 import { getApiErrorMessage } from "@/lib/http"
@@ -75,6 +76,17 @@ export function AdminModelsTab() {
     setBusyModelId(m.model_id)
     try {
       await updateModel(m.model_id, { is_default: true, is_active: true })
+      // Keep agent_config synchronized so Agent Config tab and chat_ws priority match
+      try {
+        await updateAdminAgentConfig({
+          default_model_id: m.model_id,
+          ...(m.default_effort
+            ? { default_effort: m.default_effort as "low" | "medium" | "high" }
+            : {}),
+        })
+      } catch (e) {
+        console.warn("Failed to sync agent config with default model:", e)
+      }
       toast.success(`Set "${m.name}" as default model`)
       await load(true)
     } catch (err) {

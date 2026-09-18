@@ -775,8 +775,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   contextUsage: null,
   selectedModel:
     typeof window !== "undefined"
-      ? localStorage.getItem("ca_selected_model") || "gpt-5.6-luna"
-      : "gpt-5.6-luna",
+      ? localStorage.getItem("ca_selected_model") || "auto"
+      : "auto",
   selectedEffort:
     typeof window !== "undefined"
       ? (localStorage.getItem("ca_selected_effort") as ReasoningEffort) ||
