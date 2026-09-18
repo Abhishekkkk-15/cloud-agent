@@ -1,4 +1,5 @@
 from collections import defaultdict
+import shutil
 
 from fastapi import HTTPException, status
 from pymongo.errors import WriteError
@@ -6,6 +7,8 @@ from pymongo.errors import WriteError
 from src.ai_core.intent_agent import IntentAgent
 from src.controller.github_controller import _require_connected_token
 from src.dependency.auth_dependency import CurrentUser
+from src.dependency.sandbox_dependency import SandboxRepo
+from src.dependency.port_depemdency import PortRepo
 from src.models.workspace_model import Workspace
 from src.repository.message_repository import MessageRepo
 from src.repository.session_repository import SessionRepo
@@ -17,6 +20,8 @@ from src.schemas.workspace_schema import (
     MinimalSession,
     WorkspaceWithSession,
 )
+from src.utils.config import config
+from src.utils.github_oauth import delete_github_repo
 
 
 def _to_minimal_sessions(sessions) -> list[MinimalSession]:
@@ -236,6 +241,8 @@ async def delete_workspace(
     repo: WorkspaceRepo,
     session_repo: SessionRepo,
     message_repo: MessageRepo,
+    sandbox_repo: SandboxRepo,
+    port_manager: PortRepo,
 ):
     if not current_user.id:
         raise HTTPException(
@@ -255,6 +262,43 @@ async def delete_workspace(
             detail="forbidden",
         )
 
+    # 1. Stop & remove Docker sandbox container and release workspace ports
+    if existing.sandbox_id:
+        try:
+            sandbox_repo.stop_sandbox(existing.sandbox_id)
+            sandbox_repo.delete_sandbox(existing.sandbox_id)
+        except Exception as e:
+            print(f"[Workspace Cleanup] Error removing container {existing.sandbox_id}: {e}")
+
+    try:
+        port_manager.release_workspace_ports(workspace_id)
+    except Exception as e:
+        print(f"[Workspace Cleanup] Error releasing ports for {workspace_id}: {e}")
+
+    # 2. Remove mount workspace directory from host disk
+    try:
+        workspace_dir = config.workspace_base / workspace_id
+        if workspace_dir.exists():
+            shutil.rmtree(workspace_dir, ignore_errors=True)
+    except Exception as e:
+        print(f"[Workspace Cleanup] Error removing workspace directory: {e}")
+
+    # 3. If repo was created under our default platform GitHub credentials, delete it from GitHub
+    platform_token = (config.GITHUB_DEFAULT_TOKEN or "").strip()
+    platform_login = (config.GITHUB_DEFAULT_LOGIN or "").strip()
+    if (
+        platform_token
+        and platform_login
+        and existing.github_auth_source == "platform"
+        and existing.github_repo_owner == platform_login
+        and existing.github_repo_name
+    ):
+        try:
+            await delete_github_repo(platform_token, existing.github_repo_owner, existing.github_repo_name)
+        except Exception as e:
+            print(f"[Workspace Cleanup] Error deleting platform GitHub repo: {e}")
+
+    # 4. Delete chat messages and sessions
     sessions = await session_repo.find_by_workspace_ids([workspace_id])
     for session in sessions:
         if session.id:
@@ -262,9 +306,11 @@ async def delete_workspace(
 
     await session_repo.delete_by_workspace(workspace_id)
 
+    # 5. Delete workspace record from DB
     deleted = await repo.delete(workspace_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="workspace not found",
         )
+

@@ -222,6 +222,26 @@ async def create_github_repo(
     return repo_data
 
 
+async def delete_github_repo(token: str, owner: str, repo: str) -> bool:
+    """
+    Deletes a GitHub repository: DELETE /repos/{owner}/{repo}.
+    Returns True if deleted or already 404.
+    """
+    url = f"https://api.github.com/repos/{owner}/{repo}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "Cloud-Agent-App",
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        response = await client.delete(url, headers=headers)
+        if response.status_code in (204, 404):
+            return True
+        return False
+
+
+
 async def resolve_github_auth(
     user: User,
     workspace: Workspace | None = None,
