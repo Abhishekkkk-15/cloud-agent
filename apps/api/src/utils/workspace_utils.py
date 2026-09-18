@@ -76,6 +76,47 @@ async def prepare_workspace(user: User, workspace: Workspace) -> Path:
     raise WorkspaceGitError(f"Unknown workspace_origin: {workspace.workspace_origin!r}")
 
 
+async def restore_workspace_from_github(user: User, workspace: Workspace) -> Path:
+    """Ensure host workspace directory exists and has project files.
+
+    If the workspace already has a linked GitHub repository (via user OAuth
+    or platform PAT), clone it from GitHub into host_path if missing.
+    If already cloned, leaves the working copy intact.
+    If no GitHub repo is linked, falls back to prepare_workspace.
+    """
+    host_path = host_path_for_workspace(workspace)
+    git = WorkspaceGitService(host_path)
+
+    # 1. If host files already exist as a git repository, don't re-clone or wipe
+    if git.is_git_repo():
+        logger.info("Workspace %s already has git repository at %s", workspace.id, host_path)
+        return host_path
+
+    # 2. If a GitHub repo is already associated, clone it using appropriate credentials
+    if workspace.github_clone_url:
+        logger.info("Restoring workspace %s from GitHub: %s", workspace.id, workspace.github_clone_url)
+        auth = await resolve_github_auth(user, workspace)
+        branch = workspace.github_default_branch or "main"
+
+        # If directory exists but is empty or broken, clean it up before clone
+        if host_path.exists() and is_empty_dir(host_path):
+            try:
+                host_path.rmdir()
+            except Exception:
+                pass
+
+        await asyncio.to_thread(
+            git.clone,
+            auth.token,
+            workspace.github_clone_url,
+            branch,
+        )
+        return host_path
+
+    # 3. No GitHub repository linked yet — fall back to standard prepare
+    return await prepare_workspace(user, workspace)
+
+
 def ensure_workspace_template(workspace_id: str) -> Path:
     """Pre-seed workspace directory on host with project template files.
 

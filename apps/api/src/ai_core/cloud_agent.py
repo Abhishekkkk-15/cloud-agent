@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Literal,Any
 
 from pi_sdk import Agent, RunResult
 
@@ -397,7 +397,6 @@ class CloudAgentCore:
         return self.client.messages
 
     async def resume(self, session_id: str) -> Agent:
-        print("Resumed")
         return await self.client.resume(session_id)
 
     def abort(self):

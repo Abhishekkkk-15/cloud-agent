@@ -20,7 +20,7 @@ from pi_sdk import AgentEvent, EventType
 from src.ai_core.cloud_agent import CloudAgentCore
 from fastapi.encoders import jsonable_encoder
 from src.utils.config import config, build_preview_url
-from src.utils.workspace_utils import prepare_workspace
+from src.utils.workspace_utils import prepare_workspace, restore_workspace_from_github
 from src.services.workspace_git import WorkspaceGitError
 from src.schemas.sandbox_schema import SandboxRunResult
 from src.ai_core.intent_agent import IntentAgent
@@ -76,28 +76,17 @@ async def websocket_endpoint(
             data=jsonable_encoder({"type": "workspace:info", "data": workspace}),
         )
 
-        # 2. Check or provision Docker sandbox
-        sandbox_id = workspace.sandbox_id
-
-        if not sandbox_id:
-            print("Starting sandbox container...")
-            await ws_manager.send_json(
-                websocket=ws,
-                data=jsonable_encoder(
-                    {
-                        "type": "sandbox:starting",
-                        "data": {
-                            "title": "Starting Docker Sandbox",
-                            "message": "Initializing container and mounting workspace volume...",
-                            "stage": "container",
-                        },
-                    }
-                ),
-            )
+        async def _provision_and_start_sandbox(is_recreate: bool = False) -> str:
+            # If recreating, release any previously allocated ports first
+            if is_recreate:
+                port_manager.release_workspace_ports(workspace_id)
 
             workspace.source_path = str(config.workspace_base / workspace_id)
             try:
-                workspace_root = await prepare_workspace(user, workspace)
+                if is_recreate:
+                    workspace_root = await restore_workspace_from_github(user, workspace)
+                else:
+                    workspace_root = await prepare_workspace(user, workspace)
                 workspace.source_path = str(workspace_root)
                 await workspace_repo.save(workspace)
             except (WorkspaceGitError, Exception) as prep_err:
@@ -186,148 +175,65 @@ async def websocket_endpoint(
 
             workspace.preview_status = "ports_ready"
             workspace.sandbox_id = sandbox.id
-            sandbox_id = sandbox.id
-
             await workspace_repo.save(workspace)
+            return sandbox.id
 
-        # Checking if sandbox/Docker container exists and if its running
-        is_sandbox_running = sandbox_repo.is_sandbox_running(sandbox_id)
-        if not is_sandbox_running:
+        # 2. Check or provision Docker sandbox
+        sandbox_id = workspace.sandbox_id
+
+        if not sandbox_id:
+            print("Starting sandbox container...")
             await ws_manager.send_json(
                 websocket=ws,
                 data=jsonable_encoder(
                     {
-                        "type": "sandbox:resuming",
+                        "type": "sandbox:starting",
                         "data": {
-                            "title": "Resuming Sandbox",
-                            "message": "Resuming existing Docker container...",
+                            "title": "Starting Docker Sandbox",
+                            "message": "Initializing container and mounting workspace volume...",
                             "stage": "container",
                         },
                     }
                 ),
             )
-            # try:
-            resumed_sandbox = sandbox_repo.resume_sandbox(sandbox_id)
-            if not isinstance(resumed_sandbox, SandboxRunResult):
-                port_manager.release_workspace_ports(workspace_id)
+            sandbox_id = await _provision_and_start_sandbox(is_recreate=False)
+        else:
+            # Checking if sandbox/Docker container exists and if its running
+            is_sandbox_running = sandbox_repo.is_sandbox_running(sandbox_id)
+            if not is_sandbox_running:
                 await ws_manager.send_json(
                     websocket=ws,
                     data=jsonable_encoder(
                         {
-                            "type": "sandbox:error",
+                            "type": "sandbox:resuming",
                             "data": {
-                                "title": "Failed to Resume Sandbox",
-                                "error": str(resumed_sandbox),
-                                "details": "Could not resume paused container",
-                            },
-                        }
-                    ),
-                )
-                raise WebSocketException(
-                    code=1002,
-                    reason=f"Failed starting Docker sandbox: {resumed_sandbox}",
-                )
-            # excpt NotFound:
-            else:
-                print("Starting sandbox container...")
-                await ws_manager.send_json(
-                    websocket=ws,
-                    data=jsonable_encoder(
-                        {
-                            "type": "sandbox:starting",
-                            "data": {
-                                "title": "Recreating Sandbox Container",
-                                "message": "Previous container not found; provisioning fresh container...",
+                                "title": "Resuming Sandbox",
+                                "message": "Resuming existing Docker container...",
                                 "stage": "container",
                             },
                         }
                     ),
                 )
-                workspace.source_path = str(config.workspace_base / workspace_id)
-                try:
-                    workspace_root = await prepare_workspace(user, workspace)
-                    workspace.source_path = str(workspace_root)
-                    await workspace_repo.save(workspace)
-                except (WorkspaceGitError, Exception) as prep_err:
+                resumed_sandbox = sandbox_repo.resume_sandbox(sandbox_id)
+                print("IF RESUMED", resumed_sandbox)
+                if isinstance(resumed_sandbox, SandboxRunResult):
+                    print("Sandbox successfully resumed")
+                else:
+                    print(f"Container {sandbox_id} could not be resumed ({resumed_sandbox}). Re-creating...")
                     await ws_manager.send_json(
                         websocket=ws,
                         data=jsonable_encoder(
                             {
-                                "type": "sandbox:error",
+                                "type": "sandbox:starting",
                                 "data": {
-                                    "title": "Workspace prepare failed",
-                                    "error": str(prep_err),
-                                    "details": "Failed to seed template or clone GitHub repo",
+                                    "title": "Recreating Sandbox Container",
+                                    "message": "Previous container not found; provisioning fresh container...",
+                                    "stage": "container",
                                 },
                             }
                         ),
                     )
-                    raise WebSocketException(code=1011, reason=str(prep_err)) from prep_err
-                # Allocate host ports for container (e.g., 5173 -> host_port)
-                allocated = port_manager.allocate_workspace_ports(workspace_id)
-                docker_ports = port_manager.to_docker_ports(workspace_id)
-                await ws_manager.send_json(
-                    websocket=ws,
-                    data=jsonable_encoder(
-                        {
-                            "type": "sandbox:status",
-                            "data": {
-                                "title": "Configuring Networking",
-                                "message": "Setting up networking for your preview...",
-                                "stage": "network",
-                            },
-                        }
-                    ),
-                )
-                sandbox_cfg = await settings_repo.get_sandbox_config()
-                sandbox = sandbox_repo.run_sandbox(
-                    workspace_id,
-                    docker_ports,
-                    skip_template_seed=(
-                        getattr(workspace, "workspace_origin", "template")
-                        == "github_import"
-                    ),
-                    memory_limit_mb=sandbox_cfg.get("memory_limit_mb"),
-                    cpu_limit=sandbox_cfg.get("cpu_limit"),
-                    pids_limit=sandbox_cfg.get("pids_limit"),
-                )
-                if not isinstance(sandbox, SandboxRunResult):
-                    port_manager.release_workspace_ports(workspace_id)
-                    await ws_manager.send_json(
-                        websocket=ws,
-                        data=jsonable_encoder(
-                            {
-                                "type": "sandbox:error",
-                                "data": {
-                                    "title": "Docker Sandbox Error",
-                                    "error": str(sandbox),
-                                    "details": "Failed recreating Docker container",
-                                },
-                            }
-                        ),
-                    )
-                    raise WebSocketException(
-                        code=1002,
-                        reason=f"Failed starting Docker sandbox: {sandbox}",
-                    )
-                frontend = next(
-                    (p for p in allocated if p.role == PortRole.FRONTEND), None
-                )
-                backend = next(
-                    (p for p in allocated if p.role == PortRole.BACKEND), None
-                )
-                if frontend:
-                    workspace.frontend_port = frontend.host_port
-                    workspace.preview_port = frontend.host_port
-                    # Format URL as central proxy: http://<workspace_id>.lvh.me:8000
-                    workspace.preview_url = build_preview_url(workspace_id, is_backend=False)
-                if backend:
-                    workspace.backend_port = backend.host_port
-                    workspace.backend_url = build_preview_url(workspace_id, is_backend=True)
-                workspace.preview_status = "ports_ready"
-                workspace.sandbox_id = sandbox.id
-                sandbox_id = sandbox.id
-                await workspace_repo.save(workspace)
+                    sandbox_id = await _provision_and_start_sandbox(is_recreate=True)
         # Notify client of active sandbox and ready wildcard URLs
         await ws_manager.send_json(
             websocket=ws,
