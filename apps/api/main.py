@@ -15,7 +15,6 @@ from src.routes.preview_route import router as PreviewRouter
 from src.routes.model_route import router as ModelRouter
 from src.routes.github_route import router as GitHubRouter
 from src.routes.admin_route import router as AdminRouter
-
 from src.middleware.subdomain_proxy_middleware import SubdomainProxyMiddleware
 
 app = FastAPI(lifespan=db_lifespan)
@@ -29,8 +28,9 @@ origins = [
     "http://localhost:8001",     
     "https://cloud-agent.abhishekkkk.in",
 ]
-if os.getenv("FRONTEND_URL"):
-    origins.append(os.getenv("FRONTEND_URL").strip())
+frontend_url = os.getenv("FRONTEND_URL")
+if frontend_url:
+    origins.append(frontend_url.strip())
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,15 +48,17 @@ app.add_middleware(SubdomainProxyMiddleware)
 def health():
     return {"health":True}
 
+# http routes
 app.include_router(UserRouter)
 app.include_router(AuthRouter)
 app.include_router(ChatRouter)
 app.include_router(SessionRouter)
-app.include_router(WSRouter)  
 app.include_router(PreviewRouter)  
 app.include_router(ModelRouter)
 app.include_router(GitHubRouter)
 app.include_router(AdminRouter)
+# Websocket routes
+app.include_router(WSRouter)  
  
 print("STARTED LISTNINIG")
     

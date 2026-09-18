@@ -37,6 +37,7 @@ from src.ai_core.sandbox.queue.sandbox_life_cycle import container_lifecycle_man
 from src.models.workspace_model import Workspace, WorkspaceStatus
 from src.services.workspace_git import WorkspaceGitService
 from pathlib import Path
+from src.ws.terminal_ws import terminal_ws
 
 router = APIRouter()
 
@@ -80,7 +81,8 @@ async def websocket_endpoint(
             # If recreating, release any previously allocated ports first
             if is_recreate:
                 port_manager.release_workspace_ports(workspace_id)
-
+            if not workspace:
+                raise Exception("workspace not found")
             workspace.source_path = str(config.workspace_base / workspace_id)
             try:
                 if is_recreate:
@@ -778,3 +780,4 @@ async def websocket_endpoint(
 
 
 router.websocket("/ws")(websocket_endpoint)
+router.websocket("/ws/terminal")(terminal_ws)

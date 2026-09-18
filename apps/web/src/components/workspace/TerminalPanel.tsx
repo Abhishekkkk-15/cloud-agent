@@ -1,93 +1,80 @@
-import { useState } from "react"
-import { TerminalIcon } from "lucide-react"
+import { useState, useRef } from "react"
+import { RefreshCwIcon, Trash2Icon, TerminalSquareIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import { cn } from "@/lib/utils"
+import { XTermView } from "./terminal/XTermView"
 
 export function TerminalPanel() {
-  const lines = useWorkspaceStore((s) => s.terminalLines)
-  const executeCommand = useWorkspaceStore((s) => s.executeCommand)
-  const bottomPanel = useWorkspaceStore((s) => s.bottomPanel)
-  const setBottomPanel = useWorkspaceStore((s) => s.setBottomPanel)
-  const [command, setCommand] = useState("")
-  const [busy, setBusy] = useState(false)
+  const workspace = useWorkspaceStore((s) => s.workspace)
+  const [shellStatus, setShellStatus] = useState<
+    "connecting" | "connected" | "disconnected" | "error"
+  >("connecting")
 
-  async function onSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    if (!command.trim() || busy) return
-    setBusy(true)
-    try {
-      await executeCommand(command.trim())
-      setCommand("")
-    } finally {
-      setBusy(false)
-    }
-  }
+  const shellActionsRef = useRef<{ clear: () => void; reconnect: () => void } | null>(null)
+
+  const workspaceId = workspace?.id
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex h-10 shrink-0 items-center justify-between border-b px-2">
-        <Tabs
-          value={bottomPanel}
-          onValueChange={(value) => {
-            if (value === "console" || value === "shell") setBottomPanel(value)
-          }}
-        >
-          <TabsList variant="line">
-            <TabsTrigger value="console">Output</TabsTrigger>
-            <TabsTrigger value="shell">Shell</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={() => void executeCommand("clear")}
-        >
-          Clear
-        </Button>
+      {/* Header Bar */}
+      <div className="flex h-9 shrink-0 items-center justify-between border-b px-3">
+        <div className="flex items-center gap-2">
+          <TerminalSquareIcon className="size-4 text-muted-foreground" />
+          <span className="text-xs font-medium text-foreground">Terminal</span>
+          <span
+            className={cn(
+              "size-1.5 rounded-full transition-colors",
+              shellStatus === "connected" && "bg-emerald-500",
+              shellStatus === "connecting" && "bg-amber-400 animate-pulse",
+              (shellStatus === "disconnected" || shellStatus === "error") &&
+                "bg-muted-foreground/40"
+            )}
+            title={`Status: ${shellStatus}`}
+          />
+        </div>
+
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="xs"
+            className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => shellActionsRef.current?.clear()}
+            title="Clear Terminal"
+          >
+            <Trash2Icon className="size-3" />
+            Clear
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            className="h-6 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => shellActionsRef.current?.reconnect()}
+            title="Restart Session"
+          >
+            <RefreshCwIcon className="size-3" />
+            Restart
+          </Button>
+        </div>
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-1 p-3 font-mono text-xs leading-5">
-          {lines.map((line) => (
-            <div
-              key={line.id}
-              className={cn(
-                line.type === "command" && "text-foreground",
-                line.type === "stdout" && "text-muted-foreground",
-                line.type === "stderr" && "text-destructive",
-                line.type === "info" && "text-muted-foreground italic"
-              )}
-            >
-              {line.text}
-            </div>
-          ))}
-          {lines.length === 0 && (
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <TerminalIcon className="size-3.5" />
-              Ready — run the app or type a command
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-
-      <form
-        onSubmit={onSubmit}
-        className="flex items-center gap-2 border-t px-3 py-2"
-      >
-        <span className="font-mono text-xs text-muted-foreground">$</span>
-        <Input
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
-          placeholder="npm run dev"
-          className="h-7 border-0 bg-transparent font-mono text-xs shadow-none focus-visible:ring-0"
-          disabled={busy}
-        />
-      </form>
+      {/* Terminal View */}
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {workspaceId ? (
+          <XTermView
+            workspaceId={workspaceId}
+            onStatusChange={setShellStatus}
+            onRegisterActions={(actions) => {
+              shellActionsRef.current = actions
+            }}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+            No active workspace
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -848,7 +848,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   chatLoading: false,
   streamingMessageId: null,
   workspaceTab: "preview",
-  bottomPanel: "console",
+  bottomPanel: "shell",
   chatCollapsed: false,
   previewKey: 0,
   error: null,
