@@ -3,7 +3,7 @@ import shutil
 
 from src.dependency.sandbox_dependency import get_sandbox_manager
 from src.repository.workspace_repository import create_workspace_repo
-from src.utils.db_client import db_client
+from src.utils import db_client as db_module
 
 sandbox = get_sandbox_manager()
 
@@ -15,7 +15,11 @@ async def stop_sandbox_worker(
     version: int,
 ) -> None:
     try:
-        ws_repo = create_workspace_repo(db_client)
+        if db_module.db_client is None:
+            print("[STOP] Database client not initialized")
+            return
+
+        ws_repo = create_workspace_repo(db_module.db_client)
 
         ws = await ws_repo.find_by_id(workspace_id)
 
@@ -49,7 +53,11 @@ async def delete_sandbox_worker(
     version: int,
 ) -> None:
     try:
-        ws_repo = create_workspace_repo(db_client)
+        if db_module.db_client is None:
+            print("[DELETE] Database client not initialized")
+            return
+
+        ws_repo = create_workspace_repo(db_module.db_client)
 
         ws = await ws_repo.find_by_id(workspace_id)
 
@@ -93,7 +101,8 @@ async def _container_cleanup_task(
 ) -> None:
     try:
         # stop after 10 minutes
-        await asyncio.sleep(10 * 60)
+        print("GOT IN CLEAN UP ")
+        await asyncio.sleep(1 * 60)
 
         await stop_sandbox_worker(
             workspace_id,

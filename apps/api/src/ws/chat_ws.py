@@ -850,6 +850,7 @@ async def websocket_endpoint(
            agent_task = asyncio.create_task(run_agent_task(user_query))
         
     except WebSocketDisconnect:
+        print("web socket disconnected")
         pass
     except Exception as e:
         print(f"[WebSocket Error]: {e}")
@@ -861,11 +862,13 @@ async def websocket_endpoint(
         except Exception:
             pass
     finally:        
+        print("web socket disconnected")
+        ws_manager.disconnect(ws)
         if workspace:      
             ws_id = workspace.id
             ws_v = workspace.version
             if ws_id and ws_v:
-                await container_lifecycle_manager(ws_id,ws_v)
+                container_lifecycle_manager(ws_id, ws_v)
 
 
 router.websocket("/ws")(websocket_endpoint)

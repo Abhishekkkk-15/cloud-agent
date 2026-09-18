@@ -43,6 +43,7 @@ def _doc_to_workspace(doc: dict) -> Workspace:
         preview_url=doc.get("preview_url"),
         preview_status=doc.get("preview_status"),
         backend_url=doc.get("backend_url"),
+        version=doc.get("version"),
         **extras,
     )
 
