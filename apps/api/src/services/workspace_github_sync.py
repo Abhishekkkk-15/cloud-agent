@@ -151,13 +151,50 @@ async def _create_unique_repo(
     raise GitHubAPIError(500, "Failed to create GitHub repository")
 
 
+async def ensure_workspace_repo(
+    user: User,
+    workspace: Workspace,
+    workspace_repo: WorkspaceRepository,
+) -> tuple[Workspace, str | None]:
+    """Ensure remote GitHub repository and clone_url exist, returning auth token if available."""
+    try:
+        auth = await resolve_github_auth(user, workspace)
+        if not workspace.github_clone_url:
+            repo_name = suggest_repo_name(workspace)
+            data = await _create_unique_repo(
+                auth.token,
+                base_name=repo_name,
+                workspace=workspace,
+            )
+            _apply_repo_payload(workspace, data, auth_source=auth.source)
+
+        if not workspace.github_auth_source:
+            workspace.github_auth_source = auth.source
+
+        workspace.source_path = str(host_workspace_path(workspace))
+        workspace = await workspace_repo.save(workspace)
+
+        # Ensure git init and remote on host
+        host_path = host_workspace_path(workspace)
+        git = WorkspaceGitService(host_path)
+        git.init()
+        git.ensure_gitignore()
+        if workspace.github_clone_url:
+            git.set_remote(workspace.github_clone_url)
+
+        return workspace, auth.token
+    except Exception as exc:
+        logger.warning("ensure_workspace_repo error: %s", exc)
+        return workspace, None
+
+
 async def sync_workspace_to_github(
     user: User,
     workspace: Workspace,
     workspace_repo: WorkspaceRepository,
     *,
     message: str = "cloud-agent sync",
-) -> tuple[Workspace,GithubSyncResult]:
+) -> tuple[Workspace, GithubSyncResult]:
     """Ensure a GitHub remote exists, commit+push host files, persist workspace fields.
 
     Mutates and saves ``workspace``. Best-effort friendly: returns ok=False on failure
@@ -185,7 +222,7 @@ async def sync_workspace_to_github(
         workspace = await workspace_repo.save(workspace)
 
         if not workspace.github_clone_url:
-            return workspace,GithubSyncResult(
+            return workspace, GithubSyncResult(
                 ok=False,
                 committed=False,
                 auth_source=auth_source,

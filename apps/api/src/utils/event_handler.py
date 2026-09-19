@@ -78,6 +78,10 @@ def _tool_target(data: dict[str, Any]) -> str | None:
             cmd = _as_nonempty_str(arguments.get(key))
             if cmd:
                 return _truncate(cmd, _TARGET_MAX)
+        for key in ("message", "name", "action"):
+            val = _as_nonempty_str(arguments.get(key))
+            if val:
+                return _truncate(val, _TARGET_MAX)
 
     return None
 

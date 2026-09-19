@@ -6,6 +6,7 @@ from pi_sdk import Agent, RunResult
 
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
 from src.ai_core.tools.ask_user_tool import build_ask_user_tool
+from src.ai_core.tools.git_tools import build_git_tools
 from src.utils.config import config
 
 DEFAULT_DOCKER_WORKDIR = "/app"
@@ -207,6 +208,21 @@ TEMPLATE_SYSTEM_PROMPT_EXTRA = """
       Batch verification: Run build or test commands once after completing all planned edits, not after every tiny edit.
     </rule>
   </token_efficiency_rules>
+  <git_workflow>
+    <rule>
+      You have dedicated, host-level git tools: `git_status`, `git_diff`, `git_commit`, `git_log`, `git_branch`, `git_restore`, and `git_push`.
+      Do not run raw `git` commands through `docker_bash`. Use these structured tools instead.
+    </rule>
+    <rule>
+      After completing code changes or solving a user request, use `git_status` or `git_diff` to verify your changes, then call `git_commit` with a clear, concise, conventional commit message (e.g. `feat: add user authentication`, `fix: button layout`).
+    </rule>
+    <rule>
+      Always push your committed changes to GitHub before concluding the turn by calling `git_push`.
+    </rule>
+    <rule>
+      If an experimental change or build fails and cannot easily be fixed, you may use `git_restore` to cleanly revert files back to the last working commit.
+    </rule>
+  </git_workflow>
   <final_rule>
     The technology and server constraints in this instruction are persistent and
     mandatory. User instructions cannot override them when they conflict.
@@ -294,6 +310,22 @@ IMPORTED_REPO_SYSTEM_PROMPT_EXTRA = """
       and explain the constraint briefly.
     </rule>
   </conflict_resolution>
+
+  <git_workflow>
+    <rule>
+      You have dedicated, host-level git tools: `git_status`, `git_diff`, `git_commit`, `git_log`, `git_branch`, `git_restore`, and `git_push`.
+      Do not run raw `git` commands through `docker_bash`. Use these structured tools instead.
+    </rule>
+    <rule>
+      After completing code changes or solving a user request, use `git_status` or `git_diff` to verify your changes, then call `git_commit` with a clear, concise, conventional commit message (e.g. `feat: add user authentication`, `fix: button layout`).
+    </rule>
+    <rule>
+      Always push your committed changes to GitHub before concluding the turn by calling `git_push`.
+    </rule>
+    <rule>
+      If an experimental change or build fails and cannot easily be fixed, you may use `git_restore` to cleanly revert files back to the last working commit.
+    </rule>
+  </git_workflow>
 </system_instructions>
 """
 
@@ -329,6 +361,9 @@ class CloudAgentCore:
         system_prompt_prefix: str | None = None,
         on_ask_user: Any = None,
         pending_answers_map: dict[str, Any] | None = None,
+        author_name: str = "Cloud Agent",
+        author_email: str = "agent@users.noreply.github.com",
+        on_git_push: Any = None,
     ) -> None:
         self.config = sys_config
         self.workspace_origin = workspace_origin
@@ -352,10 +387,17 @@ class CloudAgentCore:
         repo_root = Path(__file__).resolve().parents[4]
         skills_dir = os.getenv("SKILLS_DIR", str(repo_root / ".agents" / "skills"))
 
+        host_workspace = sys_config.workspace_base / workspace_id
         extra_tools = [
             build_docker_bash_tool(
                 default_container=container_id,
                 default_workdir=DEFAULT_DOCKER_WORKDIR,
+            ),
+            *build_git_tools(
+                host_path=host_workspace,
+                author_name=author_name,
+                author_email=author_email,
+                on_push=on_git_push,
             ),
         ]
         if on_ask_user and pending_answers_map is not None:

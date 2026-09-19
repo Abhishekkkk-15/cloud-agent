@@ -64,6 +64,7 @@ export type AgentActionKind =
   | "edit"
   | "create"
   | "run"
+  | "git"
   | "permission"
   | "status"
   | "usage"
@@ -233,6 +234,13 @@ function toolCallLabel(name: string, target?: string): {
     return {
       kind: "run",
       label: target ? `Ran ${target}` : `Ran ${name}`,
+    }
+  }
+  if (lower.startsWith("git_") || lower === "git") {
+    const actionName = lower.replace(/^git_/, "")
+    return {
+      kind: "git",
+      label: target ? `git ${actionName} · ${target}` : `git ${actionName}`,
     }
   }
   return {

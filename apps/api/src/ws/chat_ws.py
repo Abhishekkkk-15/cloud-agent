@@ -29,6 +29,7 @@ from starlette.websockets import WebSocketState
 import asyncio
 from datetime import datetime, timezone, timedelta
 from src.services.workspace_github_sync import (
+    ensure_workspace_repo,
     host_workspace_path,
     sync_workspace_to_github,
 )
@@ -359,6 +360,90 @@ async def websocket_endpoint(
             getattr(workspace, "workspace_origin", "template") or "template"
         )
         current_fingerprint = compute_agent_fingerprint(agent_kwargs)
+        author_name = user.name or user.email.split("@")[0] if user.email else "Cloud Agent"
+        author_email = user.email or "agent@users.noreply.github.com"
+
+        async def on_git_push(branch: str | None = None, force: bool = False) -> str:
+            nonlocal workspace
+            if not workspace:
+                return "Error: Workspace not found."
+
+            try:
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder({
+                        "type": "github:sync",
+                        "data": {"status": "started", "reason": "git_push"},
+                    }),
+                )
+            except Exception:
+                pass
+
+            fresh_ws, token = await ensure_workspace_repo(user, workspace, workspace_repo)
+            if fresh_ws:
+                workspace = fresh_ws
+            if not token:
+                err_msg = "GitHub authentication missing (neither user GitHub nor platform token configured)."
+                try:
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder({
+                            "type": "github:sync",
+                            "data": {"status": "error", "error": err_msg},
+                        }),
+                    )
+                except Exception:
+                    pass
+                return f"Error: {err_msg}"
+
+            target_branch = branch or workspace.github_default_branch or "main"
+
+            def _do_push():
+                args = ["push", "-u", "origin", target_branch]
+                if force:
+                    args.append("--force-with-lease")
+                git._run_with_auth(args, token=token)
+
+            try:
+                await asyncio.to_thread(_do_push)
+                try:
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder({
+                            "type": "github:sync",
+                            "data": {
+                                "status": "ok",
+                                "reason": "git_push",
+                                "repo": workspace.github_repo_full_name,
+                                "committed": False,
+                                "commit_message": f"Pushed to {target_branch}",
+                            },
+                        }),
+                    )
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder({"type": "workspace:info", "data": workspace}),
+                    )
+                except Exception:
+                    pass
+                return f"Pushed successfully to origin/{target_branch} ({workspace.github_repo_full_name or 'GitHub'})."
+            except Exception as push_err:
+                try:
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder({
+                            "type": "github:sync",
+                            "data": {
+                                "status": "error",
+                                "reason": "git_push",
+                                "error": str(push_err),
+                            },
+                        }),
+                    )
+                except Exception:
+                    pass
+                return f"Push failed: {str(push_err)}"
+
         agent = CloudAgentCore(
             workspace_id,
             workspace.sandbox_id,
@@ -366,6 +451,9 @@ async def websocket_endpoint(
             on_event,
             on_ask_user=on_ask_user,
             pending_answers_map=pending_answers_map,
+            author_name=author_name,
+            author_email=author_email,
+            on_git_push=on_git_push,
             **agent_kwargs,
         )
         
@@ -414,6 +502,9 @@ async def websocket_endpoint(
                 on_event,
                 on_ask_user=on_ask_user,
                 pending_answers_map=pending_answers_map,
+                author_name=author_name,
+                author_email=author_email,
+                on_git_push=on_git_push,
                 **next_kwargs,
             )
             agent_kwargs = next_kwargs
@@ -574,11 +665,6 @@ async def websocket_endpoint(
 
                     workspace.status = WorkspaceStatus.READY
                     await workspace_repo.save(workspace)
-                    await _persist_to_github(
-                        reason="initial",
-                        user_query=workspace.initial_prompt,
-                        agent_summary=getattr(run_result, "text", "") or "",
-                    )
 
                 finally:
                     workspace.status = WorkspaceStatus.READY
@@ -608,11 +694,6 @@ async def websocket_endpoint(
                 )
                 if is_fresh:
                     await _title_session(active_session_id, query_text)
-                await _persist_to_github(
-                    reason="turn",
-                    user_query=query_text,
-                    agent_summary=getattr(run_result, "text", "") or "",
-                )
 
             # FRESH SESSION — sidebar "New Session" / first message without id
             # Uses pi_sdk Agent.new_session() so the reused CloudAgent drops the
@@ -631,11 +712,6 @@ async def websocket_endpoint(
 
                 workspace.status = WorkspaceStatus.READY
                 await workspace_repo.save(workspace)
-                await _persist_to_github(
-                    reason="new_session",
-                    user_query=query_text,
-                    agent_summary=getattr(run_result, "text", "") or "",
-                )
 
             # Emit real-time context window usage breakdown to client using our database models
             if agent:
@@ -684,81 +760,6 @@ async def websocket_endpoint(
                     )
                 except Exception:
                     pass
-
-        async def _persist_to_github(
-            *,
-            reason: str,
-            user_query: str = "",
-            agent_summary: str = "",
-        ) -> None:
-            nonlocal workspace
-            # Skip if nothing can auth
-            
-            has_changes = git.has_changes()
-            if not has_changes:
-                return
-            
-            has_user = bool(user.github_access_token_enc)
-            has_platform = bool(config.GITHUB_DEFAULT_TOKEN)
-            if not has_user and not has_platform:
-                return
-
-            try:
-                await ws_manager.send_json(
-                    websocket=ws,
-                    data=jsonable_encoder({
-                        "type": "github:sync",
-                        "data": {"status": "started", "reason": reason},
-                    }),
-                )
-            except Exception:
-                pass
-            if not workspace:
-                    raise WebSocketException(code=1002,reason="Workspace not found")    
-            try:
-                
-                host_path = host_workspace_path(workspace)
-            except Exception:
-                host_path = config.workspace_base / workspace_id
-
-            commit_message = await build_commit_message(
-                host_path=host_path,
-                user_query=user_query,
-                agent_summary=agent_summary,
-                intent_agent=intent_agent,
-            )
-            
-            fresh_workspace, result = await sync_workspace_to_github(
-                user,
-                workspace,
-                workspace_repo,
-                message=commit_message,
-            )
-            if fresh_workspace:
-                workspace = fresh_workspace
-
-            payload = {
-                "status": "ok" if result.ok else "error",
-                "reason": reason,
-                "committed": result.committed,
-                "commit_message": commit_message,
-                "auth_source": result.auth_source,
-                "repo": result.repo_full_name,
-                "error": result.error,
-                "error_code": result.error_code,
-            }
-            try:
-                await ws_manager.send_json(
-                    websocket=ws,
-                    data=jsonable_encoder({"type": "github:sync", "data": payload}),
-                )
-                if result.ok:
-                    await ws_manager.send_json(
-                        websocket=ws,
-                        data=jsonable_encoder({"type": "workspace:info", "data": workspace}),
-                    )
-            except Exception:
-                pass
 
         while True:
            user_query = await ws_manager.receive(ws)
