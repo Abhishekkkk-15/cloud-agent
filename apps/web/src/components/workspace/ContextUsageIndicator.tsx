@@ -7,17 +7,6 @@ import {
 } from "@/components/ui/tooltip"
 import { GaugeIcon } from "lucide-react"
 
-function formatTokens(count: number): string {
-  if (count >= 1_000_000) {
-    return `${(count / 1_000_000).toFixed(1)}M`
-  }
-  if (count >= 1_000) {
-    const val = count / 1_000
-    return `${val >= 10 ? Math.round(val) : val.toFixed(1)}k`
-  }
-  return count.toString()
-}
-
 export function ContextUsageIndicator() {
   const contextUsage = useWorkspaceStore((s) => s.contextUsage)
 
