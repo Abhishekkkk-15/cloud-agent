@@ -83,7 +83,7 @@ export function ContextUsageIndicator() {
 
         <TooltipContent
           side="top"
-          align="start"
+          align="end"
           className="p-3 w-64 text-left shadow-lg rounded-lg border bg-popover text-popover-foreground"
         >
           <div className="space-y-2">

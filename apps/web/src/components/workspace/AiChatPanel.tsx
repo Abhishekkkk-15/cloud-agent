@@ -298,14 +298,14 @@ export function AiChatPanel() {
             }}
           />
           <div className="flex items-center justify-between gap-2 pt-1">
-            {/* Left: Model & Effort hover selector & Context Window Badge */}
+            {/* Left: Model & Effort hover selector */}
             <div className="flex items-center gap-1.5 overflow-hidden">
               <ModelAndEffortSelector disabled={busy} />
-              <ContextUsageIndicator />
             </div>
 
-            {/* Right: Attach & Send/Stop action buttons */}
+            {/* Right: Context indicator, Attach & Send/Stop action buttons */}
             <div className="flex items-center gap-1">
+              <ContextUsageIndicator />
               <input
                 ref={fileInputRef}
                 type="file"
