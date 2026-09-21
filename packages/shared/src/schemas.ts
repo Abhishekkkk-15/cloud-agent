@@ -204,28 +204,33 @@ export const sandboxRunResultSchema = z.object({
 });
 
 /**
- * Frontend-only editor / preview helpers (no matching API schema yet).
- * Kept in shared so workspace UI can import a single package.
+ * Frontend editor & file tree helpers.
  */
+export type FileNode = {
+  id: string;
+  name: string;
+  path?: string;
+  type: "file" | "folder";
+  children?: FileNode[];
+  content?: string;
+  language?: string;
+  size?: number;
+  updatedAt?: string;
+};
+
 export const fileNodeSchema: z.ZodType<FileNode> = z.lazy(() =>
   z.object({
     id: z.string(),
     name: z.string(),
+    path: z.string().optional(),
     type: z.enum(["file", "folder"]),
-    language: z.string().optional(),
-    content: z.string().optional(),
     children: z.array(fileNodeSchema).optional(),
-  }),
+    content: z.string().optional(),
+    language: z.string().optional(),
+    size: z.number().optional(),
+    updatedAt: z.string().optional(),
+  })
 );
-
-export type FileNode = {
-  id: string;
-  name: string;
-  type: "file" | "folder";
-  language?: string;
-  content?: string;
-  children?: FileNode[];
-};
 
 export const terminalLineSchema = z.object({
   id: z.string(),
@@ -268,6 +273,46 @@ export type Message = z.infer<typeof messageSchema>;
 export type SandboxRunResult = z.infer<typeof sandboxRunResultSchema>;
 export type TerminalLine = z.infer<typeof terminalLineSchema>;
 export type RunSession = z.infer<typeof runSessionSchema>;
+
+export const fileTreeResponseSchema = z.object({
+  files: z.array(fileNodeSchema),
+});
+
+export type FileTreeResponse = z.infer<typeof fileTreeResponseSchema>;
+
+export const fileContentResponseSchema = z.object({
+  path: z.string(),
+  content: z.string(),
+  language: z.string(),
+  size: z.number(),
+  updatedAt: z.string().optional(),
+});
+
+export type FileContentResponse = z.infer<typeof fileContentResponseSchema>;
+
+export const updateFileContentRequestSchema = z.object({
+  path: z.string().min(1),
+  content: z.string(),
+});
+
+export type UpdateFileContentRequest = z.infer<
+  typeof updateFileContentRequestSchema
+>;
+
+export const createFileRequestSchema = z.object({
+  path: z.string().min(1),
+  type: z.enum(["file", "folder"]).default("file"),
+  content: z.string().optional().default(""),
+});
+
+export type CreateFileRequest = z.infer<typeof createFileRequestSchema>;
+
+export const renameFileRequestSchema = z.object({
+  old_path: z.string().min(1),
+  new_path: z.string().min(1),
+});
+
+export type RenameFileRequest = z.infer<typeof renameFileRequestSchema>;
 
 export const llmModelSchema = z.object({
   id: z.string(),

@@ -2,10 +2,16 @@ from fastapi import APIRouter, status
 
 from src.controller.workspace_controller import (
     create_workspace,
+    create_workspace_file,
     delete_workspace,
+    delete_workspace_file,
     get_all_workspace,
     get_workspace_details,
+    get_workspace_file_content,
+    get_workspace_file_tree,
     import_github_workspace,
+    rename_workspace_file,
+    save_workspace_file_content,
     update_workspace,
 )
 from src.schemas.workspace_schema import (
@@ -33,3 +39,12 @@ router.put("/{workspace_id}", response_model=WorkspaceWithSession)(update_worksp
 router.delete("/{workspace_id}", status_code=status.HTTP_204_NO_CONTENT)(
     delete_workspace
 )
+
+# File Management Endpoints
+router.get("/{workspace_id}/files/tree")(get_workspace_file_tree)
+router.get("/{workspace_id}/files/content")(get_workspace_file_content)
+router.put("/{workspace_id}/files/content")(save_workspace_file_content)
+router.post("/{workspace_id}/files", status_code=status.HTTP_201_CREATED)(create_workspace_file)
+router.delete("/{workspace_id}/files")(delete_workspace_file)
+router.patch("/{workspace_id}/files/rename")(rename_workspace_file)
+

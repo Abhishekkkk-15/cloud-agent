@@ -2,11 +2,17 @@ import { create } from "zustand"
 import { toast } from "sonner"
 
 import {
+  createWorkspaceFile,
+  deleteWorkspaceFile,
   getFileTree,
   getSessionDetail,
   getTerminalBoot,
   getWorkspace,
+  getWorkspaceFileContent,
+  getWorkspaceFileTree,
+  renameWorkspaceFile,
   runCommand,
+  saveWorkspaceFileContent,
 } from "@/lib/api"
 import { messagesToThread } from "@/lib/session-messages"
 import { get_wehsocket, reset_websocket } from "@/lib/websocket"
@@ -132,6 +138,18 @@ type WorkspaceState = {
   closeFile: (fileId: string) => void
   setActiveFile: (fileId: string) => void
   updateActiveContent: (content: string) => void
+  filesLoading: boolean
+  filesDirty: Record<string, boolean>
+  fetchFiles: () => Promise<void>
+  loadFileContent: (filePath: string) => Promise<void>
+  saveActiveFile: () => Promise<void>
+  createFile: (
+    path: string,
+    type?: "file" | "folder",
+    content?: string
+  ) => Promise<void>
+  deleteFile: (path: string) => Promise<void>
+  renameFile: (oldPath: string, newPath: string) => Promise<void>
   executeCommand: (command: string) => Promise<void>
   startRun: () => Promise<void>
   stopRun: () => void
@@ -874,6 +892,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   loading: false,
   chatLoading: false,
   streamingMessageId: null,
+  filesLoading: false,
+  filesDirty: {},
   workspaceTab: "preview",
   bottomPanel: "shell",
   chatCollapsed: false,
@@ -994,6 +1014,109 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
   },
 
+  fetchFiles: async () => {
+    const { workspace } = get()
+    if (!workspace?.id) return
+    set({ filesLoading: true })
+    try {
+      const tree = await getWorkspaceFileTree(workspace.id)
+      set({ files: tree, filesLoading: false })
+    } catch (err) {
+      console.error("[fetchFiles] Error:", err)
+      set({ filesLoading: false })
+    }
+  },
+
+  loadFileContent: async (filePath: string) => {
+    const { workspace } = get()
+    if (!workspace?.id) return
+    try {
+      const res = await getWorkspaceFileContent(workspace.id, filePath)
+      set((state) => ({
+        files: updateFileContent(state.files, res.path, res.content),
+      }))
+    } catch (err) {
+      console.error(`[loadFileContent] Failed to load ${filePath}:`, err)
+    }
+  },
+
+  saveActiveFile: async () => {
+    const { workspace, activeFileId, chatLoading, streamingMessageId, files } = get()
+    if (chatLoading || !!streamingMessageId) {
+      toast.warning("Agent is active", {
+        description: "Cannot edit or save files while the agent is running to prevent conflicts.",
+      })
+      return
+    }
+    if (!workspace?.id || !activeFileId) return
+    const active = flattenFiles(files).find((f) => f.id === activeFileId)
+    if (!active || active.content === undefined) return
+
+    try {
+      const targetPath = active.path || active.id
+      await saveWorkspaceFileContent(workspace.id, targetPath, active.content)
+      set((state) => ({
+        filesDirty: { ...state.filesDirty, [activeFileId]: false },
+      }))
+      toast.success(`Saved ${active.name}`)
+    } catch (err) {
+      toast.error(`Failed to save ${active.name}`, {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+    }
+  },
+
+  createFile: async (path: string, type: "file" | "folder" = "file", content = "") => {
+    const { workspace } = get()
+    if (!workspace?.id) return
+    try {
+      await createWorkspaceFile(workspace.id, path, type, content)
+      await get().fetchFiles()
+      if (type === "file") {
+        get().openFile(path)
+      }
+      toast.success(`Created ${type === "folder" ? "folder" : "file"} ${path}`)
+    } catch (err) {
+      toast.error(`Failed to create ${type}`, {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+      throw err
+    }
+  },
+
+  deleteFile: async (path: string) => {
+    const { workspace } = get()
+    if (!workspace?.id) return
+    try {
+      await deleteWorkspaceFile(workspace.id, path)
+      get().closeFile(path)
+      await get().fetchFiles()
+      toast.success(`Deleted ${path}`)
+    } catch (err) {
+      toast.error(`Failed to delete ${path}`, {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+      throw err
+    }
+  },
+
+  renameFile: async (oldPath: string, newPath: string) => {
+    const { workspace } = get()
+    if (!workspace?.id) return
+    try {
+      await renameWorkspaceFile(workspace.id, oldPath, newPath)
+      get().closeFile(oldPath)
+      await get().fetchFiles()
+      get().openFile(newPath)
+      toast.success(`Renamed to ${newPath}`)
+    } catch (err) {
+      toast.error(`Failed to rename`, {
+        description: err instanceof Error ? err.message : "Unknown error",
+      })
+      throw err
+    }
+  },
+
   openFile: (fileId) => {
     set((state) => ({
       openFileIds: state.openFileIds.includes(fileId)
@@ -1002,6 +1125,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       activeFileId: fileId,
       workspaceTab: "code",
     }))
+    const active = get().getActiveFile()
+    if (active && active.content === undefined) {
+      void get().loadFileContent(active.path || active.id)
+    }
   },
 
   closeFile: (fileId) => {
@@ -1011,16 +1138,26 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         state.activeFileId === fileId
           ? (openFileIds[openFileIds.length - 1] ?? null)
           : state.activeFileId
-      return { openFileIds, activeFileId }
+      const { [fileId]: _, ...restDirty } = state.filesDirty
+      return { openFileIds, activeFileId, filesDirty: restDirty }
     })
   },
 
-  setActiveFile: (fileId) => set({ activeFileId: fileId }),
+  setActiveFile: (fileId) => {
+    set({ activeFileId: fileId })
+    const active = get().getActiveFile()
+    if (active && active.content === undefined) {
+      void get().loadFileContent(active.path || active.id)
+    }
+  },
 
   updateActiveContent: (content) => {
     const { activeFileId, files } = get()
     if (!activeFileId) return
-    set({ files: updateFileContent(files, activeFileId, content) })
+    set((state) => ({
+      files: updateFileContent(files, activeFileId, content),
+      filesDirty: { ...state.filesDirty, [activeFileId]: true },
+    }))
   },
 
   executeCommand: async (command) => {

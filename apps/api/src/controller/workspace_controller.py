@@ -15,10 +15,17 @@ from src.repository.session_repository import SessionRepo
 from src.repository.workspace_repository import WorkspaceRepo
 from src.schemas.github_schema import ImportGithubWorkspaceRequest
 from src.schemas.workspace_schema import (
+    CreateFileRequest,
     CreateWorkspaceRequest,
     CreateWorkspaceResponse,
     MinimalSession,
+    RenameFileRequest,
+    UpdateFileContentRequest,
     WorkspaceWithSession,
+)
+from src.services.workspace_files_service import (
+    WorkspaceFilesError,
+    WorkspaceFilesService,
 )
 from src.utils.config import config
 from src.utils.github_oauth import delete_github_repo
@@ -313,4 +320,113 @@ async def delete_workspace(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="workspace not found",
         )
+
+
+async def _get_authorized_workspace(
+    workspace_id: str,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+) -> Workspace:
+    if not current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authorized",
+        )
+    workspace = await repo.find_by_id(workspace_id)
+    if not workspace:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace not found",
+        )
+    if workspace.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden",
+        )
+    return workspace
+
+
+async def get_workspace_file_tree(
+    workspace_id: str,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id)
+    try:
+        files = service.get_tree()
+        return {"files": files}
+    except WorkspaceFilesError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+async def get_workspace_file_content(
+    workspace_id: str,
+    path: str,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id)
+    try:
+        return service.get_content(path)
+    except WorkspaceFilesError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+async def save_workspace_file_content(
+    workspace_id: str,
+    body: UpdateFileContentRequest,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id)
+    try:
+        return service.save_content(body.path, body.content)
+    except WorkspaceFilesError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+async def create_workspace_file(
+    workspace_id: str,
+    body: CreateFileRequest,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id)
+    try:
+        return service.create_item(body.path, item_type=body.type, content=body.content)
+    except WorkspaceFilesError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+async def delete_workspace_file(
+    workspace_id: str,
+    path: str,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id)
+    try:
+        return service.delete_item(path)
+    except WorkspaceFilesError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+async def rename_workspace_file(
+    workspace_id: str,
+    body: RenameFileRequest,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id)
+    try:
+        return service.rename_item(body.old_path, body.new_path)
+    except WorkspaceFilesError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
 

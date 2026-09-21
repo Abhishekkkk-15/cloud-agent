@@ -5,6 +5,7 @@ export const defaultFileTree: FileNode[] = [
   {
     id: "readme",
     name: "README.md",
+    path: "README.md",
     type: "file",
     language: "markdown",
     content: "# Workspace\n\nNo files loaded yet.\n",

@@ -57,6 +57,7 @@ type MonacoEditorProps = {
   fileName: string
   language?: string
   value: string
+  readOnly?: boolean
   onChange: (value: string, fileId: string) => void
 }
 
@@ -65,6 +66,7 @@ export function MonacoEditor({
   fileName,
   language,
   value,
+  readOnly = false,
   onChange,
 }: MonacoEditorProps) {
   const { theme, colorMode } = useTheme()
@@ -98,6 +100,8 @@ export function MonacoEditor({
         onChange(next, fileIdRef.current)
       }}
       options={{
+        readOnly,
+        domReadOnly: readOnly,
         minimap: { enabled: false },
         fontSize: 13,
         automaticLayout: true,

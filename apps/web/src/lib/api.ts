@@ -38,6 +38,7 @@ import {
   type CreateWorkspaceRequest,
   type CreateWorkspaceResponse,
   type FileNode,
+  type FileContentResponse,
   type Session,
   type SessionDetailResponse,
   type TerminalLine,
@@ -194,6 +195,12 @@ export async function deleteWorkspace(workspaceId: string): Promise<void> {
 }
 
 export async function getFileTree(workspaceId: string): Promise<FileNode[]> {
+  try {
+    const tree = await getWorkspaceFileTree(workspaceId)
+    if (tree && tree.length > 0) return tree
+  } catch (err) {
+    console.warn("[getFileTree] Backend file tree unavailable, using fallback:", err)
+  }
   return fileTrees[workspaceId] ?? [...defaultFileTree]
 }
 
@@ -271,6 +278,70 @@ export async function importGithubWorkspace(
   const created = createWorkspaceResponseSchema.parse(data)
   fileTrees[created.workspace_id] = [...defaultFileTree]
   return created
+}
+
+// ---------------- Workspace File APIs ----------------
+
+export async function getWorkspaceFileTree(
+  workspaceId: string
+): Promise<FileNode[]> {
+  const { data } = await http.get(`/workspaces/${workspaceId}/files/tree`)
+  return data.files ?? []
+}
+
+export async function getWorkspaceFileContent(
+  workspaceId: string,
+  path: string
+): Promise<FileContentResponse> {
+  const { data } = await http.get(`/workspaces/${workspaceId}/files/content`, {
+    params: { path },
+  })
+  return data
+}
+
+export async function saveWorkspaceFileContent(
+  workspaceId: string,
+  path: string,
+  content: string
+): Promise<{ path: string; size: number }> {
+  const { data } = await http.put(`/workspaces/${workspaceId}/files/content`, {
+    path,
+    content,
+  })
+  return data
+}
+
+export async function createWorkspaceFile(
+  workspaceId: string,
+  path: string,
+  type: "file" | "folder" = "file",
+  content = ""
+): Promise<void> {
+  await http.post(`/workspaces/${workspaceId}/files`, {
+    path,
+    type,
+    content,
+  })
+}
+
+export async function deleteWorkspaceFile(
+  workspaceId: string,
+  path: string
+): Promise<void> {
+  await http.delete(`/workspaces/${workspaceId}/files`, {
+    params: { path },
+  })
+}
+
+export async function renameWorkspaceFile(
+  workspaceId: string,
+  oldPath: string,
+  newPath: string
+): Promise<void> {
+  await http.patch(`/workspaces/${workspaceId}/files/rename`, {
+    old_path: oldPath,
+    new_path: newPath,
+  })
 }
 
 // ---------------- Admin API ----------------

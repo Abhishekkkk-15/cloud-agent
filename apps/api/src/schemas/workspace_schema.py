@@ -29,3 +29,20 @@ class CreateWorkspaceResponse(BaseModel):
     redirect_url: str
     workspace_name: str
     workspace: Workspace
+
+
+class UpdateFileContentRequest(BaseModel):
+    path: str
+    content: str
+
+
+class CreateFileRequest(BaseModel):
+    path: str
+    type: str = "file"
+    content: str = ""
+
+
+class RenameFileRequest(BaseModel):
+    old_path: str
+    new_path: str
+
