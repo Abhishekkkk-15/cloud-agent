@@ -29,57 +29,56 @@ export function ContextUsageIndicator() {
   const modelLimit = contextUsage?.model_limit
 
   // Determine status color
-  let colorClass = "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
-  let ringColor = "stroke-emerald-500"
-  let barColor = "bg-emerald-500"
+  let ringColor = "stroke-foreground/90 dark:stroke-white"
+  let barColor = "bg-primary"
+  let borderHover = "hover:border-foreground/30 dark:hover:border-white/30"
 
   if (percent >= 85) {
-    colorClass = "text-rose-600 dark:text-rose-400 border-rose-500/30 bg-rose-500/10"
     ringColor = "stroke-rose-500"
     barColor = "bg-rose-500"
+    borderHover = "hover:border-rose-500/50"
   } else if (percent >= 60) {
-    colorClass = "text-amber-600 dark:text-amber-400 border-amber-500/30 bg-amber-500/10"
     ringColor = "stroke-amber-500"
     barColor = "bg-amber-500"
+    borderHover = "hover:border-amber-500/50"
   }
 
-  // Circular progress math
-  const radius = 6
+  // Circular progress math (viewBox 20x20, r=7)
+  const radius = 7
   const circumference = 2 * Math.PI * radius
-  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference
+  const strokeDashoffset =
+    circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference
 
   return (
-    <TooltipProvider delay={150}>
+    <TooltipProvider delay={100}>
       <Tooltip>
         <TooltipTrigger
           type="button"
-          className={`group flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-medium tracking-tight transition-colors cursor-pointer select-none ${colorClass}`}
+          aria-label={`Context usage: ${percent.toFixed(1)}%`}
+          className={`relative size-7 flex items-center justify-center rounded-md border border-border/80 bg-muted/30 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all cursor-pointer select-none ${borderHover}`}
         >
-          {/* Mini progress circle */}
-          <div className="relative size-3.5 flex items-center justify-center shrink-0">
-            <svg className="size-3.5 -rotate-90" viewBox="0 0 16 16">
-              <circle
-                cx="8"
-                cy="8"
-                r={radius}
-                className="stroke-muted/40 fill-none"
-                strokeWidth="2.5"
-              />
-              <circle
-                cx="8"
-                cy="8"
-                r={radius}
-                className={`${ringColor} fill-none transition-all duration-300`}
-                strokeWidth="2.5"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-
-          <span className="font-mono">{formatTokens(filled)}</span>
-          <span className="text-muted-foreground/60 font-mono">/ {formatTokens(total)}</span>
+          {/* Circular progress ring */}
+          <svg className="size-4 -rotate-90" viewBox="0 0 20 20">
+            {/* Background ring track */}
+            <circle
+              cx="10"
+              cy="10"
+              r={radius}
+              className="stroke-muted-foreground/20 dark:stroke-white/15 fill-none"
+              strokeWidth="2.2"
+            />
+            {/* Active filled arc */}
+            <circle
+              cx="10"
+              cy="10"
+              r={radius}
+              className={`${ringColor} fill-none transition-all duration-500 ease-out`}
+              strokeWidth="2.2"
+              strokeDasharray={circumference}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+            />
+          </svg>
         </TooltipTrigger>
 
         <TooltipContent
