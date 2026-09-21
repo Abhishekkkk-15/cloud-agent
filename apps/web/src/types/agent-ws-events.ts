@@ -41,7 +41,13 @@ export const PI_SDK_EVENT_DATA_KEYS: Record<PiSdkEventType, readonly string[]> =
       "prompt_tokens",
       "completion_tokens",
       "total_tokens",
+      "cached_tokens",
       "estimated_cost_usd",
+      "session_prompt_tokens",
+      "session_completion_tokens",
+      "session_total_tokens",
+      "session_cached_tokens",
+      "session_estimated_cost_usd",
     ],
     ERROR: ["error"],
     STATUS: ["message"],
@@ -371,7 +377,13 @@ export function wsEventToUiEvent(
     data.prompt_tokens = payload.usage.prompt_tokens
     data.completion_tokens = payload.usage.completion_tokens
     data.total_tokens = payload.usage.total_tokens
+    data.cached_tokens = payload.usage.cached_tokens
     data.estimated_cost_usd = payload.usage.estimated_cost_usd
+    data.session_prompt_tokens = payload.usage.session_prompt_tokens
+    data.session_completion_tokens = payload.usage.session_completion_tokens
+    data.session_total_tokens = payload.usage.session_total_tokens
+    data.session_cached_tokens = payload.usage.session_cached_tokens
+    data.session_estimated_cost_usd = payload.usage.session_estimated_cost_usd
   }
   if (payload.done) data.done = payload.done
 

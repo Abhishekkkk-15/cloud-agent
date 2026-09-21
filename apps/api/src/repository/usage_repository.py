@@ -66,6 +66,7 @@ class UsageRepository:
                     "total_tokens": total_tokens,
                     "prompt_tokens": prompt_tokens,
                     "completion_tokens": completion_tokens,
+                    "cached_tokens": cached_tokens,
                     "estimated_cost_usd": round(cost_usd, 6),
                     "turn_count": 1,
                 },
