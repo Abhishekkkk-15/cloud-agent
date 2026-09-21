@@ -25,8 +25,10 @@ export function formatUsageDetail(data: Record<string, unknown>): string {
   const input = asNumber(data.input_tokens) ?? asNumber(data.prompt_tokens)
   const output = asNumber(data.output_tokens) ?? asNumber(data.completion_tokens)
   const cached = asNumber(data.cached_tokens)
-  const total = asNumber(data.total_tokens)
-  const cost = asNumber(data.estimated_cost_usd)
+  const total =
+    asNumber(data.total_tokens) ??
+    (input != null && output != null ? input + output : undefined)
+  const cost = asNumber(data.estimated_cost_usd) ?? asNumber(data.session_estimated_cost_usd)
 
   const parts: string[] = []
   if (input != null) parts.push(`in ${formatTokenCount(input)}`)
@@ -112,8 +114,53 @@ export function statusEventKey(event: AgentEvent): string | null {
 
 export function coalesceAgentEvents(events: AgentEvent[]): AgentEvent[] {
   const result: AgentEvent[] = []
+  let accumulatedUsage: AgentEvent | null = null
 
   for (const event of events) {
+    if (event.type === "USAGE") {
+      if (!accumulatedUsage) {
+        accumulatedUsage = { ...event, data: { ...event.data } }
+      } else {
+        const prevData: Record<string, unknown> = accumulatedUsage.data || {}
+        const currData: Record<string, unknown> = event.data || {}
+
+        const pIn = asNumber(prevData.prompt_tokens) ?? asNumber(prevData.input_tokens) ?? 0
+        const pOut = asNumber(prevData.completion_tokens) ?? asNumber(prevData.output_tokens) ?? 0
+        const pCached = asNumber(prevData.cached_tokens) ?? 0
+        const pCost = asNumber(prevData.estimated_cost_usd) ?? 0
+
+        const cIn = asNumber(currData.prompt_tokens) ?? asNumber(currData.input_tokens) ?? 0
+        const cOut = asNumber(currData.completion_tokens) ?? asNumber(currData.output_tokens) ?? 0
+        const cCached = asNumber(currData.cached_tokens) ?? 0
+        const cCost = asNumber(currData.estimated_cost_usd) ?? 0
+
+        const sumIn = pIn + cIn
+        const sumOut = pOut + cOut
+        const sumCached = pCached + cCached
+        const sumCost = pCost + cCost
+
+        const currentUsage: AgentEvent = accumulatedUsage
+        accumulatedUsage = {
+          ...currentUsage,
+          data: {
+            ...prevData,
+            ...currData,
+            prompt_tokens: sumIn,
+            completion_tokens: sumOut,
+            cached_tokens: sumCached,
+            total_tokens: sumIn + sumOut,
+            estimated_cost_usd: sumCost,
+            session_prompt_tokens: currData.session_prompt_tokens ?? prevData.session_prompt_tokens,
+            session_completion_tokens: currData.session_completion_tokens ?? prevData.session_completion_tokens,
+            session_total_tokens: currData.session_total_tokens ?? prevData.session_total_tokens,
+            session_cached_tokens: currData.session_cached_tokens ?? prevData.session_cached_tokens,
+            session_estimated_cost_usd: currData.session_estimated_cost_usd ?? prevData.session_estimated_cost_usd,
+          },
+        }
+      }
+      continue
+    }
+
     if (result.length > 0) {
       const previous = result[result.length - 1]
 
@@ -156,6 +203,10 @@ export function coalesceAgentEvents(events: AgentEvent[]): AgentEvent[] {
     result.push(event)
   }
 
+  if (accumulatedUsage) {
+    result.push(accumulatedUsage)
+  }
+
   return result
 }
 
@@ -163,6 +214,52 @@ export function appendAgentEvent(
   events: AgentEvent[],
   event: AgentEvent
 ): AgentEvent[] {
+  if (event.type === "USAGE") {
+    const existingIndex = events.findIndex((e) => e.type === "USAGE")
+    if (existingIndex >= 0) {
+      const prev = events[existingIndex]
+      const prevData = prev.data || {}
+      const nextData = event.data || {}
+
+      const pIn = asNumber(prevData.prompt_tokens) ?? asNumber(prevData.input_tokens) ?? 0
+      const pOut = asNumber(prevData.completion_tokens) ?? asNumber(prevData.output_tokens) ?? 0
+      const pCached = asNumber(prevData.cached_tokens) ?? 0
+      const pCost = asNumber(prevData.estimated_cost_usd) ?? 0
+
+      const nIn = asNumber(nextData.prompt_tokens) ?? asNumber(nextData.input_tokens) ?? 0
+      const nOut = asNumber(nextData.completion_tokens) ?? asNumber(nextData.output_tokens) ?? 0
+      const nCached = asNumber(nextData.cached_tokens) ?? 0
+      const nCost = asNumber(nextData.estimated_cost_usd) ?? 0
+
+      const sumIn = pIn + nIn
+      const sumOut = pOut + nOut
+      const sumCached = pCached + nCached
+      const sumCost = pCost + nCost
+
+      const updated: AgentEvent = {
+        ...prev,
+        data: {
+          ...prevData,
+          ...nextData,
+          prompt_tokens: sumIn,
+          completion_tokens: sumOut,
+          cached_tokens: sumCached,
+          total_tokens: sumIn + sumOut,
+          estimated_cost_usd: sumCost,
+          session_prompt_tokens: nextData.session_prompt_tokens ?? prevData.session_prompt_tokens,
+          session_completion_tokens: nextData.session_completion_tokens ?? prevData.session_completion_tokens,
+          session_total_tokens: nextData.session_total_tokens ?? prevData.session_total_tokens,
+          session_cached_tokens: nextData.session_cached_tokens ?? prevData.session_cached_tokens,
+          session_estimated_cost_usd: nextData.session_estimated_cost_usd ?? prevData.session_estimated_cost_usd,
+        },
+      }
+
+      const nextEvents = [...events]
+      nextEvents[existingIndex] = updated
+      return nextEvents
+    }
+  }
+
   if (events.length > 0) {
     const previous = events[events.length - 1]
 

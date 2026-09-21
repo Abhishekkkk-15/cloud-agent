@@ -743,6 +743,34 @@ async def websocket_endpoint(
                             "data": ctx_usage,
                         }),
                     )
+
+                    # Broadcast complete cumulative session & turn usage to frontend
+                    session_mem = getattr(agent, "memory", None) and getattr(agent.memory, "session", None)
+                    u = getattr(run_result, "usage", None) if "run_result" in locals() else None
+                    if session_mem:
+                        await ws_manager.send_json(
+                            websocket=ws,
+                            data=jsonable_encoder({
+                                "type": "agent:usage",
+                                "usage": {
+                                    "prompt_tokens": getattr(u, "prompt_tokens", session_mem.prompt_tokens) if u else session_mem.prompt_tokens,
+                                    "completion_tokens": getattr(u, "completion_tokens", session_mem.completion_tokens) if u else session_mem.completion_tokens,
+                                    "total_tokens": getattr(u, "total_tokens", session_mem.total_tokens) if u else session_mem.total_tokens,
+                                    "cached_tokens": getattr(u, "cached_tokens", session_mem.cached_tokens) if u else session_mem.cached_tokens,
+                                    "estimated_cost_usd": getattr(u, "estimated_cost_usd", session_mem.estimated_cost_usd) if u else session_mem.estimated_cost_usd,
+                                    "session_prompt_tokens": session_mem.prompt_tokens,
+                                    "session_completion_tokens": session_mem.completion_tokens,
+                                    "session_total_tokens": session_mem.total_tokens,
+                                    "session_cached_tokens": session_mem.cached_tokens,
+                                    "session_estimated_cost_usd": session_mem.estimated_cost_usd,
+                                    "context_tokens": filled_tokens,
+                                    "context_window": target_limit,
+                                    "context_percent": percent_used,
+                                    "compact_at_tokens": compact_limit,
+                                    "model_limit": model_window,
+                                },
+                            }),
+                        )
                 except Exception as ctx_err:
                     print(f"[chat_ws] failed to broadcast context usage: {ctx_err}")
 
