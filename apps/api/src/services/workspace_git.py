@@ -28,6 +28,23 @@ class WorkspaceGitService:
     def __init__(self,host_path:Path) -> None:
         self.host_path = host_path
         
+    def _ensure_permissions(self, path: Path) -> None:
+        try:
+            if not path.exists():
+                return
+            # Ensure path and parent mount folders have read/write/exec permissions
+            current = path.resolve()
+            for p in [current, *current.parents]:
+                if p.exists():
+                    try:
+                        p.chmod(p.stat().st_mode | 0o777)
+                    except Exception:
+                        pass
+                if p.parent == p:
+                    break
+        except Exception:
+            pass
+
     def _run(
         self,
         args: list[str],
@@ -44,8 +61,11 @@ class WorkspaceGitService:
         if use_git_c:
             if not self.host_path.exists():
                 raise WorkspaceGitError(f"Directory does not exist : {self.host_path}")
+            self._ensure_permissions(self.host_path)
             cmd = [
                 "git",
+                "-c",
+                "safe.directory=*",
                 "-C",
                 str(self.host_path),
                 "-c",
@@ -57,7 +77,15 @@ class WorkspaceGitService:
             # Used by clone: destination may not exist yet; run from parent.
             run_cwd = cwd or self.host_path.parent
             run_cwd.mkdir(parents=True, exist_ok=True)
-            cmd = ["git", "-c", f"core.hooksPath={os.devnull}", *args]
+            self._ensure_permissions(run_cwd)
+            cmd = [
+                "git",
+                "-c",
+                "safe.directory=*",
+                "-c",
+                f"core.hooksPath={os.devnull}",
+                *args,
+            ]
 
         try:
             result = subprocess.run(
@@ -82,6 +110,11 @@ class WorkspaceGitService:
         
     def init(self) -> None:
         if not self.is_git_repo():
+            try:
+                self.host_path.mkdir(parents=True, exist_ok=True)
+                self._ensure_permissions(self.host_path)
+            except Exception:
+                pass
             self._run(["init","-b","main"])
             
     def is_git_repo(self) -> bool:

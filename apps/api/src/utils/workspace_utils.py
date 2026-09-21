@@ -125,6 +125,18 @@ def ensure_workspace_template(workspace_id: str) -> Path:
     """
     workspace_root = config.workspace_base / workspace_id
     workspace_root.mkdir(parents=True, exist_ok=True)
+    try:
+        current = workspace_root.resolve()
+        for p in [current, *current.parents]:
+            if p.exists():
+                try:
+                    p.chmod(p.stat().st_mode | 0o777)
+                except Exception:
+                    pass
+            if p.parent == p:
+                break
+    except Exception:
+        pass
 
     package_json = workspace_root / "package.json"
     if not package_json.exists() and TEMPLATE_DIR.exists():
@@ -145,5 +157,21 @@ def ensure_workspace_template(workspace_id: str) -> Path:
                         shutil.copy2(item, dest)
                 except Exception as e:
                     logger.warning("Failed copying %s to %s: %s", item.name, dest, e)
+
+    # Ensure all newly seeded or existing files/directories have full permissions
+    try:
+        for root, dirs, files in os.walk(workspace_root):
+            for d in dirs:
+                try:
+                    os.chmod(os.path.join(root, d), 0o777)
+                except Exception:
+                    pass
+            for f in files:
+                try:
+                    os.chmod(os.path.join(root, f), 0o666)
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
     return workspace_root

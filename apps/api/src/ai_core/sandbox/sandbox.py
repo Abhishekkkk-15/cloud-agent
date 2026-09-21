@@ -41,7 +41,20 @@ class Sandbox:
 
             # Callers must prepare files first (prepare_workspace). Only ensure the
             # mount directory exists so Docker bind-mount succeeds.
-            Path(config.workspace_base / workspace_id).mkdir(parents=True, exist_ok=True)
+            ws_mount_path = Path(config.workspace_base / workspace_id)
+            ws_mount_path.mkdir(parents=True, exist_ok=True)
+            try:
+                current = ws_mount_path.resolve()
+                for p in [current, *current.parents]:
+                    if p.exists():
+                        try:
+                            p.chmod(p.stat().st_mode | 0o777)
+                        except Exception:
+                            pass
+                    if p.parent == p:
+                        break
+            except Exception:
+                pass
 
             mount = Mount(
                 target="/app",
