@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import {
   Tooltip,
@@ -9,6 +10,7 @@ import { GaugeIcon } from "lucide-react"
 
 export function ContextUsageIndicator() {
   const contextUsage = useWorkspaceStore((s) => s.contextUsage)
+  const [open, setOpen] = useState(false)
 
   const filled = contextUsage?.filled_tokens ?? 0
   const total = contextUsage?.total_tokens || 128_000
@@ -18,18 +20,15 @@ export function ContextUsageIndicator() {
   const modelLimit = contextUsage?.model_limit
 
   // Determine status color
-  let ringColor = "stroke-foreground/90 dark:stroke-white"
+  let ringColor = "stroke-foreground/80 dark:stroke-white/90"
   let barColor = "bg-primary"
-  let borderHover = "hover:border-foreground/30 dark:hover:border-white/30"
 
   if (percent >= 85) {
     ringColor = "stroke-rose-500"
     barColor = "bg-rose-500"
-    borderHover = "hover:border-rose-500/50"
   } else if (percent >= 60) {
     ringColor = "stroke-amber-500"
     barColor = "bg-amber-500"
-    borderHover = "hover:border-amber-500/50"
   }
 
   // Circular progress math (viewBox 20x20, r=7)
@@ -39,12 +38,13 @@ export function ContextUsageIndicator() {
     circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference
 
   return (
-    <TooltipProvider delay={100}>
-      <Tooltip>
+    <TooltipProvider delay={150}>
+      <Tooltip open={open} onOpenChange={setOpen}>
         <TooltipTrigger
           type="button"
           aria-label={`Context usage: ${percent.toFixed(1)}%`}
-          className={`relative size-7 flex items-center justify-center rounded-md border border-border/80 bg-muted/30 text-muted-foreground hover:bg-muted/70 hover:text-foreground transition-all cursor-pointer select-none ${borderHover}`}
+          onClick={() => setOpen((v) => !v)}
+          className="group relative flex size-6 items-center justify-center rounded-full bg-transparent text-muted-foreground outline-none transition-transform hover:scale-110 hover:text-foreground cursor-pointer select-none"
         >
           {/* Circular progress ring */}
           <svg className="size-4 -rotate-90" viewBox="0 0 20 20">
