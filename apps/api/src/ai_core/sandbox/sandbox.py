@@ -225,7 +225,7 @@ class Sandbox:
                     "error": self._client_error or "Docker is not available"
                 }
             container = self.client.containers.get(container_id)
-            container.remove()
+            container.remove(force=True)
             return None
         except NotFound:
             return {"error": f"Container '{container_id}' not found"}
