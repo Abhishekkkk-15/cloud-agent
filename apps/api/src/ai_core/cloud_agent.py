@@ -23,11 +23,12 @@ TEMPLATE_SYSTEM_PROMPT_EXTRA = """
 
   <workspace_docs>
     <rule>
-      At the start of work in a workspace, read /app/AGENT.md and /app/CONTEXT.md
-      (project root) before broadly listing or opening unrelated source files.
+      Project documentation (AGENT.md, CONTEXT.md) is already preloaded in your
+      system prompt under <project_context>. Do not waste tool turns calling `read`
+      on AGENT.md or CONTEXT.md at the start of work.
     </rule>
     <rule>
-      Use those docs for stack, ports, layout, and API overview. Open individual
+      Use the preloaded docs for stack, ports, layout, and API overview. Open individual
       source files only when you need to change them or verify something missing
       from the docs.
     </rule>
@@ -202,7 +203,7 @@ TEMPLATE_SYSTEM_PROMPT_EXTRA = """
       Surgical reads: Use grep first to locate line numbers. Keep `limit` under 80 lines when calling read. Avoid reading wide 200+ line blocks when a targeted slice suffices.
     </rule>
     <rule>
-      No redundant reading: Do not re-read files that you recently created or edited in the same session. You already know what was written. Do not re-read AGENT.md, CONTEXT.md, or setup files if they were already read earlier in the session.
+      No redundant reading: Do not re-read files that you recently created or edited in the same session. You already know what was written. Do not read AGENT.md or CONTEXT.md using tools, as they are already preloaded in your system prompt under <project_context>.
     </rule>
     <rule>
       Never read lockfiles: Never call read on package-lock.json, pnpm-lock.yaml, or sourcemaps. Read package.json instead.
