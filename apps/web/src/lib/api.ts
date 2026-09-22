@@ -134,6 +134,7 @@ export type SessionAnalyticsResponse = {
     estimated_cost_usd: number
     compacted_until?: number
     has_compaction: boolean
+    compaction_summary?: string
     compaction_summary_length: number
     total_messages: number
   }

@@ -335,6 +335,7 @@ async def get_session_analytics(
             "estimated_cost_usd": session.estimated_cost_usd,
             "compacted_until": session.compacted_until,
             "has_compaction": bool(session.compaction_summary),
+            "compaction_summary": session.compaction_summary or "",
             "compaction_summary_length": len(session.compaction_summary or ""),
             "total_messages": len(messages),
         },

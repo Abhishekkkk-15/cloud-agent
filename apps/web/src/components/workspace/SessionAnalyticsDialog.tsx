@@ -209,7 +209,7 @@ export function SessionAnalyticsDialog({
 
               {/* Compaction & System Prompt Callouts */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-xl border bg-muted/30 space-y-2">
+                <div className="p-3.5 rounded-xl border bg-muted/30 space-y-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold flex items-center gap-1.5">
                       <LayersIcon className="size-3.5 text-primary" />
@@ -227,9 +227,37 @@ export function SessionAnalyticsDialog({
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {data.session.has_compaction
-                      ? `History compacted up to message ${data.session.compacted_until}. Preserves recent turns while summarizing older context (${data.session.compaction_summary_length} summary chars).`
-                      : `Active context has not yet reached the compaction threshold. The model receives all messages in the working window on every turn.`}
+                      ? `History compacted up to message Seq #${data.session.compacted_until}. Older turns were synthesized into a concise summary (${data.session.compaction_summary_length.toLocaleString()} chars) while keeping recent working turns intact.`
+                      : `Active context has not yet exceeded the compaction threshold limit. All turns remain in the active context window.`}
                   </p>
+
+                  {/* If Compaction Summary is present, show viewer with Copy button */}
+                  {data.session.has_compaction && data.session.compaction_summary && (
+                    <div className="pt-2 border-t space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-foreground">
+                          Compacted Context Summary:
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 text-[11px] gap-1 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                          onClick={() =>
+                            copyToClipboard(
+                              data.session.compaction_summary || "",
+                              "Compaction Summary"
+                            )
+                          }
+                        >
+                          <CopyIcon className="size-3" />
+                          Copy Summary
+                        </Button>
+                      </div>
+                      <div className="text-[11px] font-mono leading-relaxed bg-background/80 p-2.5 rounded-lg border max-h-36 overflow-y-auto whitespace-pre-wrap select-text text-muted-foreground">
+                        {data.session.compaction_summary}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-3.5 rounded-xl border bg-muted/30 space-y-2">
