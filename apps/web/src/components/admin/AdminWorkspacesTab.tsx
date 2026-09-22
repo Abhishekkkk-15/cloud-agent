@@ -373,7 +373,7 @@ export function AdminWorkspacesTab() {
             if (!open) setSessionsModalData(null)
           }}
         >
-          <DialogContent className="max-w-md">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <ActivityIcon className="size-5 text-primary" />
@@ -420,7 +420,7 @@ export function AdminWorkspacesTab() {
 
       {/* Direct Session Inspector Dialog */}
       <Dialog open={directInspectOpen} onOpenChange={setDirectInspectOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ActivityIcon className="size-5 text-primary" />

@@ -19,7 +19,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -88,62 +87,78 @@ export function SessionAnalyticsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[88vh] flex flex-col p-6 overflow-hidden">
-        <DialogHeader className="pb-2 border-b">
-          <div className="flex items-center justify-between pr-6">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+      <DialogContent className="flex flex-col gap-0 p-0 overflow-hidden w-[95vw] sm:max-w-4xl md:max-w-5xl h-[88vh] max-h-[850px] rounded-xl border bg-card shadow-2xl">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b bg-muted/20 shrink-0">
+          <div className="flex items-center justify-between pr-8">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0">
                 <BarChart3Icon className="size-5" />
               </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold tracking-tight">
+              <div className="min-w-0">
+                <DialogTitle className="text-base sm:text-lg font-semibold tracking-tight truncate">
                   Session Token & Activity Analytics
                 </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground">
+                <DialogDescription className="text-xs text-muted-foreground truncate font-mono">
                   {data?.session.title || "Current Session"} · ID: {activeSessionId}
                 </DialogDescription>
               </div>
             </div>
           </div>
-        </DialogHeader>
+        </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div className="flex-1 flex flex-col items-center justify-center py-20 gap-3">
             <Spinner className="size-7 text-primary" />
             <p className="text-xs text-muted-foreground">
               Analyzing token usage, prompt footprint, and tool logs…
             </p>
           </div>
         ) : !data ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
+          <div className="flex-1 flex items-center justify-center py-12 text-sm text-muted-foreground">
             No analytics data available for this session.
           </div>
         ) : (
-          <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0 pt-2">
-            <TabsList className="grid grid-cols-4 w-full h-9">
-              <TabsTrigger value="overview" className="text-xs gap-1.5">
-                <CoinsIcon className="size-3.5" />
-                Overview & Tokens
-              </TabsTrigger>
-              <TabsTrigger value="system-prompt" className="text-xs gap-1.5">
-                <FileCode2Icon className="size-3.5" />
-                System Prompt ({data.system_prompt.estimated_tokens.toLocaleString()} tok)
-              </TabsTrigger>
-              <TabsTrigger value="tool-summary" className="text-xs gap-1.5">
-                <WrenchIcon className="size-3.5" />
-                Tool Breakdown ({data.tools_summary.total_calls})
-              </TabsTrigger>
-              <TabsTrigger value="tool-logs" className="text-xs gap-1.5">
-                <TerminalIcon className="size-3.5" />
-                Executions & Errors ({data.tools_summary.total_failure} failed)
-              </TabsTrigger>
-            </TabsList>
+          <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
+            {/* Tab navigation bar */}
+            <div className="px-4 sm:px-6 pt-3 pb-2 border-b bg-background/50 shrink-0">
+              <TabsList className="grid grid-cols-2 sm:grid-cols-4 w-full h-auto p-1 gap-1">
+                <TabsTrigger value="overview" className="text-xs py-1.5 gap-1.5">
+                  <CoinsIcon className="size-3.5" />
+                  <span>Overview</span>
+                </TabsTrigger>
+                <TabsTrigger value="system-prompt" className="text-xs py-1.5 gap-1.5">
+                  <FileCode2Icon className="size-3.5" />
+                  <span>System Prompt</span>
+                  <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-1 hidden sm:inline-flex">
+                    ~{data.system_prompt.estimated_tokens.toLocaleString()} tok
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="tool-summary" className="text-xs py-1.5 gap-1.5">
+                  <WrenchIcon className="size-3.5" />
+                  <span>Tools ({data.tools_summary.total_calls})</span>
+                </TabsTrigger>
+                <TabsTrigger value="tool-logs" className="text-xs py-1.5 gap-1.5">
+                  <TerminalIcon className="size-3.5" />
+                  <span>Logs</span>
+                  {data.tools_summary.total_failure > 0 ? (
+                    <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4 ml-1">
+                      {data.tools_summary.total_failure} err
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4 ml-1 hidden sm:inline-flex">
+                      {data.tool_executions.length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             {/* TAB 1: OVERVIEW & TOKEN USAGE */}
-            <TabsContent value="overview" className="flex-1 overflow-y-auto space-y-4 pt-3 pr-1">
+            <TabsContent value="overview" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 data-[state=inactive]:hidden">
               {/* Key Metric Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1 shadow-xs">
                   <span className="text-[11px] font-medium text-muted-foreground">
                     Total Tokens (Cumulative)
                   </span>
@@ -155,7 +170,7 @@ export function SessionAnalyticsDialog({
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1">
+                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1 shadow-xs">
                   <span className="text-[11px] font-medium text-muted-foreground">
                     Prompt / Input Tokens
                   </span>
@@ -167,7 +182,7 @@ export function SessionAnalyticsDialog({
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1">
+                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1 shadow-xs">
                   <span className="text-[11px] font-medium text-muted-foreground">
                     Completion / Output
                   </span>
@@ -179,7 +194,7 @@ export function SessionAnalyticsDialog({
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1">
+                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col gap-1 shadow-xs">
                   <span className="text-[11px] font-medium text-muted-foreground">
                     Estimated Spend
                   </span>
@@ -249,20 +264,20 @@ export function SessionAnalyticsDialog({
                   {data.timeline_progression.slice(-15).map((step) => (
                     <div
                       key={step.seq}
-                      className="flex items-center justify-between text-[11px] p-1.5 rounded bg-muted/40 font-mono"
+                      className="flex items-center justify-between text-[11px] p-2 rounded bg-muted/40 font-mono"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground w-12">Seq {step.seq}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-muted-foreground w-14 shrink-0">Seq #{step.seq}</span>
                         <Badge
                           variant={step.role === "assistant" ? "secondary" : step.role === "tool" ? "outline" : "default"}
-                          className="text-[9px] px-1 py-0 h-4 uppercase"
+                          className="text-[9px] px-1.5 py-0 h-4 uppercase shrink-0"
                         >
                           {step.name ? `${step.role}:${step.name}` : step.role}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 shrink-0">
                         <span className="text-muted-foreground">+{step.estimated_tokens} tok</span>
-                        <span className="font-semibold text-foreground w-20 text-right">
+                        <span className="font-semibold text-foreground w-24 text-right">
                           ~{step.working_context_tokens.toLocaleString()} total
                         </span>
                       </div>
@@ -273,7 +288,7 @@ export function SessionAnalyticsDialog({
             </TabsContent>
 
             {/* TAB 2: SYSTEM PROMPT VIEWER */}
-            <TabsContent value="system-prompt" className="flex-1 overflow-y-auto space-y-3 pt-3 pr-1">
+            <TabsContent value="system-prompt" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-3 data-[state=inactive]:hidden">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="font-mono text-xs">
@@ -294,25 +309,25 @@ export function SessionAnalyticsDialog({
                 </Button>
               </div>
 
-              <div className="relative rounded-xl border bg-muted/30 p-3 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-[50vh] whitespace-pre-wrap select-text">
+              <div className="rounded-xl border bg-muted/30 p-3 font-mono text-[11px] leading-relaxed overflow-x-auto max-h-[52vh] whitespace-pre-wrap select-text">
                 {data.system_prompt.content || "No system prompt recorded for this session."}
               </div>
             </TabsContent>
 
             {/* TAB 3: TOOL BREAKDOWN TABLE */}
-            <TabsContent value="tool-summary" className="flex-1 overflow-y-auto space-y-3 pt-3 pr-1">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 rounded-lg border bg-card/60 flex flex-col">
+            <TabsContent value="tool-summary" className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 data-[state=inactive]:hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col">
                   <span className="text-[11px] text-muted-foreground">Total Tool Calls</span>
                   <span className="text-xl font-bold font-mono">{data.tools_summary.total_calls}</span>
                 </div>
-                <div className="p-3 rounded-lg border bg-card/60 flex flex-col">
+                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col">
                   <span className="text-[11px] text-muted-foreground">Successful Executions</span>
                   <span className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
                     {data.tools_summary.total_success}
                   </span>
                 </div>
-                <div className="p-3 rounded-lg border bg-card/60 flex flex-col">
+                <div className="p-3.5 rounded-xl border bg-card/60 flex flex-col">
                   <span className="text-[11px] text-muted-foreground">Failures / Errors</span>
                   <span className="text-xl font-bold font-mono text-rose-600 dark:text-rose-400">
                     {data.tools_summary.total_failure} ({data.tools_summary.failure_rate_percent}%)
@@ -320,8 +335,8 @@ export function SessionAnalyticsDialog({
                 </div>
               </div>
 
-              <div className="rounded-xl border overflow-hidden">
-                <table className="w-full text-left text-xs">
+              <div className="rounded-xl border overflow-x-auto">
+                <table className="w-full text-left text-xs min-w-[550px]">
                   <thead className="bg-muted/50 border-b text-[11px] font-semibold text-muted-foreground uppercase">
                     <tr>
                       <th className="py-2.5 px-3">Tool Name</th>
@@ -336,8 +351,8 @@ export function SessionAnalyticsDialog({
                     {data.tools_breakdown.map((t) => (
                       <tr key={t.name} className="hover:bg-muted/30 transition-colors">
                         <td className="py-2.5 px-3 font-semibold text-foreground flex items-center gap-1.5">
-                          <WrenchIcon className="size-3 text-primary" />
-                          {t.name}
+                          <WrenchIcon className="size-3 text-primary shrink-0" />
+                          <span>{t.name}</span>
                         </td>
                         <td className="py-2.5 px-3 text-right font-bold">{t.call_count}</td>
                         <td className="py-2.5 px-3 text-right text-emerald-600 dark:text-emerald-400">
@@ -366,13 +381,13 @@ export function SessionAnalyticsDialog({
             </TabsContent>
 
             {/* TAB 4: TOOL EXECUTIONS & ERRORS AUDIT LOG */}
-            <TabsContent value="tool-logs" className="flex-1 flex flex-col min-h-0 space-y-3 pt-3">
-              <div className="flex items-center justify-between gap-3">
+            <TabsContent value="tool-logs" className="flex-1 min-h-0 flex flex-col p-4 sm:p-6 space-y-3 data-[state=inactive]:hidden">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shrink-0">
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant={filterMode === "all" ? "default" : "outline"}
-                    className="h-7 text-xs cursor-pointer"
+                    className="h-8 text-xs cursor-pointer"
                     onClick={() => setFilterMode("all")}
                   >
                     All Executions ({data.tool_executions.length})
@@ -380,7 +395,7 @@ export function SessionAnalyticsDialog({
                   <Button
                     size="sm"
                     variant={filterMode === "errors" ? "destructive" : "outline"}
-                    className="h-7 text-xs gap-1 cursor-pointer"
+                    className="h-8 text-xs gap-1 cursor-pointer"
                     onClick={() => setFilterMode("errors")}
                   >
                     <AlertCircleIcon className="size-3" />
@@ -388,18 +403,18 @@ export function SessionAnalyticsDialog({
                   </Button>
                 </div>
 
-                <div className="relative w-64">
-                  <SearchIcon className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
+                <div className="relative w-full sm:w-64">
+                  <SearchIcon className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search tool or error..."
+                    placeholder="Search tool, arguments, error..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="h-7 text-xs pl-8"
+                    className="h-8 text-xs pl-8"
                   />
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0">
                 {filteredExecutions.length === 0 ? (
                   <div className="py-12 text-center text-xs text-muted-foreground">
                     No tool executions match the current filter.
@@ -408,7 +423,7 @@ export function SessionAnalyticsDialog({
                   filteredExecutions.map((exec) => (
                     <div
                       key={`${exec.seq}-${exec.tool_name}`}
-                      className={`p-3 rounded-xl border text-xs space-y-2 transition-colors ${
+                      className={`p-3.5 rounded-xl border text-xs space-y-2 transition-colors ${
                         exec.status === "error"
                           ? "border-rose-500/40 bg-rose-500/5 dark:bg-rose-950/15"
                           : "border-border bg-card/60"
@@ -457,7 +472,7 @@ export function SessionAnalyticsDialog({
 
                       {/* Arguments if available */}
                       {exec.arguments != null ? (
-                        <div className="text-[11px] font-mono text-muted-foreground/90 bg-muted/40 p-1.5 rounded overflow-x-auto whitespace-pre-wrap">
+                        <div className="text-[11px] font-mono text-muted-foreground/90 bg-muted/40 p-2 rounded overflow-x-auto whitespace-pre-wrap">
                           <span className="text-[10px] font-semibold text-muted-foreground block mb-0.5">
                             Arguments:
                           </span>
