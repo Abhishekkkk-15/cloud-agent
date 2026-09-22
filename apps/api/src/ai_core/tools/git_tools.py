@@ -6,12 +6,12 @@ from pi_sdk import ToolSpec
 from src.services.workspace_git import WorkspaceGitError, WorkspaceGitService
 
 
-def _truncate_output(text: str, max_chars: int = 12000) -> str:
+def _truncate_output(text: str, max_chars: int = 4000) -> str:
     if len(text) > max_chars:
         half = max_chars // 2
         return (
             text[:half]
-            + f"\n\n... [Output truncated; {len(text) - max_chars} characters omitted] ...\n\n"
+            + f"\n\n... [Output truncated ({len(text) - max_chars} characters omitted) to save context tokens] ...\n\n"
             + text[-half:]
         )
     return text
@@ -63,10 +63,21 @@ def build_git_tools(
                 cmd.append("--cached")
             if path:
                 cmd.extend(["--", path.strip().lstrip("/")])
+            else:
+                # Automatically exclude lockfiles and generated maps to prevent context bloat
+                cmd.extend([
+                    "--",
+                    ".",
+                    ":(exclude)package-lock.json",
+                    ":(exclude)pnpm-lock.yaml",
+                    ":(exclude)yarn.lock",
+                    ":(exclude)bun.lockb",
+                    ":(exclude)*.map",
+                ])
             res = git_service._run(cmd, check=False)
             out = res.stdout if res.returncode == 0 else res.stderr
             if not out.strip():
-                return "No differences found."
+                return "No differences found (excluding lockfiles)."
             return _truncate_output(out)
 
         return await asyncio.to_thread(_run_diff)

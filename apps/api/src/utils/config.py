@@ -61,8 +61,8 @@ class Config:
         )
         self.port = int(os.getenv("PORT", "8000"))
         self.compaction_enabled = os.getenv("COMPACTION_ENABLED", "true").lower() in ("true", "1", "yes")
-        self.compact_at_tokens = int(os.getenv("COMPACT_AT_TOKENS", "20000"))
-        self.keep_recent_tokens = int(os.getenv("KEEP_RECENT_TOKENS", "6000"))
+        self.compact_at_tokens = int(os.getenv("COMPACT_AT_TOKENS", "35000"))
+        self.keep_recent_tokens = int(os.getenv("KEEP_RECENT_TOKENS", "8000"))
         self.github_client_id = os.getenv("GITHUB_CLIENT_ID") or ""
         self.github_client_secret = os.getenv("GITHUB_CLIENT_SECRET") or ""
         self.github_oauth_callback_url = os.getenv(

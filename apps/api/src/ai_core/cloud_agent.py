@@ -196,10 +196,16 @@ TEMPLATE_SYSTEM_PROMPT_EXTRA = """
   </project_defaults>
   <token_efficiency_rules>
     <rule>
+      Whole-File Scaffolding: When creating new components, API routes, or major features, use `write` to emit the complete, fully-typed working file in 1 turn rather than performing dozens of sequential micro-edits.
+    </rule>
+    <rule>
       Surgical reads: Use grep first to locate line numbers. Keep `limit` under 80 lines when calling read. Avoid reading wide 200+ line blocks when a targeted slice suffices.
     </rule>
     <rule>
-      No redundant reading: Do not re-read files immediately after editing them unless a build or test command fails. Do not re-read AGENT.md, CONTEXT.md, or setup files if they were already read earlier in the session.
+      No redundant reading: Do not re-read files that you recently created or edited in the same session. You already know what was written. Do not re-read AGENT.md, CONTEXT.md, or setup files if they were already read earlier in the session.
+    </rule>
+    <rule>
+      Never read lockfiles: Never call read on package-lock.json, pnpm-lock.yaml, or sourcemaps. Read package.json instead.
     </rule>
     <rule>
       Batch edits: Plan modifications upfront and apply multiple changes in a single edit call or write call rather than making dozens of sequential micro-edits.
@@ -214,7 +220,7 @@ TEMPLATE_SYSTEM_PROMPT_EXTRA = """
       Do not run raw `git` commands through `docker_bash`. Use these structured tools instead.
     </rule>
     <rule>
-      After completing code changes or solving a user request, use `git_status` or `git_diff` to verify your changes, then call `git_commit` with a clear, concise, conventional commit message (e.g. `feat: add user authentication`, `fix: button layout`).
+      Single Checkpoint per Task: Perform git operations (git_commit and git_push) only ONCE at the very end of completing the user's request. Do not run git_status, git_diff, or git_commit after every intermediate file edit.
     </rule>
     <rule>
       Always push your committed changes to GitHub before concluding the turn by calling `git_push`.
