@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
+  ActivityIcon,
   ExternalLinkIcon,
   FolderGit2Icon,
   RefreshCwIcon,
@@ -13,10 +14,23 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
-import { deleteAdminWorkspace, getAdminWorkspaces, stopAdminWorkspace } from "@/lib/api"
+import {
+  deleteAdminWorkspace,
+  getAdminWorkspaces,
+  getWorkspace,
+  stopAdminWorkspace,
+} from "@/lib/api"
 import { getApiErrorMessage } from "@/lib/http"
+import { SessionAnalyticsDialog } from "@/components/workspace/SessionAnalyticsDialog"
 import type { AdminWorkspace } from "@cloud-agent/shared"
 
 export function AdminWorkspacesTab() {
@@ -27,6 +41,22 @@ export function AdminWorkspacesTab() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [busyWorkspaceId, setBusyWorkspaceId] = useState<string | null>(null)
+
+  // Analytics State
+  const [analyticsSessionId, setAnalyticsSessionId] = useState<string | null>(null)
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
+  const [loadingSessionsForWsId, setLoadingSessionsForWsId] = useState<string | null>(null)
+  const [sessionsModalData, setSessionsModalData] = useState<{
+    workspaceTitle: string
+    workspaceId: string
+    sessions: Array<{
+      id: string
+      title: string
+    }>
+  } | null>(null)
+
+  const [directInspectInput, setDirectInspectInput] = useState("")
+  const [directInspectOpen, setDirectInspectOpen] = useState(false)
 
   async function load(isSilent = false) {
     if (!isSilent) setLoading(true)
@@ -52,6 +82,46 @@ export function AdminWorkspacesTab() {
     }, 300)
     return () => clearTimeout(timer)
   }, [search, statusFilter])
+
+  async function handleInspectWorkspaceSessions(ws: AdminWorkspace) {
+    setLoadingSessionsForWsId(ws.id)
+    try {
+      const details = await getWorkspace(ws.id)
+      const sessions = details.sessions || []
+      if (sessions.length === 0) {
+        toast.info(`No active sessions found for workspace "${ws.title}"`)
+        return
+      }
+      if (sessions.length === 1 && sessions[0]?.id) {
+        setAnalyticsSessionId(sessions[0].id)
+        setAnalyticsOpen(true)
+        return
+      }
+      setSessionsModalData({
+        workspaceTitle: ws.title,
+        workspaceId: ws.id,
+        sessions: sessions.map((s) => ({
+          id: s.id,
+          title: s.title || "Untitled Session",
+        })),
+      })
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to load workspace sessions"))
+    } finally {
+      setLoadingSessionsForWsId(null)
+    }
+  }
+
+  function handleOpenDirectSession() {
+    const trimmed = directInspectInput.trim()
+    if (!trimmed) {
+      toast.error("Please enter a valid Session ID")
+      return
+    }
+    setAnalyticsSessionId(trimmed)
+    setAnalyticsOpen(true)
+    setDirectInspectOpen(false)
+  }
 
   async function handleStop(ws: AdminWorkspace) {
     setBusyWorkspaceId(ws.id)
@@ -88,10 +158,19 @@ export function AdminWorkspacesTab() {
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">Workspaces Oversight</h2>
           <p className="text-sm text-muted-foreground">
-            Monitor and control cloud workspaces across all users, inspect allocated ports, and terminate stuck sandboxes.
+            Monitor and control cloud workspaces across all users, inspect allocated ports, and inspect token & tool usage.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDirectInspectOpen(true)}
+            className="gap-1.5"
+          >
+            <ActivityIcon className="size-3.5 text-primary" />
+            Inspect Session by ID
+          </Button>
           <Badge variant="secondary" className="px-2.5 py-1">
             Total Workspaces: {total}
           </Badge>
@@ -160,6 +239,8 @@ export function AdminWorkspacesTab() {
                   {workspaces.map((ws) => {
                     const isBusy = busyWorkspaceId === ws.id
                     const isRunning = ws.status === "running" || ws.status === "ready"
+                    const isLoadingSessions = loadingSessionsForWsId === ws.id
+
                     return (
                       <tr key={ws.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
@@ -211,14 +292,33 @@ export function AdminWorkspacesTab() {
                           <div>Frontend: {ws.frontend_port || "—"}</div>
                           <div>Backend: {ws.backend_port || "—"}</div>
                         </td>
-                        <td className="px-4 py-3 font-mono text-muted-foreground">
-                          {ws.sessions_count} sessions
+                        <td className="px-4 py-3">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void handleInspectWorkspaceSessions(ws)}
+                            disabled={isLoadingSessions}
+                            className="h-7 px-2 font-mono text-xs text-primary hover:text-primary/80 gap-1.5"
+                            title="Inspect sessions and token analytics"
+                          >
+                            <ActivityIcon className={`size-3.5 ${isLoadingSessions ? "animate-spin" : ""}`} />
+                            {ws.sessions_count} sessions
+                          </Button>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {ws.created_at ? new Date(ws.created_at).toLocaleDateString() : "N/A"}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              title="Inspect Token & Tool Analytics"
+                              onClick={() => void handleInspectWorkspaceSessions(ws)}
+                              disabled={isLoadingSessions}
+                            >
+                              <ActivityIcon className="size-3.5 text-primary" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon-sm"
@@ -264,6 +364,122 @@ export function AdminWorkspacesTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Select Session Dialog when workspace has multiple sessions */}
+      {sessionsModalData && (
+        <Dialog
+          open={!!sessionsModalData}
+          onOpenChange={(open) => {
+            if (!open) setSessionsModalData(null)
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ActivityIcon className="size-5 text-primary" />
+                Select Session to Inspect
+              </DialogTitle>
+              <DialogDescription>
+                Workspace: <strong>{sessionsModalData.workspaceTitle}</strong>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2 max-h-[350px] overflow-y-auto pt-2">
+              {sessionsModalData.sessions.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between p-3 rounded-lg border border-border/70 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="min-w-0 flex-1 pr-3">
+                    <div className="text-xs font-semibold text-foreground truncate">
+                      {s.title}
+                    </div>
+                    <div className="text-[11px] font-mono text-muted-foreground flex items-center gap-2 mt-0.5">
+                      <span>ID: {s.id}</span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1 text-xs"
+                    onClick={() => {
+                      setAnalyticsSessionId(s.id)
+                      setAnalyticsOpen(true)
+                      setSessionsModalData(null)
+                    }}
+                  >
+                    <ActivityIcon className="size-3.5 text-primary" />
+                    Inspect
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Direct Session Inspector Dialog */}
+      <Dialog open={directInspectOpen} onOpenChange={setDirectInspectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ActivityIcon className="size-5 text-primary" />
+              Direct Session Token & Tool Inspector
+            </DialogTitle>
+            <DialogDescription>
+              Enter any session ID to inspect system prompt tokens, tool breakdowns, and failure reasons.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                Session ID
+              </label>
+              <Input
+                placeholder="e.g. 20e2d3899b064b7f93d56e40c757676b"
+                value={directInspectInput}
+                onChange={(e) => setDirectInspectInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleOpenDirectSession()
+                }}
+                className="font-mono text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDirectInspectOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleOpenDirectSession}
+                className="gap-1.5"
+              >
+                <ActivityIcon className="size-3.5" />
+                Inspect Analytics
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Full Session Analytics Inspector */}
+      {analyticsSessionId && (
+        <SessionAnalyticsDialog
+          open={analyticsOpen}
+          onOpenChange={(open) => {
+            setAnalyticsOpen(open)
+            if (!open) setAnalyticsSessionId(null)
+          }}
+          sessionId={analyticsSessionId}
+        />
+      )}
     </div>
   )
 }
+

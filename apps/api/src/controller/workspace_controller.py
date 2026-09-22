@@ -191,7 +191,8 @@ async def get_workspace_details(
             detail="workspace not found",
         )
 
-    if workspace.user_id != user_id:
+    is_admin = getattr(current_user, "role", "") == "admin"
+    if workspace.user_id != user_id and not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="forbidden",

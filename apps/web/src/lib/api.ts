@@ -122,6 +122,72 @@ export async function getSessionDetail(
   }
 }
 
+export type SessionAnalyticsResponse = {
+  session: {
+    id: string
+    title: string
+    workspace_id: string
+    prompt_tokens: number
+    completion_tokens: number
+    total_tokens: number
+    cached_tokens: number
+    estimated_cost_usd: number
+    compacted_until?: number
+    has_compaction: boolean
+    compaction_summary_length: number
+    total_messages: number
+  }
+  system_prompt: {
+    char_count: number
+    estimated_tokens: number
+    content: string
+  }
+  tools_summary: {
+    total_calls: number
+    total_success: number
+    total_failure: number
+    failure_rate_percent: number
+  }
+  tools_breakdown: Array<{
+    name: string
+    call_count: number
+    success_count: number
+    failure_count: number
+    total_output_chars: number
+    estimated_output_tokens: number
+  }>
+  tool_executions: Array<{
+    seq: number
+    tool_call_id?: string
+    tool_name: string
+    arguments?: unknown
+    status: "success" | "error"
+    error_reason?: string
+    output_preview: string
+    full_output: string
+    char_count: number
+    estimated_tokens: number
+  }>
+  timeline_progression: Array<{
+    seq: number
+    role: string
+    name?: string
+    chars: number
+    estimated_tokens: number
+    working_context_tokens: number
+  }>
+}
+
+export async function getSessionAnalytics(
+  sessionId: string,
+  modelId?: string
+): Promise<SessionAnalyticsResponse> {
+  const { data } = await http.get(`/sessions/${sessionId}/analytics`, {
+    params: modelId ? { model: modelId } : undefined,
+  })
+  return data as SessionAnalyticsResponse
+}
+
 export async function getSessionMessages(sessionId: string) {
   const detail = await getSessionDetail(sessionId)
   return messagesToThread(detail.messages, detail.session)
