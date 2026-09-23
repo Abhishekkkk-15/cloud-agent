@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
+import io
 import os
 from pathlib import Path
 from typing import Any
+import zipfile
 
 from src.utils.config import config
 
@@ -247,3 +249,41 @@ class WorkspaceFilesService:
             }
         except Exception as e:
             raise WorkspaceFilesError(f"Failed to rename '{old_path}': {e}", status_code=500)
+
+    def create_zip_buffer(self) -> io.BytesIO:
+        """Create an in-memory zip archive of the workspace excluding ignored directories and files."""
+        if not self.base_dir.exists():
+            raise WorkspaceFilesError("Workspace directory does not exist", status_code=404)
+
+        ignored_zip_dirs = IGNORED_DIRS | {
+            ".cache",
+            "coverage",
+            ".output",
+            "out",
+            ".svn",
+            ".hg",
+        }
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for root, dirs, files in os.walk(self.base_dir):
+                # Filter out ignored directories in-place so os.walk does not recurse into them
+                dirs[:] = [d for d in dirs if d not in ignored_zip_dirs]
+
+                root_path = Path(root)
+                for file_name in sorted(files):
+                    if file_name in IGNORED_FILES:
+                        continue
+                    file_path = root_path / file_name
+                    if not file_path.is_file():
+                        continue
+                    arcname = file_path.relative_to(self.base_dir).as_posix()
+                    try:
+                        zip_file.write(file_path, arcname=arcname)
+                    except Exception as e:
+                        print(f"[WorkspaceFilesService] Skipping {file_path} in zip: {e}")
+                        continue
+
+        buffer.seek(0)
+        return buffer
+

@@ -1,7 +1,9 @@
 from collections import defaultdict
+import re
 import shutil
 
 from fastapi import HTTPException, status
+from fastapi.responses import StreamingResponse
 from pymongo.errors import WriteError
 
 from src.ai_core.intent_agent import IntentAgent
@@ -429,5 +431,32 @@ async def rename_workspace_file(
         return service.rename_item(body.old_path, body.new_path)
     except WorkspaceFilesError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+
+
+async def download_workspace_zip(
+    workspace_id: str,
+    current_user: CurrentUser,
+    repo: WorkspaceRepo,
+):
+    workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id)
+    try:
+        buffer = service.create_zip_buffer()
+        raw_title = workspace.title or "workspace"
+        safe_title = re.sub(r"[^a-zA-Z0-9_\-]", "_", raw_title)
+        safe_title = re.sub(r"_+", "_", safe_title).strip("_") or "project"
+        filename = f"{safe_title}.zip"
+
+        return StreamingResponse(
+            buffer,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Type": "application/zip",
+            },
+        )
+    except WorkspaceFilesError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
+
 
 

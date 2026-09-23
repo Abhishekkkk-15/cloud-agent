@@ -411,6 +411,30 @@ export async function renameWorkspaceFile(
   })
 }
 
+export async function downloadWorkspaceZip(
+  workspaceId: string,
+  workspaceTitle?: string
+): Promise<void> {
+  const response = await http.get(`/workspaces/${workspaceId}/download`, {
+    responseType: "blob",
+  })
+  const blob = new Blob([response.data], { type: "application/zip" })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  const cleanTitle =
+    (workspaceTitle || "project")
+      .replace(/[^a-zA-Z0-9_\-]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "")
+      .toLowerCase() || "project"
+  a.download = `${cleanTitle}.zip`
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+}
+
 // ---------------- Admin API ----------------
 
 export async function getAdminStats(): Promise<AdminSystemStats> {

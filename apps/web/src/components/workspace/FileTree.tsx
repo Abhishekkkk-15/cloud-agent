@@ -2,6 +2,7 @@ import { useState } from "react"
 import {
   ChevronDownIcon,
   ChevronRightIcon,
+  DownloadIcon,
   FileCodeIcon,
   FileIcon,
   FileJsonIcon,
@@ -15,6 +16,7 @@ import {
   RefreshCwIcon,
   Trash2Icon,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { downloadWorkspaceZip } from "@/lib/api"
+import { getApiErrorMessage } from "@/lib/http"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import type { FileNode } from "@cloud-agent/shared"
 import { cn } from "@/lib/utils"
@@ -223,6 +227,7 @@ function TreeNode({
 }
 
 export function FileTree() {
+  const workspace = useWorkspaceStore((s) => s.workspace)
   const files = useWorkspaceStore((s) => s.files)
   const fetchFiles = useWorkspaceStore((s) => s.fetchFiles)
   const createFile = useWorkspaceStore((s) => s.createFile)
@@ -231,6 +236,7 @@ export function FileTree() {
   const [collapseAll, setCollapseAll] = useState(false)
   const [isCreating, setIsCreating] = useState<"file" | "folder" | null>(null)
   const [newItemName, setNewItemName] = useState("")
+  const [downloading, setDownloading] = useState(false)
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -244,6 +250,23 @@ export function FileTree() {
       setIsCreating(null)
     } catch {
       // Error handled by store
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!workspace?.id || downloading) return
+    setDownloading(true)
+    try {
+      await downloadWorkspaceZip(workspace.id, workspace.title)
+      toast.success("Download started", {
+        description: "Your project ZIP is downloading.",
+      })
+    } catch (err) {
+      toast.error("Download failed", {
+        description: getApiErrorMessage(err, "Failed to download project zip"),
+      })
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -302,6 +325,21 @@ export function FileTree() {
             title="Refresh Files"
           >
             <RefreshCwIcon className="size-3.5" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className="size-6 rounded-xs text-muted-foreground hover:text-foreground"
+            onClick={() => void handleDownload()}
+            disabled={downloading}
+            title="Download workspace as ZIP"
+          >
+            {downloading ? (
+              <RefreshCwIcon className="size-3.5 animate-spin text-primary" />
+            ) : (
+              <DownloadIcon className="size-3.5" />
+            )}
           </Button>
         </div>
       </div>

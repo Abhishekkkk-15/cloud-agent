@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { Trash2Icon } from "lucide-react"
+import { DownloadIcon, Trash2Icon } from "lucide-react"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,6 +13,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { downloadWorkspaceZip } from "@/lib/api"
+import { getApiErrorMessage } from "@/lib/http"
 
 export type ManageSidebarItemTarget =
   | {
@@ -53,6 +56,24 @@ export function ManageSidebarItemDialog({
 
   const isWorkspace = target.kind === "workspace"
   const initialName = target.title
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownload() {
+    if (!target || target.kind !== "workspace" || downloading) return
+    setDownloading(true)
+    try {
+      await downloadWorkspaceZip(target.workspaceId, target.title)
+      toast.success("Download started", {
+        description: "Your project ZIP is downloading.",
+      })
+    } catch (err) {
+      toast.error("Download failed", {
+        description: getApiErrorMessage(err, "Failed to download project zip"),
+      })
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
@@ -114,6 +135,19 @@ export function ManageSidebarItemDialog({
               Delete
             </Button>
             <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+              {isWorkspace ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || downloading}
+                  onClick={() => void handleDownload()}
+                  className="gap-1.5"
+                >
+                  <DownloadIcon className="size-4" />
+                  {downloading ? "Downloading…" : "Download ZIP"}
+                </Button>
+              ) : null}
               {!isWorkspace && onOpen ? (
                 <Button
                   type="button"

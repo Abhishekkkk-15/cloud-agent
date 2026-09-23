@@ -3,7 +3,9 @@ import { Link } from "react-router-dom"
 import {
   ArrowLeftIcon,
   Code2Icon,
+  DownloadIcon,
   EyeIcon,
+  Loader2Icon,
   PlayIcon,
   Share2Icon,
   SquareIcon,
@@ -15,6 +17,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { downloadWorkspaceZip } from "@/lib/api"
+import { getApiErrorMessage } from "@/lib/http"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 
 export function WorkspaceToolbar() {
@@ -26,6 +30,7 @@ export function WorkspaceToolbar() {
   const setWorkspaceTab = useWorkspaceStore((s) => s.setWorkspaceTab)
   const activeFileName = useWorkspaceStore((s) => s.getActiveFile()?.name)
   const [running, setRunning] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   const isRunning =
     runSession.status === "running" || runSession.status === "starting"
@@ -37,6 +42,23 @@ export function WorkspaceToolbar() {
       await startRun()
     } finally {
       setRunning(false)
+    }
+  }
+
+  async function handleDownload() {
+    if (!workspace?.id || downloading) return
+    setDownloading(true)
+    try {
+      await downloadWorkspaceZip(workspace.id, workspace.title)
+      toast.success("Download started", {
+        description: "Your project ZIP is downloading.",
+      })
+    } catch (err) {
+      toast.error("Download failed", {
+        description: getApiErrorMessage(err, "Failed to download project zip"),
+      })
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -149,6 +171,24 @@ export function WorkspaceToolbar() {
         >
           <Share2Icon className="size-3" />
           <span className="hidden sm:inline">Share</span>
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2.5 text-xs gap-1"
+          onClick={() => void handleDownload()}
+          disabled={downloading}
+          title="Download project as ZIP"
+        >
+          {downloading ? (
+            <Loader2Icon className="size-3 animate-spin text-primary" />
+          ) : (
+            <DownloadIcon className="size-3" />
+          )}
+          <span className="hidden sm:inline">
+            {downloading ? "Downloading…" : "Download ZIP"}
+          </span>
         </Button>
       </div>
     </div>
