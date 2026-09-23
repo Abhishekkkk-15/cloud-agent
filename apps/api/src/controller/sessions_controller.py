@@ -192,11 +192,10 @@ async def get_session_analytics(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
         )
-    is_admin = getattr(current_user, "role", "") == "admin"
-    if session.user_id != current_user.id and not is_admin:
+    if getattr(current_user, "role", "") != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Forbidden",
+            detail="Admin access required for session analytics",
         )
 
     messages = await message_repo.find_by_session(session_id)

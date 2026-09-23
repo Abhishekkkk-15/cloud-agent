@@ -6,13 +6,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { BarChart3Icon, GaugeIcon } from "lucide-react"
-import { SessionAnalyticsDialog } from "@/components/workspace/SessionAnalyticsDialog"
+import { GaugeIcon } from "lucide-react"
 
 export function ContextUsageIndicator() {
   const contextUsage = useWorkspaceStore((s) => s.contextUsage)
   const [open, setOpen] = useState(false)
-  const [showAnalytics, setShowAnalytics] = useState(false)
 
   const filled = contextUsage?.filled_tokens ?? 0
   const total = contextUsage?.total_tokens || 128_000
@@ -124,28 +122,10 @@ export function ContextUsageIndicator() {
                   ? "History automatically compacts when active context reaches the compaction threshold."
                   : "Shows active context sent to the LLM (system prompt, working memory & active conversation turns)."}
               </p>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setOpen(false)
-                  setShowAnalytics(true)
-                }}
-                className="w-full mt-1.5 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md bg-primary/10 hover:bg-primary/20 text-primary text-[11px] font-medium transition-colors cursor-pointer"
-              >
-                <BarChart3Icon className="size-3.5" />
-                <span>Token & Tool Analytics</span>
-              </button>
             </div>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-
-      <SessionAnalyticsDialog
-        open={showAnalytics}
-        onOpenChange={setShowAnalytics}
-      />
     </>
   )
 }
