@@ -159,6 +159,8 @@ async def ensure_workspace_repo(
     user: User,
     workspace: Workspace,
     workspace_repo: WorkspaceRepository,
+    *,
+    container_id: str | None = None,
 ) -> tuple[Workspace, str | None]:
     """Ensure remote GitHub repository and clone_url exist, returning auth token if available."""
     try:
@@ -175,12 +177,17 @@ async def ensure_workspace_repo(
         if not workspace.github_auth_source:
             workspace.github_auth_source = auth.source
 
-        workspace.source_path = str(host_workspace_path(workspace))
+        target_container = container_id or workspace.sandbox_id
+        workspace.source_path = "/app" if target_container else str(host_workspace_path(workspace))
         workspace = await workspace_repo.save(workspace)
 
-        # Ensure git init and remote on host
-        host_path = host_workspace_path(workspace)
-        git = WorkspaceGitService(host_path)
+        # Ensure git init and remote in container (or host fallback)
+        host_path = host_workspace_path(workspace) if not target_container else None
+        git = WorkspaceGitService(
+            host_path=host_path,
+            container_id=target_container,
+            workdir="/app",
+        )
         git.init()
         git.ensure_gitignore()
         if workspace.github_clone_url:

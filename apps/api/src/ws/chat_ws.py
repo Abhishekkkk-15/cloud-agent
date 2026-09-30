@@ -289,6 +289,11 @@ async def websocket_endpoint(
             container_id=sandbox_id,
             workdir="/app",
         )
+        if workspace.github_clone_url:
+            try:
+                git.set_remote(workspace.github_clone_url)
+            except Exception as e:
+                logger.warning("Failed to configure git remote on init: %s", e)
         
         
         
@@ -405,7 +410,10 @@ async def websocket_endpoint(
             except Exception:
                 pass
 
-            fresh_ws, token = await ensure_workspace_repo(user, workspace, workspace_repo)
+            target_container = workspace.sandbox_id or sandbox_id
+            fresh_ws, token = await ensure_workspace_repo(
+                user, workspace, workspace_repo, container_id=target_container
+            )
             if fresh_ws:
                 workspace = fresh_ws
             if not token:
@@ -422,9 +430,24 @@ async def websocket_endpoint(
                     pass
                 return f"Error: {err_msg}"
 
+            if not workspace.github_clone_url:
+                err_msg = "No remote GitHub repository is configured for this workspace."
+                try:
+                    await ws_manager.send_json(
+                        websocket=ws,
+                        data=jsonable_encoder({
+                            "type": "github:sync",
+                            "data": {"status": "error", "error": err_msg},
+                        }),
+                    )
+                except Exception:
+                    pass
+                return f"Error: {err_msg}"
+
             target_branch = branch or workspace.github_default_branch or "main"
 
             def _do_push():
+                git.set_remote(workspace.github_clone_url)
                 args = ["push", "-u", "origin", target_branch]
                 if force:
                     args.append("--force-with-lease")

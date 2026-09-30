@@ -48,6 +48,8 @@ async def prepare_workspace(
             # Container entrypoint seeds /template into /app when empty
             await asyncio.to_thread(git.init)
             await asyncio.to_thread(git.ensure_gitignore)
+            if workspace.github_clone_url:
+                await asyncio.to_thread(git.set_remote, workspace.github_clone_url)
             return "/app"
 
         if workspace.workspace_origin == "github_import":
