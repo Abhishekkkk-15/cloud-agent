@@ -1,151 +1,100 @@
-import { useState } from "react"
+import { DigitalArchiveScene } from "@/components/landing/DigitalArchiveScene"
+import { DigitalArchiveHero } from "@/components/landing/DigitalArchiveHero"
+import { ShieldCheckIcon, TerminalIcon, ZapIcon, GitBranchIcon, SparklesIcon } from "lucide-react"
 import { Link } from "react-router-dom"
-import {
-  SparklesIcon,
-  BoxIcon,
-  CheckIcon,
-} from "lucide-react"
-
-import { AppHeader } from "@/components/layout/AppHeader"
-import { Button } from "@/components/ui/button"
-import { HeroScene3D } from "@/components/landing/HeroScene3D"
-import { HeroWorkspace3D } from "@/components/landing/HeroWorkspace3D"
-import { HeroPromptInput } from "@/components/landing/HeroPromptInput"
-import { HeroMetrics } from "@/components/landing/HeroMetrics"
-
-function GithubLogo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-    </svg>
-  )
-}
 
 export function LandingPage() {
-  const [activePreset, setActivePreset] = useState("kanban")
-
   return (
-    <div className="relative flex min-h-svh flex-col bg-background text-foreground selection:bg-primary/20 selection:text-primary overflow-x-hidden">
-      {/* 3D Background Canvas */}
-      <HeroScene3D />
+    <div className="relative min-h-screen bg-stone-950 text-white selection:bg-amber-400/30 selection:text-amber-100 overflow-x-hidden font-sans">
+      {/* 3D Atmospheric Canvas (Renaissance Sky + Parallax Soaring Doves + Light Motes) */}
+      <DigitalArchiveScene />
 
-      {/* Top Header */}
-      <AppHeader className="relative z-20 border-b border-border/50 bg-background/60 backdrop-blur-xl" />
+      {/* Main Ethereal Hero Viewport (Exact 1:1 Vibe with Reference) */}
+      <DigitalArchiveHero />
 
-      <main className="relative z-10 flex flex-1 flex-col items-center">
-        {/* ======================================================== */}
-        {/* HERO SECTION                                            */}
-        {/* ======================================================== */}
-        <section className="relative flex w-full flex-col items-center px-4 pt-12 pb-16 md:pt-20 md:pb-24 text-center">
-          {/* Announcement Chip */}
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-medium text-primary shadow-sm backdrop-blur-md transition-all hover:bg-primary/15">
-            <SparklesIcon className="size-3.5 text-sky-400 animate-pulse" />
-            <span>Container-Native Sandboxes · Docker Volumes & Fullstack Previews</span>
-          </div>
-
-          {/* Monumental Headline */}
-          <h1 className="max-w-4xl text-4xl font-extrabold tracking-tight sm:text-6xl md:text-7xl">
-            Autonomous Coding in{" "}
-            <span className="bg-gradient-to-r from-sky-400 via-primary to-purple-500 bg-clip-text text-transparent">
-              Isolated 3D Sandboxes
+      {/* ======================================================== */}
+      {/* SECTION 2: ARCHITECTURAL GALLERY (SUBTLE SCROLL REVEAL) */}
+      {/* ======================================================== */}
+      <section className="relative z-20 border-t border-white/10 bg-gradient-to-b from-stone-950/80 via-stone-950/95 to-black px-6 py-24 backdrop-blur-2xl">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="text-xs font-semibold tracking-[0.3em] uppercase text-amber-200">
+              The Engine Room
             </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="mt-6 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-            Describe what you want to build. Cloud Agent boots a secure Docker
-            container, coordinates multi-file edits, runs builds, and serves live fullstack
-            previews with instant subdomains.
-          </p>
-
-          {/* Prompt Generator Input with presets */}
-          <div className="mt-8 w-full">
-            <HeroPromptInput onPresetChange={setActivePreset} />
+            <h2 className="mt-3 font-serif text-3xl sm:text-5xl font-light text-white">
+              Sovereign Execution in Pure Isolation
+            </h2>
+            <p className="mt-4 font-serif italic text-amber-100/75 text-base sm:text-lg">
+              Behind the serenity lies an industrial-grade container runtime built for autonomous code synthesis.
+            </p>
           </div>
 
-          {/* Quick CTAs */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Button
-              size="lg"
-              render={<Link to="/login" />}
-              nativeButton={false}
-              className="gap-2 shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all font-medium rounded-xl"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pillar 1 */}
+            <div className="group rounded-2xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur-xl transition-all duration-300 hover:border-amber-300/30 hover:bg-white/[0.06]">
+              <div className="flex size-12 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300 border border-amber-400/20 mb-6">
+                <ShieldCheckIcon className="size-6" />
+              </div>
+              <h3 className="font-serif text-2xl font-light text-white">
+                Zero-Trust Container Sandboxes
+              </h3>
+              <p className="mt-3 text-sm text-stone-300 leading-relaxed font-sans font-light">
+                All untrusted code, clone operations, package installs, and builds are strictly mounted to dedicated Docker volumes at <code className="text-amber-200">/app</code>. The host operating system remains untouched and unreachable.
+              </p>
+            </div>
+
+            {/* Pillar 2 */}
+            <div className="group rounded-2xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur-xl transition-all duration-300 hover:border-amber-300/30 hover:bg-white/[0.06]">
+              <div className="flex size-12 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300 border border-amber-400/20 mb-6">
+                <ZapIcon className="size-6" />
+              </div>
+              <h3 className="font-serif text-2xl font-light text-white">
+                Sub-Second Workspace Boot
+              </h3>
+              <p className="mt-3 text-sm text-stone-300 leading-relaxed font-sans font-light">
+                Pre-warmed sandbox pools allow new fullstack applications (Node, Vite, Next.js, FastAPI) to boot in under 300ms, equipped with live terminal streams and intelligent file observers.
+              </p>
+            </div>
+
+            {/* Pillar 3 */}
+            <div className="group rounded-2xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur-xl transition-all duration-300 hover:border-amber-300/30 hover:bg-white/[0.06]">
+              <div className="flex size-12 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300 border border-amber-400/20 mb-6">
+                <TerminalIcon className="size-6" />
+              </div>
+              <h3 className="font-serif text-2xl font-light text-white">
+                Live Subdomain Preview Proxy
+              </h3>
+              <p className="mt-3 text-sm text-stone-300 leading-relaxed font-sans font-light">
+                Instant reverse proxying dynamically listens to container ports 4000 and 3000, serving your running application on a dedicated SSL subdomain with live hot-reloading.
+              </p>
+            </div>
+
+            {/* Pillar 4 */}
+            <div className="group rounded-2xl border border-white/10 bg-white/[0.03] p-8 backdrop-blur-xl transition-all duration-300 hover:border-amber-300/30 hover:bg-white/[0.06]">
+              <div className="flex size-12 items-center justify-center rounded-xl bg-amber-400/10 text-amber-300 border border-amber-400/20 mb-6">
+                <GitBranchIcon className="size-6" />
+              </div>
+              <h3 className="font-serif text-2xl font-light text-white">
+                Autonomous Git Checkpoints
+              </h3>
+              <p className="mt-3 text-sm text-stone-300 leading-relaxed font-sans font-light">
+                Every multi-file step taken by Cloud Agent creates an atomic in-container git commit with human-readable semantic diffs, ready for one-click pull requests or rollback.
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom Callout */}
+          <div className="mt-16 text-center">
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 rounded-full border border-amber-200/50 bg-amber-300/10 px-8 py-3.5 text-xs font-sans font-medium tracking-[0.25em] text-white uppercase backdrop-blur-md transition-all duration-300 hover:border-amber-200 hover:bg-amber-300/20 hover:scale-105 shadow-[0_0_30px_rgba(255,220,130,0.2)]"
             >
-              <SparklesIcon className="size-4" />
-              Start Building Free
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              render={<Link to="/dashboard" />}
-              nativeButton={false}
-              className="gap-2 rounded-xl backdrop-blur-md hover:bg-muted/80 transition-all"
-            >
-              <BoxIcon className="size-4 text-primary" />
-              Open Dashboard
-            </Button>
-          </div>
-
-          {/* Feature Checklist */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <CheckIcon className="size-3.5 text-emerald-400" /> Docker Volume Isolation
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckIcon className="size-3.5 text-emerald-400" /> Port 4000/3000 Preview Proxy
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckIcon className="size-3.5 text-emerald-400" /> Monaco Editor & XTerm
-            </span>
-            <span className="flex items-center gap-1.5">
-              <CheckIcon className="size-3.5 text-emerald-400" /> Automated Git Checkpoints
-            </span>
-          </div>
-
-          {/* ======================================================== */}
-          {/* 3D FLOATING WORKSPACE SHOWCASE                           */}
-          {/* ======================================================== */}
-          <div className="mt-12 w-full">
-            <HeroWorkspace3D activePreset={activePreset} />
-          </div>
-
-          {/* ======================================================== */}
-          {/* ARCHITECTURAL METRICS & CAPABILITIES PILLARS             */}
-          {/* ======================================================== */}
-          <HeroMetrics />
-        </section>
-      </main>
-
-      {/* Modern Footer */}
-      <footer className="relative z-10 border-t border-border/50 bg-background/80 py-8 px-6 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="flex size-5 items-center justify-center rounded bg-primary text-primary-foreground font-bold text-[10px]">
-              CA
-            </span>
-            <span className="font-medium text-foreground">Cloud Agent</span>
-            <span>— Container-Native AI Software Engineer</span>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <Link to="/login" className="hover:text-foreground transition-colors">
-              Sign In
+              <SparklesIcon className="size-3.5 text-amber-300" />
+              <span>Enter The Archive</span>
             </Link>
-            <Link to="/dashboard" className="hover:text-foreground transition-colors">
-              Dashboard
-            </Link>
-            <a
-              href="https://github.com/Abhishekkkk-15/cloud-agent"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <GithubLogo className="size-3.5" />
-              GitHub
-            </a>
           </div>
         </div>
-      </footer>
+      </section>
     </div>
   )
 }
