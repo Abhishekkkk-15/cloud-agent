@@ -6,6 +6,7 @@ from pi_sdk import Agent, RunResult
 
 from src.ai_core.sandbox.docker_bash import build_docker_bash_tool
 from src.ai_core.tools.ask_user_tool import build_ask_user_tool
+from src.ai_core.tools.docker_file_tools import build_docker_file_tools
 from src.ai_core.tools.git_tools import build_git_tools
 from src.utils.config import config
 
@@ -400,8 +401,14 @@ class CloudAgentCore:
                 default_container=container_id,
                 default_workdir=DEFAULT_DOCKER_WORKDIR,
             ),
+            *build_docker_file_tools(
+                container_id=container_id,
+                workdir=DEFAULT_DOCKER_WORKDIR,
+            ),
             *build_git_tools(
                 host_path=host_workspace,
+                container_id=container_id,
+                workdir=DEFAULT_DOCKER_WORKDIR,
                 author_name=author_name,
                 author_email=author_email,
                 on_push=on_git_push,
@@ -433,8 +440,8 @@ class CloudAgentCore:
             docker_container=container_id,
             docker_workdir=DEFAULT_DOCKER_WORKDIR,
             workspace_id=workspace_id,
-            disable_tools=["bash"],
-            cwd=sys_config.workspace_base / workspace_id,
+            disable_tools=["bash", "read", "write", "edit", "grep"],
+            cwd=DEFAULT_DOCKER_WORKDIR,
             max_retries=selected_max_retries,
             retry_on_rate_limit=True,
             extra_tools=extra_tools,

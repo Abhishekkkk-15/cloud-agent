@@ -50,11 +50,6 @@ async def start_chat(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Something wrong with the server",
         )
-    workspace.source_path = str(config.workspace_base / workspace.id)
-    workspace_root = await prepare_workspace(current_user, workspace)
-    workspace.source_path = str(workspace_root)
-    await workspace_repo.save(workspace)
-
     allocated = port_manager.allocate_workspace_ports(workspace.id)
     docker_ports = port_manager.to_docker_ports(workspace.id)
     sandbox_res = sandbox.run_sandbox(workspace_id=workspace.id, ports=docker_ports)
@@ -64,6 +59,14 @@ async def start_chat(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Something wrong with Docker {sandbox_res}",
         )
+
+    workspace.sandbox_id = sandbox_res.id
+    workspace.source_path = "/app"
+    workspace_root = await prepare_workspace(
+        current_user, workspace, container_id=sandbox_res.id
+    )
+    workspace.source_path = str(workspace_root)
+    await workspace_repo.save(workspace)
 
     frontend = next((p for p in allocated if p.role == PortRole.FRONTEND), None)
     backend = next((p for p in allocated if p.role == PortRole.BACKEND), None)

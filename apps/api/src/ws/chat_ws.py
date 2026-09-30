@@ -84,29 +84,7 @@ async def websocket_endpoint(
                 port_manager.release_workspace_ports(workspace_id)
             if not workspace:
                 raise Exception("workspace not found")
-            workspace.source_path = str(config.workspace_base / workspace_id)
-            try:
-                if is_recreate:
-                    workspace_root = await restore_workspace_from_github(user, workspace)
-                else:
-                    workspace_root = await prepare_workspace(user, workspace)
-                workspace.source_path = str(workspace_root)
-                await workspace_repo.save(workspace)
-            except (WorkspaceGitError, Exception) as prep_err:
-                await ws_manager.send_json(
-                    websocket=ws,
-                    data=jsonable_encoder(
-                        {
-                            "type": "sandbox:error",
-                            "data": {
-                                "title": "Workspace prepare failed",
-                                "error": str(prep_err),
-                                "details": "Failed to seed template or clone GitHub repo",
-                            },
-                        }
-                    ),
-                )
-                raise WebSocketException(code=1011, reason=str(prep_err)) from prep_err
+            workspace.source_path = "/app"
 
             # Allocate host ports for container (e.g., 5173 -> host_port)
             allocated = port_manager.allocate_workspace_ports(workspace_id)
@@ -158,12 +136,56 @@ async def websocket_endpoint(
                     reason=f"Failed starting Docker sandbox: {sandbox}",
                 )
 
+            await ws_manager.send_json(
+                websocket=ws,
+                data=jsonable_encoder(
+                    {
+                        "type": "sandbox:status",
+                        "data": {
+                            "title": "Preparing Workspace",
+                            "message": "Initializing project repository in container...",
+                            "stage": "container",
+                        },
+                    }
+                ),
+            )
+
+            try:
+                if is_recreate:
+                    workspace_root = await restore_workspace_from_github(
+                        user, workspace, container_id=sandbox.id
+                    )
+                else:
+                    workspace_root = await prepare_workspace(
+                        user, workspace, container_id=sandbox.id
+                    )
+                workspace.source_path = str(workspace_root)
+                await workspace_repo.save(workspace)
+            except (WorkspaceGitError, Exception) as prep_err:
+                port_manager.release_workspace_ports(workspace_id)
+                sandbox_repo.stop_sandbox(sandbox.id)
+                await ws_manager.send_json(
+                    websocket=ws,
+                    data=jsonable_encoder(
+                        {
+                            "type": "sandbox:error",
+                            "data": {
+                                "title": "Workspace prepare failed",
+                                "error": str(prep_err),
+                                "details": "Failed to seed template or clone GitHub repo in container",
+                            },
+                        }
+                    ),
+                )
+                raise WebSocketException(code=1011, reason=str(prep_err)) from prep_err
+
             frontend = next(
                 (p for p in allocated if p.role == PortRole.FRONTEND), None
             )
             backend = next(
                 (p for p in allocated if p.role == PortRole.BACKEND), None
             )
+
 
             # Define base preview domain (defaulting to lvh.me for local dev)
             if frontend:
@@ -262,7 +284,11 @@ async def websocket_endpoint(
         intent_agent = IntentAgent()
         warned_soft_cap = False
         
-        git = WorkspaceGitService(host_workspace_path(workspace))
+        git = WorkspaceGitService(
+            host_path=host_workspace_path(workspace),
+            container_id=sandbox_id,
+            workdir="/app",
+        )
         
         
         

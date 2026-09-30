@@ -32,11 +32,52 @@ def host_path_for_workspace(workspace: Workspace) -> Path:
     return config.workspace_base / workspace.id
 
 
-async def prepare_workspace(user: User, workspace: Workspace) -> Path:
-    """Ensure host mount files exist: seed template or clone imported repo.
+async def prepare_workspace(
+    user: User,
+    workspace: Workspace,
+    container_id: Optional[str] = None,
+) -> Path | str:
+    """Ensure workspace files exist: seed template or clone imported repo.
 
-    Never seeds the Cloud Agent template into a github_import workspace.
+    If container_id is provided, executes entirely inside the Docker container (/app),
+    preventing any untrusted repository files or git scripts from touching the host.
     """
+    if container_id:
+        git = WorkspaceGitService(container_id=container_id, workdir="/app")
+        if workspace.workspace_origin == "template":
+            # Container entrypoint seeds /template into /app when empty
+            await asyncio.to_thread(git.init)
+            await asyncio.to_thread(git.ensure_gitignore)
+            return "/app"
+
+        if workspace.workspace_origin == "github_import":
+            if not workspace.github_clone_url:
+                raise WorkspaceGitError("github clone url missing")
+
+            if workspace.github_auth_source is None:
+                workspace.github_auth_source = "user"
+
+            auth = await resolve_github_auth(user, workspace)
+            if git.is_git_repo():
+                logger.info(
+                    "Import workspace %s already cloned in container %s",
+                    workspace.id,
+                    container_id,
+                )
+                return "/app"
+
+            branch = workspace.github_default_branch or "main"
+            await asyncio.to_thread(
+                git.clone,
+                auth.token,
+                workspace.github_clone_url,
+                branch,
+            )
+            return "/app"
+
+        raise WorkspaceGitError(f"Unknown workspace_origin: {workspace.workspace_origin!r}")
+
+    # Fallback to host prepare if container_id not specified
     host_path = host_path_for_workspace(workspace)
 
     if workspace.workspace_origin == "template":
@@ -76,14 +117,45 @@ async def prepare_workspace(user: User, workspace: Workspace) -> Path:
     raise WorkspaceGitError(f"Unknown workspace_origin: {workspace.workspace_origin!r}")
 
 
-async def restore_workspace_from_github(user: User, workspace: Workspace) -> Path:
-    """Ensure host workspace directory exists and has project files.
+async def restore_workspace_from_github(
+    user: User,
+    workspace: Workspace,
+    container_id: Optional[str] = None,
+) -> Path | str:
+    """Ensure workspace directory exists and has project files.
 
-    If the workspace already has a linked GitHub repository (via user OAuth
-    or platform PAT), clone it from GitHub into host_path if missing.
-    If already cloned, leaves the working copy intact.
-    If no GitHub repo is linked, falls back to prepare_workspace.
+    If container_id is provided, executes entirely inside the Docker container (/app).
     """
+    if container_id:
+        git = WorkspaceGitService(container_id=container_id, workdir="/app")
+        if git.is_git_repo():
+            logger.info(
+                "Workspace %s already has git repository in container %s",
+                workspace.id,
+                container_id,
+            )
+            return "/app"
+
+        if workspace.github_clone_url:
+            logger.info(
+                "Restoring workspace %s from GitHub in container %s: %s",
+                workspace.id,
+                container_id,
+                workspace.github_clone_url,
+            )
+            auth = await resolve_github_auth(user, workspace)
+            branch = workspace.github_default_branch or "main"
+            await asyncio.to_thread(
+                git.clone,
+                auth.token,
+                workspace.github_clone_url,
+                branch,
+            )
+            return "/app"
+
+        return await prepare_workspace(user, workspace, container_id=container_id)
+
+    # Fallback to host restore if container_id not specified
     host_path = host_path_for_workspace(workspace)
     git = WorkspaceGitService(host_path)
 
@@ -115,6 +187,7 @@ async def restore_workspace_from_github(user: User, workspace: Workspace) -> Pat
 
     # 3. No GitHub repository linked yet — fall back to standard prepare
     return await prepare_workspace(user, workspace)
+
 
 
 def ensure_workspace_template(workspace_id: str) -> Path:

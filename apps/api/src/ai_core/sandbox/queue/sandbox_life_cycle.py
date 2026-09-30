@@ -133,9 +133,9 @@ async def delete_sandbox_worker(
             )
             return
 
-        sandbox.delete_sandbox(ws.sandbox_id)
+        sandbox.delete_sandbox(ws.sandbox_id, workspace_id=workspace_id)
 
-        if ws.source_path:
+        if ws.source_path and ws.source_path != "/app":
             safe_rmtree(ws.source_path)
 
         ws.sandbox_id = None
