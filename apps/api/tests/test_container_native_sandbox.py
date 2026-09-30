@@ -167,6 +167,74 @@ class TestContainerNativeSandbox(unittest.TestCase):
             mock_init.assert_called_once()
             mock_ignore.assert_called_once()
 
+    def test_workspace_files_root_protection(self):
+        container = MagicMock()
+        with patch("src.services.workspace_files_service.get_sandbox_client") as mock_client_getter:
+            mock_client = MagicMock()
+            mock_client.containers.get.return_value = container
+            mock_client_getter.return_value = mock_client
+
+            service = WorkspaceFilesService(
+                workspace_id="test_ws",
+                container_id="test_container",
+                workdir="/app",
+            )
+
+            # Deleting root
+            with self.assertRaises(WorkspaceFilesError) as cm:
+                service.delete_item("")
+            self.assertEqual(cm.exception.status_code, 400)
+
+            with self.assertRaises(WorkspaceFilesError) as cm:
+                service.delete_item(".")
+            self.assertEqual(cm.exception.status_code, 400)
+
+            # Renaming root
+            with self.assertRaises(WorkspaceFilesError) as cm:
+                service.rename_item(".", "new_name")
+            self.assertEqual(cm.exception.status_code, 400)
+
+            with self.assertRaises(WorkspaceFilesError) as cm:
+                service.rename_item("some_file", ".")
+            self.assertEqual(cm.exception.status_code, 400)
+
+    def test_workspace_files_read_directory_raises_400(self):
+        import stat
+
+        container = MagicMock()
+        stream_tar = io.BytesIO()
+        with tarfile.open(fileobj=stream_tar, mode="w") as tar:
+            info = tarfile.TarInfo(name="src")
+            info.type = tarfile.DIRTYPE
+            tar.addfile(info)
+        stream_tar.seek(0)
+        container.get_archive.return_value = ([stream_tar.read()], {"mode": stat.S_IFDIR | 0o755})
+
+        with patch("src.services.workspace_files_service.get_sandbox_client") as mock_client_getter:
+            mock_client = MagicMock()
+            mock_client.containers.get.return_value = container
+            mock_client_getter.return_value = mock_client
+
+            service = WorkspaceFilesService(
+                workspace_id="test_ws",
+                container_id="test_container",
+                workdir="/app",
+            )
+
+            with self.assertRaises(WorkspaceFilesError) as cm:
+                service.get_content("src")
+            self.assertEqual(cm.exception.status_code, 400)
+
+    def test_workspace_git_refuses_clone_existing_repo(self):
+        git = WorkspaceGitService(
+            container_id="test_container",
+            workdir="/app",
+        )
+        with patch.object(git, "is_git_repo", return_value=True):
+            with self.assertRaises(WorkspaceGitError) as cm:
+                git.clone("fake-token", "https://github.com/foo/bar.git")
+            self.assertIn("Refusing to clone into existing git repo", str(cm.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

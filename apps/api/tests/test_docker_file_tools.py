@@ -151,6 +151,120 @@ class TestDockerFileTools(unittest.TestCase):
             )
             self.assertIn("Could not find exact match", res_err)
 
+    def test_read_directory_blocked(self):
+        import stat
+        from unittest.mock import patch
+
+        container = MagicMock()
+        # Mock get_archive returning directory mode in stat_info
+        stream_tar = io.BytesIO()
+        with tarfile.open(fileobj=stream_tar, mode="w") as tar:
+            info = tarfile.TarInfo(name="src")
+            info.type = tarfile.DIRTYPE
+            tar.addfile(info)
+        stream_tar.seek(0)
+        container.get_archive.return_value = ([stream_tar.read()], {"mode": stat.S_IFDIR | 0o755})
+
+        with self.assertRaises(IsADirectoryError):
+            _read_file_from_container(container, "/app/src")
+
+        with patch("src.ai_core.tools.docker_file_tools.get_sandbox_client") as mock_client_getter:
+            mock_client = MagicMock()
+            mock_client.containers.get.return_value = container
+            mock_client_getter.return_value = mock_client
+
+            tools = build_docker_file_tools(container_id="test_container")
+            read_tool = next(t for t in tools if t.name == "read")
+
+            # Reading a subdirectory that is a directory
+            res = asyncio.run(read_tool.handler(path="src"))
+            self.assertEqual(res, "Error: 'src' is a directory, not a file.")
+
+            # Reading root '.'
+            res_root = asyncio.run(read_tool.handler(path="."))
+            self.assertEqual(res_root, "Error: '.' is a directory, not a file.")
+
+    def test_write_directory_blocked(self):
+        import stat
+        from unittest.mock import patch
+
+        container = MagicMock()
+        container.get_archive.return_value = ([], {"mode": stat.S_IFDIR | 0o755})
+
+        # Overwriting workspace root directly raises IsADirectoryError
+        with self.assertRaises(IsADirectoryError):
+            _write_file_to_container(container, "/app", "some content")
+
+        # Overwriting existing directory raises IsADirectoryError
+        with self.assertRaises(IsADirectoryError):
+            _write_file_to_container(container, "/app/src", "some content")
+
+        with patch("src.ai_core.tools.docker_file_tools.get_sandbox_client") as mock_client_getter:
+            mock_client = MagicMock()
+            mock_client.containers.get.return_value = container
+            mock_client_getter.return_value = mock_client
+
+            tools = build_docker_file_tools(container_id="test_container")
+            write_tool = next(t for t in tools if t.name == "write")
+
+            res = asyncio.run(write_tool.handler(path=".", content="some content"))
+            self.assertIn("Error: Cannot overwrite workspace root directory", res)
+
+    def test_edit_empty_edits_and_directory_guard(self):
+        from unittest.mock import patch
+
+        container = MagicMock()
+        with patch("src.ai_core.tools.docker_file_tools.get_sandbox_client") as mock_client_getter:
+            mock_client = MagicMock()
+            mock_client.containers.get.return_value = container
+            mock_client_getter.return_value = mock_client
+
+            tools = build_docker_file_tools(container_id="test_container")
+            edit_tool = next(t for t in tools if t.name == "edit")
+
+            # Empty edits list
+            res_empty = asyncio.run(edit_tool.handler(path="main.py", edits=[]))
+            self.assertEqual(res_empty, "Error: 'edits' list cannot be empty.")
+
+            # Target is directory root '.'
+            res_dir = asyncio.run(
+                edit_tool.handler(
+                    path=".",
+                    edits=[{"oldText": "foo", "newText": "bar"}],
+                )
+            )
+            self.assertEqual(res_dir, "Error: '.' is a directory, not a file.")
+
+    def test_grep_passes_workdir(self):
+        from unittest.mock import patch
+
+        container = MagicMock()
+        exec_res = MagicMock()
+        exec_res.exit_code = 0
+        exec_res.output = b"src/index.ts:1:console.log('hi');\n"
+        container.exec_run.return_value = exec_res
+
+        with patch("src.ai_core.tools.docker_file_tools.get_sandbox_client") as mock_client_getter:
+            mock_client = MagicMock()
+            mock_client.containers.get.return_value = container
+            mock_client_getter.return_value = mock_client
+
+            tools = build_docker_file_tools(
+                container_id="test_container",
+                workdir="/custom_workdir",
+            )
+            grep_tool = next(t for t in tools if t.name == "grep")
+
+            res = asyncio.run(grep_tool.handler(pattern="console.log"))
+            self.assertIn("console.log", res)
+
+            # Check that container.exec_run was called with workdir="/custom_workdir"
+            # and that cmd contained "/custom_workdir"
+            container.exec_run.assert_called_once()
+            call_kwargs = container.exec_run.call_args[1]
+            self.assertEqual(call_kwargs["workdir"], "/custom_workdir")
+            cmd_args = container.exec_run.call_args[0][0]
+            self.assertEqual(cmd_args[-1], "/custom_workdir")
 
 
 if __name__ == "__main__":

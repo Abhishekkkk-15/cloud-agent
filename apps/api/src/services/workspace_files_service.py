@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import posixpath
+import stat
 import tarfile
 import time
 from typing import Any, Optional
@@ -114,7 +115,8 @@ def detect_lang(name, ext):
         return EXTENSION_TO_LANGUAGE[name.lower()]
     return EXTENSION_TO_LANGUAGE.get(ext.lower(), "plaintext")
 
-base_dir = Path("/app")
+target_workdir = sys.argv[1] if len(sys.argv) > 1 else "/app"
+base_dir = Path(target_workdir)
 
 def build_nodes(current_dir):
     items = []
@@ -173,8 +175,9 @@ IGNORED_DIRS = {
 }
 IGNORED_FILES = {".DS_Store", "Thumbs.db"}
 
-base_dir = Path("/app")
-out_path = "/tmp/workspace.zip"
+target_workdir = sys.argv[1] if len(sys.argv) > 1 else "/app"
+out_path = sys.argv[2] if len(sys.argv) > 2 else "/tmp/workspace.zip"
+base_dir = Path(target_workdir)
 with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as zf:
     for root, dirs, files in os.walk(base_dir):
         dirs[:] = [d for d in dirs if d not in IGNORED_DIRS and not d.startswith(".")]
@@ -190,13 +193,23 @@ print("OK")
 
 
 def _read_binary_from_container(container: Any, container_path: str) -> bytes:
-    stream, _ = container.get_archive(container_path)
+    stream, stat_info = container.get_archive(container_path)
+    mode = stat_info.get("mode", 0) if isinstance(stat_info, dict) else 0
+    if stat.S_ISDIR(mode):
+        raise IsADirectoryError(f"'{container_path}' is a directory, not a file.")
+
     tar_bytes = b"".join(stream)
     with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:*") as tar:
-        members = [m for m in tar.getmembers() if not m.name.endswith("/")]
+        members = tar.getmembers()
         if not members:
             raise FileNotFoundError(f"File '{container_path}' not found in container archive.")
-        extracted = tar.extractfile(members[0])
+        first = members[0]
+        if first.isdir():
+            raise IsADirectoryError(f"'{container_path}' is a directory, not a file.")
+        file_members = [m for m in members if not m.name.endswith("/") and not m.isdir()]
+        if not file_members:
+            raise IsADirectoryError(f"'{container_path}' is a directory, not a file.")
+        extracted = tar.extractfile(file_members[0])
         if extracted is None:
             raise FileNotFoundError(f"Could not extract file '{container_path}'.")
         return extracted.read()
@@ -252,7 +265,10 @@ class WorkspaceFilesService:
         """Return the complete hierarchical file tree of the workspace."""
         container = self._get_container()
         if container is not None:
-            res = container.exec_run(["python3", "-c", CONTAINER_TREE_SCRIPT], workdir=self.workdir)
+            res = container.exec_run(
+                ["python3", "-c", CONTAINER_TREE_SCRIPT, self.workdir],
+                workdir=self.workdir,
+            )
             if res.exit_code == 0 and res.output:
                 try:
                     return json.loads(res.output.decode("utf-8", errors="replace"))
@@ -332,12 +348,16 @@ class WorkspaceFilesService:
                 }
             except FileNotFoundError:
                 raise WorkspaceFilesError(f"File '{relative_path}' not found", status_code=404)
+            except IsADirectoryError as e:
+                raise WorkspaceFilesError(str(e), status_code=400)
             except Exception as e:
                 raise WorkspaceFilesError(f"Failed to read file: {e}", status_code=500)
 
         target = self._resolve_safe_path(relative_path)
-        if not target.exists() or not target.is_file():
+        if not target.exists():
             raise WorkspaceFilesError(f"File '{relative_path}' not found", status_code=404)
+        if target.is_dir():
+            raise WorkspaceFilesError(f"'{relative_path}' is a directory, not a file", status_code=400)
 
         try:
             stat_res = target.stat()
@@ -434,6 +454,9 @@ class WorkspaceFilesService:
         container = self._get_container()
         if container is not None:
             c_path = self._resolve_safe_container_path(relative_path)
+            norm_workdir = posixpath.normpath(self.workdir).rstrip("/")
+            if posixpath.normpath(c_path).rstrip("/") == norm_workdir:
+                raise WorkspaceFilesError("Cannot delete the workspace root directory", status_code=400)
             rel_posix = posixpath.relpath(c_path, self.workdir)
             try:
                 res = container.exec_run(["rm", "-rf", c_path])
@@ -447,6 +470,8 @@ class WorkspaceFilesService:
                 raise WorkspaceFilesError(f"Failed to delete '{relative_path}': {e}", status_code=500)
 
         target = self._resolve_safe_path(relative_path)
+        if target == self.base_dir:
+            raise WorkspaceFilesError("Cannot delete the workspace root directory", status_code=400)
         if not target.exists():
             raise WorkspaceFilesError(f"Path '{relative_path}' not found", status_code=404)
 
@@ -470,6 +495,12 @@ class WorkspaceFilesService:
         if container is not None:
             c_old = self._resolve_safe_container_path(old_path)
             c_new = self._resolve_safe_container_path(new_path)
+            norm_workdir = posixpath.normpath(self.workdir).rstrip("/")
+            if (
+                posixpath.normpath(c_old).rstrip("/") == norm_workdir
+                or posixpath.normpath(c_new).rstrip("/") == norm_workdir
+            ):
+                raise WorkspaceFilesError("Cannot rename or move the workspace root directory", status_code=400)
             try:
                 parent = posixpath.dirname(c_new)
                 container.exec_run(["mkdir", "-p", parent])
@@ -486,6 +517,9 @@ class WorkspaceFilesService:
 
         src = self._resolve_safe_path(old_path)
         dst = self._resolve_safe_path(new_path)
+
+        if src == self.base_dir or dst == self.base_dir:
+            raise WorkspaceFilesError("Cannot rename or move the workspace root directory", status_code=400)
 
         if not src.exists():
             raise WorkspaceFilesError(f"Source path '{old_path}' not found", status_code=404)
@@ -508,7 +542,10 @@ class WorkspaceFilesService:
         container = self._get_container()
         if container is not None:
             try:
-                res = container.exec_run(["python3", "-c", CONTAINER_ZIP_SCRIPT], workdir=self.workdir)
+                res = container.exec_run(
+                    ["python3", "-c", CONTAINER_ZIP_SCRIPT, self.workdir, "/tmp/workspace.zip"],
+                    workdir=self.workdir,
+                )
                 if res.exit_code == 0:
                     raw_zip = _read_binary_from_container(container, "/tmp/workspace.zip")
                     container.exec_run(["rm", "-f", "/tmp/workspace.zip"])

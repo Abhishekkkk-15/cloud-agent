@@ -454,6 +454,10 @@ class WorkspaceGitService:
         clean_url = self._clean_https_clone_url(remote_url)
 
         if self.container_id:
+            if self.is_git_repo():
+                raise WorkspaceGitError(
+                    f"Refusing to clone into existing git repo: {self.workdir}"
+                )
             args = ["clone"]
             if branch:
                 args.extend(["--branch", branch, "--single-branch"])

@@ -11,6 +11,7 @@ import asyncio
 import io
 import os
 import posixpath
+import stat
 import tarfile
 import time
 from typing import Any, Dict, List, Optional
@@ -53,14 +54,23 @@ def _read_file_from_container(container: Any, container_path: str) -> str:
     except Exception as e:
         raise RuntimeError(f"Error accessing '{container_path}': {e}")
 
+    mode = stat_info.get("mode", 0) if isinstance(stat_info, dict) else 0
+    if stat.S_ISDIR(mode):
+        raise IsADirectoryError(f"'{container_path}' is a directory, not a file.")
+
     tar_bytes = b"".join(stream)
     with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:*") as tar:
-        members = [m for m in tar.getmembers() if not m.name.endswith("/")]
+        members = tar.getmembers()
         if not members:
             raise FileNotFoundError(f"File '{container_path}' not found in container archive.")
-        member = members[0]
-        if member.isdir():
+        first = members[0]
+        if first.isdir():
             raise IsADirectoryError(f"'{container_path}' is a directory, not a file.")
+
+        file_members = [m for m in members if not m.name.endswith("/") and not m.isdir()]
+        if not file_members:
+            raise IsADirectoryError(f"'{container_path}' is a directory, not a file.")
+        member = file_members[0]
         extracted = tar.extractfile(member)
         if extracted is None:
             raise FileNotFoundError(f"Could not extract file '{container_path}'.")
@@ -81,10 +91,25 @@ def _write_file_to_container(
     workdir: str = "/app",
 ) -> tuple[bool, int, int]:
     """Write file to container via Docker Archive API, creating parent directories in tar."""
+    norm_workdir = posixpath.normpath(workdir).rstrip("/")
+    if posixpath.normpath(container_path).rstrip("/") == norm_workdir:
+        raise IsADirectoryError(
+            f"Cannot overwrite workspace root directory '{container_path}' with a file."
+        )
+
     existed = False
     try:
-        container.get_archive(container_path)
+        _, stat_info = container.get_archive(container_path)
         existed = True
+        mode = stat_info.get("mode", 0) if isinstance(stat_info, dict) else 0
+        if stat.S_ISDIR(mode):
+            raise IsADirectoryError(
+                f"Cannot overwrite existing directory '{container_path}' with a file."
+            )
+    except IsADirectoryError:
+        raise
+    except NotFound:
+        existed = False
     except Exception:
         existed = False
 
@@ -142,7 +167,7 @@ except re.error as e:
     sys.stderr.write(f"Error: invalid regex pattern: {e}\n")
     sys.exit(1)
 
-workdir = "/app"
+workdir = sys.argv[6] if len(sys.argv) > 6 else "/app"
 full_path = os.path.normpath(os.path.join(workdir, target_path)) if not os.path.isabs(target_path) else os.path.normpath(target_path)
 if not (full_path == workdir or full_path.startswith(workdir.rstrip("/") + "/")):
     sys.stderr.write(f"Error: path '{target_path}' escapes workspace directory.\n")
@@ -244,6 +269,9 @@ def build_docker_file_tools(
                 )
 
             try:
+                norm_workdir = posixpath.normpath(workdir).rstrip("/")
+                if posixpath.normpath(c_path).rstrip("/") == norm_workdir:
+                    return f"Error: '{path}' is a directory, not a file."
                 container = _get_client_and_container()
                 content = _read_file_from_container(container, c_path)
             except FileNotFoundError:
@@ -354,6 +382,8 @@ def build_docker_file_tools(
                 )
                 action = "Overwrote" if existed else "Created"
                 return f"{action} '{path}' - {lines} lines, {nbytes} bytes."
+            except IsADirectoryError as e:
+                return f"Error: {e}"
             except ValueError as e:
                 return f"Error: {e}"
             except Exception as e:
@@ -390,12 +420,20 @@ def build_docker_file_tools(
         **_: object,
     ) -> str:
         def _do_edit() -> str:
+            if not edits:
+                return "Error: 'edits' list cannot be empty."
+
             try:
                 c_path = _resolve_container_path(path, workdir=workdir)
+                norm_workdir = posixpath.normpath(workdir).rstrip("/")
+                if posixpath.normpath(c_path).rstrip("/") == norm_workdir:
+                    return f"Error: '{path}' is a directory, not a file."
                 container = _get_client_and_container()
                 content = _read_file_from_container(container, c_path)
             except FileNotFoundError:
                 return f"Error: File '{path}' does not exist."
+            except IsADirectoryError:
+                return f"Error: '{path}' is a directory, not a file."
             except Exception as e:
                 return f"Error editing file '{path}': {e}"
 
@@ -523,6 +561,7 @@ def build_docker_file_tools(
                     glob or "",
                     str(case_insensitive),
                     str(max_results or 50),
+                    workdir,
                 ]
                 res = container.exec_run(cmd, workdir=workdir)
                 out = (
