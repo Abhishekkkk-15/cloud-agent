@@ -18,12 +18,16 @@ def _truncate_output(text: str, max_chars: int = 4000) -> str:
 
 
 def build_git_tools(
-    host_path: Path,
+    host_path: Optional[Path] = None,
+    container_id: Optional[str] = None,
+    workdir: str = "/app",
     author_name: str = "Cloud Agent",
     author_email: str = "agent@users.noreply.github.com",
     on_push: Optional[Any] = None,
 ) -> list[ToolSpec]:
-    git_service = WorkspaceGitService(host_path)
+    git_service = WorkspaceGitService(
+        host_path=host_path, container_id=container_id, workdir=workdir
+    )
 
     # 1. git_status
     async def status_handler(**_: object) -> str:

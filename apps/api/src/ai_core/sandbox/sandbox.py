@@ -39,27 +39,12 @@ class Sandbox:
                     or "Docker sandbox is not available"
                 }
 
-            # Callers must prepare files first (prepare_workspace). Only ensure the
-            # mount directory exists so Docker bind-mount succeeds.
-            ws_mount_path = Path(config.workspace_base / workspace_id)
-            ws_mount_path.mkdir(parents=True, exist_ok=True)
-            try:
-                current = ws_mount_path.resolve()
-                for p in [current, *current.parents]:
-                    if p.exists():
-                        try:
-                            p.chmod(p.stat().st_mode | 0o777)
-                        except Exception:
-                            pass
-                    if p.parent == p:
-                        break
-            except Exception:
-                pass
-
+            # Use an isolated Docker named volume for the workspace
+            volume_name = f"cloud_agent_ws_{workspace_id}"
             mount = Mount(
                 target="/app",
-                source=f"{config.docker_workspace_base}/{workspace_id}",
-                type="bind",
+                source=volume_name,
+                type="volume",
             )
             environment = {"SKIP_TEMPLATE_SEED": "1"} if skip_template_seed else None
 
@@ -74,7 +59,9 @@ class Sandbox:
                 "mounts": [mount],
                 "ports": ports,
                 "environment": environment,
+                "security_opt": ["no-new-privileges:true"],
             }
+
             if effective_mem and effective_mem > 0:
                 run_kwargs["mem_limit"] = f"{int(effective_mem)}m"
             if effective_cpu and effective_cpu > 0:
@@ -231,7 +218,7 @@ class Sandbox:
         except Exception as e:
             return {"error": f"Failed to stop container: {e}"}
 
-    def delete_sandbox(self,container_id:str) -> dict[str, str] | None:
+    def delete_sandbox(self, container_id: str, workspace_id: str | None = None) -> dict[str, str] | None:
         try:
             if not self.client:
                 return {
@@ -239,8 +226,12 @@ class Sandbox:
                 }
             container = self.client.containers.get(container_id)
             container.remove(force=True)
+            if workspace_id:
+                self.delete_volume(workspace_id)
             return None
         except NotFound:
+            if workspace_id:
+                self.delete_volume(workspace_id)
             return {"error": f"Container '{container_id}' not found"}
         except ContainerError as e:
             return {"error": f"Container Error: {getattr(e, 'stderr', e)}"}
@@ -248,6 +239,15 @@ class Sandbox:
             return {"error": f"Docker API Error: {e}"}
         except Exception as e:
             return {"error": f"Failed to delete container: {e}"}
+
+    def delete_volume(self, workspace_id: str) -> None:
+        if not self.client:
+            return
+        try:
+            vol = self.client.volumes.get(f"cloud_agent_ws_{workspace_id}")
+            vol.remove(force=True)
+        except Exception:
+            pass
         
     def run_exec(self, sandbox_id: str, cmd: str | list[str]) -> dict[str, str] | bool:
         ctn = self.sandbox_get(sandbox_id=sandbox_id)

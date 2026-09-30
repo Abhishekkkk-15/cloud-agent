@@ -10,6 +10,8 @@ import tempfile
 import stat
 import base64
 
+from src.ai_core.sandbox.client import get_sandbox_client
+
 class WorkspaceGitError(Exception):
     pass
 
@@ -25,8 +27,15 @@ else:
 """
 
 class WorkspaceGitService:
-    def __init__(self,host_path:Path) -> None:
+    def __init__(
+        self,
+        host_path: Optional[Path] = None,
+        container_id: Optional[str] = None,
+        workdir: str = "/app",
+    ) -> None:
         self.host_path = host_path
+        self.container_id = container_id
+        self.workdir = workdir
         
     def _ensure_permissions(self, path: Path) -> None:
         try:
@@ -45,15 +54,90 @@ class WorkspaceGitService:
         except Exception:
             pass
 
+    def _run_in_container(
+        self,
+        args: list[str],
+        env: Optional[Dict[str, str]] = None,
+        check: bool = True,
+        *,
+        cwd: Path | str | None = None,
+        use_git_c: bool = True,
+    ) -> subprocess.CompletedProcess:
+        client = get_sandbox_client()
+        if not client:
+            raise WorkspaceGitError("Docker client not available for container git execution.")
+        try:
+            container = client.containers.get(self.container_id)
+        except Exception as e:
+            raise WorkspaceGitError(f"Container '{self.container_id}' not found: {e}")
+
+        cmd = [
+            "git",
+            "-c",
+            "safe.directory=*",
+            "-c",
+            "core.hooksPath=/dev/null",
+        ]
+        if use_git_c:
+            target_dir = str(cwd) if cwd is not None else self.workdir
+            cmd.extend(["-C", target_dir, *args])
+            exec_cwd = target_dir
+        else:
+            exec_cwd = str(cwd) if cwd is not None else "/"
+            cmd.extend(args)
+
+        run_env = env or {}
+        try:
+            exec_res = container.exec_run(
+                cmd,
+                workdir=exec_cwd,
+                environment=run_env,
+                demux=True,
+            )
+            stdout_bytes, stderr_bytes = (
+                exec_res.output
+                if isinstance(exec_res.output, tuple)
+                else (exec_res.output or b"", b"")
+            )
+            stdout_str = (stdout_bytes or b"").decode("utf-8", errors="replace")
+            stderr_str = (stderr_bytes or b"").decode("utf-8", errors="replace")
+            ret_code = exec_res.exit_code
+
+            result = subprocess.CompletedProcess(
+                args=cmd,
+                returncode=ret_code,
+                stdout=stdout_str,
+                stderr=stderr_str,
+            )
+            if check and ret_code != 0:
+                raise WorkspaceGitError(
+                    f"Git command failed: {' '.join(cmd)}\n"
+                    f"Exit Code: {ret_code}\n"
+                    f"Error: {stderr_str.strip() or stdout_str.strip()}"
+                )
+            return result
+        except WorkspaceGitError:
+            raise
+        except Exception as e:
+            raise WorkspaceGitError(f"Error executing git in container: {e}")
+
     def _run(
         self,
         args: list[str],
         env: Optional[Dict[str, str]] = None,
         check: bool = True,
         *,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         use_git_c: bool = True,
     ):
+        if self.container_id:
+            return self._run_in_container(
+                args, env=env, check=check, cwd=cwd, use_git_c=use_git_c
+            )
+
+        if not self.host_path:
+            raise WorkspaceGitError("Neither container_id nor host_path was provided for git operations.")
+
         run_env = {**os.environ}
         if env:
             run_env.update(env)
@@ -76,8 +160,9 @@ class WorkspaceGitService:
         else:
             # Used by clone: destination may not exist yet; run from parent.
             run_cwd = cwd or self.host_path.parent
-            run_cwd.mkdir(parents=True, exist_ok=True)
-            self._ensure_permissions(run_cwd)
+            if isinstance(run_cwd, Path):
+                run_cwd.mkdir(parents=True, exist_ok=True)
+                self._ensure_permissions(run_cwd)
             cmd = [
                 "git",
                 "-c",
@@ -110,40 +195,75 @@ class WorkspaceGitService:
         
     def init(self) -> None:
         if not self.is_git_repo():
-            try:
-                self.host_path.mkdir(parents=True, exist_ok=True)
-                self._ensure_permissions(self.host_path)
-            except Exception:
-                pass
-            self._run(["init","-b","main"])
+            if not self.container_id and self.host_path:
+                try:
+                    self.host_path.mkdir(parents=True, exist_ok=True)
+                    self._ensure_permissions(self.host_path)
+                except Exception:
+                    pass
+            self._run(["init", "-b", "main"])
             
     def is_git_repo(self) -> bool:
-        git_dir = self.host_path/".git"
-        if not git_dir.exists():
-            return False
-        result = self._run(["rev-parse", "--is-inside-work-tree"],check=False)
+        if not self.container_id and self.host_path:
+            git_dir = self.host_path / ".git"
+            if not git_dir.exists():
+                return False
+        result = self._run(["rev-parse", "--is-inside-work-tree"], check=False)
         return result.returncode == 0 and result.stdout.strip() == "true"
     
-    def ensure_gitignore(self,default_entries:Optional[list[str]]=None) ->None:
-        gitignore_path = self.host_path / ".gitignore"
+    def ensure_gitignore(self, default_entries: Optional[list[str]] = None) -> None:
         entries = default_entries or [".DS_Store", "node_modules/", "__pycache__/", "*.pyc", ".env"]
+        if self.container_id:
+            client = get_sandbox_client()
+            if client:
+                try:
+                    container = client.containers.get(self.container_id)
+                    from src.ai_core.tools.docker_file_tools import (
+                        _read_file_from_container,
+                        _write_file_to_container,
+                    )
+                    target_file = f"{self.workdir}/.gitignore"
+                    try:
+                        existing = _read_file_from_container(container, target_file)
+                        missing = [e for e in entries if e not in existing]
+                        if missing:
+                            _write_file_to_container(
+                                container,
+                                target_file,
+                                existing.rstrip("\n") + "\n" + "\n".join(missing) + "\n",
+                                workdir=self.workdir,
+                            )
+                    except Exception:
+                        _write_file_to_container(
+                            container,
+                            target_file,
+                            "\n".join(entries) + "\n",
+                            workdir=self.workdir,
+                        )
+                    return
+                except Exception:
+                    pass
+            return
+
+        if not self.host_path:
+            return
+        gitignore_path = self.host_path / ".gitignore"
         if not gitignore_path.exists():
             gitignore_path.write_text("\n".join(entries) + "\n", encoding="utf-8")
         else:
-            existing_content = gitignore_path.read_text(encoding="utf-8",errors="replace")
+            existing_content = gitignore_path.read_text(encoding="utf-8", errors="replace")
             missing_entries = [e for e in entries if e not in existing_content]
             if missing_entries:
-                with gitignore_path.open("a",encoding="utf-8") as f:
-                    f.write("\n" + "\n".join(missing_entries)+"\n")
+                with gitignore_path.open("a", encoding="utf-8") as f:
+                    f.write("\n" + "\n".join(missing_entries) + "\n")
 
-    
     def has_changes(self) -> bool:
-        result = self._run(["status","--porcelain"])
+        result = self._run(["status", "--porcelain"])
         return len(result.stdout.strip()) > 0
 
     def change_summary(self, *, max_len: int = 2500) -> str:
         """Working-tree change summary for commit-message generation (before commit)."""
-        if not self.host_path.exists():
+        if not self.container_id and self.host_path and not self.host_path.exists():
             return ""
         chunks: list[str] = []
         status = self._run(["status", "--porcelain"], check=False)
@@ -218,27 +338,53 @@ class WorkspaceGitService:
         if "@" in url:
             raise WorkspaceGitError(f"CRITICAL SECURITY VIOLATION: Token detected in remote URL: {url}")
         
-        # Also inspect raw .git/config file as double-check
-        config_path = self.host_path / ".git" / "config"
-        if config_path.exists():
-            content = config_path.read_text(encoding="utf-8", errors="replace")
-            if re.search(r"https?://[^/\s]+:[^/\s]+@", content):
-                raise WorkspaceGitError("CRITICAL SECURITY VIOLATION: Auth pattern found inside .git/config file!")
+        # Also inspect raw .git/config file on host if present
+        if self.host_path:
+            config_path = self.host_path / ".git" / "config"
+            if config_path.exists():
+                content = config_path.read_text(encoding="utf-8", errors="replace")
+                if re.search(r"https?://[^/\s]+:[^/\s]+@", content):
+                    raise WorkspaceGitError("CRITICAL SECURITY VIOLATION: Auth pattern found inside .git/config file!")
             
     def _run_with_auth(
         self,
         args: List[str],
         token: str,
         *,
-        cwd: Path | None = None,
+        cwd: Path | str | None = None,
         use_git_c: bool = True,
     ) -> subprocess.CompletedProcess:
         """Run a networked git command with ephemeral credentials.
 
         Token is never written into the remote URL or ``.git/config``.
-        On Windows we use a Python askpass helper (cmd findstr was unreliable)
-        and also set ``http.extraHeader`` for this process only.
         """
+        basic = base64.b64encode(
+            f"x-access-token:{token}".encode("utf-8")
+        ).decode("ascii")
+
+        if self.container_id:
+            auth_env = {
+                "GIT_USERNAME": "x-access-token",
+                "GIT_PASSWORD": token,
+                "GIT_TERMINAL_PROMPT": "0",
+                "GCM_INTERACTIVE": "never",
+                "GIT_CONFIG_COUNT": "2",
+                "GIT_CONFIG_KEY_0": "credential.helper",
+                "GIT_CONFIG_VALUE_0": "",
+                "GIT_CONFIG_KEY_1": "http.extraHeader",
+                "GIT_CONFIG_VALUE_1": f"Authorization: Basic {basic}",
+            }
+            result = self._run(
+                args,
+                env=auth_env,
+                check=True,
+                cwd=cwd,
+                use_git_c=use_git_c,
+            )
+            if self.is_git_repo():
+                self.assert_clean_remote()
+            return result
+
         askpass_dir: Path | None = None
         try:
             askpass_dir = Path(tempfile.mkdtemp(prefix="cloud-agent-git-"))
@@ -262,12 +408,6 @@ class WorkspaceGitService:
                 )
                 wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR)
                 askpass_path = str(wrapper)
-
-            # Bearer header is the most reliable path on Windows (avoids GCM /
-            # broken cmd askpass). Askpass remains as a fallback for prompts.
-            basic = base64.b64encode(
-                f"x-access-token:{token}".encode("utf-8")
-            ).decode("ascii")
 
             auth_env = {
                 "GIT_ASKPASS": askpass_path,
@@ -310,8 +450,25 @@ class WorkspaceGitService:
         remote_url: str,
         branch: str | None = "main",
     ) -> None:
-        """Clone into ``self.host_path``. Path must be missing or empty."""
+        """Clone into ``self.workdir`` (container) or ``self.host_path`` (host)."""
         clean_url = self._clean_https_clone_url(remote_url)
+
+        if self.container_id:
+            if self.is_git_repo():
+                raise WorkspaceGitError(
+                    f"Refusing to clone into existing git repo: {self.workdir}"
+                )
+            args = ["clone"]
+            if branch:
+                args.extend(["--branch", branch, "--single-branch"])
+            args.extend([clean_url, self.workdir])
+            self._run_with_auth(args, token, cwd="/", use_git_c=False)
+            self.set_remote(clean_url)
+            return
+
+        if not self.host_path:
+            raise WorkspaceGitError("host_path is required when container_id is not set")
+
         parent = self.host_path.parent
         parent.mkdir(parents=True, exist_ok=True)
 
@@ -331,5 +488,4 @@ class WorkspaceGitService:
             args.extend(["--branch", branch, "--single-branch"])
         args.extend([clean_url, str(self.host_path)])
         self._run_with_auth(args, token, cwd=parent, use_git_c=False)
-        # Defense in depth: remote must stay credential-free.
-        self.set_remote(clean_url)
+        self.set_remote(clean_url)

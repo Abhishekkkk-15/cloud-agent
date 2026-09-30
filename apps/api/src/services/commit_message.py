@@ -35,26 +35,36 @@ def fallback_from_query(user_query: str) -> str:
     return sanitize_commit_subject(f"cloud-agent: {q}") or _FALLBACK
 
 
-def _collect_diff_stat(host_path: Path) -> str:
-    if not host_path.exists():
+def _collect_diff_stat(
+    host_path: Path | None = None,
+    container_id: str | None = None,
+) -> str:
+    if host_path and not container_id and not host_path.exists():
         return ""
-    git = WorkspaceGitService(host_path)
+    git = WorkspaceGitService(
+        host_path=host_path, container_id=container_id, workdir="/app"
+    )
     try:
         return git.change_summary()
     except Exception:
-        logger.warning("Failed to collect git change summary for %s", host_path)
+        logger.warning(
+            "Failed to collect git change summary for %s / %s",
+            host_path,
+            container_id,
+        )
         return ""
 
 
 async def build_commit_message(
     *,
-    host_path: Path,
+    host_path: Path | None = None,
+    container_id: str | None = None,
     user_query: str = "",
     agent_summary: str = "",
     intent_agent: IntentAgent | None = None,
 ) -> str:
     """Level 1: LLM(query + summary + diff). Level 2: truncated query. Level 3: generic."""
-    diff_stat = await asyncio.to_thread(_collect_diff_stat, host_path)
+    diff_stat = await asyncio.to_thread(_collect_diff_stat, host_path, container_id)
 
     if intent_agent is not None and (
         (user_query or "").strip()

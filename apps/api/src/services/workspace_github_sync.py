@@ -88,7 +88,8 @@ def _has_commits(git: WorkspaceGitService) -> bool:
 
 
 def _sync_blocking(
-    host_path: Path,
+    host_path: Path | None = None,
+    container_id: str | None = None,
     *,
     token: str,
     clone_url: str,
@@ -97,8 +98,11 @@ def _sync_blocking(
     author_name: str,
     author_email: str,
 ) -> bool:
-    host_path.mkdir(parents=True, exist_ok=True)
-    git = WorkspaceGitService(host_path)
+    if host_path and not container_id:
+        host_path.mkdir(parents=True, exist_ok=True)
+    git = WorkspaceGitService(
+        host_path=host_path, container_id=container_id, workdir="/app"
+    )
     git.init()
     git.ensure_gitignore()
     git.set_remote(clone_url)
@@ -194,8 +198,9 @@ async def sync_workspace_to_github(
     workspace_repo: WorkspaceRepository,
     *,
     message: str = "cloud-agent sync",
+    container_id: str | None = None,
 ) -> tuple[Workspace, GithubSyncResult]:
-    """Ensure a GitHub remote exists, commit+push host files, persist workspace fields.
+    """Ensure a GitHub remote exists, commit+push files, persist workspace fields.
 
     Mutates and saves ``workspace``. Best-effort friendly: returns ok=False on failure
     instead of raising, so callers (e.g. chat_ws) can continue.
@@ -218,7 +223,8 @@ async def sync_workspace_to_github(
         if not workspace.github_auth_source:
             workspace.github_auth_source = auth.source
 
-        workspace.source_path = str(host_workspace_path(workspace))
+        target_container = container_id or workspace.sandbox_id
+        workspace.source_path = "/app" if target_container else str(host_workspace_path(workspace))
         workspace = await workspace_repo.save(workspace)
 
         if not workspace.github_clone_url:
@@ -234,7 +240,8 @@ async def sync_workspace_to_github(
         branch = workspace.github_default_branch or "main"
         committed = await asyncio.to_thread(
             _sync_blocking,
-            host_workspace_path(workspace),
+            host_workspace_path(workspace) if not target_container else None,
+            container_id=target_container,
             token=auth.token,
             clone_url=workspace.github_clone_url,
             branch=branch,

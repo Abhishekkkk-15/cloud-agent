@@ -272,13 +272,18 @@ async def delete_workspace(
             detail="forbidden",
         )
 
-    # 1. Stop & remove Docker sandbox container and release workspace ports
+    # 1. Stop & remove Docker sandbox container and volume, release workspace ports
     if existing.sandbox_id:
         try:
             sandbox_repo.stop_sandbox(existing.sandbox_id)
-            sandbox_repo.delete_sandbox(existing.sandbox_id)
+            sandbox_repo.delete_sandbox(existing.sandbox_id, workspace_id=workspace_id)
         except Exception as e:
             print(f"[Workspace Cleanup] Error removing container {existing.sandbox_id}: {e}")
+    else:
+        try:
+            sandbox_repo.delete_volume(workspace_id)
+        except Exception:
+            pass
 
     try:
         port_manager.release_workspace_ports(workspace_id)
@@ -354,8 +359,8 @@ async def get_workspace_file_tree(
     current_user: CurrentUser,
     repo: WorkspaceRepo,
 ):
-    await _get_authorized_workspace(workspace_id, current_user, repo)
-    service = WorkspaceFilesService(workspace_id)
+    workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id, container_id=workspace.sandbox_id)
     try:
         files = service.get_tree()
         return {"files": files}
@@ -369,8 +374,8 @@ async def get_workspace_file_content(
     current_user: CurrentUser,
     repo: WorkspaceRepo,
 ):
-    await _get_authorized_workspace(workspace_id, current_user, repo)
-    service = WorkspaceFilesService(workspace_id)
+    workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id, container_id=workspace.sandbox_id)
     try:
         return service.get_content(path)
     except WorkspaceFilesError as e:
@@ -383,8 +388,8 @@ async def save_workspace_file_content(
     current_user: CurrentUser,
     repo: WorkspaceRepo,
 ):
-    await _get_authorized_workspace(workspace_id, current_user, repo)
-    service = WorkspaceFilesService(workspace_id)
+    workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id, container_id=workspace.sandbox_id)
     try:
         return service.save_content(body.path, body.content)
     except WorkspaceFilesError as e:
@@ -397,8 +402,8 @@ async def create_workspace_file(
     current_user: CurrentUser,
     repo: WorkspaceRepo,
 ):
-    await _get_authorized_workspace(workspace_id, current_user, repo)
-    service = WorkspaceFilesService(workspace_id)
+    workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id, container_id=workspace.sandbox_id)
     try:
         return service.create_item(body.path, item_type=body.type, content=body.content)
     except WorkspaceFilesError as e:
@@ -411,8 +416,8 @@ async def delete_workspace_file(
     current_user: CurrentUser,
     repo: WorkspaceRepo,
 ):
-    await _get_authorized_workspace(workspace_id, current_user, repo)
-    service = WorkspaceFilesService(workspace_id)
+    workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id, container_id=workspace.sandbox_id)
     try:
         return service.delete_item(path)
     except WorkspaceFilesError as e:
@@ -425,8 +430,8 @@ async def rename_workspace_file(
     current_user: CurrentUser,
     repo: WorkspaceRepo,
 ):
-    await _get_authorized_workspace(workspace_id, current_user, repo)
-    service = WorkspaceFilesService(workspace_id)
+    workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
+    service = WorkspaceFilesService(workspace_id, container_id=workspace.sandbox_id)
     try:
         return service.rename_item(body.old_path, body.new_path)
     except WorkspaceFilesError as e:
@@ -439,7 +444,7 @@ async def download_workspace_zip(
     repo: WorkspaceRepo,
 ):
     workspace = await _get_authorized_workspace(workspace_id, current_user, repo)
-    service = WorkspaceFilesService(workspace_id)
+    service = WorkspaceFilesService(workspace_id, container_id=workspace.sandbox_id)
     try:
         buffer = service.create_zip_buffer()
         raw_title = workspace.title or "workspace"
