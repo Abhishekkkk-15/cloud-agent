@@ -8,6 +8,8 @@
 
 Full-stack autonomous software development workspace pairing an interactive Web IDE with isolated Docker sandboxes, real-time streaming AI agents, live browser previews, and bidirectional GitHub synchronization.
 
+
+
 ---
 
 [![Node.js](https://img.shields.io/badge/Node.js-20+-68a063?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
