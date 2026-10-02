@@ -4,7 +4,14 @@ from typing import Any
 
 import jwt
 from dotenv import load_dotenv
-from jwt.exceptions import InvalidTokenError
+
+try:
+    from jwt.exceptions import InvalidTokenError
+except (ImportError, ModuleNotFoundError, AttributeError):
+    try:
+        from jwt import InvalidTokenError
+    except (ImportError, ModuleNotFoundError, AttributeError):
+        InvalidTokenError = Exception
 
 load_dotenv()
 

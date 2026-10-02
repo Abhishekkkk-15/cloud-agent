@@ -55,8 +55,9 @@ async def get_system_stats(
 
 async def list_containers(
     admin: CurrentAdmin,
+    workspace_repo: WorkspaceRepo,
 ) -> AdminContainerListResponse:
-    res = AdminService.get_containers()
+    res = await AdminService.get_containers(workspace_repo=workspace_repo)
     return AdminContainerListResponse(**res)
 
 

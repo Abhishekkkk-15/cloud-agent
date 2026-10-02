@@ -6,7 +6,14 @@ from urllib.parse import urlencode
 
 import httpx
 import jwt
-from jwt.exceptions import InvalidTokenError
+
+try:
+    from jwt.exceptions import InvalidTokenError
+except (ImportError, ModuleNotFoundError, AttributeError):
+    try:
+        from jwt import InvalidTokenError
+    except (ImportError, ModuleNotFoundError, AttributeError):
+        InvalidTokenError = Exception
 
 from src.utils.config import config
 from src.utils.jwt_utils import SECRET_KEY, ALGORITHM

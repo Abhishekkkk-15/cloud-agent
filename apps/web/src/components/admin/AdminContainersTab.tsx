@@ -558,11 +558,19 @@ export function AdminContainersTab() {
                         </td>
                         <td className="px-4 py-3 font-mono text-muted-foreground">
                           {c.workspace_id ? (
-                            <span className="truncate max-w-[120px] inline-block">
-                              {c.workspace_id}
-                            </span>
+                            <a
+                              href={`/workspace/${c.workspace_id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-primary hover:underline font-mono text-xs font-medium"
+                              title={`Open workspace ${c.workspace_id}`}
+                            >
+                              <span className="truncate max-w-[120px] inline-block">
+                                {c.workspace_id}
+                              </span>
+                            </a>
                           ) : (
-                            "N/A"
+                            <span className="text-muted-foreground/60 text-xs">N/A</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">

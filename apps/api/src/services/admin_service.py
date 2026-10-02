@@ -20,6 +20,8 @@ from src.repository.workspace_repository import WorkspaceRepository
 from src.utils.port_manager import PortManager
 
 
+import re
+
 def _safe_get_docker():
     """Safely get docker client without crashing if daemon is offline."""
     try:
@@ -30,22 +32,60 @@ def _safe_get_docker():
         return None, str(e)
 
 
-def _extract_workspace_id(container) -> str | None:
-    """Attempt to extract associated workspace ID from container mounts or labels."""
+def _extract_workspace_id(
+    container,
+    sandbox_to_ws: dict[str, str] | None = None,
+) -> str | None:
+    """Attempt to extract associated workspace ID from db map, container labels, env, or mounts."""
     try:
-        labels = container.labels or {}
-        if "workspace_id" in labels:
-            return labels["workspace_id"]
+        # 1. Reverse lookup from database sandbox_id mapping
+        if sandbox_to_ws:
+            c_id = getattr(container, "id", None)
+            c_short = getattr(container, "short_id", None)
+            if c_id and c_id in sandbox_to_ws:
+                return sandbox_to_ws[c_id]
+            if c_short and c_short in sandbox_to_ws:
+                return sandbox_to_ws[c_short]
 
-        mounts = container.attrs.get("Mounts", [])
+        # 2. Check container labels
+        labels = container.labels or {}
+        if "workspace_id" in labels and labels["workspace_id"]:
+            return str(labels["workspace_id"])
+
+        # 3. Check container env vars (Config.Env)
+        attrs = getattr(container, "attrs", {}) or {}
+        env_vars = attrs.get("Config", {}).get("Env", []) or []
+        for env_entry in env_vars:
+            if isinstance(env_entry, str) and env_entry.startswith("WORKSPACE_ID="):
+                val = env_entry.split("=", 1)[1].strip()
+                if val:
+                    return val
+
+        # 4. Check container mounts (Named Volume Name or Mount Source path)
+        mounts = attrs.get("Mounts", [])
         for m in mounts:
+            # Check volume name (e.g. cloud_agent_ws_<workspace_id>)
+            name = str(m.get("Name") or "")
+            if name.startswith("cloud_agent_ws_"):
+                return name[len("cloud_agent_ws_"):]
+
             source = str(m.get("Source", ""))
-            # Path typically ends with /<workspace_id>
+            match = re.search(r"cloud_agent_ws_([a-zA-Z0-9_-]+)", source)
+            if match:
+                return match.group(1)
+
+            # Fallback for host bind mounts (path typically ends with /<workspace_id>)
             parts = [p for p in source.replace("\\", "/").split("/") if p]
             if parts:
                 candidate = parts[-1]
-                if len(candidate) == 24 or len(candidate) == 32 or len(candidate) == 36:
+                if candidate != "_data" and len(candidate) in (24, 32, 36):
                     return candidate
+                if len(parts) >= 2 and parts[-1] == "_data":
+                    parent = parts[-2]
+                    if parent.startswith("cloud_agent_ws_"):
+                        return parent[len("cloud_agent_ws_"):]
+                    if len(parent) in (24, 32, 36):
+                        return parent
     except Exception:
         pass
     return None
@@ -69,7 +109,9 @@ def _format_ports(ports_attr: dict | None) -> dict[str, Any]:
 
 class AdminService:
     @staticmethod
-    def get_containers() -> dict[str, Any]:
+    async def get_containers(
+        workspace_repo: WorkspaceRepository | None = None,
+    ) -> dict[str, Any]:
         client, err = _safe_get_docker()
         if not client:
             return {
@@ -77,6 +119,19 @@ class AdminService:
                 "docker_error": err or "Docker daemon is offline or unreachable.",
                 "containers": [],
             }
+
+        # Build sandbox_id -> workspace_id reverse lookup map from DB if available
+        sandbox_to_ws: dict[str, str] = {}
+        if workspace_repo:
+            try:
+                workspaces = await workspace_repo.find_all_admin(limit=1000)
+                for ws in workspaces:
+                    if ws.sandbox_id and ws.id:
+                        sandbox_to_ws[ws.sandbox_id] = ws.id
+                        if len(ws.sandbox_id) >= 12:
+                            sandbox_to_ws[ws.sandbox_id[:12]] = ws.id
+            except Exception:
+                pass
 
         try:
             containers = client.containers.list(all=True)
@@ -99,6 +154,8 @@ class AdminService:
                     except Exception:
                         pass
 
+                    ws_id = _extract_workspace_id(c, sandbox_to_ws)
+
                     results.append(
                         {
                             "id": c.id,
@@ -109,7 +166,7 @@ class AdminService:
                             "state": state_str,
                             "created": created_str,
                             "ports": ports_dict,
-                            "workspace_id": _extract_workspace_id(c),
+                            "workspace_id": ws_id,
                         }
                     )
                 except Exception:

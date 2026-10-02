@@ -46,7 +46,9 @@ class Sandbox:
                 source=volume_name,
                 type="volume",
             )
-            environment = {"SKIP_TEMPLATE_SEED": "1"} if skip_template_seed else None
+            environment = {"WORKSPACE_ID": str(workspace_id)}
+            if skip_template_seed:
+                environment["SKIP_TEMPLATE_SEED"] = "1"
 
             # Apply container resource limits (RAM, CPU, and PIDs) to prevent system exhaustion
             effective_mem = memory_limit_mb or getattr(config, "sandbox_memory_limit_mb", 2048)
@@ -60,6 +62,10 @@ class Sandbox:
                 "ports": ports,
                 "environment": environment,
                 "security_opt": ["no-new-privileges:true"],
+                "labels": {
+                    "workspace_id": str(workspace_id),
+                    "managed_by": "cloud-agent",
+                },
             }
 
             if effective_mem and effective_mem > 0:

@@ -2,7 +2,14 @@ from typing import Annotated
 from fastapi import Cookie, Depends, HTTPException, status,Header
 import jwt
 from dotenv import load_dotenv
-from jwt.exceptions import InvalidTokenError
+
+try:
+    from jwt.exceptions import InvalidTokenError
+except (ImportError, ModuleNotFoundError, AttributeError):
+    try:
+        from jwt import InvalidTokenError
+    except (ImportError, ModuleNotFoundError, AttributeError):
+        InvalidTokenError = Exception
 from src.repository.user_repository import UserRepo,UserRepository
 from src.models.user_model import User
 from src.repository.user_repository import get_user_repo
