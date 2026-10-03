@@ -155,10 +155,11 @@ export function DashboardSidebar() {
               size="lg"
               render={<Link to="/dashboard" />}
               isActive={location.pathname === "/dashboard"}
+              className="h-13 gap-3 group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:justify-center"
             >
-              <BrandLogo size={32} className="rounded-lg shrink-0" />
+              <BrandLogo size={36} className="shrink-0" />
               <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">Cloud Agent</span>
+                <span className="truncate font-semibold text-sm">Cloud Agent</span>
                 <span className="truncate text-xs text-muted-foreground">
                   Workspace
                 </span>

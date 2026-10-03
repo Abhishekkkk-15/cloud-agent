@@ -3,15 +3,23 @@ import { cn } from "@/lib/utils"
 interface BrandLogoProps {
   className?: string
   size?: number
+  style?: React.CSSProperties
 }
 
-export function BrandLogo({ className, size = 28 }: BrandLogoProps) {
+export function BrandLogo({ className, size = 28, style }: BrandLogoProps) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 32 32"
       width={size}
       height={size}
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        minWidth: `${size}px`,
+        minHeight: `${size}px`,
+        ...style,
+      }}
       className={cn("shrink-0 select-none", className)}
       aria-label="Cloud Agent Logo"
     >
