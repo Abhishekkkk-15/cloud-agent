@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
-  CloudIcon,
   FolderIcon,
   LayoutDashboardIcon,
   LogOutIcon,
@@ -11,6 +10,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { BrandLogo } from "@/components/ui/BrandLogo"
 import {
   ManageSidebarItemDialog,
   type ManageSidebarItemTarget,
@@ -156,9 +156,7 @@ export function DashboardSidebar() {
               render={<Link to="/dashboard" />}
               isActive={location.pathname === "/dashboard"}
             >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <CloudIcon className="size-4" />
-              </span>
+              <BrandLogo size={32} className="rounded-lg shrink-0" />
               <span className="grid min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">Cloud Agent</span>
                 <span className="truncate text-xs text-muted-foreground">

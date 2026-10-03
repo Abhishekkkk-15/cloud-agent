@@ -1,10 +1,11 @@
 import {
   AlertTriangleIcon,
   CheckIcon,
-  CloudIcon,
   RefreshCwIcon,
   XIcon,
 } from "lucide-react"
+
+import { BrandLogo } from "@/components/ui/BrandLogo"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -119,7 +120,7 @@ export function SandboxOverlay() {
               <CheckIcon className="size-5 text-emerald-600 dark:text-emerald-400" />
             ) : (
               <div className="relative flex size-5 items-center justify-center">
-                <CloudIcon className="size-5 text-muted-foreground" />
+                <BrandLogo size={20} />
                 <Spinner className="absolute -right-1.5 -bottom-1.5 size-3.5 text-foreground" />
               </div>
             )}
