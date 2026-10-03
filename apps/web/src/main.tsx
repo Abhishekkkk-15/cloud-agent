@@ -9,7 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider.tsx"
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ""
 
 const app = (
-  <ThemeProvider>
+  <ThemeProvider defaultTheme="swiss">
     <App />
   </ThemeProvider>
 )

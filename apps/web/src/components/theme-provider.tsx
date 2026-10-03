@@ -14,6 +14,12 @@ export type ThemeOption = {
 
 export const THEME_OPTIONS: ThemeOption[] = [
   {
+    value: "swiss",
+    label: "Swiss (Default)",
+    swatch: "linear-gradient(135deg, #F8F3EC 65%, #DC201E 65%)",
+    description: "Minimalist newsprint & red",
+  },
+  {
     value: "light",
     label: "Light",
     swatch: "#f4f4f5",
@@ -24,12 +30,6 @@ export const THEME_OPTIONS: ThemeOption[] = [
     label: "Dark",
     swatch: "#18181b",
     description: "Neutral dark",
-  },
-  {
-    value: "swiss",
-    label: "Swiss",
-    swatch: "linear-gradient(135deg, #F8F3EC 65%, #DC201E 65%)",
-    description: "Minimalist newsprint & red",
   },
   {
     value: "ocean",
@@ -155,7 +155,7 @@ function isEditableTarget(target: EventTarget | null) {
 
 export function ThemeProvider({
   children,
-  defaultTheme = "dark",
+  defaultTheme = "swiss",
   storageKey = "theme",
   disableTransitionOnChange = true,
   ...props
@@ -170,7 +170,7 @@ export function ThemeProvider({
   })
 
   const [colorMode, setColorMode] = React.useState<ColorMode>(() => {
-    if (typeof window === "undefined") return "dark"
+    if (typeof window === "undefined") return "light"
     return resolveThemeApplication(
       isTheme(localStorage.getItem(storageKey))
         ? (localStorage.getItem(storageKey) as Theme)
