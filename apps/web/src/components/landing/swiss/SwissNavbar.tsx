@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom"
+import { BrandLogo } from "@/components/ui/BrandLogo"
 
 export function SwissNavbar() {
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 px-8 py-5 flex justify-between items-end border-b border-[var(--hairline)] bg-[var(--paper)]/95 backdrop-blur-sm">
+    <nav className="fixed top-0 left-0 w-full z-50 px-8 py-4 flex justify-between items-center border-b border-[var(--hairline)] bg-[var(--paper)]/95 backdrop-blur-sm">
       <div className="flex items-center gap-3">
-        <span className="inline-block w-2.5 h-2.5 bg-[var(--red)] animate-pulse" />
+        <BrandLogo size={26} />
         <span className="mono">001 / SYSTEM ACTIVE</span>
       </div>
 

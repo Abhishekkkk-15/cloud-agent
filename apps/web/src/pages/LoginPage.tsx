@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation } from "react-router-dom"
 
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import { ThemeSwitcher } from "@/components/theme-switcher"
+import { BrandLogo } from "@/components/ui/BrandLogo"
 import { useAuthStore } from "@/stores/auth-store"
 
 export function LoginPage() {
@@ -41,7 +42,7 @@ export function LoginPage() {
       {/* Top Header */}
       <header className="border-b border-[var(--hairline)] bg-[var(--paper)]/95 backdrop-blur-sm px-6 sm:px-12 py-4 flex justify-between items-center z-20 relative">
         <div className="flex items-center gap-3">
-          <span className="inline-block w-2.5 h-2.5 bg-[var(--red)] animate-pulse" />
+          <BrandLogo size={26} />
           <span className="mono text-xs font-bold tracking-widest">
             001 // AUTHENTICATION GATEWAY
           </span>

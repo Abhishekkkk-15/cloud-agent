@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom"
 import {
-  CloudIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   SettingsIcon,
@@ -8,6 +7,7 @@ import {
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { BrandLogo } from "@/components/ui/BrandLogo"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,9 +41,7 @@ export function AppHeader({ className, dense }: AppHeaderProps) {
     >
       <div className="flex items-center gap-3">
         <Link to="/" className="flex items-center gap-2 font-medium">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <CloudIcon className="size-4" />
-          </span>
+          <BrandLogo size={26} />
           <span>Cloud Agent</span>
         </Link>
         {user && (
