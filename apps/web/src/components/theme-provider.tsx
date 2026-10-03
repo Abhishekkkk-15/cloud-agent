@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
 
-export type Theme = "dark" | "light" | "system" | "ocean" | "forest"
+export type Theme = "dark" | "light" | "system" | "ocean" | "forest" | "swiss"
 type ColorMode = "dark" | "light"
 
 export type ThemeOption = {
@@ -24,6 +24,12 @@ export const THEME_OPTIONS: ThemeOption[] = [
     label: "Dark",
     swatch: "#18181b",
     description: "Neutral dark",
+  },
+  {
+    value: "swiss",
+    label: "Swiss",
+    swatch: "linear-gradient(135deg, #F8F3EC 65%, #DC201E 65%)",
+    description: "Minimalist newsprint & red",
   },
   {
     value: "ocean",
@@ -61,8 +67,8 @@ type ThemeProviderState = {
 }
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
-const THEME_VALUES: Theme[] = ["dark", "light", "system", "ocean", "forest"]
-const THEME_CLASS_NAMES = ["light", "dark", "theme-ocean", "theme-forest"] as const
+const THEME_VALUES: Theme[] = ["dark", "light", "system", "ocean", "forest", "swiss"]
+const THEME_CLASS_NAMES = ["light", "dark", "theme-ocean", "theme-forest", "theme-swiss"] as const
 
 const ThemeProviderContext = React.createContext<
   ThemeProviderState | undefined
@@ -98,6 +104,9 @@ function resolveThemeApplication(theme: Theme): {
   }
   if (theme === "dark") {
     return { classes: ["dark"], colorMode: "dark" }
+  }
+  if (theme === "swiss") {
+    return { classes: ["light", "theme-swiss"], colorMode: "light" }
   }
   if (theme === "ocean") {
     return { classes: ["dark", "theme-ocean"], colorMode: "dark" }
@@ -233,8 +242,8 @@ export function ThemeProvider({
         return
       }
 
-      // Cycle: light → dark → ocean → forest → light (skip system on hotkey)
-      const cycle: Theme[] = ["light", "dark", "ocean", "forest"]
+      // Cycle: light → dark → swiss → ocean → forest → light (skip system on hotkey)
+      const cycle: Theme[] = ["light", "dark", "swiss", "ocean", "forest"]
       setThemeState((currentTheme) => {
         const from =
           currentTheme === "system" ? getSystemTheme() : currentTheme

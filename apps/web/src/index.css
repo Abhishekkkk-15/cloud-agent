@@ -220,6 +220,45 @@
     --scrollbar-thumb-hover: oklch(0.85 0.03 145 / 38%);
 }
 
+/* Swiss Minimalist paper / ink / signal red palette */
+.light.theme-swiss,
+.theme-swiss {
+    --background: #F8F3EC;
+    --foreground: #111010;
+    --card: #F1EBE1;
+    --card-foreground: #111010;
+    --popover: #F8F3EC;
+    --popover-foreground: #111010;
+    --primary: #DC201E;
+    --primary-foreground: #FFFFFF;
+    --secondary: #EBE4D8;
+    --secondary-foreground: #111010;
+    --muted: #EBE4D8;
+    --muted-foreground: #6B665E;
+    --accent: #E5DDD0;
+    --accent-foreground: #111010;
+    --destructive: #DC201E;
+    --border: rgba(17, 16, 16, 0.16);
+    --input: rgba(17, 16, 16, 0.2);
+    --ring: #DC201E;
+    --radius: 0px;
+    --chart-1: #DC201E;
+    --chart-2: #111010;
+    --chart-3: #8C8880;
+    --chart-4: #4A4640;
+    --chart-5: #B83025;
+    --sidebar: #F1EBE1;
+    --sidebar-foreground: #111010;
+    --sidebar-primary: #DC201E;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #E5DDD0;
+    --sidebar-accent-foreground: #111010;
+    --sidebar-border: rgba(17, 16, 16, 0.16);
+    --sidebar-ring: #DC201E;
+    --scrollbar-thumb: rgba(17, 16, 16, 0.2);
+    --scrollbar-thumb-hover: rgba(17, 16, 16, 0.4);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
