@@ -133,16 +133,16 @@ async def delete_sandbox_worker(
             )
             return
 
-        sandbox.delete_sandbox(ws.sandbox_id, workspace_id=workspace_id)
-
-        if ws.source_path and ws.source_path != "/app":
-            safe_rmtree(ws.source_path)
+        # Stop and remove idle container only — PRESERVE workspace volume!
+        # Workspace volumes contain project files and should only be deleted
+        # when the workspace itself is deleted by the user via DELETE /workspaces/{id}.
+        sandbox.delete_sandbox(ws.sandbox_id)
 
         ws.sandbox_id = None
         await ws_repo.save(ws)
 
         print(
-            f"[DELETE] Workspace deleted "
+            f"[DELETE] Idle container removed for workspace "
             f"{workspace_id}"
         )
 

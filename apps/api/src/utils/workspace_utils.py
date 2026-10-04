@@ -3,6 +3,7 @@ import logging
 import shutil
 from pathlib import Path
 
+from src.ai_core.sandbox.client import get_sandbox_client
 from src.models.user_model import User
 from src.models.workspace_model import Workspace
 from src.services.workspace_git import WorkspaceGitError, WorkspaceGitService
@@ -147,6 +148,13 @@ async def restore_workspace_from_github(
             )
             auth = await resolve_github_auth(user, workspace)
             branch = workspace.github_default_branch or "main"
+            client = get_sandbox_client()
+            if client:
+                try:
+                    c = client.containers.get(container_id)
+                    c.exec_run("sh -c 'rm -rf /app/* /app/.* 2>/dev/null || true'")
+                except Exception as clean_err:
+                    logger.warning("Error cleaning container /app before clone: %s", clean_err)
             await asyncio.to_thread(
                 git.clone,
                 auth.token,

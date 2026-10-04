@@ -27,7 +27,10 @@ from src.ai_core.intent_agent import IntentAgent
 from docker.errors import APIError, ContainerError, NotFound
 from starlette.websockets import WebSocketState
 import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
+
+logger = logging.getLogger(__name__)
 from src.services.workspace_github_sync import (
     ensure_workspace_repo,
     host_workspace_path,
@@ -109,8 +112,12 @@ async def websocket_endpoint(
                 workspace_id,
                 docker_ports,
                 skip_template_seed=(
-                    getattr(workspace, "workspace_origin", "template")
-                    == "github_import"
+                    is_recreate
+                    or bool(workspace.github_clone_url)
+                    or (
+                        getattr(workspace, "workspace_origin", "template")
+                        == "github_import"
+                    )
                 ),
                 memory_limit_mb=sandbox_cfg.get("memory_limit_mb"),
                 cpu_limit=sandbox_cfg.get("cpu_limit"),
@@ -151,7 +158,7 @@ async def websocket_endpoint(
             )
 
             try:
-                if is_recreate:
+                if is_recreate or workspace.github_clone_url:
                     workspace_root = await restore_workspace_from_github(
                         user, workspace, container_id=sandbox.id
                     )
@@ -205,6 +212,11 @@ async def websocket_endpoint(
 
         # 2. Check or provision Docker sandbox
         sandbox_id = workspace.sandbox_id
+        is_existing = bool(
+            workspace.github_clone_url
+            or (workspace.status and workspace.status != WorkspaceStatus.PENDING)
+            or (workspace.version is not None and workspace.version > 0)
+        )
 
         if not sandbox_id:
             print("Starting sandbox container...")
@@ -214,14 +226,22 @@ async def websocket_endpoint(
                     {
                         "type": "sandbox:starting",
                         "data": {
-                            "title": "Starting Docker Sandbox",
-                            "message": "Initializing container and mounting workspace volume...",
+                            "title": (
+                                "Restoring Docker Sandbox"
+                                if is_existing
+                                else "Starting Docker Sandbox"
+                            ),
+                            "message": (
+                                "Restoring project repository in container..."
+                                if is_existing
+                                else "Initializing container and mounting workspace volume..."
+                            ),
                             "stage": "container",
                         },
                     }
                 ),
             )
-            sandbox_id = await _provision_and_start_sandbox(is_recreate=False)
+            sandbox_id = await _provision_and_start_sandbox(is_recreate=is_existing)
         else:
             # Checking if sandbox/Docker container exists and if its running
             is_sandbox_running = sandbox_repo.is_sandbox_running(sandbox_id)
@@ -635,6 +655,63 @@ async def websocket_endpoint(
 
             return True, None, None
 
+        async def _auto_sync_github(commit_msg: str) -> None:
+            nonlocal workspace
+            if not workspace:
+                return
+            try:
+                fresh_ws, sync_res = await sync_workspace_to_github(
+                    user,
+                    workspace,
+                    workspace_repo,
+                    message=commit_msg,
+                    container_id=workspace.sandbox_id or sandbox_id,
+                )
+                if fresh_ws:
+                    workspace = fresh_ws
+                if sync_res.ok:
+                    try:
+                        await ws_manager.send_json(
+                            websocket=ws,
+                            data=jsonable_encoder({
+                                "type": "github:sync",
+                                "data": {
+                                    "status": "ok",
+                                    "reason": "auto_sync",
+                                    "repo": workspace.github_repo_full_name,
+                                    "committed": sync_res.committed,
+                                    "commit_message": commit_msg,
+                                },
+                            }),
+                        )
+                        await ws_manager.send_json(
+                            websocket=ws,
+                            data=jsonable_encoder({"type": "workspace:info", "data": workspace}),
+                        )
+                    except Exception:
+                        pass
+                elif sync_res.error_code in (
+                    "github_not_available",
+                    "github_not_connected",
+                    "github_platform_not_configured",
+                ):
+                    try:
+                        await ws_manager.send_json(
+                            websocket=ws,
+                            data=jsonable_encoder({
+                                "type": "github:sync",
+                                "data": {
+                                    "status": "unlinked",
+                                    "reason": "auto_sync",
+                                    "message": "Connect GitHub in Settings to automatically sync and preserve your workspace.",
+                                },
+                            }),
+                        )
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.warning("Auto GitHub sync error for workspace %s: %s", getattr(workspace, "id", None), e)
+
         async def handle_run(user_query):
             nonlocal active_session_id
             nonlocal workspace
@@ -711,6 +788,7 @@ async def websocket_endpoint(
                     await _title_session(
                         active_session_id, workspace.initial_prompt
                     )
+                    await _auto_sync_github(f"Initial: {workspace.title or 'project setup'}")
 
                     workspace.status = WorkspaceStatus.READY
                     await workspace_repo.save(workspace)
@@ -743,6 +821,7 @@ async def websocket_endpoint(
                 )
                 if is_fresh:
                     await _title_session(active_session_id, query_text)
+                await _auto_sync_github(f"Update: {query_text[:50]}")
 
             # FRESH SESSION — sidebar "New Session" / first message without id
             # Uses pi_sdk Agent.new_session() so the reused CloudAgent drops the
@@ -758,6 +837,7 @@ async def websocket_endpoint(
                     query_text, attachments=turn_attachments or None
                 )
                 await _title_session(active_session_id, query_text)
+                await _auto_sync_github(f"Update: {query_text[:50]}")
 
                 workspace.status = WorkspaceStatus.READY
                 await workspace_repo.save(workspace)
