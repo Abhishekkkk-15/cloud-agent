@@ -47,16 +47,19 @@ export function ManageSidebarItemDialog({
   onOpen,
 }: ManageSidebarItemDialogProps) {
   const [name, setName] = useState(target?.title ?? "")
+  const [downloading, setDownloading] = useState(false)
 
   useEffect(() => {
-    setName(target?.title ?? "")
+    if (target) {
+      setName(target.title)
+      setDownloading(false)
+    }
   }, [target])
 
   if (!target) return null
 
   const isWorkspace = target.kind === "workspace"
   const initialName = target.title
-  const [downloading, setDownloading] = useState(false)
 
   async function handleDownload() {
     if (!target || target.kind !== "workspace" || downloading) return
