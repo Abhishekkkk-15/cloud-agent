@@ -376,12 +376,23 @@ PLAN_MODE_SYSTEM_PROMPT_EXTRA = """
 
 BUILD_MODE_PLAN_INSTRUCTION = """
 <execution_plan_guidelines>
-  When executing a multi-step task, feature implementation, or bug fix modifying multiple files,
-  begin your response by declaring a concise step-by-step checklist under a `### Plan` header:
+  When executing a multi-step task, feature implementation, or bug fix:
+  1. Begin your turn by declaring a concise step-by-step checklist under a `### Plan` header:
   ### Plan
-  - [ ] 1. <Step title>: <Brief action description>
+  - [/] 1. <Step title>: <Brief action description>
   - [ ] 2. <Step title>: <Brief action description>
-  As you perform tool actions, keep the user updated on your progress.
+  - [ ] 3. <Step title>: <Brief action description>
+  Always use `- [/]` for the step currently in progress, and `- [ ]` for pending steps.
+
+  2. Keep the checklist updated across tool actions:
+  As you finish steps or reach milestones, keep the user updated and re-state the checklist with completed steps marked `- [x]`, the active step marked `- [/]`, and pending steps marked `- [ ]`.
+
+  3. When all steps are finished and verified:
+  Conclude your final response with the completed checklist:
+  ### Plan
+  - [x] 1. <Step title>: <Brief action description>
+  - [x] 2. <Step title>: <Brief action description>
+  - [x] 3. <Step title>: <Brief action description>
 </execution_plan_guidelines>
 """
 

@@ -1,7 +1,10 @@
 import type { Message, Session } from "@cloud-agent/shared"
 
 import { summaryFromEvents } from "@/lib/agent-events"
-import { hasPlanBlock } from "@/components/workspace/ExecutionPlanCard"
+import {
+  hasPlanBlock,
+  extractPlanBlockText,
+} from "@/components/workspace/ExecutionPlanCard"
 import {
   wsEventToUiEvent,
   type AgentWsEventPayload,
@@ -145,7 +148,8 @@ function buildAgentTurn(block: Message[]): ThreadMessage {
   for (const message of block) {
     if (normalizeRole(message.role) === "assistant" && message.content) {
       if (hasPlanBlock(message.content)) {
-        planContent = message.content
+        planContent =
+          extractPlanBlockText(message.content) || message.content
         break
       }
     }

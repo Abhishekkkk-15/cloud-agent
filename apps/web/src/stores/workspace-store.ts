@@ -18,7 +18,10 @@ import { messagesToThread } from "@/lib/session-messages"
 import { get_wehsocket, reset_websocket } from "@/lib/websocket"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 import { appendAgentEvent } from "@/lib/agent-events"
-import { hasPlanBlock } from "@/components/workspace/ExecutionPlanCard"
+import {
+  hasPlanBlock,
+  extractPlanBlockText,
+} from "@/components/workspace/ExecutionPlanCard"
 import {
   isTerminalAgentEvent,
   wsEventToUiEvent,
@@ -205,6 +208,7 @@ type ActiveAgentStream = {
   assistantId: string
   textBuffer: string
   planBuffer?: string
+  needsTurnSeparator?: boolean
 }
 
 let activeAgentStream: ActiveAgentStream | null = null
@@ -247,19 +251,32 @@ function applyAgentEvent(
     ? payload.type.slice(6)
     : payload.type
 
+  // Whenever a tool call or result occurs, mark that text generation for this step has paused.
+  if (normType === "tool_call" || normType === "tool_result") {
+    activeAgentStream.needsTurnSeparator = true
+  }
+
   if (normType === "text_delta") {
     const chunk = wsPayloadText(payload) ?? ""
     if (chunk) {
+      if (activeAgentStream.needsTurnSeparator && textBuffer.length > 0) {
+        if (!textBuffer.endsWith("\n\n")) {
+          textBuffer = textBuffer.endsWith("\n") ? `${textBuffer}\n` : `${textBuffer}\n\n`
+        }
+        activeAgentStream.needsTurnSeparator = false
+      }
       textBuffer += chunk
-      if (hasPlanBlock(textBuffer)) {
-        activeAgentStream.planBuffer = textBuffer
+      const extracted = extractPlanBlockText(textBuffer)
+      if (extracted) {
+        activeAgentStream.planBuffer = extracted
       }
     }
   } else if (normType === "text") {
     const fullText = wsPayloadText(payload) ?? ""
     if (fullText) {
-      if (hasPlanBlock(fullText)) {
-        activeAgentStream.planBuffer = fullText
+      const extracted = extractPlanBlockText(fullText)
+      if (extracted) {
+        activeAgentStream.planBuffer = extracted
       }
       // If we already captured a plan in this turn, don't let a subsequent intermediate update overwrite it!
       if (activeAgentStream.planBuffer && !hasPlanBlock(fullText)) {
@@ -275,8 +292,9 @@ function applyAgentEvent(
   } else if (normType === "run_completed") {
     const finalText = wsPayloadText(payload)
     if (finalText) {
-      if (hasPlanBlock(finalText)) {
-        activeAgentStream.planBuffer = finalText
+      const extracted = extractPlanBlockText(finalText)
+      if (extracted) {
+        activeAgentStream.planBuffer = extracted
       }
       if (activeAgentStream.planBuffer && !hasPlanBlock(finalText)) {
         if (!textBuffer.includes(finalText)) {
@@ -303,7 +321,8 @@ function applyAgentEvent(
             planContent:
               activeAgentStream?.planBuffer ||
               msg.planContent ||
-              (hasPlanBlock(textBuffer) ? textBuffer : undefined),
+              (extractPlanBlockText(textBuffer) ??
+                (hasPlanBlock(textBuffer) ? textBuffer : undefined)),
             events: appendAgentEvent(msg.events ?? [], uiEvent),
           }
         : msg

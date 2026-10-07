@@ -29,18 +29,86 @@ export type ParsedPlan = {
 }
 
 /**
+ * Isolates and extracts only the markdown plan header and checklist items,
+ * excluding subsequent commentary, explanation paragraphs, or tool text.
+ */
+export function extractPlanBlockText(content?: string): string | null {
+  if (!content) return null
+
+  // Pre-normalize text where chunk boundaries lacked newlines (e.g., "build.I'm removing")
+  const normalized = content.replace(/([.!?])([A-Z])/g, "$1\n\n$2")
+  const lines = normalized.split(/\r?\n/)
+  const planLines: string[] = []
+  let foundPlan = false
+  let inTaskBlock = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const isHeader = /^#{1,4}\s+[^\n]*(?:Plan|Roadmap|Steps)/i.test(line)
+    const isTask = /^[-*]\s+\[([ xX/])\]\s+/.test(line)
+
+    if (isHeader) {
+      if (inTaskBlock && planLines.length >= 2) {
+        break
+      }
+      foundPlan = true
+      planLines.push(line)
+      continue
+    }
+
+    if (isTask) {
+      foundPlan = true
+      inTaskBlock = true
+      planLines.push(line)
+      continue
+    }
+
+    if (inTaskBlock) {
+      // Empty line between tasks is allowed if next line is a task
+      if (line.trim() === "") {
+        const nextNonEmpty = lines.slice(i + 1).find((l) => l.trim() !== "")
+        if (nextNonEmpty && /^[-*]\s+\[([ xX/])\]\s+/.test(nextNonEmpty)) {
+          planLines.push(line)
+          continue
+        }
+      }
+      // Non-task line reached after task block -> plan block has ended!
+      break
+    } else if (foundPlan && line.trim() === "") {
+      planLines.push(line)
+    }
+  }
+
+  const result = planLines.join("\n").trim()
+  return hasPlanBlock(result) ? result : null
+}
+
+/**
  * Parses markdown task lists (- [ ], - [x], - [/]) under a Plan header or checklist block.
  */
 export function extractPlanFromMarkdown(content: string): ParsedPlan | null {
   if (!content) return null
+
+  // Pre-normalize text where chunk boundaries lacked newlines (e.g., "build.I'm removing")
+  const normalized = content.replace(/([.!?])([A-Z])/g, "$1\n\n$2")
 
   // Check for task list items: - [ ] or - [x] or - [/]
   const taskRegex = /^[-*]\s+\[([ xX/])\]\s+(.+)$/gm
   const matches: { check: string; text: string }[] = []
 
   let match: RegExpExecArray | null
-  while ((match = taskRegex.exec(content)) !== null) {
-    matches.push({ check: match[1], text: match[2].trim() })
+  while ((match = taskRegex.exec(normalized)) !== null) {
+    let rawText = match[2].trim()
+
+    // If intermediate commentary got glued into the task item, truncate at commentary start
+    const commentaryMatch = rawText.match(
+      /^(.*?[\.\!\?])\s+(?:I['’]m|I\s+am|I['’]ve|I\s+will|Next\s+I|Now\s+I|The\s+boxed-in)\b/i
+    )
+    if (commentaryMatch && commentaryMatch[1]) {
+      rawText = commentaryMatch[1].trim()
+    }
+
+    matches.push({ check: match[1], text: rawText })
   }
 
   if (matches.length < 2) {
@@ -80,7 +148,7 @@ export function extractPlanFromMarkdown(content: string): ParsedPlan | null {
 
   // Extract custom header title if present (e.g. ### Plan or ### Execution Plan)
   let headerTitle = "Execution Plan"
-  const headerMatch = content.match(/#{1,4}\s+([^\n]*(?:Plan|Roadmap|Steps)[^\n]*)/i)
+  const headerMatch = normalized.match(/#{1,4}\s+([^\n]*(?:Plan|Roadmap|Steps)[^\n]*)/i)
   if (headerMatch && headerMatch[1]) {
     headerTitle = headerMatch[1].trim()
   }
@@ -100,8 +168,9 @@ export function extractPlanFromMarkdown(content: string): ParsedPlan | null {
  */
 export function stripPlanFromMarkdown(content: string): string {
   if (!content) return ""
+  const normalized = content.replace(/([.!?])([A-Z])/g, "$1\n\n$2")
   // Strip task list lines and trailing empty lines
-  const cleaned = content.replace(/^[-*]\s+\[([ xX/])\]\s+.*(?:\r?\n)?/gm, "")
+  const cleaned = normalized.replace(/^[-*]\s+\[([ xX/])\]\s+.*(?:\r?\n)?/gm, "")
   // Clean up any empty Plan headers that have no body left
   return cleaned.replace(/#{1,4}\s+[^\n]*(?:Plan|Roadmap|Steps)[^\n]*(?:\r?\n)+/gi, "\n").trim()
 }
@@ -135,10 +204,21 @@ export function ExecutionPlanCard({
 
   if (!initialPlan) return null
 
-  // Merge parser steps with any manual user checkbox clicks
+  // Merge parser steps with any manual user checkbox clicks and build completion
   const steps = initialPlan.steps.map((step) => {
     if (localOverrides[step.id]) {
       return { ...step, status: localOverrides[step.id] }
+    }
+    // In Build mode (mode !== "plan"):
+    // When the agent has completed its execution run (!isStreaming) and all tasks were left pending:
+    // Mark them as completed since the execution run concluded successfully.
+    if (
+      mode !== "plan" &&
+      !isStreaming &&
+      initialPlan.completedCount === 0 &&
+      step.status === "pending"
+    ) {
+      return { ...step, status: "completed" as const }
     }
     return step
   })
