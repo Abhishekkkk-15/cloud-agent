@@ -542,7 +542,15 @@ async def websocket_endpoint(
             requested_effort = (
                 payload.get("reasoning_effort") or payload.get("effort") or None
             )
-            requested_mode = payload.get("mode") or ("plan" if payload.get("plan_mode") else "build")
+            if "mode" in payload and payload["mode"]:
+                requested_mode = payload["mode"]
+            elif "plan_mode" in payload and payload["plan_mode"] is not None:
+                requested_mode = "plan" if payload["plan_mode"] else "build"
+            elif workspace and getattr(workspace, "status", None) == WorkspaceStatus.PENDING:
+                requested_mode = getattr(workspace, "initial_mode", "build") or "build"
+            else:
+                requested_mode = "plan" if agent_kwargs.get("plan_mode") else "build"
+
             is_plan_mode = requested_mode == "plan"
 
             next_kwargs = await build_agent_kwargs_from_request(

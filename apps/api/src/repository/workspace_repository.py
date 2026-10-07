@@ -28,6 +28,7 @@ def _doc_to_workspace(doc: dict) -> Workspace:
         sandbox_id=doc.get("sandbox_id"),
         is_active=doc.get("is_active", True),
         initial_prompt=doc.get("initial_prompt", ""),
+        initial_mode=doc.get("initial_mode", "build"),
         status=status,
         github_repo_full_name=doc.get("github_repo_full_name"),
         github_repo_url=doc.get("github_repo_url"),

@@ -405,9 +405,11 @@ function ensureAgentStreamListener(
         get().workspace?.id ??
         "local"
       const prompt = wsPayloadText(payload)
+      const currentMode = get().chatMode
       beginAgentStream(get, set, {
         sessionId,
         userContent: prompt || undefined,
+        mode: currentMode,
       })
     }
 
@@ -923,6 +925,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       ws.send("agent:start", {
         workspace_id: workspace.id,
         session_id: activeSessionId,
+        mode: get().chatMode,
       })
     } catch (err) {
       set((state) => ({
@@ -1051,6 +1054,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         ws.sendAgentStart({
           workspace_id: workspaceId,
           session_id: resolvedSessionId,
+          mode: workspaceDetail.initial_mode || "build",
         })
       }
     } catch (error) {

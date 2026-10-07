@@ -243,7 +243,7 @@ export function AiChatPanel() {
                               <ExecutionPlanCard
                                 content={activePlan}
                                 isStreaming={isStreaming}
-                                mode={message.mode}
+                                mode={message.mode ?? (activePlan ? "plan" : undefined)}
                                 onExecutePlan={(planSummary) => {
                                   setChatMode("build")
                                   toast.info("Switching to Build Mode to execute plan")

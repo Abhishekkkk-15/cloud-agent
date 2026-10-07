@@ -169,13 +169,17 @@ function buildAgentTurn(block: Message[]): ThreadMessage {
     )
   }
 
+  const resolvedPlan =
+    planContent || (hasPlanBlock(summary) ? summary : undefined)
+
   return {
     id: `${first.session_id}:${first.seq}-${last.seq}`,
     session_id: first.session_id,
     seq: first.seq,
     role: "assistant",
     content: summary,
-    planContent: planContent || (hasPlanBlock(summary) ? summary : undefined),
+    planContent: resolvedPlan,
+    mode: resolvedPlan ? "plan" : undefined,
     events,
   }
 }
