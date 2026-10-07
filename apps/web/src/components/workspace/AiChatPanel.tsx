@@ -102,10 +102,6 @@ export function AiChatPanel() {
       setChatMode("build")
       setPrompt("")
       toast.success("Switched to Build Mode")
-    } else if (cmd.id === "fix") {
-      setPrompt("/fix ")
-    } else if (cmd.id === "review") {
-      setPrompt("/review ")
     }
   }
 

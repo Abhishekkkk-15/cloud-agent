@@ -1,10 +1,8 @@
 import { useEffect, useRef } from "react"
 import type { ComponentType } from "react"
 import {
-  GitPullRequestIcon,
   HammerIcon,
   ListTodoIcon,
-  WrenchIcon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -31,20 +29,6 @@ export const SLASH_COMMANDS: SlashCommandItem[] = [
     title: "Build Mode",
     description: "Direct code edits, terminal commands & execution",
     icon: HammerIcon,
-  },
-  {
-    id: "fix",
-    name: "/fix",
-    title: "Fix Issues",
-    description: "Diagnose and resolve build or dev server errors",
-    icon: WrenchIcon,
-  },
-  {
-    id: "review",
-    name: "/review",
-    title: "Review Changes",
-    description: "Inspect git diff and summarize uncommitted modifications",
-    icon: GitPullRequestIcon,
   },
 ]
 

@@ -82,12 +82,6 @@ export function AgentCreateChat() {
       setMode("build")
       setPrompt("")
       toast.success("Switched to Build Mode (Direct code execution)")
-    } else if (cmd.id === "fix") {
-      setMode("build")
-      setPrompt("Diagnose and fix all issues in the project")
-    } else if (cmd.id === "review") {
-      setMode("plan")
-      setPrompt("Review recent changes and summarize code quality")
     }
   }
 
