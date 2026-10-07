@@ -53,12 +53,22 @@ async def create_workspace(
         )
 
     try:
-        
-        agent = IntentAgent()
-        intent = await agent.analyze(body.prompt)
-        
+        title = "New Workspace"
+        try:
+            agent = IntentAgent()
+            prompt_snippet = (body.prompt or "").strip()[:1500]
+            if prompt_snippet:
+                intent = await agent.analyze(prompt_snippet)
+                if intent and intent.title:
+                    title = intent.title
+        except Exception as intent_err:
+            print(f"[create_workspace] Intent title generation skipped: {intent_err}")
+            first_line = (body.prompt or "").strip().splitlines()[0][:40] if body.prompt else ""
+            if first_line:
+                title = first_line
+
         workspace_obj = Workspace(
-            title=intent.title,
+            title=title,
             user_id=current_user.id,
             target_path="/app",
             source_path="/",

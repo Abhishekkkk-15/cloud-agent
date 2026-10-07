@@ -168,6 +168,8 @@ type WorkspaceState = {
   selectedEffort: ReasoningEffort
   setSelectedModel: (model: string) => void
   setSelectedEffort: (effort: ReasoningEffort) => void
+  chatMode: "build" | "plan"
+  setChatMode: (mode: "build" | "plan") => void
   chatCollapsed: boolean
   setChatCollapsed: (collapsed: boolean) => void
   toggleChatCollapsed: () => void
@@ -290,6 +292,7 @@ function beginAgentStream(
     userContent?: string
     assistantId?: string
     attachments?: ChatAttachment[]
+    mode?: "build" | "plan"
   }
 ) {
   const assistantId = options.assistantId ?? crypto.randomUUID()
@@ -308,6 +311,7 @@ function beginAgentStream(
           seq: messages.length,
           role: "user",
           content: options.userContent,
+          mode: options.mode,
           attachments: options.attachments?.length
             ? options.attachments
             : undefined,
@@ -326,6 +330,7 @@ function beginAgentStream(
         role: "assistant",
         content: "",
         events: [],
+        mode: options.mode,
       },
     ]
   }
@@ -827,6 +832,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       ? (localStorage.getItem("ca_selected_effort") as ReasoningEffort) ||
         "high"
       : "high",
+  chatMode: "build",
+  setChatMode: (mode: "build" | "plan") => set({ chatMode: mode }),
   setSelectedModel: (model: string) => {
     if (typeof window !== "undefined") {
       localStorage.setItem("ca_selected_model", model)
@@ -1236,6 +1243,24 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (!trimmed && attachments.length === 0) return
     if (get().chatLoading || get().streamingMessageId) return
 
+    let effectivePrompt = trimmed
+    let effectiveMode = get().chatMode
+    if (effectivePrompt.toLowerCase().startsWith("/plan")) {
+      effectiveMode = "plan"
+      effectivePrompt = effectivePrompt.slice(5).trim()
+      if (!effectivePrompt && attachments.length === 0) {
+        set({ chatMode: "plan" })
+        return
+      }
+    } else if (effectivePrompt.toLowerCase().startsWith("/build")) {
+      effectiveMode = "build"
+      effectivePrompt = effectivePrompt.slice(6).trim()
+      if (!effectivePrompt && attachments.length === 0) {
+        set({ chatMode: "build" })
+        return
+      }
+    }
+
     const workspace = get().workspace
     if (!workspace?.id) {
       set({ error: "Workspace is not loaded" })
@@ -1288,8 +1313,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
       streamAssistantId = beginAgentStream(get, set, {
         sessionId: sessionId ?? "pending",
-        userContent: trimmed || "(attached files)",
+        userContent: effectivePrompt || "(attached files)",
         attachments,
+        mode: effectiveMode,
       })
 
       const { selectedModel, selectedEffort } = get()
@@ -1307,11 +1333,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
       // Omit session_id for pending new sessions so chat_ws uses new_session()
       ws.sendAgentQuery(
-        trimmed || "Review my attachments",
+        effectivePrompt || "Review my attachments",
         pendingNew ? null : sessionId,
         {
           model: selectedModel,
           reasoning_effort: selectedEffort,
+          mode: effectiveMode,
           attachments: wireAttachments,
         }
       )

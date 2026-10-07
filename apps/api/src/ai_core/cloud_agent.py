@@ -338,6 +338,54 @@ IMPORTED_REPO_SYSTEM_PROMPT_EXTRA = """
 """
 
 
+PLAN_MODE_SYSTEM_PROMPT_EXTRA = """
+<plan_mode_instructions>
+  <priority>
+    YOU ARE OPERATING IN PLAN MODE (Read-only architectural planning & research).
+    You are STRICTLY FORBIDDEN from modifying any project files, writing new code, or executing mutating commands.
+    Your tools are constrained to read-only discovery tools (`read`, `grep`, `git_status`, `git_diff`, `git_log`).
+  </priority>
+
+  <objectives>
+    1. Inspect the codebase thoroughly to understand existing architectural patterns, file layouts, and dependencies.
+    2. Formulate a precise, actionable implementation plan for the user's request.
+    3. Do NOT make file edits. Formulate the exact proposed edits in your plan.
+  </objectives>
+
+  <format_guidelines>
+    Structure your response clearly with:
+    ### 1. Architectural Strategy
+    Brief explanation of the proposed solution, trade-offs, and packages/dependencies needed.
+
+    ### 2. Files to Modify or Create
+    List the exact file paths with a short note on what changes will be made in each.
+
+    ### 3. Plan
+    Provide a numbered, actionable execution checklist using markdown checkboxes:
+    - [ ] 1. <Step title>: <Brief action description>
+    - [ ] 2. <Step title>: <Brief action description>
+    - [ ] 3. <Step title>: <Brief action description>
+
+    ### 4. Verification Plan
+    How the change will be tested or visually verified in preview.
+
+    Conclude with: "Would you like me to proceed with executing this plan?"
+  </format_guidelines>
+</plan_mode_instructions>
+"""
+
+BUILD_MODE_PLAN_INSTRUCTION = """
+<execution_plan_guidelines>
+  When executing a multi-step task, feature implementation, or bug fix modifying multiple files,
+  begin your response by declaring a concise step-by-step checklist under a `### Plan` header:
+  ### Plan
+  - [ ] 1. <Step title>: <Brief action description>
+  - [ ] 2. <Step title>: <Brief action description>
+  As you perform tool actions, keep the user updated on your progress.
+</execution_plan_guidelines>
+"""
+
+
 def build_system_prompt_extra(
     workspace_origin: WorkspaceOrigin = "template",
 ) -> str:
@@ -372,9 +420,11 @@ class CloudAgentCore:
         author_name: str = "Cloud Agent",
         author_email: str = "agent@users.noreply.github.com",
         on_git_push: Any = None,
+        plan_mode: bool = False,
     ) -> None:
         self.config = sys_config
         self.workspace_origin = workspace_origin
+        self.plan_mode = plan_mode
         selected_provider = provider or sys_config.provider
         selected_model = model or sys_config.model
         selected_base_url = base_url or sys_config.base_url
@@ -389,6 +439,11 @@ class CloudAgentCore:
         selected_max_retries = max_retries if max_retries is not None else 3
 
         prompt_extra = build_system_prompt_extra(workspace_origin)
+        if plan_mode:
+            prompt_extra = f"{PLAN_MODE_SYSTEM_PROMPT_EXTRA}\n\n{prompt_extra}"
+        else:
+            prompt_extra = f"{BUILD_MODE_PLAN_INSTRUCTION}\n\n{prompt_extra}"
+
         if system_prompt_prefix and system_prompt_prefix.strip():
             prompt_extra = f"{system_prompt_prefix.strip()}\n\n{prompt_extra}"
 
@@ -421,6 +476,10 @@ class CloudAgentCore:
                     pending_answers_map=pending_answers_map,
                 )
             )
+
+        if plan_mode:
+            allowed_plan_tools = {"read", "grep", "git_status", "git_diff", "git_log", "ask_user"}
+            extra_tools = [t for t in extra_tools if getattr(t, "name", "") in allowed_plan_tools]
 
         self.client = Agent.create(
             api_key=selected_api_key,

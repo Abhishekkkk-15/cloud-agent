@@ -540,12 +540,15 @@ async def websocket_endpoint(
             requested_effort = (
                 payload.get("reasoning_effort") or payload.get("effort") or None
             )
+            requested_mode = payload.get("mode") or ("plan" if payload.get("plan_mode") else "build")
+            is_plan_mode = requested_mode == "plan"
 
             next_kwargs = await build_agent_kwargs_from_request(
                 model_repo,
                 settings_repo=settings_repo,
                 model_key=requested_model,
                 effort=requested_effort,
+                plan_mode=is_plan_mode,
             )
             # If only effort was sent without a model, retain current model settings
             if not requested_model and requested_effort:

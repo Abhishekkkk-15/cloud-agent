@@ -196,6 +196,7 @@ class WebSocketManager {
     options?: {
       model?: string
       reasoning_effort?: string
+      mode?: string
       attachments?: unknown[]
     }
   ) {
@@ -207,6 +208,7 @@ class WebSocketManager {
       ...(options?.reasoning_effort
         ? { reasoning_effort: options.reasoning_effort }
         : {}),
+      ...(options?.mode ? { mode: options.mode } : {}),
       ...(options?.attachments && options.attachments.length > 0
         ? { attachments: options.attachments }
         : {}),

@@ -17,13 +17,51 @@ const markdownComponents: Components = {
   h3: ({ children }) => (
     <h3 className="mb-2 text-sm font-medium last:mb-0">{children}</h3>
   ),
-  ul: ({ children }) => (
-    <ul className="mb-2 list-disc space-y-1 pl-5 last:mb-0">{children}</ul>
-  ),
+  ul: ({ className, children }) => {
+    const isTaskList = className?.includes("contains-task-list")
+    return (
+      <ul
+        className={cn(
+          "mb-2 space-y-1 last:mb-0",
+          isTaskList ? "list-none pl-0" : "list-disc pl-5"
+        )}
+      >
+        {children}
+      </ul>
+    )
+  },
   ol: ({ children }) => (
     <ol className="mb-2 list-decimal space-y-1 pl-5 last:mb-0">{children}</ol>
   ),
-  li: ({ children }) => <li className="leading-7">{children}</li>,
+  li: ({ className, children }) => {
+    const isTaskItem = className?.includes("task-list-item")
+    return (
+      <li
+        className={cn(
+          "leading-7",
+          isTaskItem && "flex items-start gap-2 list-none"
+        )}
+      >
+        {children}
+      </li>
+    )
+  },
+  input: ({ type, checked, disabled }) => {
+    if (type === "checkbox") {
+      return (
+        <span className="mt-1.5 flex size-3.5 shrink-0 items-center justify-center">
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={disabled}
+            className="size-3.5 rounded border-border accent-primary cursor-default"
+            readOnly
+          />
+        </span>
+      )
+    }
+    return <input type={type} checked={checked} disabled={disabled} />
+  },
   blockquote: ({ children }) => (
     <blockquote className="mb-2 border-l-2 border-border pl-3 text-muted-foreground last:mb-0">
       {children}

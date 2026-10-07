@@ -70,6 +70,7 @@ export const threadMessageSchema = z.object({
   attachments: z.array(chatAttachmentSchema).optional(),
   askUser: z.any().optional(),
   askUserAnswered: z.boolean().optional(),
+  mode: z.enum(["build", "plan"]).optional(),
 })
 
 export type AgentEventType = z.infer<typeof agentEventTypeSchema>

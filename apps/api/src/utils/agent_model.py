@@ -21,6 +21,7 @@ AgentFingerprint = tuple[
     int | None,
     int | None,
     str | None,
+    bool | None,
 ]
 
 
@@ -48,6 +49,7 @@ def normalize_agent_kwargs(kwargs: dict) -> dict:
         "keep_recent_tokens": kwargs.get("keep_recent_tokens") or config.keep_recent_tokens,
         "max_retries": kwargs.get("max_retries") if kwargs.get("max_retries") is not None else 3,
         "system_prompt_prefix": kwargs.get("system_prompt_prefix"),
+        "plan_mode": bool(kwargs.get("plan_mode", False)),
     }
 
 
@@ -65,6 +67,7 @@ def agent_fingerprint(kwargs: dict) -> AgentFingerprint:
         n["keep_recent_tokens"],
         n["max_retries"],
         n["system_prompt_prefix"],
+        n["plan_mode"],
     )
 
 
@@ -74,9 +77,10 @@ async def build_agent_kwargs_from_request(
     model_key: str | None = None,
     effort: str | None = None,
     settings_repo: SettingsRepository | None = None,
+    plan_mode: bool = False,
 ) -> dict:
     """Resolve CloudAgentCore kwargs from message payload and admin settings; empty → config defaults."""
-    kwargs: dict = {}
+    kwargs: dict = {"plan_mode": plan_mode}
     config_settings: dict = {}
     if settings_repo:
         try:
