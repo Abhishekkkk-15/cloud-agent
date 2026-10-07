@@ -15,6 +15,7 @@ import { ChatMarkdown } from "@/components/workspace/ChatMarkdown"
 import { ContextUsageIndicator } from "@/components/workspace/ContextUsageIndicator"
 import {
   ExecutionPlanCard,
+  hasPlanBlock,
   stripPlanFromMarkdown,
 } from "@/components/workspace/ExecutionPlanCard"
 import {
@@ -208,6 +209,10 @@ export function AiChatPanel() {
                     (!isAgentTurn &&
                       (message.content.length > 0 || isStreaming))
 
+                  const activePlan = !isUser
+                    ? message.planContent || (hasPlanBlock(message.content) ? message.content : undefined)
+                    : undefined
+
                   return (
                     <MessageScrollerItem
                       key={message.id}
@@ -233,6 +238,20 @@ export function AiChatPanel() {
                               attachments={message.attachments}
                             />
                           ) : null}
+                          {activePlan && (
+                            <div className="mb-2 w-full max-w-2xl">
+                              <ExecutionPlanCard
+                                content={activePlan}
+                                isStreaming={isStreaming}
+                                mode={message.mode}
+                                onExecutePlan={(planSummary) => {
+                                  setChatMode("build")
+                                  toast.info("Switching to Build Mode to execute plan")
+                                  void sendChat(`Execute the plan:\n${planSummary}`)
+                                }}
+                              />
+                            </div>
+                          )}
                           {isAgentTurn ? (
                             <AgentEventTurn
                               events={message.events}
@@ -266,22 +285,10 @@ export function AiChatPanel() {
                                       (isStreaming ? " " : "")}
                                   </span>
                                 ) : (
-                                  <>
-                                    <ExecutionPlanCard
-                                      content={message.content}
-                                      isStreaming={isStreaming}
-                                      mode={message.mode}
-                                      onExecutePlan={(planSummary) => {
-                                        setChatMode("build")
-                                        toast.info("Switching to Build Mode to execute plan")
-                                        void sendChat(`Execute the plan:\n${planSummary}`)
-                                      }}
-                                    />
-                                    <ChatMarkdown
-                                      content={stripPlanFromMarkdown(message.content)}
-                                      streaming={isStreaming}
-                                    />
-                                  </>
+                                  <ChatMarkdown
+                                    content={stripPlanFromMarkdown(message.content)}
+                                    streaming={isStreaming}
+                                  />
                                 )}
                               </BubbleContent>
                             </Bubble>

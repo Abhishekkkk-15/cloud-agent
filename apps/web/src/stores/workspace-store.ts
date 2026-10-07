@@ -18,6 +18,7 @@ import { messagesToThread } from "@/lib/session-messages"
 import { get_wehsocket, reset_websocket } from "@/lib/websocket"
 import { useWorkspaceListStore } from "@/stores/workspace-list-store"
 import { appendAgentEvent } from "@/lib/agent-events"
+import { hasPlanBlock } from "@/components/workspace/ExecutionPlanCard"
 import {
   isTerminalAgentEvent,
   wsEventToUiEvent,
@@ -203,6 +204,7 @@ function clearSandboxListener() {
 type ActiveAgentStream = {
   assistantId: string
   textBuffer: string
+  planBuffer?: string
 }
 
 let activeAgentStream: ActiveAgentStream | null = null
@@ -241,16 +243,50 @@ function applyAgentEvent(
   const { assistantId } = activeAgentStream
   let { textBuffer } = activeAgentStream
 
-  if (payload.type === "text_delta") {
+  const normType = payload.type.startsWith("agent:")
+    ? payload.type.slice(6)
+    : payload.type
+
+  if (normType === "text_delta") {
     const chunk = wsPayloadText(payload) ?? ""
-    if (chunk) textBuffer += chunk
-  } else if (payload.type === "text") {
+    if (chunk) {
+      textBuffer += chunk
+      if (hasPlanBlock(textBuffer)) {
+        activeAgentStream.planBuffer = textBuffer
+      }
+    }
+  } else if (normType === "text") {
     const fullText = wsPayloadText(payload) ?? ""
-    if (fullText) textBuffer = fullText
-  } else if (payload.type === "run_completed") {
+    if (fullText) {
+      if (hasPlanBlock(fullText)) {
+        activeAgentStream.planBuffer = fullText
+      }
+      // If we already captured a plan in this turn, don't let a subsequent intermediate update overwrite it!
+      if (activeAgentStream.planBuffer && !hasPlanBlock(fullText)) {
+        if (!textBuffer.includes(fullText)) {
+          textBuffer = textBuffer ? `${textBuffer}\n\n${fullText}` : fullText
+        }
+      } else if (!textBuffer || fullText.startsWith(textBuffer)) {
+        textBuffer = fullText
+      } else if (!textBuffer.includes(fullText)) {
+        textBuffer = `${textBuffer}\n\n${fullText}`
+      }
+    }
+  } else if (normType === "run_completed") {
     const finalText = wsPayloadText(payload)
-    if (finalText && !textBuffer) textBuffer = finalText
-  } else if (payload.type === "run_failed") {
+    if (finalText) {
+      if (hasPlanBlock(finalText)) {
+        activeAgentStream.planBuffer = finalText
+      }
+      if (activeAgentStream.planBuffer && !hasPlanBlock(finalText)) {
+        if (!textBuffer.includes(finalText)) {
+          textBuffer = textBuffer ? `${textBuffer}\n\n${finalText}` : finalText
+        }
+      } else if (!textBuffer) {
+        textBuffer = finalText
+      }
+    }
+  } else if (normType === "run_failed") {
     const errorText = payload.error ?? wsPayloadText(payload)
     if (errorText && !textBuffer) textBuffer = errorText
   }
@@ -264,6 +300,10 @@ function applyAgentEvent(
         ? {
             ...msg,
             content: textBuffer || msg.content,
+            planContent:
+              activeAgentStream?.planBuffer ||
+              msg.planContent ||
+              (hasPlanBlock(textBuffer) ? textBuffer : undefined),
             events: appendAgentEvent(msg.events ?? [], uiEvent),
           }
         : msg

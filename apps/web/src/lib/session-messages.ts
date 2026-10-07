@@ -1,6 +1,7 @@
 import type { Message, Session } from "@cloud-agent/shared"
 
 import { summaryFromEvents } from "@/lib/agent-events"
+import { hasPlanBlock } from "@/components/workspace/ExecutionPlanCard"
 import {
   wsEventToUiEvent,
   type AgentWsEventPayload,
@@ -140,7 +141,20 @@ function buildAgentTurn(block: Message[]): ThreadMessage {
     }
   }
 
-  const summary = finalAssistantContent(block) || summaryFromEvents(events) || ""
+  let planContent: string | undefined = undefined
+  for (const message of block) {
+    if (normalizeRole(message.role) === "assistant" && message.content) {
+      if (hasPlanBlock(message.content)) {
+        planContent = message.content
+        break
+      }
+    }
+  }
+
+  const finalContent = finalAssistantContent(block)
+  const summary =
+    finalContent ||
+    (planContent ? planContent : summaryFromEvents(events) || "")
   const first = block[0]
   const last = block[block.length - 1]
 
@@ -161,6 +175,7 @@ function buildAgentTurn(block: Message[]): ThreadMessage {
     seq: first.seq,
     role: "assistant",
     content: summary,
+    planContent: planContent || (hasPlanBlock(summary) ? summary : undefined),
     events,
   }
 }

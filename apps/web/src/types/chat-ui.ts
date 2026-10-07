@@ -71,6 +71,7 @@ export const threadMessageSchema = z.object({
   askUser: z.any().optional(),
   askUserAnswered: z.boolean().optional(),
   mode: z.enum(["build", "plan"]).optional(),
+  planContent: z.string().optional(),
 })
 
 export type AgentEventType = z.infer<typeof agentEventTypeSchema>

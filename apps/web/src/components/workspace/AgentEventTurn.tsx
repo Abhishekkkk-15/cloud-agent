@@ -29,6 +29,7 @@ import {
 } from "@/lib/agent-events"
 import { cn } from "@/lib/utils"
 import { ChatMarkdown } from "@/components/workspace/ChatMarkdown"
+import { stripPlanFromMarkdown } from "@/components/workspace/ExecutionPlanCard"
 import { useWorkspaceStore } from "@/stores/workspace-store"
 import type { AgentActivity, AgentEvent } from "@/types/chat-ui"
 
@@ -102,7 +103,7 @@ export function AgentEventTurn({
             </div>
 
             {body ? (
-              <ChatMarkdown content={body} streaming={streaming} />
+              <ChatMarkdown content={stripPlanFromMarkdown(body)} streaming={streaming} />
             ) : streaming ? (
               <p className="text-[15px] leading-7 text-muted-foreground">
                 Working
@@ -143,7 +144,7 @@ export function AgentEventTurn({
           </div>
         </Collapsible>
       ) : body ? (
-        <ChatMarkdown content={body} streaming={streaming} />
+        <ChatMarkdown content={stripPlanFromMarkdown(body)} streaming={streaming} />
       ) : null}
     </div>
   )

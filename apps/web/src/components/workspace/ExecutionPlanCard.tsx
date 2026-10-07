@@ -106,6 +106,14 @@ export function stripPlanFromMarkdown(content: string): string {
   return cleaned.replace(/#{1,4}\s+[^\n]*(?:Plan|Roadmap|Steps)[^\n]*(?:\r?\n)+/gi, "\n").trim()
 }
 
+/**
+ * Returns true if the content contains a parseable execution plan checklist.
+ */
+export function hasPlanBlock(content?: string): boolean {
+  if (!content) return false
+  return extractPlanFromMarkdown(content) !== null
+}
+
 type ExecutionPlanCardProps = {
   content: string
   isStreaming?: boolean
