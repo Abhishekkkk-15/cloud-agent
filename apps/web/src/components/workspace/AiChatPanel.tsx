@@ -17,6 +17,11 @@ import {
   ExecutionPlanCard,
   stripPlanFromMarkdown,
 } from "@/components/workspace/ExecutionPlanCard"
+import {
+  SlashCommandMenu,
+  SLASH_COMMANDS,
+  type SlashCommandItem,
+} from "@/components/workspace/SlashCommandMenu"
 import { ModelAndEffortSelector } from "@/components/workspace/ModelAndEffortSelector"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -64,6 +69,44 @@ export function AiChatPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const busy = chatLoading || !!streamingMessageId
+
+  const isSlashCommandOpen =
+    prompt.startsWith("/") &&
+    !prompt.includes(" ") &&
+    !prompt.includes("\n")
+
+  const [selectedSlashIndex, setSelectedSlashIndex] = useState(0)
+
+  const cleanSlashQuery = prompt.startsWith("/")
+    ? prompt.slice(1).toLowerCase().trim()
+    : prompt.toLowerCase().trim()
+
+  const matchingSlashCommands = SLASH_COMMANDS.filter(
+    (cmd) =>
+      cmd.name.toLowerCase().includes(cleanSlashQuery) ||
+      cmd.title.toLowerCase().includes(cleanSlashQuery) ||
+      cmd.id.toLowerCase().includes(cleanSlashQuery)
+  )
+
+  useEffect(() => {
+    setSelectedSlashIndex(0)
+  }, [cleanSlashQuery])
+
+  const handleSelectSlashCommand = (cmd: SlashCommandItem) => {
+    if (cmd.id === "plan") {
+      setChatMode("plan")
+      setPrompt("")
+      toast.success("Switched to Plan Mode (Read-only)")
+    } else if (cmd.id === "build") {
+      setChatMode("build")
+      setPrompt("")
+      toast.success("Switched to Build Mode")
+    } else if (cmd.id === "fix") {
+      setPrompt("/fix ")
+    } else if (cmd.id === "review") {
+      setPrompt("/review ")
+    }
+  }
 
   useEffect(() => {
     return () => revokeAttachmentUrls(attachments)
@@ -322,6 +365,13 @@ export function AiChatPanel() {
               />
             </div>
           )}
+          {isSlashCommandOpen && (
+            <SlashCommandMenu
+              query={prompt}
+              selectedIndex={selectedSlashIndex}
+              onSelect={handleSelectSlashCommand}
+            />
+          )}
           <Textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -334,6 +384,34 @@ export function AiChatPanel() {
             className="max-h-44 min-h-[48px] w-full resize-none border-0 bg-transparent p-1.5 text-sm shadow-none outline-none placeholder:text-muted-foreground/60 focus-visible:ring-0 dark:placeholder:text-muted-foreground/50"
             disabled={busy}
             onKeyDown={(e) => {
+              if (isSlashCommandOpen && matchingSlashCommands.length > 0) {
+                if (e.key === "ArrowDown") {
+                  e.preventDefault()
+                  setSelectedSlashIndex((prev) => (prev + 1) % matchingSlashCommands.length)
+                  return
+                }
+                if (e.key === "ArrowUp") {
+                  e.preventDefault()
+                  setSelectedSlashIndex(
+                    (prev) => (prev - 1 + matchingSlashCommands.length) % matchingSlashCommands.length
+                  )
+                  return
+                }
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault()
+                  const selected = matchingSlashCommands[selectedSlashIndex]
+                  if (selected) {
+                    handleSelectSlashCommand(selected)
+                  }
+                  return
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault()
+                  setPrompt("")
+                  return
+                }
+              }
+
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault()
                 void submit(prompt)
