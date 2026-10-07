@@ -1,6 +1,7 @@
 from collections import defaultdict
 import re
 import shutil
+from typing import Literal
 
 from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -67,12 +68,24 @@ async def create_workspace(
             if first_line:
                 title = first_line
 
+        raw_prompt = (body.prompt or "").strip()
+        mode: Literal["build", "plan"] = "plan" if (body.mode == "plan") else "build"
+        if raw_prompt.lower().startswith("/plan"):
+            mode = "plan"
+            raw_prompt = raw_prompt[5:].strip()
+        elif raw_prompt.lower().startswith("/build"):
+            mode = "build"
+            raw_prompt = raw_prompt[6:].strip()
+
+        effective_prompt = raw_prompt or (body.prompt or "").strip()
+
         workspace_obj = Workspace(
             title=title,
             user_id=current_user.id,
             target_path="/app",
             source_path="/",
-            initial_prompt=body.prompt,
+            initial_prompt=effective_prompt,
+            initial_mode=mode,
             workspace_origin="template",
         )
         workspace = await repo.create(workspace_obj)

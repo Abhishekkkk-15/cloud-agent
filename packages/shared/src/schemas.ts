@@ -77,6 +77,7 @@ export const workspaceSchema = z.object({
   github_name: z.string().nullable().optional(),
   github_auth_source: z.enum(["user", "platform"]).nullable().optional(),
   workspace_origin: z.enum(["template", "github_import"]).optional(),
+  initial_mode: z.enum(["build", "plan"]).optional(),
 });
 
 /** Matches `MinimalSession` (`id` / `_id`) */
@@ -98,6 +99,7 @@ export const workspaceWithSessionSchema = workspaceSchema.extend({
 
 export const createWorkspaceRequestSchema = z.object({
   prompt: z.string().min(1),
+  mode: z.enum(["build", "plan"]).optional(),
 });
 
 /** Ad-hoc create response from `create_workspace` */

@@ -982,6 +982,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         workspace: workspaceDetail,
         activeSessionId: resolvedSessionId,
         pendingNewSession: startFresh,
+        chatMode: workspaceDetail.initial_mode === "plan" ? "plan" : "build",
         files,
         terminalLines,
         chatMessages,

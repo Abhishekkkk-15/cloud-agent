@@ -22,6 +22,7 @@ class GetAllWorkspacesResponse(BaseModel):
 
 class CreateWorkspaceRequest(BaseModel):
     prompt: str
+    mode: str | None = "build"
 
 
 class CreateWorkspaceResponse(BaseModel):

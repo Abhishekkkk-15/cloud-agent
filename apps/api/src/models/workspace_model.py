@@ -21,6 +21,7 @@ class Workspace(BaseModel):
     
     
     initial_prompt:str =""
+    initial_mode: Literal["build", "plan"] = "build"
     status: WorkspaceStatus = WorkspaceStatus.PENDING
 
     github_repo_full_name: str | None = None

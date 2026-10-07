@@ -401,11 +401,13 @@ async def websocket_endpoint(
 
         # Default agent from admin settings or env/config. Recreate later only when
         # model / reasoning_effort / settings resolve to a different fingerprint.
+        initial_is_plan = getattr(workspace, "initial_mode", "build") == "plan"
         agent_kwargs = await build_agent_kwargs_from_request(
             model_repo,
             settings_repo=settings_repo,
             model_key=None,
             effort=None,
+            plan_mode=initial_is_plan,
         )
         agent_kwargs["workspace_origin"] = (
             getattr(workspace, "workspace_origin", "template") or "template"
