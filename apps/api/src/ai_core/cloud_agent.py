@@ -524,7 +524,22 @@ class CloudAgentCore:
         return self.client.messages
 
     async def resume(self, session_id: str) -> Agent:
-        return await self.client.resume(session_id)
+        res = await self.client.resume(session_id)
+        if self.client.memory.session:
+            sys_prompt = self.client._build_system_prompt(
+                cwd=str(self.client.memory.session.workspace)
+            )
+            if self.client.memory.messages:
+                first_role = getattr(
+                    self.client.memory.messages[0].role,
+                    "value",
+                    self.client.memory.messages[0].role,
+                )
+                if str(first_role).lower() == "system":
+                    if self.client.memory.messages[0].content != sys_prompt:
+                        self.client.memory.messages[0].content = sys_prompt
+                        await self.client.memory.replace_messages()
+        return res
 
     def abort(self):
         self.client.abort()
