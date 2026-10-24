@@ -7,6 +7,7 @@
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",
     "test:e2e": "tsx src/test-e2e.ts",
+    "test:webrtc": "tsx src/test-webrtc-e2e.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },
@@ -21,6 +22,7 @@
     "@types/jsonwebtoken": "^9.0.8",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.14",
-    "typescript": "~6"
+    "typescript": "~6",
+    "werift": "^0.25.2"
   }
 }

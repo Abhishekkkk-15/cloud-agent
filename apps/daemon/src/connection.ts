@@ -1,4 +1,5 @@
 import { rpcDispatcher, type RpcRequest } from "./rpc/index.js";
+import { WebRtcPeerManager, type SignalMessage } from "./webrtc.js";
 import type { DaemonConfig } from "./config.js";
 
 export class GatewayConnection {
@@ -8,8 +9,13 @@ export class GatewayConnection {
   private heartbeatTimer: NodeJS.Timeout | null = null;
   private retryDelayMs = 2000;
   private readonly maxRetryDelayMs = 30000;
+  private webrtc: WebRtcPeerManager;
 
-  constructor(private config: DaemonConfig) {}
+  constructor(private config: DaemonConfig) {
+    this.webrtc = new WebRtcPeerManager((signal: SignalMessage) => {
+      this.send(signal);
+    });
+  }
 
   start(): void {
     this.isRunning = true;
@@ -20,6 +26,7 @@ export class GatewayConnection {
     this.isRunning = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.webrtc.closeAll();
     if (this.ws) {
       try {
         this.ws.close(1000, "Daemon stopped");
@@ -53,16 +60,32 @@ export class GatewayConnection {
       this.ws.onmessage = async (event: MessageEvent) => {
         try {
           const raw = typeof event.data === "string" ? event.data : event.data.toString();
-          const req: RpcRequest = JSON.parse(raw);
+          const data = JSON.parse(raw);
 
-          // Dispatch RPC call
-          const res = await rpcDispatcher.handle(req, (streamChunk) => {
-            this.send(streamChunk);
-          });
+          // 1. Handle WebRTC Signaling Messages from Gateway
+          if (data.type === "webrtc.offer" && data.clientId && data.sdp) {
+            await this.webrtc.handleOffer(data.clientId, data.sdp);
+            return;
+          }
+          if (data.type === "webrtc.candidate" && data.clientId && data.candidate) {
+            await this.webrtc.handleCandidate(data.clientId, data.candidate);
+            return;
+          }
+          if (data.type === "webrtc.close" && data.clientId) {
+            this.webrtc.closePeer(data.clientId);
+            return;
+          }
 
-          this.send(res);
+          // 2. Handle standard fallback JSON-RPC over WebSocket
+          const req: RpcRequest = data;
+          if (req.id && req.method) {
+            const res = await rpcDispatcher.handle(req, (streamChunk) => {
+              this.send(streamChunk);
+            });
+            this.send(res);
+          }
         } catch (err) {
-          console.error(`[Daemon] Error processing RPC message:`, err);
+          console.error(`[Daemon] Error processing message:`, err);
         }
       };
 

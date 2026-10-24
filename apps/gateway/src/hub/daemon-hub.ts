@@ -1,5 +1,6 @@
 import type { WebSocket } from "ws";
 import { updateMachineStatus, type MachineDocument } from "../db/machine-repo.js";
+import { clientHub } from "./client-hub.js";
 
 export interface DaemonSession {
   machineId: string;
@@ -30,7 +31,6 @@ export class DaemonHub {
     const machineId = machineIdOverride || machine.machineId;
     const name = machineNameOverride || machine.name;
 
-    // Disconnect existing socket if same machineId is already connected
     const existing = this.daemons.get(machineId);
     if (existing && existing.ws !== ws) {
       try {
@@ -51,14 +51,12 @@ export class DaemonHub {
 
     this.daemons.set(machineId, session);
 
-    // Update status in MongoDB
     updateMachineStatus(machineId, "online", { name }).catch((err) => {
       console.error(`[DaemonHub] Failed to update machine status:`, err);
     });
 
     console.log(`[DaemonHub] Machine connected: ${name} (${machineId}) for user: ${machine.userId}`);
 
-    // Request daemon status immediately to get adapters & platform info
     this.sendRpc(machineId, "daemon.status", {})
       .then((res) => {
         if (res && res.result) {
@@ -90,14 +88,29 @@ export class DaemonHub {
 
   isOnline(machineId: string): boolean {
     const s = this.daemons.get(machineId);
-    return s !== undefined && s.ws.readyState === 1; // 1 = OPEN
+    return s !== undefined && s.ws.readyState === 1;
+  }
+
+  sendSignalToDaemon(machineId: string, signal: unknown): boolean {
+    const session = this.daemons.get(machineId);
+    if (session && session.ws.readyState === 1) {
+      session.ws.send(JSON.stringify(signal));
+      return true;
+    }
+    return false;
   }
 
   handleDaemonMessage(machineId: string, raw: string): void {
     try {
       const data = JSON.parse(raw);
 
-      // Heartbeat ping from daemon
+      // 1. WebRTC Signaling response from Daemon -> forward to Client
+      if ((data.type === "webrtc.answer" || data.type === "webrtc.candidate") && data.clientId) {
+        clientHub.sendSignalToClient(data.clientId, data);
+        return;
+      }
+
+      // 2. Heartbeat ping from daemon
       if (data.type === "heartbeat") {
         const session = this.daemons.get(machineId);
         if (session) {
@@ -106,11 +119,10 @@ export class DaemonHub {
         return;
       }
 
-      // Check if this is an RPC response or stream chunk
+      // 3. Standard fallback RPC response or stream chunk
       if (data.id && this.pendingRpcs.has(data.id)) {
         const pending = this.pendingRpcs.get(data.id)!;
 
-        // Streaming chunk
         if (data.stream) {
           if (pending.onStream) {
             pending.onStream(data);
@@ -123,7 +135,6 @@ export class DaemonHub {
           return;
         }
 
-        // Final response
         if (pending.timer) clearTimeout(pending.timer);
         this.pendingRpcs.delete(data.id);
 
@@ -138,9 +149,6 @@ export class DaemonHub {
     }
   }
 
-  /**
-   * Dispatches an RPC command to the VPS daemon over WebSocket.
-   */
   async sendRpc(
     machineId: string,
     method: string,
@@ -158,7 +166,6 @@ export class DaemonHub {
 
     return new Promise((resolve, reject) => {
       let timer: NodeJS.Timeout | undefined;
-      // agent.run is long-running, so don't time out early
       if (method !== "agent.run" && timeoutMs > 0) {
         timer = setTimeout(() => {
           this.pendingRpcs.delete(id);

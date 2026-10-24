@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@cloud-agent/cli-interface": "workspace:*",
-    "@cloud-agent/cli-antigravity": "workspace:*"
+    "@cloud-agent/cli-antigravity": "workspace:*",
+    "werift": "^0.25.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
