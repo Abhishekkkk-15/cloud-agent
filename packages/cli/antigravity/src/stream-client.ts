@@ -5,15 +5,29 @@ import type { CliRunOptions, CliEvent } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath } from "./paths.js";
 import { mapAntigravityStreamEvent } from "./mapper.js";
 
-export class AntigravityStreamClient {
-  private activeProcesses = new Map<string, ChildProcess>();
+type QueueItem = { event?: CliEvent; error?: Error; done?: boolean };
 
-  /**
-   * Spawns an Antigravity CLI process in stream-json mode and streams normalized CliEvents.
-   */
-  async *run(options: CliRunOptions): AsyncIterable<CliEvent> {
-    const binary = getAgyBinaryPath() || "agy";
-    const sessionId = options.sessionId || crypto.randomUUID();
+/**
+ * Manages a persistent, long-lived Antigravity CLI process for a specific session.
+ * Keeps stdin open across multiple user turns so each subsequent message starts
+ * streaming immediately with zero process respawn or transcript re-reading overhead.
+ */
+class PersistentWorker {
+  readonly sessionId: string;
+  private child: ChildProcess;
+  private isAlive = true;
+  private queue: QueueItem[] = [];
+  private resolveWait: (() => void) | null = null;
+  private idleTimer: NodeJS.Timeout | null = null;
+  private isTurnRunning = false;
+
+  constructor(
+    binary: string,
+    options: CliRunOptions,
+    sessionId: string,
+    private onExit: (worker: PersistentWorker) => void
+  ) {
+    this.sessionId = sessionId;
 
     const args: string[] = [
       "--input-format",
@@ -45,39 +59,42 @@ export class AntigravityStreamClient {
       ...options.env,
     };
 
-    const child = spawn(binary, args, {
+    this.child = spawn(binary, args, {
       cwd: options.cwd,
       env,
       stdio: ["pipe", "pipe", "pipe"],
       windowsHide: true,
     });
 
-    this.activeProcesses.set(sessionId, child);
+    this.setupListeners();
+    this.resetIdleTimer();
+  }
 
-    // Yield initial starting status
-    yield {
-      type: "status",
-      sessionId,
-      timestamp: new Date().toISOString(),
-      data: { status: "starting", message: "Starting Antigravity CLI..." },
-    };
+  get isRunning(): boolean {
+    return this.isAlive && !this.child.killed;
+  }
 
-    // Queue events from stdout/stderr/exit
-    type QueueItem = { event?: CliEvent; error?: Error; done?: boolean };
-    const queue: QueueItem[] = [];
-    let resolveWait: (() => void) | null = null;
-
-    function pushItem(item: QueueItem) {
-      queue.push(item);
-      if (resolveWait) {
-        resolveWait();
-        resolveWait = null;
-      }
+  private pushItem(item: QueueItem): void {
+    this.queue.push(item);
+    if (this.resolveWait) {
+      this.resolveWait();
+      this.resolveWait = null;
     }
+  }
 
-    // Read stdout line by line
+  private resetIdleTimer(): void {
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    // Reap idle session process after 20 minutes of no user turns
+    this.idleTimer = setTimeout(() => {
+      if (!this.isTurnRunning) {
+        this.destroy();
+      }
+    }, 20 * 60 * 1000);
+  }
+
+  private setupListeners(): void {
     const rlOut = readline.createInterface({
-      input: child.stdout!,
+      input: this.child.stdout!,
       crlfDelay: Infinity,
     });
 
@@ -87,16 +104,23 @@ export class AntigravityStreamClient {
 
       try {
         const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-        const mappedEvents = mapAntigravityStreamEvent(sessionId, parsed);
+        const mappedEvents = mapAntigravityStreamEvent(this.sessionId, parsed);
         for (const ev of mappedEvents) {
-          pushItem({ event: ev });
+          this.pushItem({ event: ev });
+        }
+
+        // When a turn completes, Antigravity emits a 'result' event.
+        // We signal that this turn is done WITHOUT killing the persistent child process!
+        if (parsed.event === "result") {
+          this.isTurnRunning = false;
+          this.resetIdleTimer();
+          this.pushItem({ done: true });
         }
       } catch {
-        // Plain text fallback if line is not JSON
-        pushItem({
+        this.pushItem({
           event: {
             type: "text_chunk",
-            sessionId,
+            sessionId: this.sessionId,
             timestamp: new Date().toISOString(),
             data: { text: trimmed + "\n", delta: true },
           },
@@ -104,9 +128,8 @@ export class AntigravityStreamClient {
       }
     });
 
-    // Read stderr line by line
     const rlErr = readline.createInterface({
-      input: child.stderr!,
+      input: this.child.stderr!,
       crlfDelay: Infinity,
     });
 
@@ -114,117 +137,164 @@ export class AntigravityStreamClient {
       const trimmed = line.trim();
       if (!trimmed) return;
 
-      pushItem({
+      this.pushItem({
         event: {
           type: "status",
-          sessionId,
+          sessionId: this.sessionId,
           timestamp: new Date().toISOString(),
           data: { status: "thinking", message: trimmed },
         },
       });
     });
 
-    child.on("error", (err: Error) => {
-      pushItem({
+    this.child.on("error", (err: Error) => {
+      this.isAlive = false;
+      this.pushItem({
         event: {
           type: "error",
-          sessionId,
+          sessionId: this.sessionId,
           timestamp: new Date().toISOString(),
           data: { error: err.message },
         },
       });
-      pushItem({ done: true });
+      this.pushItem({ done: true });
+      this.onExit(this);
     });
 
-    child.on("close", (code: number | null) => {
-      this.activeProcesses.delete(sessionId);
-      if (code !== 0 && code !== null) {
-        pushItem({
+    this.child.on("close", (code: number | null) => {
+      this.isAlive = false;
+      if (this.isTurnRunning) {
+        this.pushItem({
           event: {
             type: "status",
-            sessionId,
+            sessionId: this.sessionId,
             timestamp: new Date().toISOString(),
-            data: { status: "error", message: `Process exited with code ${code}` },
+            data: {
+              status: code === 0 ? "done" : "error",
+              message: code === 0 ? "Turn completed" : `Process exited with code ${code}`,
+            },
           },
         });
-      } else {
-        pushItem({
-          event: {
-            type: "status",
-            sessionId,
-            timestamp: new Date().toISOString(),
-            data: { status: "done", message: "Turn completed" },
-          },
-        });
+        this.pushItem({ done: true });
       }
-      pushItem({ done: true });
+      this.onExit(this);
     });
+  }
+
+  async *executeTurn(prompt: string): AsyncIterable<CliEvent> {
+    this.isTurnRunning = true;
+    this.resetIdleTimer();
+
+    // Clear queue of any stale items
+    this.queue = [];
 
     // Write input turn payload to stdin in Antigravity NDJSON format
     try {
       const turnPayload =
         JSON.stringify({
           event: "user",
-          message: { content: options.prompt },
+          message: { content: prompt },
         }) + "\n";
-      child.stdin?.write(turnPayload);
-      child.stdin?.end();
+
+      this.child.stdin?.write(turnPayload);
     } catch (writeErr) {
-      pushItem({
-        event: {
-          type: "error",
-          sessionId,
-          timestamp: new Date().toISOString(),
-          data: { error: `Failed to write to stdin: ${String(writeErr)}` },
-        },
-      });
-      pushItem({ done: true });
+      this.isTurnRunning = false;
+      yield {
+        type: "error",
+        sessionId: this.sessionId,
+        timestamp: new Date().toISOString(),
+        data: { error: `Failed to write to stdin: ${String(writeErr)}` },
+      };
+      return;
     }
 
     // Async generator consumption loop
-    try {
-      while (true) {
-        while (queue.length > 0) {
-          const item = queue.shift()!;
-          if (item.error) {
-            throw item.error;
-          }
-          if (item.event) {
-            yield item.event;
-          }
-          if (item.done) {
-            return;
-          }
+    while (true) {
+      while (this.queue.length > 0) {
+        const item = this.queue.shift()!;
+        if (item.error) {
+          throw item.error;
         }
-
-        // Wait for next item
-        await new Promise<void>((res) => {
-          resolveWait = res;
-        });
+        if (item.event) {
+          yield item.event;
+        }
+        if (item.done) {
+          return;
+        }
       }
-    } finally {
-      this.activeProcesses.delete(sessionId);
+
+      await new Promise<void>((res) => {
+        this.resolveWait = res;
+      });
     }
   }
 
-  /**
-   * Interrupts or kills a running CLI process by sessionId.
-   */
-  cancel(sessionId: string): boolean {
-    const proc = this.activeProcesses.get(sessionId);
-    if (proc && !proc.killed) {
+  destroy(): void {
+    this.isAlive = false;
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
+    if (!this.child.killed) {
       try {
-        proc.kill("SIGINT");
+        this.child.stdin?.end();
+        this.child.kill("SIGINT");
         setTimeout(() => {
-          if (!proc.killed) {
-            proc.kill("SIGTERM");
+          if (!this.child.killed) {
+            this.child.kill("SIGTERM");
           }
         }, 1500);
-        this.activeProcesses.delete(sessionId);
-        return true;
       } catch {
-        return false;
+        // ignore
       }
+    }
+    this.onExit(this);
+  }
+}
+
+export class AntigravityStreamClient {
+  private workers = new Map<string, PersistentWorker>();
+
+  /**
+   * Runs an agent turn using a persistent session worker.
+   * If a worker for this session already exists and is alive, reuses it immediately.
+   * If not, spawns a warm worker that stays alive for subsequent turns.
+   */
+  async *run(options: CliRunOptions): AsyncIterable<CliEvent> {
+    const binary = getAgyBinaryPath() || "agy";
+    const sessionId = options.sessionId || crypto.randomUUID();
+
+    let worker = this.workers.get(sessionId);
+
+    // If no warm worker or previous process died, spawn a new one
+    if (!worker || !worker.isRunning) {
+      worker = new PersistentWorker(binary, options, sessionId, (w) => {
+        if (this.workers.get(w.sessionId) === w) {
+          this.workers.delete(w.sessionId);
+        }
+      });
+      this.workers.set(sessionId, worker);
+
+      yield {
+        type: "status",
+        sessionId,
+        timestamp: new Date().toISOString(),
+        data: { status: "starting", message: "Spooling warm Antigravity worker..." },
+      };
+    }
+
+    yield* worker.executeTurn(options.prompt);
+  }
+
+  /**
+   * Interrupts or kills a running CLI worker by sessionId.
+   */
+  cancel(sessionId: string): boolean {
+    const worker = this.workers.get(sessionId);
+    if (worker) {
+      worker.destroy();
+      this.workers.delete(sessionId);
+      return true;
     }
     return false;
   }
