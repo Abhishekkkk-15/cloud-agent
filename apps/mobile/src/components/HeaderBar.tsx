@@ -23,7 +23,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       <View style={styles.leftRow}>
         {onBack && (
           <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.backButton}
             onPress={onBack}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -46,11 +46,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         {rightElement}
         {onMore && (
           <TouchableOpacity
-            style={styles.iconButton}
+            style={styles.moreButton}
             onPress={onMore}
             activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <MoreVertical size={20} color="#58a6ff" />
+            <MoreVertical size={22} color="#58a6ff" />
           </TouchableOpacity>
         )}
       </View>
@@ -60,14 +61,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 56,
+    height: 52,
     backgroundColor: '#0d1117',
     borderBottomWidth: 1,
     borderBottomColor: '#21262d',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     zIndex: 50,
   },
   leftRow: {
@@ -75,32 +76,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
+    overflow: 'hidden',
   },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.md,
+  backButton: {
+    padding: 4,
+    marginRight: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+  },
+  moreButton: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   titleColumn: {
     flex: 1,
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   title: {
-    fontSize: 17,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '600',
     color: '#f0f6fc',
     letterSpacing: -0.2,
+    lineHeight: 20,
   },
   subtitle: {
-    fontSize: 12.5,
-    color: '#8d96a0',
-    marginTop: 2,
+    fontSize: 12,
+    color: '#8b949e',
+    marginTop: 1,
+    lineHeight: 16,
   },
   rightRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
 });

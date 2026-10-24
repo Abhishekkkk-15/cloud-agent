@@ -18,9 +18,7 @@ import {
   ChevronRight,
   Terminal,
   Link,
-  GitBranch,
   FileText,
-  Bot,
   Send,
   GitPullRequest,
   FolderGit2,
@@ -28,7 +26,7 @@ import {
   ArrowDown,
   Sparkles,
 } from '../components/Icons';
-import { colors, radii, typography } from '../theme/tokens';
+import { radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from '../components/MarkdownText';
@@ -42,16 +40,36 @@ interface ActionStep {
   id: string;
   title: string;
   category: 'repo' | 'mcp' | 'skill' | 'terminal' | 'file';
+  duration?: string;
   hasDetails?: boolean;
   details?: string;
 }
+
+const DEFAULT_RESOLUTION_MARKDOWN = `Done — I fixed the merge conflicts and replied on the PR comment.
+
+### What I changed
+- Merged \`origin/main\` into your branch and resolved the conflict in:
+\`/home/runner/work/abhishekkk.in/abhishekkk.in/src/components/sections/ProjectDossier.tsx\`
+- Kept both sides' intended behavior (ASCII shark layout + \`ArchitecturePipeline\` integration).
+
+### Additional fix (from required security check)
+- CodeQL flagged a reflected XSS issue in:
+\`/home/runner/work/abhishekkk.in/abhishekkk.in/src/app/api/spotify/callback/route.ts\`
+- I fixed it and re-ran CodeQL; it now reports **0 alerts**.
+
+### Commits
+- \`9af270e\` — merge conflict resolution
+- \`830b868\` — XSS safety fix in Spotify callback route
+
+### Validation
+- \`codeql_checker\`: clean (0 alerts)
+- \`npm run lint\` could not run in this environment because \`next\` is not installed (sh: 1: next: not found).`;
 
 export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavigateTab }) => {
   const activeSession = useDaemonStore((s) => s.activeSession);
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
   const isSendingPrompt = useDaemonStore((s) => s.isSendingPrompt);
   const sendPrompt = useDaemonStore((s) => s.sendPrompt);
-  const activeMachine = useDaemonStore((s) => s.activeMachine);
 
   const [promptInput, setPromptInput] = useState('');
   const [isAccordionOpen, setIsAccordionOpen] = useState(true);
@@ -86,12 +104,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
   };
 
   const titleStr = activeSession?.title || 'Resolving merge conflicts for ...';
-  const repoName = activeSession?.workspaceName || 'Abhishekkk-15/abhishekkk.in';
-  const modelStr = activeSession?.model || 'gpt-5.3-codex';
+  const repoName = activeSession?.workspaceName || 'Abhishekkk-15 / abhishekkk.in';
+  const modelStr = activeSession?.model || 'gpt-5.3-c...';
   const subtitleStr = `${repoName} • ${modelStr}`;
   const timeAgoStr = formatTimeAgo(activeSession?.createdAt);
 
-  // Extract initial operator prompt (first user turn or title)
+  // Extract initial operator prompt (first user turn or default)
   const initialUserPrompt = useMemo(() => {
     const firstUserMsg = sessionMessages.find((m) => m.role === 'user');
     if (firstUserMsg && firstUserMsg.content) {
@@ -100,7 +118,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
     return activeSession?.title || '@copilot please fix the merge conflicts in this pull request.';
   }, [sessionMessages, activeSession]);
 
-  // Subsequent conversation turns (excluding first turn if displayed on top)
+  // Subsequent conversation turns (excluding first user turn)
   const conversationTurns = useMemo(() => {
     let skippedFirstUser = false;
     return sessionMessages.filter((m) => {
@@ -112,13 +130,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
     });
   }, [sessionMessages]);
 
-  // Dynamically assemble GitHub Copilot action steps matching the screenshot
+  // Assemble the exact Stitch Copilot action steps list
   const actionSteps = useMemo<ActionStep[]>(() => {
     const steps: ActionStep[] = [
       {
         id: 'step_clone',
-        title: `Clone repository ${repoName}`,
+        title: `Clone repository ${repoName.replace(' / ', '/')}`,
         category: 'repo',
+        duration: '0.4s',
         hasDetails: false,
       },
       {
@@ -181,6 +200,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         hasDetails: true,
         details: 'git fetch --deepen=50 origin main\ngit merge-base HEAD origin/main',
       },
+      {
+        id: 'step_reply_comment',
+        title: 'Call to Engine-tools-reply_to_comment',
+        category: 'terminal',
+        hasDetails: true,
+        details: 'engine.tools.reply_to_comment({ pr: 12, body: "Resolved merge conflicts." })',
+      },
     ];
 
     // Append any dynamic tool calls from this session
@@ -213,22 +239,22 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
   const renderActionIcon = (category: ActionStep['category']) => {
     switch (category) {
       case 'repo':
-        return <FolderGit2 size={16} color="#8d96a0" />;
+        return <FolderGit2 size={16} color="#8b949e" />;
       case 'mcp':
-        return <Link size={16} color="#8d96a0" />;
+        return <Link size={16} color="#8b949e" />;
       case 'skill':
-        return <GitFork size={16} color="#8d96a0" />;
+        return <GitFork size={16} color="#8b949e" />;
       case 'file':
-        return <FileText size={16} color="#8d96a0" />;
+        return <FileText size={16} color="#8b949e" />;
       case 'terminal':
       default:
-        return <Terminal size={16} color="#8d96a0" />;
+        return <Terminal size={16} color="#8b949e" />;
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* 1. Header Bar with Back, Title, Subtitle, and Blue 3-Dots */}
+      {/* 1. Top Navigation Bar (Identical to Stitch TopNavigationBar) */}
       <HeaderBar
         title={titleStr}
         subtitle={subtitleStr}
@@ -251,75 +277,83 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Sub-header Meta Line (Matching GitHub Copilot screenshot) */}
-        <Text style={styles.metaLineText}>
-          Created {timeAgoStr} · 1 session · 29.2 AI credits
-        </Text>
-
-        {/* 3. Operator Comment Card (Matching GitHub Copilot screenshot) */}
-        <View style={styles.commentCard}>
-          <Text style={styles.commentHeader}>@Abhishekkk-15 commented:</Text>
-          <Text style={styles.commentBody}>{initialUserPrompt}</Text>
+        {/* 2. Metadata Summary Row (Centered, text-xs text-[#8b949e]) */}
+        <View style={styles.metaRow}>
+          <Text style={styles.metaText}>
+            Created {timeAgoStr} <Text style={styles.metaDot}>•</Text> 1 session{' '}
+            <Text style={styles.metaDot}>•</Text> 29.2 AI credits
+          </Text>
         </View>
 
-        {/* 4. Collapsible Resolution Progress Accordion */}
-        <View style={styles.accordionCard}>
+        {/* 3. User Comment Card (bg-[#161b22] border border-[#21262d] rounded-xl p-3.5) */}
+        <View style={styles.userCommentCard}>
+          <Text style={styles.userCommentHeader}>@Abhishekkk-15 commented:</Text>
+          <Text style={styles.userCommentBody}>{initialUserPrompt}</Text>
+        </View>
+
+        {/* 4. Copilot Action Summary Accordion (border-b border-[#21262d] pb-2 pt-1) */}
+        <View style={styles.accordionSection}>
           <TouchableOpacity
             style={styles.accordionHeader}
             onPress={() => setIsAccordionOpen(!isAccordionOpen)}
             activeOpacity={0.7}
           >
-            {/* Green Filled Check Circle */}
-            <View style={styles.greenCheckCircle}>
-              <Check size={12} color="#ffffff" />
+            <View style={styles.accordionHeaderLeft}>
+              {/* Green checkmark circle: w-5 h-5 rounded-full bg-[#238636] */}
+              <View style={styles.greenCheckCircle}>
+                <Check size={12} color="#ffffff" />
+              </View>
+
+              <View style={styles.accordionTitleCol}>
+                <Text style={styles.accordionTitle} numberOfLines={1}>
+                  Resolving merge conflicts for a...
+                </Text>
+                <Text style={styles.accordionSubtitle}>
+                  {actionSteps.length} actions
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.accordionTitleCol}>
-              <Text style={styles.accordionTitle} numberOfLines={1}>
-                {titleStr}
-              </Text>
-              <Text style={styles.accordionSubtitle}>
-                {actionSteps.length} actions
-              </Text>
-            </View>
-
-            <View style={styles.accordionRightCol}>
+            {/* Execution time & chevron */}
+            <View style={styles.accordionHeaderRight}>
               <Text style={styles.accordionDuration}>4m 28s</Text>
               {isAccordionOpen ? (
-                <ChevronUp size={18} color="#8d96a0" />
+                <ChevronUp size={16} color="#8b949e" />
               ) : (
-                <ChevronDown size={18} color="#8d96a0" />
+                <ChevronDown size={16} color="#8b949e" />
               )}
             </View>
           </TouchableOpacity>
 
-          {/* Action Steps List (Expanded) */}
+          {/* Action Step Rows (mt-2 divide-y divide-[#21262d]/50) */}
           {isAccordionOpen && (
-            <View style={styles.actionsList}>
-              <View style={styles.divider} />
+            <View style={styles.actionStepsList}>
               {actionSteps.map((step) => {
                 const isExpanded = expandedActionId === step.id;
                 return (
                   <View key={step.id}>
                     <TouchableOpacity
-                      style={styles.actionRow}
+                      style={styles.actionStepRow}
                       activeOpacity={step.hasDetails ? 0.7 : 1}
                       onPress={() => step.hasDetails && toggleActionDetails(step.id)}
                     >
-                      <View style={styles.actionLeftGroup}>
-                        <View style={styles.actionIconBox}>
+                      <View style={styles.actionStepLeft}>
+                        <View style={styles.actionStepIconBox}>
                           {renderActionIcon(step.category)}
                         </View>
-                        <Text style={styles.actionText} numberOfLines={1}>
+                        <Text style={styles.actionStepText} numberOfLines={1}>
                           {step.title}
                         </Text>
                       </View>
-                      {step.hasDetails && (
-                        <View style={styles.actionRightIcon}>
+
+                      {step.duration ? (
+                        <Text style={styles.actionStepDuration}>{step.duration}</Text>
+                      ) : (
+                        <View style={styles.actionStepChevronBox}>
                           {isExpanded ? (
-                            <ChevronDown size={16} color="#8d96a0" />
+                            <ChevronDown size={16} color="#6e7681" />
                           ) : (
-                            <ChevronRight size={16} color="#8d96a0" />
+                            <ChevronRight size={16} color="#6e7681" />
                           )}
                         </View>
                       )}
@@ -338,30 +372,26 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
           )}
         </View>
 
-        {/* 5. Additional Conversation Turns / Responses */}
-        {conversationTurns.length > 0 && (
-          <View style={styles.conversationSection}>
+        {/* 5. Copilot Resolution Summary Body (Identical to Stitch copilot-resolution-body) */}
+        {conversationTurns.length === 0 ? (
+          <View style={styles.resolutionContainer}>
+            <MarkdownText content={DEFAULT_RESOLUTION_MARKDOWN} isUser={false} />
+          </View>
+        ) : (
+          <View style={styles.conversationContainer}>
             {conversationTurns.map((msg, idx) => {
               const isUser = msg.role === 'user';
               if (isUser) {
                 return (
-                  <View key={msg.id || idx} style={styles.commentCard}>
-                    <Text style={styles.commentHeader}>@Abhishekkk-15 commented:</Text>
-                    <Text style={styles.commentBody}>{msg.content}</Text>
+                  <View key={msg.id || idx} style={styles.userCommentCard}>
+                    <Text style={styles.userCommentHeader}>@Abhishekkk-15 commented:</Text>
+                    <Text style={styles.userCommentBody}>{msg.content}</Text>
                   </View>
                 );
               }
 
               return (
-                <View key={msg.id || idx} style={styles.assistantCard}>
-                  <View style={styles.assistantHeaderRow}>
-                    <View style={styles.botIconBadge}>
-                      <Bot size={13} color="#3fb950" />
-                    </View>
-                    <Text style={styles.assistantRoleLabel}>Copilot</Text>
-                  </View>
-
-                  {/* Reasoning Process if present */}
+                <View key={msg.id || idx} style={styles.resolutionTurn}>
                   {msg.reasoning ? (
                     <View style={styles.reasoningBox}>
                       <View style={styles.reasoningHeader}>
@@ -373,8 +403,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
                       </Text>
                     </View>
                   ) : null}
-
-                  {/* Markdown Body */}
                   <MarkdownText content={msg.content} isUser={false} />
                 </View>
               );
@@ -391,15 +419,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         )}
       </ScrollView>
 
-      {/* 6. Floating Action Buttons (Green VIEW PR pill + Scroll-to-bottom circle) */}
-      <View style={styles.fabOverlay}>
+      {/* 6. Floating Action Buttons (Scroll to Bottom + Green VIEW button) */}
+      <View style={[styles.scrollFabContainer, { pointerEvents: 'box-none' }]}>
+        <TouchableOpacity
+          style={styles.scrollFab}
+          activeOpacity={0.7}
+          onPress={handleScrollToBottom}
+        >
+          <ArrowDown size={14} color="#8b949e" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.viewFabContainer, { pointerEvents: 'box-none' }]}>
         <TouchableOpacity
           style={styles.viewFab}
           activeOpacity={0.85}
           onPress={() => {
             Alert.alert(
               'View Pull Request',
-              `Active branch/PR for ${repoName}\nStatus: Resolution in progress.`,
+              `Active branch/PR for ${repoName}\nStatus: Merge conflicts resolved.`,
               [{ text: 'OK' }]
             );
           }}
@@ -407,27 +445,19 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
           <GitPullRequest size={15} color="#ffffff" />
           <Text style={styles.viewFabText}>VIEW</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.scrollFab}
-          activeOpacity={0.7}
-          onPress={handleScrollToBottom}
-        >
-          <ArrowDown size={16} color="#c9d1d9" />
-        </TouchableOpacity>
       </View>
 
-      {/* 7. Bottom Input Bar (Capsule Ask anything + Blue Circular Send Button) */}
+      {/* 7. Chat Input Bar (Identical to Stitch ChatInputBar) */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        <View style={styles.bottomBar}>
-          <View style={styles.inputPill}>
+        <View style={styles.chatInputBar}>
+          <View style={styles.chatInputFieldContainer}>
             <TextInput
-              style={styles.inputField}
+              style={styles.chatInputField}
               placeholder="Ask anything"
-              placeholderTextColor="#8d96a0"
+              placeholderTextColor="#6e7681"
               value={promptInput}
               onChangeText={setPromptInput}
               onSubmitEditing={handleSendPrompt}
@@ -438,17 +468,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
 
           <TouchableOpacity
             style={[
-              styles.sendCircle,
-              (!promptInput.trim() || isSendingPrompt) && styles.sendCircleDisabled,
+              styles.chatSendButton,
+              (!promptInput.trim() || isSendingPrompt) && styles.chatSendButtonDisabled,
             ]}
             onPress={handleSendPrompt}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             disabled={!promptInput.trim() || isSendingPrompt}
           >
             {isSendingPrompt ? (
               <ActivityIndicator size="small" color="#ffffff" />
             ) : (
-              <Send size={18} color="#ffffff" />
+              <Send size={16} color="#ffffff" />
             )}
           </TouchableOpacity>
         </View>
@@ -467,171 +497,172 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 90,
+    paddingTop: 8,
+    paddingBottom: 110,
   },
 
-  // Sub-header meta line
-  metaLineText: {
-    fontSize: 13,
-    color: '#8d96a0',
-    marginBottom: 16,
-  },
-
-  // Operator Comment Card
-  commentCard: {
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-  },
-  commentHeader: {
-    fontSize: 13.5,
-    color: '#8d96a0',
+  // Metadata summary row (pt-1 pb-1 text-center text-xs text-[#8b949e])
+  metaRow: {
+    alignItems: 'center',
+    paddingVertical: 4,
     marginBottom: 8,
   },
-  commentBody: {
-    fontSize: 15,
-    lineHeight: 22,
+  metaText: {
+    fontSize: 12,
+    color: '#8b949e',
+    textAlign: 'center',
+  },
+  metaDot: {
+    color: '#484f58',
+  },
+
+  // User Comment Card (bg-[#161b22] border border-[#21262d] rounded-xl p-3.5 shadow-sm)
+  userCommentCard: {
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#21262d',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  userCommentHeader: {
+    fontSize: 12,
+    color: '#8b949e',
+    marginBottom: 6,
+  },
+  userCommentBody: {
+    fontSize: 14,
+    lineHeight: 20,
     color: '#f0f6fc',
   },
 
-  // Accordion Card
-  accordionCard: {
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: 16,
+  // Copilot Action Summary Accordion (border-b border-[#21262d] pb-2 pt-1)
+  accordionSection: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#21262d',
+    paddingBottom: 8,
+    paddingTop: 4,
+    marginBottom: 14,
   },
   accordionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  accordionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    overflow: 'hidden',
   },
   greenCheckCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#238636',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
+    flexShrink: 0,
   },
   accordionTitleCol: {
     flex: 1,
-    marginRight: 8,
+    overflow: 'hidden',
   },
   accordionTitle: {
-    fontSize: 15.5,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#f0f6fc',
+    lineHeight: 18,
   },
   accordionSubtitle: {
-    fontSize: 13,
-    color: '#8d96a0',
+    fontSize: 12,
+    color: '#8b949e',
     marginTop: 2,
+    lineHeight: 16,
   },
-  accordionRightCol: {
+  accordionHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 0,
   },
   accordionDuration: {
-    fontSize: 13,
-    color: '#8d96a0',
+    fontSize: 12,
+    color: '#8b949e',
     fontFamily: typography.mono,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#30363d',
-  },
 
-  // Action Steps List
-  actionsList: {
-    paddingBottom: 6,
+  // Action Steps List (mt-2 divide-y divide-[#21262d]/50)
+  actionStepsList: {
+    marginTop: 8,
   },
-  actionRow: {
+  actionStepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingVertical: 9,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(33, 38, 45, 0.5)',
   },
-  actionLeftGroup: {
+  actionStepLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     flex: 1,
     marginRight: 8,
+    overflow: 'hidden',
   },
-  actionIconBox: {
+  actionStepIconBox: {
     width: 20,
+    marginRight: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionText: {
-    fontSize: 13.5,
+  actionStepText: {
+    fontSize: 12,
     color: '#c9d1d9',
     flex: 1,
   },
-  actionRightIcon: {
+  actionStepDuration: {
+    fontSize: 11,
+    color: '#8b949e',
+    fontFamily: typography.mono,
+    marginLeft: 8,
+  },
+  actionStepChevronBox: {
     width: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   actionDetailsDrawer: {
     backgroundColor: '#010409',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    padding: 10,
+    marginVertical: 4,
+    padding: 8,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: '#30363d',
   },
   actionDetailsText: {
     fontFamily: typography.mono,
-    fontSize: 11.5,
-    lineHeight: 17,
+    fontSize: 11,
+    lineHeight: 16,
     color: '#79c0ff',
   },
 
-  // Conversation turns
-  conversationSection: {
-    marginTop: 4,
-    gap: 16,
+  // Resolution summary container
+  resolutionContainer: {
+    paddingTop: 2,
   },
-  assistantCard: {
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    borderRadius: 14,
-    padding: 16,
+  conversationContainer: {
+    gap: 12,
   },
-  assistantHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  resolutionTurn: {
     marginBottom: 8,
   },
-  botIconBadge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(35, 134, 54, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  assistantRoleLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#3fb950',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
+
+  // Reasoning process box
   reasoningBox: {
     backgroundColor: '#010409',
     borderWidth: 1,
@@ -656,7 +687,7 @@ const styles = StyleSheet.create({
   reasoningText: {
     fontSize: 11.5,
     lineHeight: 17,
-    color: '#8d96a0',
+    color: '#8b949e',
     fontStyle: 'italic',
   },
 
@@ -673,13 +704,34 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // Floating Action Buttons (VIEW PR & Scroll Down)
-  fabOverlay: {
+  // Floating Action Buttons
+  scrollFabContainer: {
     position: 'absolute',
-    right: 16,
-    bottom: 74,
+    bottom: 58,
+    left: '50%',
+    marginLeft: -16,
+    zIndex: 20,
+  },
+  scrollFab: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#21262d',
+    borderWidth: 1,
+    borderColor: '#30363d',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  viewFabContainer: {
+    position: 'absolute',
+    bottom: 54,
+    right: 16,
+    zIndex: 20,
   },
   viewFab: {
     flexDirection: 'row',
@@ -691,65 +743,54 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 6,
   },
   viewFabText: {
-    fontSize: 12.5,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '700',
     color: '#ffffff',
     letterSpacing: 0.6,
-  },
-  scrollFab: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#21262d',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
+    textTransform: 'uppercase',
   },
 
-  // Bottom Input Bar
-  bottomBar: {
+  // Chat Input Bar (px-3 py-2 bg-[#0d1117] border-t border-[#21262d]/60)
+  chatInputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#0d1117',
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
+    borderTopColor: 'rgba(33, 38, 45, 0.6)',
   },
-  inputPill: {
+  chatInputFieldContainer: {
     flex: 1,
-    height: 48,
-    backgroundColor: '#21262d',
-    borderRadius: 24,
-    paddingHorizontal: 18,
+    height: 40,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#30363d',
+    borderRadius: 16,
+    paddingHorizontal: 14,
     justifyContent: 'center',
   },
-  inputField: {
-    fontSize: 15,
+  chatInputField: {
+    fontSize: 14,
     color: '#f0f6fc',
+    padding: 0,
   },
-  sendCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  chatSendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#1f6feb',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendCircleDisabled: {
+  chatSendButtonDisabled: {
     backgroundColor: '#21262d',
-    opacity: 0.6,
+    opacity: 0.5,
   },
 });
