@@ -1,0 +1,28 @@
+{
+  "name": "@cloud-agent/daemon",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cloud-agent-daemon": "./dist/index.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts start",
+    "test:rpc": "tsx src/test-rpc.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@cloud-agent/cli-interface": "workspace:*",
+    "@cloud-agent/cli-antigravity": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.14",
+    "typescript": "~6"
+  }
+}
