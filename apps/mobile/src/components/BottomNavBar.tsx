@@ -14,7 +14,7 @@ interface BottomNavBarProps {
 export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   activeTab,
   onSelectTab,
-  pendingApprovalsCount = 1,
+  pendingApprovalsCount = 0,
 }) => {
   return (
     <View style={styles.container}>

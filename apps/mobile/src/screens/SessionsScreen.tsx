@@ -95,7 +95,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           </View>
           <View style={styles.creditsPill}>
             <Zap size={12} color={colors.green} />
-            <Text style={styles.creditsText}>{sessions.length} sessions cached</Text>
+            <Text style={styles.creditsText}>{sessions.length} sessions discovered</Text>
           </View>
         </View>
 

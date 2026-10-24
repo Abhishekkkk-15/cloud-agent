@@ -27,6 +27,7 @@ export interface RealMessageItem {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   timestamp: string;
+  reasoning?: string;
   toolCalls?: Array<{ id: string; name: string; arguments: any }>;
   toolCallId?: string;
 }
@@ -92,32 +93,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   sessionMessages: [],
   isLoadingSessions: false,
   isSendingPrompt: false,
-  pendingApproval: {
-    id: 'appr_882',
-    tool: 'bash',
-    command: 'sudo systemctl restart gateway-worker && docker-compose down --volumes',
-    description: 'Elevated runtime privilege request for system daemon cycle',
-    requestedAt: 'Just now',
-    targetNode: 'DESKTOP-BJI38IC',
-    caller: 'Antigravity CLI (agy v2.4.1)',
-    riskLevel: 'high',
-  },
-  decisionTrail: [
-    {
-      id: 'dt_1',
-      command: 'git commit -am "fix(net): jitter re..."',
-      approved: true,
-      timestamp: '14m ago',
-      details: 'Verified root approval',
-    },
-    {
-      id: 'dt_2',
-      command: 'rm -rf /tmp/build-cache',
-      approved: true,
-      timestamp: '1h ago',
-      details: 'Manual bypass by @Abhishekkk-15',
-    },
-  ],
+  pendingApproval: null,
+  decisionTrail: [],
 
   setSelectedWorkspace: (ws: string) => {
     set({ selectedWorkspace: ws });
@@ -137,39 +114,130 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
     // Subscribe to live agent events
     mobileP2P.onEvent((event) => {
-      if (event.type === 'tool_approval_required' || event.type === 'ask_user') {
+      if (!event) return;
+
+      if (event.type === 'tool_approval_required' || event.type === 'ask_user' || event.type === 'permission_request') {
+        const data = event.data || event;
         set({
           pendingApproval: {
-            id: event.approvalId || `appr_${Date.now()}`,
-            tool: event.tool || 'bash',
-            command: event.command || event.prompt || '',
-            description: event.description || 'Elevated command requires approval',
+            id: event.approvalId || data.id || `appr_${Date.now()}`,
+            tool: event.tool || data.toolName || data.tool || 'bash',
+            command: event.command || data.command || event.prompt || data.prompt || (data.details ? JSON.stringify(data.details) : ''),
+            description: event.description || data.description || 'Elevated command requires approval',
             requestedAt: 'Just now',
-            targetNode: get().activeMachine?.name || 'vps-daemon',
-            caller: 'Antigravity CLI',
+            targetNode: get().activeMachine?.name || 'DESKTOP-BJI38IC',
+            caller: 'Google Antigravity CLI',
             riskLevel: 'high',
           },
         });
       } else if (event.type === 'text_chunk') {
+        const text = typeof event.data === 'string'
+          ? event.data
+          : event.data?.text ?? event.text ?? '';
+        if (!text) return;
+
         set((state) => {
           const msgs = [...state.sessionMessages];
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.role === 'assistant') {
-            lastMsg.content += event.text;
+            const currentContent = typeof lastMsg.content === 'string' ? lastMsg.content : '';
+            msgs[msgs.length - 1] = {
+              ...lastMsg,
+              content: currentContent + text,
+            };
             return { sessionMessages: msgs };
           } else {
             return {
               sessionMessages: [
                 ...msgs,
                 {
+                  id: `asst_${Date.now()}`,
                   role: 'assistant',
-                  content: event.text,
+                  content: text,
                   timestamp: new Date().toISOString(),
                 },
               ],
             };
           }
         });
+      } else if (event.type === 'thought') {
+        const thought = event.data?.thought || event.thought || '';
+        if (!thought) return;
+        set((state) => {
+          const msgs = [...state.sessionMessages];
+          const lastMsg = msgs[msgs.length - 1];
+          if (lastMsg && lastMsg.role === 'assistant') {
+            msgs[msgs.length - 1] = {
+              ...lastMsg,
+              reasoning: (lastMsg.reasoning || '') + thought,
+            };
+            return { sessionMessages: msgs };
+          } else {
+            return {
+              sessionMessages: [
+                ...msgs,
+                {
+                  id: `asst_${Date.now()}`,
+                  role: 'assistant',
+                  content: '',
+                  reasoning: thought,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+        });
+      } else if (event.type === 'tool_call') {
+        const tcData = event.data || event;
+        set((state) => {
+          const msgs = [...state.sessionMessages];
+          const lastMsg = msgs[msgs.length - 1];
+          const newToolCall = {
+            id: tcData.id || `tc_${Date.now()}`,
+            name: tcData.name || 'tool',
+            arguments: tcData.arguments || {},
+          };
+          if (lastMsg && lastMsg.role === 'assistant') {
+            const existingCalls = lastMsg.toolCalls || [];
+            msgs[msgs.length - 1] = {
+              ...lastMsg,
+              toolCalls: [...existingCalls, newToolCall],
+            };
+            return { sessionMessages: msgs };
+          } else {
+            return {
+              sessionMessages: [
+                ...msgs,
+                {
+                  id: `asst_${Date.now()}`,
+                  role: 'assistant',
+                  content: '',
+                  toolCalls: [newToolCall],
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+        });
+      } else if (event.type === 'status') {
+        const statusVal = event.data?.status || event.status;
+        const msg = event.data?.message || event.message;
+        if (statusVal === 'error') {
+          set((state) => ({
+            sessionMessages: [
+              ...state.sessionMessages,
+              {
+                id: `err_${Date.now()}`,
+                role: 'assistant',
+                content: `⚠️ Error: ${msg || 'Execution failed'}`,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+            isSendingPrompt: false,
+          }));
+        } else if (statusVal === 'done') {
+          set({ isSendingPrompt: false });
+        }
       }
     });
 
@@ -281,20 +349,29 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   selectSession: async (session: RealSessionItem) => {
     set({ activeSession: session, sessionMessages: [] });
     try {
-      const resp = await mobileP2P.sendRpc<{ messages: any[] }>('sessions.messages', {
+      const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
         sessionId: session.id,
         limit: 50,
       });
 
-      if (resp && Array.isArray(resp.messages)) {
-        const msgs: RealMessageItem[] = resp.messages.map((m: any) => ({
+      const rawList = Array.isArray(resp?.items)
+        ? resp.items
+        : Array.isArray(resp?.messages)
+        ? resp.messages
+        : [];
+
+      if (rawList.length > 0) {
+        const msgs: RealMessageItem[] = rawList.map((m: any) => ({
           id: m.id,
           role: m.role || 'user',
           content: m.content || '',
+          reasoning: m.reasoning,
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
         }));
         set({ sessionMessages: msgs });
+      } else {
+        set({ sessionMessages: [] });
       }
     } catch (err) {
       console.error('[DaemonStore] selectSession error:', err);
@@ -318,14 +395,31 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
     try {
       await mobileP2P.sendRpc('agent.run', {
+        options: {
+          prompt: promptText,
+          sessionId: activeSession?.id,
+          cwd: activeSession?.workspacePath,
+        },
         prompt: promptText,
         sessionId: activeSession?.id,
         cwd: activeSession?.workspacePath,
       });
       set({ isSendingPrompt: false });
-    } catch (err) {
+    } catch (err: any) {
       console.error('[DaemonStore] sendPrompt error:', err);
-      set({ isSendingPrompt: false });
+      const errMsg = err?.message || String(err);
+      set((state) => ({
+        sessionMessages: [
+          ...state.sessionMessages,
+          {
+            id: `err_${Date.now()}`,
+            role: 'assistant',
+            content: `⚠️ Failed to execute turn: ${errMsg}`,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        isSendingPrompt: false,
+      }));
     }
   },
 

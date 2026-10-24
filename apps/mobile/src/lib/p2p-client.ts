@@ -3,34 +3,51 @@ export type ConnectionState = 'disconnected' | 'connecting' | 'signaling' | 'con
 export interface RpcResponse<T = any> {
   id: string;
   result?: T;
-  error?: { code: number; message: string };
+  error?: { code?: number; message?: string } | string;
 }
 
 export interface DaemonStatusResult {
-  status: string;
-  uptime: number;
-  pid: number;
+  hostname: string;
   platform: string;
   arch: string;
-  hostname: string;
-  adapters: Array<{
-    id: string;
-    name: string;
-    version: string;
-    binaryPath: string;
-    isPrimary?: boolean;
-    status: 'active' | 'ready' | 'installed' | 'unavailable';
-  }>;
+  uptime: number;
+  pid?: number;
+  nodeVersion?: string;
   telemetry?: {
-    cpuPercent: number;
-    ramUsedGb: number;
-    ramTotalGb: number;
-    diskUsedGb: number;
-    diskTotalGb: number;
-    loadAvg: [number, number, number];
-    egressMbps: number;
-    ingressKbps: number;
+    cpu?: {
+      percent: number;
+      cores: number;
+      model: string;
+      speedMhz: number;
+    };
+    ram?: {
+      totalGb: number;
+      usedGb: number;
+      freeGb: number;
+      percent: number;
+    };
+    disk?: {
+      totalGb: number;
+      usedGb: number;
+      freeGb: number;
+      percent: number;
+    } | null;
+    loadAvg?: number[];
   };
+  adapters?: Array<{
+    id: string;
+    displayName?: string;
+    name?: string;
+    version?: string;
+    binaryName?: string;
+    binaryPath?: string;
+    status?: 'active' | 'ready' | 'installed' | 'unavailable';
+  }>;
+  availability?: Record<string, {
+    available: boolean;
+    version?: string;
+    binaryPath?: string;
+  }>;
 }
 
 export class MobileP2PClient {
@@ -39,6 +56,7 @@ export class MobileP2PClient {
   private dc: any | null = null;
   private state: ConnectionState = 'disconnected';
   private clientId: string = '';
+  private machineId: string = '';
   private pendingRpcs = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
   private eventListeners = new Set<(event: any) => void>();
   private stateListeners = new Set<(state: ConnectionState) => void>();
@@ -68,21 +86,31 @@ export class MobileP2PClient {
 
   async connect(gatewayUrl: string, token: string, machineId: string): Promise<void> {
     if (this.state === 'connected' || this.state === 'connecting') return;
+    this.machineId = machineId;
     this.setState('connecting');
 
     try {
-      const wsUrl = `${gatewayUrl}/client/ws?token=${token}`;
+      // Normalize protocol to ws/wss
+      const wsBase = gatewayUrl.replace(/^http:\/\//i, 'ws://').replace(/^https:\/\//i, 'wss://');
+      const wsUrl = `${wsBase}/client/ws?token=${token}`;
+      console.log('[MobileP2P] Connecting WebSocket to:', wsUrl);
       this.ws = new WebSocket(wsUrl);
 
       await new Promise<void>((resolve, reject) => {
         if (!this.ws) return reject(new Error('WebSocket creation failed'));
-        this.ws.onopen = () => resolve();
-        this.ws.onerror = (e) => reject(e);
+        this.ws.onopen = () => {
+          console.log('[MobileP2P] WebSocket opened to Gateway');
+          resolve();
+        };
+        this.ws.onerror = (e) => {
+          console.error('[MobileP2P] WebSocket error:', e);
+          reject(e);
+        };
       });
 
       this.setState('signaling');
 
-      // Use native RTCPeerConnection if available (in browser Expo Web or react-native-webrtc)
+      // Use native RTCPeerConnection if available
       const RTCPC = typeof window !== 'undefined' && (window as any).RTCPeerConnection
         ? (window as any).RTCPeerConnection
         : typeof globalThis !== 'undefined' && (globalThis as any).RTCPeerConnection
@@ -90,74 +118,79 @@ export class MobileP2PClient {
         : null;
 
       if (RTCPC) {
-        this.pc = new RTCPC({
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-        });
+        try {
+          this.pc = new RTCPC({
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+          });
 
-        this.dc = this.pc.createDataChannel('cloud-agent-rpc');
+          this.dc = this.pc.createDataChannel('cloud-agent-rpc');
 
-        this.pc.onicecandidate = (event: any) => {
-          if (event.candidate && this.ws && this.ws.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({
-              type: 'webrtc.candidate',
-              machineId,
-              clientId: this.clientId,
-              candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate,
-            }));
-          }
-        };
+          this.pc.onicecandidate = (event: any) => {
+            if (event.candidate && this.ws && this.ws.readyState === WebSocket.OPEN) {
+              this.ws.send(JSON.stringify({
+                type: 'webrtc.candidate',
+                machineId: this.machineId,
+                clientId: this.clientId,
+                candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate,
+              }));
+            }
+          };
 
-        const setupDc = (channel: any) => {
-          channel.onopen = () => {
+          this.dc.onopen = () => {
+            console.log('[MobileP2P] WebRTC DataChannel OPENED!');
             this.setState('connected');
           };
-          channel.onclose = () => {
-            this.setState('disconnected');
+          this.dc.onclose = () => {
+            console.log('[MobileP2P] DataChannel closed');
           };
-          channel.onmessage = (event: any) => {
+          this.dc.onmessage = (event: any) => {
             this.handleIncomingMessage(event.data);
           };
-        };
-
-        setupDc(this.dc);
+        } catch (e) {
+          console.warn('[MobileP2P] RTCPeerConnection setup failed, falling back to WebSocket relay:', e);
+        }
       }
 
       this.ws.onmessage = async (msg: any) => {
         try {
-          const data = JSON.parse(typeof msg.data === 'string' ? msg.data : msg.data.toString());
+          const rawText = typeof msg.data === 'string' ? msg.data : msg.data.toString();
+          const data = JSON.parse(rawText);
 
           if (data.type === 'client.ready') {
             this.clientId = data.clientId;
+            console.log('[MobileP2P] Client ready with ID:', this.clientId);
+
+            // Once client is registered, mark as connected
+            this.setState('connected');
 
             if (this.pc) {
-              const offer = await this.pc.createOffer();
-              await this.pc.setLocalDescription(offer);
+              try {
+                const offer = await this.pc.createOffer();
+                await this.pc.setLocalDescription(offer);
 
-              this.ws?.send(JSON.stringify({
-                type: 'webrtc.offer',
-                machineId,
-                clientId: this.clientId,
-                sdp: offer,
-              }));
-            } else {
-              // Direct WebSocket relay mode if RTCPeerConnection is not available
-              this.setState('connected');
+                this.ws?.send(JSON.stringify({
+                  type: 'webrtc.offer',
+                  machineId: this.machineId,
+                  clientId: this.clientId,
+                  sdp: offer,
+                }));
+              } catch (offerErr) {
+                console.warn('[MobileP2P] Failed to create WebRTC offer:', offerErr);
+              }
             }
           } else if (data.type === 'webrtc.answer' && data.sdp && this.pc) {
-            const RTCSD = (window as any)?.RTCSessionDescription || (globalThis as any)?.RTCSessionDescription;
             const sdpString = typeof data.sdp === 'string' ? data.sdp : data.sdp.sdp;
-            await this.pc.setRemoteDescription(new RTCSD({ type: 'answer', sdp: sdpString }));
+            await this.pc.setRemoteDescription({ type: 'answer', sdp: sdpString });
           } else if (data.type === 'webrtc.candidate' && data.candidate && this.pc) {
             const RTCCand = (window as any)?.RTCIceCandidate || (globalThis as any)?.RTCIceCandidate;
             try {
-              await this.pc.addIceCandidate(new RTCCand(data.candidate));
+              await this.pc.addIceCandidate(RTCCand ? new RTCCand(data.candidate) : data.candidate);
             } catch {
               // ignore duplicate candidate
             }
-          } else if (data.type === 'rpc.response' || data.result !== undefined || data.error !== undefined) {
-            this.handleIncomingMessage(JSON.stringify(data));
-          } else if (data.type === 'agent.event') {
-            this.eventListeners.forEach((listener) => listener(data.event));
+          } else {
+            // Handle RPC response or stream chunk
+            this.handleIncomingMessage(rawText);
           }
         } catch (err) {
           console.error('[MobileP2PClient] Error parsing gateway message:', err);
@@ -176,47 +209,70 @@ export class MobileP2PClient {
   private handleIncomingMessage(rawText: string) {
     try {
       const data = JSON.parse(rawText);
+
+      // Handle streaming chunks (e.g. agent.run)
+      if (data.stream) {
+        if (data.event) {
+          this.eventListeners.forEach((listener) => listener(data.event));
+        }
+        if (data.done && data.id && this.pendingRpcs.has(data.id)) {
+          const handler = this.pendingRpcs.get(data.id)!;
+          this.pendingRpcs.delete(data.id);
+          handler.resolve(data.result);
+        }
+        return;
+      }
+
+      // Deliver general background events
+      if (data.event) {
+        this.eventListeners.forEach((listener) => listener(data.event));
+      }
+
+      // Handle final RPC response
       if (data.id && this.pendingRpcs.has(data.id)) {
         const handler = this.pendingRpcs.get(data.id)!;
         this.pendingRpcs.delete(data.id);
         if (data.error) {
-          handler.reject(new Error(data.error.message || 'RPC Failed'));
+          handler.reject(new Error(typeof data.error === 'string' ? data.error : data.error.message || 'RPC Failed'));
         } else {
           handler.resolve(data.result);
         }
-      } else if (data.event) {
-        this.eventListeners.forEach((listener) => listener(data.event));
       }
     } catch (err) {
       console.error('[MobileP2PClient] Failed to handle incoming message:', err);
     }
   }
 
-  sendRpc<T = any>(method: string, params: Record<string, unknown> = {}): Promise<T> {
-    const id = `mobile_rpc_${++this.reqCounter}_${Date.now()}`;
-    const payload = JSON.stringify({ id, method, params });
+  sendRpc<T = any>(method: string, params: Record<string, unknown> = {}, timeoutMs?: number): Promise<T> {
+    const id = `rpc_${++this.reqCounter}_${Date.now()}`;
+    const payload = JSON.stringify({ id, machineId: this.machineId, method, params });
 
     return new Promise<T>((resolve, reject) => {
       this.pendingRpcs.set(id, { resolve, reject });
 
-      // Timeout after 15 seconds
-      setTimeout(() => {
-        if (this.pendingRpcs.has(id)) {
-          this.pendingRpcs.delete(id);
-          reject(new Error(`RPC timeout for method ${method}`));
-        }
-      }, 15000);
+      // Generous timeout for AI agent runs (3 minutes), 30s for standard RPCs
+      const effectiveTimeout = timeoutMs !== undefined
+        ? timeoutMs
+        : method === 'agent.run'
+        ? 180000
+        : 30000;
+
+      if (effectiveTimeout > 0) {
+        setTimeout(() => {
+          if (this.pendingRpcs.has(id)) {
+            this.pendingRpcs.delete(id);
+            reject(new Error(`RPC timeout for method ${method}`));
+          }
+        }, effectiveTimeout);
+      }
 
       if (this.dc && this.dc.readyState === 'open') {
         this.dc.send(payload);
       } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({
-          type: 'rpc.relay',
-          payload,
-        }));
+        this.ws.send(payload);
       } else {
         this.pendingRpcs.delete(id);
-        reject(new Error('No active connection to Daemon'));
+        reject(new Error('No active connection to Gateway or Daemon'));
       }
     });
   }

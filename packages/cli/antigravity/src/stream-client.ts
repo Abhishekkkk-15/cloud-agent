@@ -20,7 +20,8 @@ export class AntigravityStreamClient {
       "stream-json",
       "--output-format",
       "stream-json",
-      "--print=",
+      "--print",
+      "",
     ];
 
     if (options.sessionId) {
@@ -35,7 +36,7 @@ export class AntigravityStreamClient {
     if (options.mode) {
       args.push("--mode", options.mode);
     }
-    if (options.dangerouslySkipPermissions) {
+    if (options.dangerouslySkipPermissions !== false) {
       args.push("--dangerously-skip-permissions");
     }
 

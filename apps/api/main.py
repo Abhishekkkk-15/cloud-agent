@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,10 +21,13 @@ app = FastAPI(lifespan=db_lifespan)
 import os
 
 origins = [
-    "http://localhost:3000",    
+    "http://localhost:3000",
     "http://localhost:5173",
-    "http://127.0.0.1:5173", 
-    "http://localhost:8001",     
+    "http://127.0.0.1:5173",
+    "http://localhost:8001",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:8082",
     "https://cloud-agent.abhishekkkk.in",
 ]
 frontend_url = os.getenv("FRONTEND_URL")
@@ -36,9 +38,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_origin_regex=r"^https?://([a-zA-Z0-9_-]+\.)*(lvh\.me|abhishekkkk\.in)(:\d+)?$",
-    allow_credentials=True,           
-    allow_methods=["*"],                
-    allow_headers=["*"],              
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Intercept wildcard subdomains (e.g. <workspace_id>.lvh.me:8000) for preview proxying
@@ -53,14 +55,14 @@ app.include_router(UserRouter)
 app.include_router(AuthRouter)
 app.include_router(ChatRouter)
 app.include_router(SessionRouter)
-app.include_router(PreviewRouter)  
+app.include_router(PreviewRouter)
 app.include_router(ModelRouter)
 app.include_router(GitHubRouter)
 app.include_router(AdminRouter)
 # Websocket routes
-app.include_router(WSRouter)  
- 
+app.include_router(WSRouter)
+
 print("STARTED LISTNINIG")
-    
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8000,reload=False)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)

@@ -61,40 +61,33 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
     return `${mins}m`;
   };
 
-  const uptimeStr = daemonStatus?.uptime ? formatUptime(daemonStatus.uptime) : '19d 8h 12m';
-  const pidStr = daemonStatus?.pid ? String(daemonStatus.pid) : '28419';
+  const uptimeStr = daemonStatus?.uptime ? formatUptime(daemonStatus.uptime) : 'Online';
+  const pidStr = daemonStatus?.pid ? String(daemonStatus.pid) : 'Daemon';
   const hostName = activeMachine?.name || daemonStatus?.hostname || 'DESKTOP-BJI38IC';
   const platformStr = activeMachine
     ? `${activeMachine.platform} ${activeMachine.arch}`
     : daemonStatus
     ? `${daemonStatus.platform} ${daemonStatus.arch}`
-    : 'Ubuntu 24.04';
+    : 'win32 x64';
 
-  const adapters = daemonStatus?.adapters && daemonStatus.adapters.length > 0
-    ? daemonStatus.adapters
-    : [
-        {
-          id: 'antigravity',
-          name: 'Google Antigravity CLI',
-          version: 'agy v2.4.1',
-          binaryPath: '/usr/local/bin/agy • stdio RPC',
-          status: 'active' as const,
-        },
-        {
-          id: 'claude',
-          name: 'Claude Code',
-          version: 'v1.0.8',
-          binaryPath: '/opt/anthropic/claude-code • MCP Bridge',
-          status: 'ready' as const,
-        },
-        {
-          id: 'codex',
-          name: 'OpenAI Codex CLI',
-          version: 'v0.9.4',
-          binaryPath: '/usr/bin/codex-runtime',
-          status: 'installed' as const,
-        },
-      ];
+  const adapters = daemonStatus?.adapters?.map((a) => {
+    const avail = daemonStatus?.availability?.[a.id];
+    return {
+      id: a.id,
+      name: a.displayName || a.name || a.id,
+      version: avail?.version ? `agy ${avail.version}` : (a.version || 'v1.4.7'),
+      binaryPath: avail?.binaryPath || a.binaryPath || 'stdio RPC',
+      status: avail?.available ? ('active' as const) : ('ready' as const),
+    };
+  }) || [
+    {
+      id: 'antigravity',
+      name: 'Google Antigravity CLI',
+      version: 'agy v1.4.7',
+      binaryPath: 'C:\\Users\\USE05\\AppData\\Local\\agy\\bin\\agy.exe • stdio RPC',
+      status: 'active' as const,
+    },
+  ];
 
   return (
     <View style={styles.container}>
@@ -192,10 +185,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
             <View style={styles.metricHeader}>
               <View style={styles.metricTitleGroup}>
                 <Cpu size={15} color={colors.textMuted} />
-                <Text style={styles.metricLabel}>CPU Utilization (AMD / Intel Multi-Core)</Text>
+                <Text style={styles.metricLabel}>
+                  CPU ({daemonStatus?.telemetry?.cpu?.model || 'Intel / AMD Multi-Core'})
+                </Text>
               </View>
               <Text style={[styles.metricValue, { color: colors.green }]}>
-                {daemonStatus?.telemetry?.cpuPercent ?? 18.4}%
+                {daemonStatus?.telemetry?.cpu?.percent ?? 0}%
               </Text>
             </View>
             <View style={styles.progressBarBg}>
@@ -203,7 +198,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
                 style={[
                   styles.progressBarFill,
                   {
-                    width: `${daemonStatus?.telemetry?.cpuPercent ?? 18.4}%`,
+                    width: `${Math.min(100, Math.max(3, daemonStatus?.telemetry?.cpu?.percent ?? 0))}%`,
                     backgroundColor: colors.green,
                   },
                 ]}
@@ -211,9 +206,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
             </View>
             <View style={styles.metricFooter}>
               <Text style={styles.metricFooterText}>
-                Load avg: {daemonStatus?.telemetry?.loadAvg ? daemonStatus.telemetry.loadAvg.join(', ') : '0.42, 0.38, 0.31'}
+                Logical Cores: {daemonStatus?.telemetry?.cpu?.cores ?? 4}
               </Text>
-              <Text style={styles.metricFooterText}>Core temp: 41°C</Text>
+              <Text style={styles.metricFooterText}>
+                Clock: {daemonStatus?.telemetry?.cpu?.speedMhz ? `${daemonStatus.telemetry.cpu.speedMhz} MHz` : 'Active'}
+              </Text>
             </View>
           </View>
 
@@ -224,63 +221,76 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
             <View style={styles.metricHeader}>
               <View style={styles.metricTitleGroup}>
                 <Layers size={15} color={colors.textMuted} />
-                <Text style={styles.metricLabel}>RAM Allocation Pool</Text>
+                <Text style={styles.metricLabel}>RAM Allocation Pool (Host Physical)</Text>
               </View>
               <Text style={styles.metricValue}>
-                {daemonStatus?.telemetry?.ramUsedGb ?? 4.2} / {daemonStatus?.telemetry?.ramTotalGb ?? 16.0} GB{' '}
-                <Text style={{ color: colors.textMuted }}>(26%)</Text>
+                {daemonStatus?.telemetry?.ram?.usedGb ?? 0} / {daemonStatus?.telemetry?.ram?.totalGb ?? 0} GB{' '}
+                <Text style={{ color: colors.textMuted }}>({daemonStatus?.telemetry?.ram?.percent ?? 0}%)</Text>
               </Text>
             </View>
             <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '26%', backgroundColor: colors.blueBg }]} />
+              <View
+                style={[
+                  styles.progressBarFill,
+                  {
+                    width: `${Math.min(100, Math.max(3, daemonStatus?.telemetry?.ram?.percent ?? 0))}%`,
+                    backgroundColor: colors.blueBg,
+                  },
+                ]}
+              />
             </View>
             <View style={styles.metricFooter}>
-              <Text style={styles.metricFooterText}>Buffer/Cache: 2.1 GB</Text>
-              <Text style={styles.metricFooterText}>Swap: 0 MB / 4 GB</Text>
+              <Text style={styles.metricFooterText}>Free: {daemonStatus?.telemetry?.ram?.freeGb ?? 0} GB</Text>
+              <Text style={styles.metricFooterText}>Zero-DB In-Memory: Active</Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          {daemonStatus?.telemetry?.disk && (
+            <>
+              <View style={styles.divider} />
 
-          {/* NVMe Storage Metric */}
-          <View style={styles.metricItem}>
-            <View style={styles.metricHeader}>
-              <View style={styles.metricTitleGroup}>
-                <HardDrive size={15} color={colors.textMuted} />
-                <Text style={styles.metricLabel}>Persistent Storage Volume</Text>
+              {/* Persistent Storage Volume Metric */}
+              <View style={styles.metricItem}>
+                <View style={styles.metricHeader}>
+                  <View style={styles.metricTitleGroup}>
+                    <HardDrive size={15} color={colors.textMuted} />
+                    <Text style={styles.metricLabel}>System Disk Storage</Text>
+                  </View>
+                  <Text style={styles.metricValue}>
+                    {daemonStatus.telemetry.disk.usedGb} / {daemonStatus.telemetry.disk.totalGb} GB{' '}
+                    <Text style={{ color: colors.textMuted }}>({daemonStatus.telemetry.disk.percent}%)</Text>
+                  </Text>
+                </View>
+                <View style={styles.progressBarBg}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${Math.min(100, Math.max(3, daemonStatus.telemetry.disk.percent))}%`,
+                        backgroundColor: colors.purpleBg,
+                      },
+                    ]}
+                  />
+                </View>
+                <View style={styles.metricFooter}>
+                  <Text style={styles.metricFooterText}>Free: {daemonStatus.telemetry.disk.freeGb} GB</Text>
+                  <Text style={styles.metricFooterText}>Transcript Storage: Direct I/O</Text>
+                </View>
               </View>
-              <Text style={styles.metricValue}>
-                {daemonStatus?.telemetry?.diskUsedGb ?? 48.2} / {daemonStatus?.telemetry?.diskTotalGb ?? 160} GB{' '}
-                <Text style={{ color: colors.textMuted }}>(30%)</Text>
-              </Text>
-            </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: '30%', backgroundColor: colors.purpleBg }]} />
-            </View>
-            <View style={styles.metricFooter}>
-              <Text style={styles.metricFooterText}>Read IOPS: 142/s</Text>
-              <Text style={styles.metricFooterText}>Write IOPS: 28/s</Text>
-            </View>
-          </View>
+            </>
+          )}
 
           <View style={styles.divider} />
 
-          {/* Network Traffic Metric */}
+          {/* Network Tunnel Metric */}
           <View style={styles.networkRow}>
             <View>
-              <Text style={styles.metricLabel}>Network Traffic (P2P DataChannel)</Text>
+              <Text style={styles.metricLabel}>Network Tunnel Transport</Text>
               <View style={styles.trafficStats}>
                 <View style={styles.trafficStatItem}>
                   <ArrowUp size={13} color={colors.green} />
                   <Text style={[styles.trafficStatText, { color: colors.green }]}>
-                    Egress {daemonStatus?.telemetry?.egressMbps ?? 1.4} Mbps
-                  </Text>
-                </View>
-                <Text style={styles.trafficDot}>•</Text>
-                <View style={styles.trafficStatItem}>
-                  <ArrowDown size={13} color={colors.blue} />
-                  <Text style={[styles.trafficStatText, { color: colors.blue }]}>
-                    Ingress {daemonStatus?.telemetry?.ingressKbps ?? 340} Kbps
+                    WebRTC P2P Direct Tunnel: Connected
                   </Text>
                 </View>
               </View>

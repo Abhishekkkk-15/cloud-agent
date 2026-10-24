@@ -78,7 +78,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
         <View style={styles.subBarLeft}>
           <View style={styles.pulseDot} />
           <Text style={styles.subBarText}>
-            {pendingApproval ? '1 action requires approval' : 'All security checkpoints clear'} • 14.8 AI credits
+            {pendingApproval ? '1 action requires approval' : 'Zero-Trust Gateways Clear • 0 open ports'}
           </Text>
         </View>
         <View style={styles.hitlBadge}>
@@ -100,7 +100,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                 <View style={styles.agentIconBox}>
                   <Bot size={13} color={colors.purple} />
                 </View>
-                <Text style={styles.agentCalloutLabel}>@copilot-agent requested confirmation:</Text>
+                <Text style={styles.agentCalloutLabel}>{pendingApproval.caller || 'Antigravity Agent'} requested confirmation:</Text>
               </View>
               <Text style={styles.agentCalloutBody}>
                 {pendingApproval.description}
@@ -292,35 +292,43 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
         </View>
 
         <View style={styles.auditList}>
-          {decisionTrail.map((item, idx) => (
-            <React.Fragment key={item.id}>
-              {idx > 0 && <View style={styles.divider} />}
-              <View style={styles.auditItem}>
-                <View style={item.approved ? styles.auditIconAuth : styles.auditIconDeny}>
-                  {item.approved ? (
-                    <Check size={11} color={colors.green} />
-                  ) : (
-                    <X size={11} color={colors.red} />
-                  )}
-                </View>
-                <View style={styles.auditTexts}>
-                  <Text style={styles.auditCmd} numberOfLines={1}>{item.command}</Text>
-                  <View style={styles.auditMetaRow}>
-                    <Text
-                      style={[
-                        styles.auditStatus,
-                        { color: item.approved ? colors.green : colors.red },
-                      ]}
-                    >
-                      {item.details}
-                    </Text>
-                    <Text style={styles.auditDot}>•</Text>
-                    <Text style={styles.auditTime}>{item.timestamp}</Text>
+          {decisionTrail.length > 0 ? (
+            decisionTrail.map((item, idx) => (
+              <React.Fragment key={item.id}>
+                {idx > 0 && <View style={styles.divider} />}
+                <View style={styles.auditItem}>
+                  <View style={item.approved ? styles.auditIconAuth : styles.auditIconDeny}>
+                    {item.approved ? (
+                      <Check size={11} color={colors.green} />
+                    ) : (
+                      <X size={11} color={colors.red} />
+                    )}
+                  </View>
+                  <View style={styles.auditTexts}>
+                    <Text style={styles.auditCmd} numberOfLines={1}>{item.command}</Text>
+                    <View style={styles.auditMetaRow}>
+                      <Text
+                        style={[
+                          styles.auditStatus,
+                          { color: item.approved ? colors.green : colors.red },
+                        ]}
+                      >
+                        {item.details}
+                      </Text>
+                      <Text style={styles.auditDot}>•</Text>
+                      <Text style={styles.auditTime}>{item.timestamp}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            </React.Fragment>
-          ))}
+              </React.Fragment>
+            ))
+          ) : (
+            <View style={{ padding: 18, alignItems: 'center' }}>
+              <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: typography.mono }}>
+                Zero privileged actions executed in this session yet.
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>

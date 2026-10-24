@@ -25,10 +25,12 @@ import {
   ShieldCheck,
   GitCommit,
   User,
+  Sparkles,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { MarkdownText } from '../components/MarkdownText';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -56,10 +58,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
     }, 150);
   };
 
-  const titleStr = activeSession?.title || 'Resolving merge conflicts for PR';
+  const titleStr = activeSession?.title || 'Interactive Agent Workspace';
   const subtitleStr = activeSession
     ? `${activeSession.workspaceName} • ${activeSession.model || 'Antigravity'}`
-    : `${activeMachine?.name || 'DESKTOP-BJI38IC'} • gpt-5.3-codex`;
+    : `${activeMachine?.name || 'DESKTOP-BJI38IC'} • Zero-Trust Tunnel`;
 
   return (
     <View style={styles.container}>
@@ -73,7 +75,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
       {/* Sub-bar session meta */}
       <View style={styles.subBar}>
         <Text style={styles.subBarText}>
-          {activeSession ? `Session ${activeSession.id.slice(0, 8)} • ${activeSession.messageCount} messages` : '1 active session • 29.2 AI credits'}
+          {activeSession ? `Session ${activeSession.id.slice(0, 8)} • ${activeSession.messageCount} messages` : 'Connected to Antigravity CLI daemon'}
         </Text>
       </View>
 
@@ -84,12 +86,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         showsVerticalScrollIndicator={false}
       >
         {/* User Prompt / Session Initial Request Card */}
-        <View style={styles.userCard}>
-          <Text style={styles.userCommentLabel}>@operator requested:</Text>
-          <Text style={styles.userCommentText}>
-            {activeSession?.title || '@copilot please fix the merge conflicts in this pull request.'}
-          </Text>
-        </View>
+        {activeSession?.title ? (
+          <View style={styles.userCard}>
+            <Text style={styles.userCommentLabel}>@operator initial prompt:</Text>
+            <Text style={styles.userCommentText}>
+              {activeSession.title}
+            </Text>
+          </View>
+        ) : null}
 
         {/* Collapsible Resolution Progress Accordion */}
         <View style={styles.accordionContainer}>
@@ -107,7 +111,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
                   {titleStr}
                 </Text>
                 <Text style={styles.accordionSubTitle}>
-                  {sessionMessages.length > 0 ? `${sessionMessages.length} turns recorded` : '33 actions executed'}
+                  {sessionMessages.length > 0 ? `${sessionMessages.length} turns recorded` : `${activeSession?.messageCount || 0} transcript events`}
                 </Text>
               </View>
             </View>
@@ -185,14 +189,21 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
                       {isUser ? 'Operator' : 'Antigravity'}
                     </Text>
                   </View>
-                  <Text
-                    style={[
-                      styles.messageBodyText,
-                      isUser ? { color: '#ffffff' } : { color: colors.textPrimary },
-                    ]}
-                  >
-                    {msg.content}
-                  </Text>
+                  {/* Reasoning if present */}
+                  {msg.reasoning ? (
+                    <View style={styles.reasoningBox}>
+                      <View style={styles.reasoningHeader}>
+                        <Sparkles size={11} color={colors.purple} />
+                        <Text style={styles.reasoningTitle}>Reasoning</Text>
+                      </View>
+                      <Text style={styles.reasoningText} numberOfLines={6}>
+                        {msg.reasoning}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* Markdown Parsed Message Body */}
+                  <MarkdownText content={msg.content} isUser={isUser} />
 
                   {/* Tool Calls if any */}
                   {msg.toolCalls && msg.toolCalls.length > 0 && (
@@ -212,33 +223,35 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
             })}
           </View>
         ) : (
-          /* Default Static Turn Breakdown when no messages loaded */
+          /* Clean Turn Breakdown when transcript messages are loading or session newly started */
           <View style={styles.explanationSection}>
             <View style={styles.completionBanner}>
               <View style={styles.botIconCircle}>
                 <Bot size={15} color={colors.green} />
               </View>
               <Text style={styles.completionText}>
-                Ready — Connected to live Antigravity execution daemon.
+                {activeSession
+                  ? `Active session ${activeSession.id.slice(0, 8)} loaded from host transcripts.`
+                  : 'Connected to live Antigravity execution daemon.'}
               </Text>
             </View>
 
-            <Text style={styles.sectionHeading}>What I changed</Text>
+            <Text style={styles.sectionHeading}>Workspace Attached</Text>
             <View style={styles.bulletItem}>
               <Text style={styles.bulletDot}>•</Text>
               <View style={styles.bulletContent}>
                 <Text style={styles.bulletText}>
-                  Merged <Text style={styles.inlineCode}>origin/main</Text> into your branch and resolved conflicts.
+                  Path: <Text style={styles.inlineCode}>{activeSession?.workspacePath || '.'}</Text>
                 </Text>
               </View>
             </View>
 
-            <Text style={[styles.sectionHeading, { marginTop: 14 }]}>Validation</Text>
+            <Text style={[styles.sectionHeading, { marginTop: 14 }]}>Zero-Trust Transport</Text>
             <View style={styles.bulletItem}>
               <Text style={styles.bulletDot}>•</Text>
               <View style={styles.bulletContent}>
                 <Text style={styles.bulletText}>
-                  <Text style={styles.inlineCode}>turbo typecheck</Text>: clean (<Text style={{ color: colors.green, fontWeight: '700' }}>0 errors</Text>)
+                  Tunnel: <Text style={{ color: colors.green, fontWeight: '700' }}>WebRTC DataChannel (Direct P2P)</Text>
                 </Text>
               </View>
             </View>
@@ -253,15 +266,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
           </View>
         )}
 
-        {/* Floating View PR Button Row */}
+        {/* Workspace Info Action Button */}
         <View style={styles.prButtonRow}>
           <TouchableOpacity
             style={styles.viewPrButton}
-            onPress={() => Alert.alert('View Pull Request', 'Opening active PR / branch in repository.')}
+            onPress={() => onNavigateTab && onNavigateTab('sessions')}
             activeOpacity={0.8}
           >
             <GitMerge size={15} color="#ffffff" />
-            <Text style={styles.viewPrButtonText}>VIEW PR</Text>
+            <Text style={styles.viewPrButtonText}>BROWSE ALL SESSIONS</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -464,6 +477,33 @@ const styles = StyleSheet.create({
   messageBodyText: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  reasoningBox: {
+    backgroundColor: colors.bgCanvasInset,
+    borderWidth: 1,
+    borderColor: colors.purpleBorder,
+    borderRadius: radii.md,
+    padding: 8,
+    marginBottom: 8,
+  },
+  reasoningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  reasoningTitle: {
+    fontSize: 10,
+    fontFamily: typography.mono,
+    color: colors.purple,
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  reasoningText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.textMuted,
+    fontStyle: 'italic',
   },
   toolCallsBox: {
     marginTop: 8,

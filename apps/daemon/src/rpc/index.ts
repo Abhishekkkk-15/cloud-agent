@@ -1,4 +1,5 @@
 import os from "node:os";
+import fs from "node:fs";
 import { registry } from "../registry.js";
 import { handleSessionsList, handleSessionsGet, handleMessagesGet } from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
@@ -26,6 +27,61 @@ export type StreamCallback = (chunk: {
   done?: boolean;
 }) => void;
 
+function getSystemTelemetry() {
+  const cpus = os.cpus();
+  let totalTicks = 0;
+  let idleTicks = 0;
+  for (const cpu of cpus) {
+    for (const t of Object.values(cpu.times)) {
+      totalTicks += t;
+    }
+    idleTicks += cpu.times.idle;
+  }
+  const cpuPercent = totalTicks > 0 ? Math.round(((totalTicks - idleTicks) / totalTicks) * 100) : 0;
+
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+
+  let diskInfo: { totalGb: number; usedGb: number; freeGb: number; percent: number } | null = null;
+  try {
+    if (typeof (fs as any).statfsSync === "function") {
+      const rootPath = process.platform === "win32" ? "C:\\" : "/";
+      const stats = (fs as any).statfsSync(rootPath);
+      if (stats && stats.blocks) {
+        const totalBytes = Number(stats.bsize) * Number(stats.blocks);
+        const freeBytes = Number(stats.bsize) * Number(stats.bfree);
+        const usedBytes = totalBytes - freeBytes;
+        diskInfo = {
+          totalGb: Number((totalBytes / (1024 ** 3)).toFixed(1)),
+          usedGb: Number((usedBytes / (1024 ** 3)).toFixed(1)),
+          freeGb: Number((freeBytes / (1024 ** 3)).toFixed(1)),
+          percent: Math.round((usedBytes / totalBytes) * 100),
+        };
+      }
+    }
+  } catch {
+    // ignore statfs failures on exotic platforms
+  }
+
+  return {
+    cpu: {
+      percent: cpuPercent,
+      cores: cpus.length,
+      model: cpus[0]?.model || "Multi-Core CPU",
+      speedMhz: cpus[0]?.speed || 0,
+    },
+    ram: {
+      totalGb: Number((totalMem / (1024 ** 3)).toFixed(1)),
+      usedGb: Number((usedMem / (1024 ** 3)).toFixed(1)),
+      freeGb: Number((freeMem / (1024 ** 3)).toFixed(1)),
+      percent: Math.round((usedMem / totalMem) * 100),
+    },
+    disk: diskInfo,
+    loadAvg: os.loadavg(),
+  };
+}
+
 export class RpcDispatcher {
   async handle(req: RpcRequest, onStream?: StreamCallback): Promise<RpcResponse> {
     const params = req.params || {};
@@ -37,6 +93,7 @@ export class RpcDispatcher {
 
         case "daemon.status": {
           const avail = await registry.checkAll();
+          const telemetry = getSystemTelemetry();
           return {
             id: req.id,
             result: {
@@ -44,6 +101,9 @@ export class RpcDispatcher {
               platform: process.platform,
               arch: process.arch,
               uptime: os.uptime(),
+              pid: process.pid,
+              nodeVersion: process.version,
+              telemetry,
               adapters: registry.list(),
               availability: avail,
             },
@@ -89,9 +149,17 @@ export class RpcDispatcher {
         }
 
         case "agent.run": {
-          if (!params.options || !params.options.prompt) {
-            throw new Error("Missing options.prompt param");
+          const prompt = params.options?.prompt || params.prompt;
+          if (!prompt) {
+            throw new Error("Missing prompt param");
           }
+          const options = {
+            prompt,
+            sessionId: params.options?.sessionId || params.sessionId,
+            cwd: params.options?.cwd || params.cwd,
+            ...(params.options || {}),
+          };
+
           if (!onStream) {
             throw new Error("Streaming callback is required for agent.run");
           }
@@ -99,7 +167,7 @@ export class RpcDispatcher {
           // Stream execution chunks
           const stream = handleAgentRun({
             cli: params.cli,
-            options: params.options,
+            options,
           });
 
           for await (const event of stream) {
