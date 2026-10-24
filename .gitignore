@@ -30,3 +30,7 @@ Thumbs.db
 # vite
 *.local
 /sandbox
+
+# expo
+.expo/
+web-build/
