@@ -54,7 +54,12 @@ When working on `apps/mobile` or client UI components:
 
 ## 🌐 WebRTC P2P & Networking Conventions
 
-- **Zero Inbound Ports**: Never add listening HTTP or socket servers to the Daemon. The daemon only dials outbound to the Gateway Hub (`/daemon/ws`).
+- **Zero Inbound Ports on Daemon**: Never add listening HTTP or socket servers to the Daemon. The daemon only dials outbound to the Gateway Hub (`/daemon/ws`).
+- **0.0.0.0 Server Bind Rule**: Always bind backend services (`apps/api` on `:8000`, `apps/gateway` on `:8080`) to `0.0.0.0`, **never** `127.0.0.1`. Binding to `127.0.0.1` restricts traffic to loopback and causes `ConnectException` when mobile clients (Expo Go) connect over local Wi-Fi.
+- **Dynamic Host Resolution in Mobile**: Never hardcode `127.0.0.1` or `localhost` in `apps/mobile` store URLs. On Android and iOS devices, `127.0.0.1` refers to the device itself. Always extract the host dynamically from `NativeModules.SourceCode.scriptURL` with fallbacks for web (`window.location.hostname`).
+- **Metro Monorepo & Pnpm Compatibility**:
+  - Always keep `watchFolders` configured with `monorepoRoot` and external CLI package paths in `apps/mobile/metro.config.js` to prevent `Failed to get the SHA-1` errors.
+  - Due to pnpm's strict package isolation, peer/runtime packages required by React Native (e.g., `@react-native/assets-registry` for `react-native-svg`) must be explicitly declared in `apps/mobile/package.json`.
 - **RPC Timeouts**:
   - Query RPCs (`daemon.status`, `sessions.list`, `sessions.messages`): **30 seconds**.
   - Long-running execution RPCs (`agent.run`): **180 seconds** minimum.

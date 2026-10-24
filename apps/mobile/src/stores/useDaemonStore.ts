@@ -1,5 +1,24 @@
 import { create } from 'zustand';
+import { NativeModules, Platform } from 'react-native';
 import { mobileP2P, ConnectionState, DaemonStatusResult } from '../lib/p2p-client';
+
+function getDefaultHost(): string {
+  if (Platform.OS === 'web') {
+    return typeof window !== 'undefined' && window.location.hostname
+      ? window.location.hostname
+      : 'localhost';
+  }
+  const scriptURL = NativeModules.SourceCode?.scriptURL;
+  if (scriptURL) {
+    const match = scriptURL.match(/^https?:\/\/([^:/]+)/);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return '192.168.1.10';
+}
+
+const defaultHost = getDefaultHost();
 
 export interface MachineInfo {
   machineId: string;
@@ -79,8 +98,8 @@ interface DaemonStoreState {
 }
 
 export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
-  apiUrl: 'http://127.0.0.1:8000',
-  gatewayUrl: 'http://localhost:8080',
+  apiUrl: `http://${defaultHost}:8000`,
+  gatewayUrl: `http://${defaultHost}:8080`,
   token: null,
   activeMachine: null,
   connectionState: 'disconnected',
