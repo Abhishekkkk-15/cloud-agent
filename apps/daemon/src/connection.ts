@@ -40,8 +40,11 @@ export class GatewayConnection {
   private connect(): void {
     if (!this.isRunning) return;
 
-    const base = this.config.gatewayUrl.replace(/\/$/, "");
-    const url = new URL(`${base}/daemon/ws`);
+    let endpoint = this.config.gatewayUrl.trim().replace(/\/$/, "");
+    if (!endpoint.endsWith("/daemon/ws")) {
+      endpoint = `${endpoint}/daemon/ws`;
+    }
+    const url = new URL(endpoint);
     url.searchParams.set("token", this.config.token);
     url.searchParams.set("machineId", this.config.machineId);
     url.searchParams.set("machineName", this.config.machineName);

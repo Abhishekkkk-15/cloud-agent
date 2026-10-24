@@ -147,6 +147,65 @@ async def google_login(body: GoogleAuthRequest, repo: UserRepo) -> JSONResponse:
     # 6. Return the configured response instance
     return response
 
+
+async def dev_login(repo: UserRepo) -> JSONResponse:
+    now = datetime.now(UTC)
+    user = await repo.find_by_email('test@example.com')
+    if not user:
+        users = await repo.find_all(limit=1)
+        if users:
+            user = users[0]
+        else:
+            user = User(
+                name='Developer',
+                email='dev@cloud-agent.local',
+                username='developer',
+                password=None,
+                plan='free',
+                role='admin',
+                is_active=True,
+                is_verified=True,
+                created_at=now,
+                updated_at=now,
+            )
+            user = await repo.create(user)
+
+    if not user.id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail='User has no id',
+        )
+
+    tokens = create_token_pair(user.id)
+    token_pair = TokenPairResponse(
+        access_token=tokens['access_token'],
+        refresh_token=tokens['refresh_token'],
+        token_type=tokens['token_type'],
+        user=to_public_user(user),
+    )
+    response_data = to_jsonable_python(token_pair)
+    response = JSONResponse(
+        content=response_data,
+        status_code=status.HTTP_200_OK,
+    )
+    response.set_cookie(
+        key='ca_refresh_token',
+        value=tokens['refresh_token'],
+        httponly=True,
+        secure=True,
+        samesite='lax',
+        max_age=604800,
+    )
+    response.set_cookie(
+        key='ca_access_token',
+        value=tokens['access_token'],
+        httponly=True,
+        secure=True,
+        samesite='lax',
+        max_age=604800,
+    )
+    return response
+
 async def refresh_tokens(body: RefreshTokenRequest, repo: UserRepo) -> TokenPairResponse:
     try:
         user_id = decode_refresh_token(body.refresh_token)

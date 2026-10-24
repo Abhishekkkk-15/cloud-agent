@@ -69,7 +69,12 @@ export class WebRtcPeerManager {
       });
     });
 
-    await pc.setRemoteDescription(new RTCSessionDescription(sdpOffer, "offer"));
+    const sdpString =
+      typeof sdpOffer === "string"
+        ? sdpOffer
+        : (sdpOffer as any)?.sdp || String(sdpOffer);
+
+    await pc.setRemoteDescription(new RTCSessionDescription(sdpString, "offer"));
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 

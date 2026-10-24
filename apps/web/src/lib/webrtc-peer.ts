@@ -79,8 +79,9 @@ export class WebRtcPeerClient {
             // 2. WebRTC Answer from VPS Daemon
             if (msg.type === "webrtc.answer" && msg.sdp && this.peerConnection) {
               console.log("[P2P Client] Received SDP Answer from VPS Daemon.");
+              const sdpString = typeof msg.sdp === "string" ? msg.sdp : (msg.sdp as any)?.sdp;
               await this.peerConnection.setRemoteDescription(
-                new RTCSessionDescription({ type: "answer", sdp: msg.sdp })
+                new RTCSessionDescription({ type: "answer", sdp: sdpString })
               );
               return;
             }

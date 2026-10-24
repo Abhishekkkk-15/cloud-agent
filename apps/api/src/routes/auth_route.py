@@ -1,6 +1,11 @@
 from fastapi import APIRouter
 
-from src.controller.auth_controller import google_login, refresh_tokens, to_public_user
+from src.controller.auth_controller import (
+    google_login,
+    refresh_tokens,
+    to_public_user,
+    dev_login,
+)
 from src.deps import CurrentUser
 from src.repository.user_repository import UserRepo
 from src.schemas.auth_schema import (
@@ -17,6 +22,11 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 @router.post("/google", response_model=TokenPairResponse)
 async def google_auth(body: GoogleAuthRequest, repo: UserRepo) -> JSONResponse:
     return await google_login(body, repo)
+
+
+@router.post("/dev-login", response_model=TokenPairResponse)
+async def dev_auth(repo: UserRepo) -> JSONResponse:
+    return await dev_login(repo)
 
 
 @router.post("/refresh", response_model=TokenPairResponse)

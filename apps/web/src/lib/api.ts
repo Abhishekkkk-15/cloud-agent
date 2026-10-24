@@ -56,6 +56,11 @@ export async function googleSignIn(credential: string) {
   return tokenPairResponseSchema.parse(data)
 }
 
+export async function devSignIn() {
+  const { data } = await http.post("/auth/dev-login")
+  return tokenPairResponseSchema.parse(data)
+}
+
 export async function getCurrentUser(): Promise<User | null> {
   if (!getAccessToken()) return null
   try {

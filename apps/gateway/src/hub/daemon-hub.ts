@@ -25,10 +25,11 @@ export class DaemonHub {
   register(
     ws: WebSocket,
     machine: MachineDocument,
-    machineIdOverride?: string,
+    hostMachineId?: string,
     machineNameOverride?: string
   ): DaemonSession {
-    const machineId = machineIdOverride || machine.machineId;
+    // Canonical ID is the database record's machineId paired with this token
+    const machineId = machine.machineId;
     const name = machineNameOverride || machine.name;
 
     const existing = this.daemons.get(machineId);

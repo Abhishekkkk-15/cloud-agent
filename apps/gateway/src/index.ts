@@ -1,9 +1,17 @@
 import http from "node:http";
+import dns from "node:dns";
 import { config } from "./config.js";
 import { connectMongo, closeMongo } from "./db/mongo.js";
 import { handleMachinesRoutes, sendJson } from "./routes/machines.js";
 import { setupWebSocketUpgrades } from "./routes/ws.js";
 import { daemonHub } from "./hub/daemon-hub.js";
+
+// Ensure DNS SRV resolution succeeds across environments (especially on Windows)
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch {
+  // Ignore if permissions or platform prevent custom DNS
+}
 
 async function main() {
   console.log(`

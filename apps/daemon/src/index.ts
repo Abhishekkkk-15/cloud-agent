@@ -74,13 +74,90 @@ async function runPrompt(prompt: string, sessionId?: string) {
   console.log();
 }
 
-async function startDaemon() {
+function parseCliFlags(args: string[]): {
+  command: string;
+  flags: Record<string, string>;
+  positionals: string[];
+} {
+  let command = "start";
+  const flags: Record<string, string> = {};
+  const positionals: string[] = [];
+
+  let i = 0;
+  if (args.length > 0 && !args[0].startsWith("-")) {
+    command = args[0];
+    i = 1;
+  }
+
+  while (i < args.length) {
+    const arg = args[i];
+    if (arg === "--token" || arg === "-t") {
+      flags.token = args[i + 1] || "";
+      i += 2;
+    } else if (arg.startsWith("--token=")) {
+      flags.token = arg.slice(8);
+      i++;
+    } else if (arg === "--gateway" || arg === "-g") {
+      flags.gateway = args[i + 1] || "";
+      i += 2;
+    } else if (arg.startsWith("--gateway=")) {
+      flags.gateway = arg.slice(10);
+      i++;
+    } else if (arg === "--name" || arg === "-n") {
+      flags.name = args[i + 1] || "";
+      i += 2;
+    } else if (arg.startsWith("--name=")) {
+      flags.name = arg.slice(7);
+      i++;
+    } else if (arg.startsWith("-")) {
+      i++;
+    } else {
+      positionals.push(arg);
+      i++;
+    }
+  }
+
+  return { command, flags, positionals };
+}
+
+async function startDaemon(flags: Record<string, string>) {
   const config = loadConfig();
+
+  // Apply CLI flag overrides
+  let changed = false;
+  if (flags.token) {
+    config.token = flags.token;
+    changed = true;
+  }
+  if (flags.gateway) {
+    config.gatewayUrl = flags.gateway;
+    changed = true;
+  } else if (config.gatewayUrl.includes(":8000/daemon/ws")) {
+    // Auto-migrate legacy port 8000 to gateway port 8080
+    config.gatewayUrl = config.gatewayUrl.replace(":8000/daemon/ws", ":8080/daemon/ws");
+    changed = true;
+  }
+  if (flags.name) {
+    config.machineName = flags.name;
+    changed = true;
+  }
+
+  if (changed) {
+    saveConfig(config);
+  }
+
   console.log(`Configuration loaded from: ${getConfigPath()}`);
   console.log(`Machine ID   : ${config.machineId}`);
   console.log(`Machine Name : ${config.machineName}`);
   console.log(`Gateway URL  : ${config.gatewayUrl}`);
+  console.log(`Token Prefix : ${config.token ? config.token.slice(0, 16) + "..." : "(none - run with --token <token>)"}`);
   console.log();
+
+  if (!config.token) {
+    console.warn(`[!] No machine pairing token configured.`);
+    console.warn(`    Generate a token in the Cloud Agent Dashboard -> 'Connect VPS'`);
+    console.warn(`    Then run: cloud-agent-daemon start --token "<your-token>"\n`);
+  }
 
   await checkAdapters();
 
@@ -101,14 +178,14 @@ async function startDaemon() {
 }
 
 async function main() {
-  const args = process.argv.slice(2);
-  const command = args[0] || "start";
+  const rawArgs = process.argv.slice(2);
+  const { command, flags, positionals } = parseCliFlags(rawArgs);
 
   await printBanner();
 
   switch (command) {
     case "start":
-      await startDaemon();
+      await startDaemon(flags);
       break;
 
     case "check":
@@ -116,15 +193,15 @@ async function main() {
       break;
 
     case "run":
-      if (!args[1]) {
+      if (!positionals[0]) {
         console.error("Error: Please provide a prompt. Example: cloud-agent-daemon run 'hello'");
         process.exit(1);
       }
-      await runPrompt(args[1], args[2]);
+      await runPrompt(positionals[0], positionals[1]);
       break;
 
     case "sessions":
-      await listSessions(args[1]);
+      await listSessions(positionals[0]);
       break;
 
     case "config":
@@ -135,7 +212,7 @@ async function main() {
     case "help":
     case "--help":
     case "-h":
-      console.log(`Usage: cloud-agent-daemon [command]
+      console.log(`Usage: cloud-agent-daemon [command] [options]
 
 Commands:
   start          Start daemon and connect to Cloud Gateway (default)
@@ -144,6 +221,11 @@ Commands:
   sessions [ws]  List agent sessions from local storage
   config         Display daemon configuration
   help           Show this help message
+
+Options for 'start':
+  --token, -t <token>     Machine pairing token (e.g. ca_mach_...)
+  --gateway, -g <url>     Gateway WebSocket URL (default: ws://localhost:8080/daemon/ws)
+  --name, -n <name>       Custom machine name override
 `);
       break;
 

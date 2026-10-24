@@ -52,7 +52,7 @@ export function ensureDefaultConfig(): DaemonConfig {
   const defaults: DaemonConfig = {
     machineId: crypto.randomUUID(),
     machineName: os.hostname(),
-    gatewayUrl: process.env.CLOUD_AGENT_GATEWAY_URL || "ws://localhost:8000/daemon/ws",
+    gatewayUrl: process.env.CLOUD_AGENT_GATEWAY_URL || "ws://localhost:8080/daemon/ws",
     token: process.env.CLOUD_AGENT_TOKEN || "",
     allowedWorkspaces: [process.cwd()],
     defaultCli: "antigravity",

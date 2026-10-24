@@ -4,14 +4,28 @@ import { Link, Navigate, useLocation } from "react-router-dom"
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { BrandLogo } from "@/components/ui/BrandLogo"
+import { Button } from "@/components/ui/button"
 import { useAuthStore } from "@/stores/auth-store"
 
 export function LoginPage() {
   const user = useAuthStore((s) => s.user)
   const loading = useAuthStore((s) => s.loading)
+  const devSignIn = useAuthStore((s) => s.devSignIn)
+  const [devLoading, setDevLoading] = useState(false)
   const location = useLocation()
   const from =
     (location.state as { from?: string } | null)?.from ?? "/dashboard"
+
+  const handleDevLogin = async () => {
+    setDevLoading(true)
+    try {
+      await devSignIn()
+    } catch (err) {
+      console.error("Dev login failed:", err)
+    } finally {
+      setDevLoading(false)
+    }
+  }
 
   // Live technical timestamp ticker
   const [timeStr, setTimeStr] = useState("")
@@ -148,6 +162,14 @@ export function LoginPage() {
             <div className="py-6 border-y border-[var(--ink)] my-2">
               <div className="flex flex-col items-start gap-4">
                 <GoogleSignInButton redirectTo={from} />
+                <Button
+                  variant="outline"
+                  onClick={handleDevLogin}
+                  disabled={devLoading}
+                  className="mono text-xs uppercase tracking-wider border-[var(--ink)] hover:bg-[var(--ink)] hover:text-white rounded-none h-10 px-4"
+                >
+                  {devLoading ? "AUTHENTICATING..." : "⚡ QUICK DEV LOGIN (TEST MODE)"}
+                </Button>
                 <span className="mono text-[10px] text-[var(--grey)]">
                   AUTOMATIC JWT ISSUANCE // ZERO-PERSISTENCE CREDENTIALS
                 </span>
