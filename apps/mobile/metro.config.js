@@ -33,4 +33,27 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
+// 3. Shim react-native-web AssetRegistry for web builds
+const assetRegistryShim = path.resolve(projectRoot, 'shims/assetRegistry.js');
+
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (
+    moduleName === 'react-native-web/dist/exports/AssetRegistry' ||
+    moduleName === 'react-native-web/dist/cjs/exports/AssetRegistry' ||
+    moduleName === 'react-native-web/dist/modules/AssetRegistry' ||
+    moduleName === 'react-native-web/dist/cjs/modules/AssetRegistry' ||
+    (platform === 'web' && (
+      moduleName === '@react-native/assets-registry/registry' ||
+      moduleName === '@react-native/assets-registry'
+    ))
+  ) {
+    return {
+      filePath: assetRegistryShim,
+      type: 'sourceFile',
+    };
+  }
+
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;

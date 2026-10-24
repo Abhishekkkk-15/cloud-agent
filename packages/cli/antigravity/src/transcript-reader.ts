@@ -356,11 +356,11 @@ export async function getBrainSession(
   const summary = await extractSessionSummary(sessionId, sessionDir, transcriptPath, stats);
   if (!summary) return null;
 
-  // Fetch paginated messages (default 50 messages)
+  // Fetch paginated messages (default 50 latest messages in reverse order)
   const pagedMessages = await getBrainMessages(sessionId, {
     limit: options?.limit ?? 50,
     offset: options?.offset ?? 0,
-    order: options?.order ?? "asc",
+    order: options?.order ?? "desc",
   });
 
   // Collect artifacts unless explicitly disabled

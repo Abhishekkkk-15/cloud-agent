@@ -47,7 +47,14 @@ export interface RealMessageItem {
   content: string;
   timestamp: string;
   reasoning?: string;
-  toolCalls?: Array<{ id: string; name: string; arguments: any }>;
+  toolCalls?: Array<{
+    id: string;
+    name: string;
+    arguments: any;
+    result?: any;
+    error?: any;
+    status?: 'running' | 'success' | 'error';
+  }>;
   toolCallId?: string;
 }
 
@@ -75,6 +82,9 @@ interface DaemonStoreState {
   workspaces: string[];
   activeSession: RealSessionItem | null;
   sessionMessages: RealMessageItem[];
+  messagesOffset: number;
+  hasMoreMessages: boolean;
+  isLoadingOlderMessages: boolean;
   isLoadingSessions: boolean;
   isSendingPrompt: boolean;
   pendingApproval: ApprovalRequest | null;
@@ -91,6 +101,7 @@ interface DaemonStoreState {
   refreshStatus: () => Promise<void>;
   fetchSessions: () => Promise<void>;
   selectSession: (session: RealSessionItem) => Promise<void>;
+  loadOlderMessages: () => Promise<void>;
   sendPrompt: (promptText: string) => Promise<void>;
   respondApproval: (allowed: boolean) => Promise<void>;
   pingHeartbeat: () => Promise<void>;
@@ -110,6 +121,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   workspaces: [],
   activeSession: null,
   sessionMessages: [],
+  messagesOffset: 0,
+  hasMoreMessages: false,
+  isLoadingOlderMessages: false,
   isLoadingSessions: false,
   isSendingPrompt: false,
   pendingApproval: null,
@@ -215,6 +229,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             id: tcData.id || `tc_${Date.now()}`,
             name: tcData.name || 'tool',
             arguments: tcData.arguments || {},
+            status: 'running' as const,
           };
           if (lastMsg && lastMsg.role === 'assistant') {
             const existingCalls = lastMsg.toolCalls || [];
@@ -237,6 +252,26 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
               ],
             };
           }
+        });
+      } else if (event.type === 'tool_result') {
+        const trData = event.data || event;
+        set((state) => {
+          const msgs = [...state.sessionMessages];
+          for (let i = msgs.length - 1; i >= 0; i--) {
+            const msg = msgs[i];
+            if (msg.toolCalls && msg.toolCalls.length > 0) {
+              const found = msg.toolCalls.find(
+                (tc) => tc.id === trData.toolCallId || tc.name === trData.name
+              );
+              if (found) {
+                found.result = trData.output ?? trData.result;
+                found.error = trData.error;
+                found.status = trData.isError || trData.error ? 'error' : 'success';
+                return { sessionMessages: msgs };
+              }
+            }
+          }
+          return state;
         });
       } else if (event.type === 'status') {
         const statusVal = event.data?.status || event.status;
@@ -366,11 +401,20 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   selectSession: async (session: RealSessionItem) => {
-    set({ activeSession: session, sessionMessages: [] });
+    set({
+      activeSession: session,
+      sessionMessages: [],
+      messagesOffset: 0,
+      hasMoreMessages: false,
+      isLoadingOlderMessages: false,
+    });
     try {
+      // Query the latest 50 messages in reverse chronological order
       const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
         sessionId: session.id,
         limit: 50,
+        offset: 0,
+        order: 'desc',
       });
 
       const rawList = Array.isArray(resp?.items)
@@ -380,7 +424,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         : [];
 
       if (rawList.length > 0) {
-        const msgs: RealMessageItem[] = rawList.map((m: any) => ({
+        // Reverse array so messages appear in ascending chronological order (oldest to latest)
+        const msgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
           id: m.id,
           role: m.role || 'user',
           content: m.content || '',
@@ -388,12 +433,61 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
         }));
-        set({ sessionMessages: msgs });
+        set({
+          sessionMessages: msgs,
+          messagesOffset: rawList.length,
+          hasMoreMessages: Boolean(resp?.hasMore),
+        });
       } else {
-        set({ sessionMessages: [] });
+        set({ sessionMessages: [], hasMoreMessages: false });
       }
     } catch (err) {
       console.error('[DaemonStore] selectSession error:', err);
+    }
+  },
+
+  loadOlderMessages: async () => {
+    const { activeSession, messagesOffset, hasMoreMessages, isLoadingOlderMessages } = get();
+    if (!activeSession || !hasMoreMessages || isLoadingOlderMessages) return;
+
+    set({ isLoadingOlderMessages: true });
+    try {
+      const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
+        sessionId: activeSession.id,
+        limit: 50,
+        offset: messagesOffset,
+        order: 'desc',
+      });
+
+      const rawList = Array.isArray(resp?.items)
+        ? resp.items
+        : Array.isArray(resp?.messages)
+        ? resp.messages
+        : [];
+
+      if (rawList.length > 0) {
+        // Reverse older slice into ascending order
+        const olderMsgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
+          id: m.id,
+          role: m.role || 'user',
+          content: m.content || '',
+          reasoning: m.reasoning,
+          timestamp: m.timestamp || new Date().toISOString(),
+          toolCalls: m.toolCalls,
+        }));
+
+        set((state) => ({
+          sessionMessages: [...olderMsgs, ...state.sessionMessages],
+          messagesOffset: state.messagesOffset + rawList.length,
+          hasMoreMessages: Boolean(resp?.hasMore),
+          isLoadingOlderMessages: false,
+        }));
+      } else {
+        set({ hasMoreMessages: false, isLoadingOlderMessages: false });
+      }
+    } catch (err) {
+      console.error('[DaemonStore] loadOlderMessages error:', err);
+      set({ isLoadingOlderMessages: false });
     }
   },
 

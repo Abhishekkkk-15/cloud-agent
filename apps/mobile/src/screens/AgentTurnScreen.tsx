@@ -24,25 +24,35 @@ import {
   FolderGit2,
   GitFork,
   ArrowDown,
+  ArrowUp,
   Sparkles,
+  Search,
 } from '../components/Icons';
-import { radii, typography } from '../theme/tokens';
+import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from '../components/MarkdownText';
+import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
   onNavigateTab?: (tab: string) => void;
 }
 
-interface ActionStep {
+interface ChatTurn {
   id: string;
-  title: string;
-  category: 'repo' | 'mcp' | 'skill' | 'terminal' | 'file';
-  duration?: string;
-  hasDetails?: boolean;
-  details?: string;
+  userMessage?: {
+    id: string;
+    content: string;
+    timestamp?: string;
+  };
+  assistant?: {
+    id: string;
+    timestamp?: string;
+    reasoning?: string;
+    actions: ActionStep[];
+    content?: string;
+  };
 }
 
 const DEFAULT_RESOLUTION_MARKDOWN = `Done — I fixed the merge conflicts and replied on the PR comment.
@@ -70,11 +80,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
   const isSendingPrompt = useDaemonStore((s) => s.isSendingPrompt);
   const sendPrompt = useDaemonStore((s) => s.sendPrompt);
+  const hasMoreMessages = useDaemonStore((s) => s.hasMoreMessages);
+  const isLoadingOlderMessages = useDaemonStore((s) => s.isLoadingOlderMessages);
+  const loadOlderMessages = useDaemonStore((s) => s.loadOlderMessages);
 
   const [promptInput, setPromptInput] = useState('');
-  const [isAccordionOpen, setIsAccordionOpen] = useState(true);
-  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
+  const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
+  const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
   const scrollViewRef = useRef<any>(null);
+
+  const isTurnOpen = (turnId: string) => openTurnAccordions[turnId] ?? true;
+
+  const toggleTurnAccordion = (turnId: string) => {
+    setOpenTurnAccordions((prev) => ({
+      ...prev,
+      [turnId]: !isTurnOpen(turnId),
+    }));
+  };
 
   const handleSendPrompt = async () => {
     if (!promptInput.trim() || isSendingPrompt) return;
@@ -109,152 +131,242 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
   const subtitleStr = `${repoName} • ${modelStr}`;
   const timeAgoStr = formatTimeAgo(activeSession?.createdAt);
 
-  // Extract initial operator prompt (first user turn or default)
-  const initialUserPrompt = useMemo(() => {
-    const firstUserMsg = sessionMessages.find((m) => m.role === 'user');
-    if (firstUserMsg && firstUserMsg.content) {
-      return firstUserMsg.content;
+  // Group linear chronological messages into sequential chat turns matching Antigravity CLI flow
+  const chatTurns = useMemo<ChatTurn[]>(() => {
+    if (!sessionMessages || sessionMessages.length === 0) {
+      return [];
     }
-    return activeSession?.title || '@copilot please fix the merge conflicts in this pull request.';
-  }, [sessionMessages, activeSession]);
 
-  // Subsequent conversation turns (excluding first user turn)
-  const conversationTurns = useMemo(() => {
-    let skippedFirstUser = false;
-    return sessionMessages.filter((m) => {
-      if (m.role === 'user' && !skippedFirstUser) {
-        skippedFirstUser = true;
-        return false;
+    const turns: ChatTurn[] = [];
+    let currentTurn: ChatTurn | null = null;
+
+    for (let i = 0; i < sessionMessages.length; i++) {
+      const msg = sessionMessages[i];
+
+      if (msg.role === 'user') {
+        // Start a new turn for this user prompt
+        currentTurn = {
+          id: msg.id || `turn_${i}`,
+          userMessage: {
+            id: msg.id || `usr_${i}`,
+            content: msg.content,
+            timestamp: msg.timestamp,
+          },
+        };
+        turns.push(currentTurn);
+      } else if (msg.role === 'assistant') {
+        if (!currentTurn) {
+          // Assistant response before any user prompt (welcome or truncated page)
+          currentTurn = {
+            id: msg.id || `turn_${i}`,
+          };
+          turns.push(currentTurn);
+        }
+
+        if (!currentTurn.assistant) {
+          currentTurn.assistant = {
+            id: msg.id || `asst_${i}`,
+            timestamp: msg.timestamp,
+            actions: [],
+            content: '',
+            reasoning: '',
+          };
+        }
+
+        if (msg.reasoning) {
+          currentTurn.assistant.reasoning = currentTurn.assistant.reasoning
+            ? currentTurn.assistant.reasoning + '\n' + msg.reasoning
+            : msg.reasoning;
+        }
+
+        if (msg.content) {
+          currentTurn.assistant.content = currentTurn.assistant.content
+            ? currentTurn.assistant.content + '\n' + msg.content
+            : msg.content;
+        }
+
+        // Process tool calls made in this assistant step
+        const asstObj = currentTurn.assistant;
+        if (asstObj && msg.toolCalls && msg.toolCalls.length > 0) {
+          msg.toolCalls.forEach((tc, tcIdx) => {
+            const name = tc.name || '';
+            let category: ActionStep['category'] = 'terminal';
+            if (
+              name.includes('file') ||
+              name === 'read_file' ||
+              name === 'view_file' ||
+              name === 'edit_file' ||
+              name === 'write_file'
+            ) {
+              category = 'file';
+            } else if (name.includes('mcp') || name.startsWith('mcp_') || name === 'call_mcp_tool') {
+              category = 'mcp';
+            } else if (
+              name.includes('subagent') ||
+              name.includes('skill') ||
+              name === 'schedule' ||
+              name === 'ask_question' ||
+              name === 'send_message'
+            ) {
+              category = 'skill';
+            } else if (name.includes('search') || name === 'search_web') {
+              category = 'search';
+            }
+
+            // Correlate with tool output in tc.result or subsequent role === 'tool' message
+            let toolOutput: string | undefined =
+              typeof tc.result === 'string'
+                ? tc.result
+                : tc.result
+                ? JSON.stringify(tc.result, null, 2)
+                : undefined;
+
+            if (!toolOutput) {
+              for (let nextIdx = i + 1; nextIdx < sessionMessages.length; nextIdx++) {
+                const nextMsg = sessionMessages[nextIdx];
+                if (nextMsg.role === 'tool') {
+                  toolOutput = nextMsg.content;
+                  break;
+                }
+                if (nextMsg.role === 'user' || nextMsg.role === 'assistant') {
+                  break;
+                }
+              }
+            }
+
+            const args = tc.arguments || {};
+            let title = `Execute ${name}`;
+            if (args.toolSummary) {
+              title = String(args.toolSummary).replace(/^"|"$/g, '');
+            } else if (args.CommandLine) {
+              title = String(args.CommandLine).replace(/^"|"$/g, '');
+            } else if (args.Path || args.AbsolutePath) {
+              const p = String(args.Path || args.AbsolutePath).replace(/^"|"$/g, '');
+              const filename = p.split(/[\\/]/).pop() || p;
+              title = `${name.replace(/_file$/, '')}: ${filename}`;
+            } else if (args.query) {
+              title = `Search: "${String(args.query).replace(/^"|"$/g, '')}"`;
+            } else if (args.ServerName && args.ToolName) {
+              title = `MCP: ${args.ServerName} / ${args.ToolName}`;
+            }
+
+            let exitCode: number | undefined;
+            if (toolOutput) {
+              const exitMatch = /(?:exited\s+with\s+code\s+|exit\s+code\s+)(\d+)/i.exec(toolOutput);
+              if (exitMatch) {
+                exitCode = parseInt(exitMatch[1], 10);
+              }
+            }
+
+            asstObj.actions.push({
+              id: `action_${tc.id || `${i}_${tcIdx}`}`,
+              title,
+              category,
+              toolName: name,
+              hasDetails: true,
+              args,
+              output: toolOutput,
+              status: tc.status || (exitCode === undefined || exitCode === 0 ? 'success' : 'error'),
+              exitCode,
+              details: toolOutput || (typeof args === 'object' ? JSON.stringify(args, null, 2) : String(args)),
+            });
+          });
+        }
       }
-      return true;
-    });
+    }
+
+    return turns;
   }, [sessionMessages]);
 
-  // Assemble the exact Stitch Copilot action steps list
-  const actionSteps = useMemo<ActionStep[]>(() => {
-    const steps: ActionStep[] = [
+  // Demo fallback turn for empty/initial demonstration sessions
+  const demoFallbackTurns = useMemo<ChatTurn[]>(() => {
+    return [
       {
-        id: 'step_clone',
-        title: `Clone repository ${repoName.replace(' / ', '/')}`,
-        category: 'repo',
-        duration: '0.4s',
-        hasDetails: false,
-      },
-      {
-        id: 'step_mcp_1',
-        title: 'Connected to runtime-tools MCP Server',
-        category: 'mcp',
-        hasDetails: false,
-      },
-      {
-        id: 'step_mcp_2',
-        title: 'Connected to github-mcp-server MCP Server',
-        category: 'mcp',
-        hasDetails: false,
-      },
-      {
-        id: 'step_mcp_3',
-        title: 'Connected to playwright MCP Server',
-        category: 'mcp',
-        hasDetails: false,
-      },
-      {
-        id: 'step_skill',
-        title: 'Activate merge-branch skill',
-        category: 'skill',
-        hasDetails: true,
-        details: 'Loaded agent skill: merge-branch with interactive 3-way resolution strategy.',
-      },
-      {
-        id: 'step_branch_status',
-        title: 'Check branch status and recent commits',
-        category: 'terminal',
-        hasDetails: true,
-        details: 'git status --porcelain\ngit log -n 5 --oneline',
-      },
-      {
-        id: 'step_discover',
-        title: 'Discover default branch and shallow/ref state',
-        category: 'terminal',
-        hasDetails: true,
-        details: 'git symbolic-ref refs/remotes/origin/HEAD\ngit rev-parse --is-shallow-repository',
-      },
-      {
-        id: 'step_list_files',
-        title: 'List files changed in recent commits',
-        category: 'terminal',
-        hasDetails: true,
-        details: 'git diff --name-status origin/main...HEAD',
-      },
-      {
-        id: 'step_chore_outline',
-        title: 'chore: outline merge conflict resolution',
-        category: 'file',
-        hasDetails: true,
-        details: 'Generated step-by-step resolution plan for divergent branches.',
-      },
-      {
-        id: 'step_fetch_deepen',
-        title: 'Fetch base branch and deepen until merge-ba...',
-        category: 'terminal',
-        hasDetails: true,
-        details: 'git fetch --deepen=50 origin main\ngit merge-base HEAD origin/main',
-      },
-      {
-        id: 'step_reply_comment',
-        title: 'Call to Engine-tools-reply_to_comment',
-        category: 'terminal',
-        hasDetails: true,
-        details: 'engine.tools.reply_to_comment({ pr: 12, body: "Resolved merge conflicts." })',
+        id: 'turn_demo_1',
+        userMessage: {
+          id: 'usr_demo_1',
+          content: activeSession?.title || '@copilot please fix the merge conflicts in this pull request.',
+          timestamp: activeSession?.createdAt,
+        },
+        assistant: {
+          id: 'asst_demo_1',
+          timestamp: activeSession?.createdAt,
+          reasoning: 'I inspected git status, identified conflict markers in ProjectDossier.tsx and Spotify callback route, and formulated a resolution plan.',
+          actions: [
+            {
+              id: 'step_clone',
+              title: `Clone repository ${repoName.replace(' / ', '/')}`,
+              category: 'repo',
+              duration: '0.4s',
+              hasDetails: true,
+              toolName: 'git_clone',
+              args: { repository: repoName, branch: 'patch-1', destination: '/workspace/project' },
+              output: `Cloning into 'abhishekkk.in'...\nremote: Enumerating objects: 1204, done.\nResolving deltas: 100% (524/524), done in 0.4s.`,
+              status: 'success',
+              exitCode: 0,
+            },
+            {
+              id: 'step_mcp_1',
+              title: 'Connected to runtime-tools MCP Server',
+              category: 'mcp',
+              duration: '0.2s',
+              hasDetails: true,
+              toolName: 'mcp_connect',
+              args: { server: 'runtime-tools', capabilities: ['bash', 'fs', 'git'] },
+              output: 'Connected to runtime-tools (PID 14201). Initialized MCP tool server session.',
+              status: 'success',
+            },
+            {
+              id: 'step_branch_status',
+              title: 'Check branch status and recent commits',
+              category: 'terminal',
+              hasDetails: true,
+              toolName: 'run_command',
+              args: { CommandLine: 'git status --porcelain && git log -n 5 --oneline' },
+              output: `The command exited with code 0.\nOutput:\nUU src/components/sections/ProjectDossier.tsx\n9af270e merge conflict resolution\n830b868 XSS safety fix`,
+              status: 'success',
+              exitCode: 0,
+            },
+            {
+              id: 'step_chore_outline',
+              title: 'chore: outline merge conflict resolution',
+              category: 'file',
+              hasDetails: true,
+              toolName: 'edit_file',
+              args: { Path: '/workspace/src/components/sections/ProjectDossier.tsx' },
+              output: 'Resolved 3 conflict markers in ProjectDossier.tsx. Merged ASCII layout with ArchitecturePipeline.',
+              status: 'success',
+            },
+          ],
+          content: DEFAULT_RESOLUTION_MARKDOWN,
+        },
       },
     ];
+  }, [activeSession, repoName]);
 
-    // Append any dynamic tool calls from this session
-    sessionMessages.forEach((msg) => {
-      if (msg.toolCalls && msg.toolCalls.length > 0) {
-        msg.toolCalls.forEach((tc, idx) => {
-          let category: ActionStep['category'] = 'terminal';
-          if (tc.name.includes('file')) category = 'file';
-          else if (tc.name.includes('mcp')) category = 'mcp';
-          else if (tc.name.includes('subagent') || tc.name.includes('skill')) category = 'skill';
-
-          steps.push({
-            id: `dyn_${tc.id || idx}`,
-            title: `Execute ${tc.name}`,
-            category,
-            hasDetails: true,
-            details: typeof tc.arguments === 'object' ? JSON.stringify(tc.arguments, null, 2) : String(tc.arguments || ''),
-          });
-        });
-      }
-    });
-
-    return steps;
-  }, [repoName, sessionMessages]);
-
-  const toggleActionDetails = (id: string) => {
-    setExpandedActionId((curr) => (curr === id ? null : id));
-  };
+  const displayedTurns = chatTurns.length > 0 ? chatTurns : demoFallbackTurns;
 
   const renderActionIcon = (category: ActionStep['category']) => {
     switch (category) {
       case 'repo':
-        return <FolderGit2 size={16} color="#8b949e" />;
+        return <FolderGit2 size={16} color="#58a6ff" />;
       case 'mcp':
-        return <Link size={16} color="#8b949e" />;
+        return <Link size={16} color="#58a6ff" />;
       case 'skill':
-        return <GitFork size={16} color="#8b949e" />;
+        return <GitFork size={16} color="#d2a8ff" />;
       case 'file':
-        return <FileText size={16} color="#8b949e" />;
+        return <FileText size={16} color="#58a6ff" />;
+      case 'search':
+        return <Search size={16} color="#79c0ff" />;
       case 'terminal':
       default:
-        return <Terminal size={16} color="#8b949e" />;
+        return <Terminal size={16} color="#3fb950" />;
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* 1. Top Navigation Bar (Identical to Stitch TopNavigationBar) */}
+      {/* 1. Top Navigation Bar */}
       <HeaderBar
         title={titleStr}
         subtitle={subtitleStr}
@@ -277,7 +389,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Metadata Summary Row (Centered, text-xs text-[#8b949e]) */}
+        {/* 2. Metadata Summary Row */}
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>
             Created {timeAgoStr} <Text style={styles.metaDot}>•</Text> 1 session{' '}
@@ -285,132 +397,143 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
           </Text>
         </View>
 
-        {/* 3. User Comment Card (bg-[#161b22] border border-[#21262d] rounded-xl p-3.5) */}
-        <View style={styles.userCommentCard}>
-          <Text style={styles.userCommentHeader}>@Abhishekkk-15 commented:</Text>
-          <Text style={styles.userCommentBody}>{initialUserPrompt}</Text>
-        </View>
-
-        {/* 4. Copilot Action Summary Accordion (border-b border-[#21262d] pb-2 pt-1) */}
-        <View style={styles.accordionSection}>
-          <TouchableOpacity
-            style={styles.accordionHeader}
-            onPress={() => setIsAccordionOpen(!isAccordionOpen)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.accordionHeaderLeft}>
-              {/* Green checkmark circle: w-5 h-5 rounded-full bg-[#238636] */}
-              <View style={styles.greenCheckCircle}>
-                <Check size={12} color="#ffffff" />
-              </View>
-
-              <View style={styles.accordionTitleCol}>
-                <Text style={styles.accordionTitle} numberOfLines={1}>
-                  Resolving merge conflicts for a...
-                </Text>
-                <Text style={styles.accordionSubtitle}>
-                  {actionSteps.length} actions
-                </Text>
-              </View>
-            </View>
-
-            {/* Execution time & chevron */}
-            <View style={styles.accordionHeaderRight}>
-              <Text style={styles.accordionDuration}>4m 28s</Text>
-              {isAccordionOpen ? (
-                <ChevronUp size={16} color="#8b949e" />
+        {/* 3. Pagination: Load Older History Button */}
+        {hasMoreMessages && (
+          <View style={styles.loadOlderContainer}>
+            <TouchableOpacity
+              style={styles.loadOlderBtn}
+              onPress={loadOlderMessages}
+              disabled={isLoadingOlderMessages}
+              activeOpacity={0.7}
+            >
+              {isLoadingOlderMessages ? (
+                <ActivityIndicator size="small" color="#58a6ff" />
               ) : (
-                <ChevronDown size={16} color="#8b949e" />
+                <>
+                  <ArrowUp size={13} color="#58a6ff" />
+                  <Text style={styles.loadOlderText}>Load older messages</Text>
+                </>
               )}
-            </View>
-          </TouchableOpacity>
-
-          {/* Action Step Rows (mt-2 divide-y divide-[#21262d]/50) */}
-          {isAccordionOpen && (
-            <View style={styles.actionStepsList}>
-              {actionSteps.map((step) => {
-                const isExpanded = expandedActionId === step.id;
-                return (
-                  <View key={step.id}>
-                    <TouchableOpacity
-                      style={styles.actionStepRow}
-                      activeOpacity={step.hasDetails ? 0.7 : 1}
-                      onPress={() => step.hasDetails && toggleActionDetails(step.id)}
-                    >
-                      <View style={styles.actionStepLeft}>
-                        <View style={styles.actionStepIconBox}>
-                          {renderActionIcon(step.category)}
-                        </View>
-                        <Text style={styles.actionStepText} numberOfLines={1}>
-                          {step.title}
-                        </Text>
-                      </View>
-
-                      {step.duration ? (
-                        <Text style={styles.actionStepDuration}>{step.duration}</Text>
-                      ) : (
-                        <View style={styles.actionStepChevronBox}>
-                          {isExpanded ? (
-                            <ChevronDown size={16} color="#6e7681" />
-                          ) : (
-                            <ChevronRight size={16} color="#6e7681" />
-                          )}
-                        </View>
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Expandable action details drawer */}
-                    {isExpanded && step.details ? (
-                      <View style={styles.actionDetailsDrawer}>
-                        <Text style={styles.actionDetailsText}>{step.details}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-        </View>
-
-        {/* 5. Copilot Resolution Summary Body (Identical to Stitch copilot-resolution-body) */}
-        {conversationTurns.length === 0 ? (
-          <View style={styles.resolutionContainer}>
-            <MarkdownText content={DEFAULT_RESOLUTION_MARKDOWN} isUser={false} />
-          </View>
-        ) : (
-          <View style={styles.conversationContainer}>
-            {conversationTurns.map((msg, idx) => {
-              const isUser = msg.role === 'user';
-              if (isUser) {
-                return (
-                  <View key={msg.id || idx} style={styles.userCommentCard}>
-                    <Text style={styles.userCommentHeader}>@Abhishekkk-15 commented:</Text>
-                    <Text style={styles.userCommentBody}>{msg.content}</Text>
-                  </View>
-                );
-              }
-
-              return (
-                <View key={msg.id || idx} style={styles.resolutionTurn}>
-                  {msg.reasoning ? (
-                    <View style={styles.reasoningBox}>
-                      <View style={styles.reasoningHeader}>
-                        <Sparkles size={11} color="#d2a8ff" />
-                        <Text style={styles.reasoningTitle}>Reasoning</Text>
-                      </View>
-                      <Text style={styles.reasoningText} numberOfLines={6}>
-                        {msg.reasoning}
-                      </Text>
-                    </View>
-                  ) : null}
-                  <MarkdownText content={msg.content} isUser={false} />
-                </View>
-              );
-            })}
+            </TouchableOpacity>
           </View>
         )}
 
-        {/* Streaming tokens indicator */}
+        {/* 4. Sequential Turn-by-Turn Timeline */}
+        {displayedTurns.map((turn, turnIdx) => (
+          <View key={turn.id || turnIdx} style={styles.turnCardContainer}>
+            {/* User Prompt (if present in turn) */}
+            {turn.userMessage?.content ? (
+              <View style={styles.userCommentCard}>
+                <View style={styles.userHeaderRow}>
+                  <Text style={styles.userCommentHeader}>@Abhishekkk-15 commented:</Text>
+                  {turn.userMessage.timestamp ? (
+                    <Text style={styles.userTimestamp}>
+                      {formatTimeAgo(turn.userMessage.timestamp)}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={styles.userCommentBody}>{turn.userMessage.content}</Text>
+              </View>
+            ) : null}
+
+            {/* Assistant Turn Body */}
+            {turn.assistant ? (
+              <View style={styles.assistantTurnWrapper}>
+                {/* Reasoning Box (if any) */}
+                {turn.assistant.reasoning ? (
+                  <View style={styles.reasoningBox}>
+                    <View style={styles.reasoningHeader}>
+                      <Sparkles size={11} color="#d2a8ff" />
+                      <Text style={styles.reasoningTitle}>Reasoning</Text>
+                    </View>
+                    <Text style={styles.reasoningText} numberOfLines={8}>
+                      {turn.assistant.reasoning}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {/* Inline Actions executed for THIS turn */}
+                {turn.assistant.actions && turn.assistant.actions.length > 0 ? (
+                  <View style={styles.accordionSection}>
+                    <TouchableOpacity
+                      style={styles.accordionHeader}
+                      onPress={() => toggleTurnAccordion(turn.id)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.accordionHeaderLeft}>
+                        <View style={styles.greenCheckCircle}>
+                          <Check size={12} color="#ffffff" />
+                        </View>
+                        <View style={styles.accordionTitleCol}>
+                          <Text style={styles.accordionTitle} numberOfLines={1}>
+                            {turn.assistant.actions[0]?.title || 'Executed turn actions'}
+                          </Text>
+                          <Text style={styles.accordionSubtitle}>
+                            {turn.assistant.actions.length} action
+                            {turn.assistant.actions.length > 1 ? 's' : ''}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.accordionHeaderRight}>
+                        {isTurnOpen(turn.id) ? (
+                          <ChevronUp size={16} color="#8b949e" />
+                        ) : (
+                          <ChevronDown size={16} color="#8b949e" />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+
+                    {/* Action Step Rows */}
+                    {isTurnOpen(turn.id) && (
+                      <View style={styles.actionStepsList}>
+                        {turn.assistant.actions.map((action) => (
+                          <TouchableOpacity
+                            key={action.id}
+                            style={styles.actionStepRow}
+                            activeOpacity={0.7}
+                            onPress={() => setSelectedActionForTray(action)}
+                          >
+                            <View style={styles.actionStepLeft}>
+                              <View style={styles.actionStepIconBox}>
+                                {renderActionIcon(action.category)}
+                              </View>
+                              <Text style={styles.actionStepText} numberOfLines={1}>
+                                {action.title}
+                              </Text>
+                            </View>
+
+                            <View style={styles.actionStepRightCol}>
+                              {action.duration ? (
+                                <Text style={styles.actionStepDuration}>{action.duration}</Text>
+                              ) : null}
+                              <TouchableOpacity
+                                style={styles.actionStepChevronBox}
+                                activeOpacity={0.7}
+                                onPress={() => setSelectedActionForTray(action)}
+                              >
+                                <ChevronRight size={16} color="#8b949e" />
+                              </TouchableOpacity>
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                ) : null}
+
+                {/* Assistant Resolution / Markdown Response */}
+                {turn.assistant.content ? (
+                  <View style={styles.resolutionContainer}>
+                    <MarkdownText content={turn.assistant.content} isUser={false} />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        ))}
+
+        {/* 5. Streaming Live Indicator */}
         {isSendingPrompt && (
           <View style={styles.streamingIndicatorRow}>
             <ActivityIndicator size="small" color="#58a6ff" />
@@ -419,7 +542,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         )}
       </ScrollView>
 
-      {/* 6. Floating Action Buttons (Scroll to Bottom + Green VIEW button) */}
+      {/* 6. Floating Action Buttons */}
       <View style={[styles.scrollFabContainer, { pointerEvents: 'box-none' }]}>
         <TouchableOpacity
           style={styles.scrollFab}
@@ -447,7 +570,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         </TouchableOpacity>
       </View>
 
-      {/* 7. Chat Input Bar (Identical to Stitch ChatInputBar) */}
+      {/* 7. Chat Input Bar */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
@@ -483,6 +606,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* 8. Draggable Tool Slide Tray */}
+      <ToolActionTray
+        visible={Boolean(selectedActionForTray)}
+        action={selectedActionForTray}
+        onClose={() => setSelectedActionForTray(null)}
+      />
     </View>
   );
 };
@@ -501,7 +631,7 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
 
-  // Metadata summary row (pt-1 pb-1 text-center text-xs text-[#8b949e])
+  // Metadata summary row
   metaRow: {
     alignItems: 'center',
     paddingVertical: 4,
@@ -516,19 +646,56 @@ const styles = StyleSheet.create({
     color: '#484f58',
   },
 
-  // User Comment Card (bg-[#161b22] border border-[#21262d] rounded-xl p-3.5 shadow-sm)
-  userCommentCard: {
-    backgroundColor: '#161b22',
+  // Pagination header
+  loadOlderContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  loadOlderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.bgCard,
     borderWidth: 1,
-    borderColor: '#21262d',
-    borderRadius: 12,
+    borderColor: colors.borderDefault,
+  },
+  loadOlderText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.blue,
+    fontFamily: typography.mono,
+  },
+
+  // Sequential Turn Card
+  turnCardContainer: {
+    marginBottom: 16,
+  },
+  userCommentCard: {
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radii.xl,
     padding: 14,
-    marginBottom: 12,
+    marginBottom: 8,
+  },
+  userHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
   },
   userCommentHeader: {
     fontSize: 12,
     color: '#8b949e',
-    marginBottom: 6,
+  },
+  userTimestamp: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: typography.mono,
   },
   userCommentBody: {
     fontSize: 14,
@@ -536,13 +703,18 @@ const styles = StyleSheet.create({
     color: '#f0f6fc',
   },
 
-  // Copilot Action Summary Accordion (border-b border-[#21262d] pb-2 pt-1)
+  // Assistant turn wrapper
+  assistantTurnWrapper: {
+    marginTop: 2,
+  },
+
+  // Copilot Action Summary Accordion
   accordionSection: {
     borderBottomWidth: 1,
     borderBottomColor: '#21262d',
     paddingBottom: 8,
     paddingTop: 4,
-    marginBottom: 14,
+    marginBottom: 10,
   },
   accordionHeader: {
     flexDirection: 'row',
@@ -589,13 +761,8 @@ const styles = StyleSheet.create({
     gap: 6,
     flexShrink: 0,
   },
-  accordionDuration: {
-    fontSize: 12,
-    color: '#8b949e',
-    fontFamily: typography.mono,
-  },
 
-  // Action Steps List (mt-2 divide-y divide-[#21262d]/50)
+  // Action Steps List
   actionStepsList: {
     marginTop: 8,
   },
@@ -625,6 +792,11 @@ const styles = StyleSheet.create({
     color: '#c9d1d9',
     flex: 1,
   },
+  actionStepRightCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   actionStepDuration: {
     fontSize: 11,
     color: '#8b949e',
@@ -636,30 +808,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionDetailsDrawer: {
-    backgroundColor: '#010409',
-    marginVertical: 4,
-    padding: 8,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#30363d',
-  },
-  actionDetailsText: {
-    fontFamily: typography.mono,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#79c0ff',
-  },
 
   // Resolution summary container
   resolutionContainer: {
     paddingTop: 2,
-  },
-  conversationContainer: {
-    gap: 12,
-  },
-  resolutionTurn: {
-    marginBottom: 8,
   },
 
   // Reasoning process box
@@ -729,7 +881,7 @@ const styles = StyleSheet.create({
   },
   viewFabContainer: {
     position: 'absolute',
-    bottom: 54,
+    bottom: 58,
     right: 16,
     zIndex: 20,
   },
@@ -737,60 +889,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     backgroundColor: '#238636',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 6,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   viewFabText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#ffffff',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
-  // Chat Input Bar (px-3 py-2 bg-[#0d1117] border-t border-[#21262d]/60)
+  // Chat Input Bar
   chatInputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#161b22',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(33, 38, 45, 0.6)',
+    borderTopColor: '#21262d',
+    gap: 8,
   },
   chatInputFieldContainer: {
     flex: 1,
-    height: 40,
-    backgroundColor: '#161b22',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0d1117',
     borderWidth: 1,
     borderColor: '#30363d',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
   },
   chatInputField: {
+    flex: 1,
     fontSize: 14,
     color: '#f0f6fc',
     padding: 0,
   },
   chatSendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#1f6feb',
     alignItems: 'center',
     justifyContent: 'center',
   },
   chatSendButtonDisabled: {
     backgroundColor: '#21262d',
-    opacity: 0.5,
+    opacity: 0.6,
   },
 });
