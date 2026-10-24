@@ -68,17 +68,19 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         onPress={() => onSelectTab('agent')}
         activeOpacity={0.7}
       >
-        <Bot
-          size={20}
-          color={activeTab === 'agent' ? colors.blue : colors.textMuted}
-        />
+        <View style={activeTab === 'agent' ? styles.activePill : styles.iconWrapper}>
+          <Bot
+            size={18}
+            color={activeTab === 'agent' ? '#ffffff' : '#8d96a0'}
+          />
+        </View>
         <Text
           style={[
             styles.tabLabel,
-            activeTab === 'agent' && { color: colors.blue, fontWeight: '700' },
+            activeTab === 'agent' && styles.activeTabLabel,
           ]}
         >
-          Agent
+          Copilot
         </Text>
       </TouchableOpacity>
 
@@ -106,10 +108,10 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 60,
-    backgroundColor: colors.bgCard,
+    height: 62,
+    backgroundColor: '#0d1117',
     borderTopWidth: 1,
-    borderTopColor: colors.borderDefault,
+    borderTopColor: '#21262d',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -119,19 +121,36 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
+    paddingVertical: 4,
+  },
+  iconWrapper: {
+    height: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activePill: {
+    backgroundColor: '#1f6feb',
+    paddingHorizontal: 16,
+    paddingVertical: 3,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabLabel: {
-    fontSize: 10,
-    color: colors.textMuted,
+    fontSize: 11,
+    color: '#8d96a0',
     marginTop: 3,
     fontWeight: '500',
+  },
+  activeTabLabel: {
+    color: '#f0f6fc',
+    fontWeight: '700',
   },
   badge: {
     position: 'absolute',
     top: -4,
     right: -8,
-    backgroundColor: colors.red,
+    backgroundColor: '#f85149',
     borderRadius: radii.full,
     paddingHorizontal: 4,
     minWidth: 14,

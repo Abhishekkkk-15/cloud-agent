@@ -28,7 +28,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ArrowLeft size={20} color={colors.textSecondary} />
+            <ArrowLeft size={22} color="#f0f6fc" />
           </TouchableOpacity>
         )}
         <View style={styles.titleColumn}>
@@ -50,7 +50,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             onPress={onMore}
             activeOpacity={0.7}
           >
-            <MoreVertical size={18} color={colors.textMuted} />
+            <MoreVertical size={20} color="#58a6ff" />
           </TouchableOpacity>
         )}
       </View>
@@ -60,10 +60,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 54,
-    backgroundColor: colors.bgPrimary,
+    height: 56,
+    backgroundColor: '#0d1117',
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderDefault,
+    borderBottomColor: '#21262d',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -82,22 +82,22 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 6,
+    marginRight: 8,
   },
   titleColumn: {
     flex: 1,
     justifyContent: 'center',
   },
   title: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: '#f0f6fc',
     letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 1,
+    fontSize: 12.5,
+    color: '#8d96a0',
+    marginTop: 2,
   },
   rightRow: {
     flexDirection: 'row',
