@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-import { getCurrentUser, googleSignIn, devSignIn } from "@/lib/api"
+import { getCurrentUser, googleSignIn } from "@/lib/api"
 import { clearTokens, setTokens } from "@/lib/http"
 import type { User } from "@cloud-agent/shared"
 
@@ -10,7 +10,6 @@ type AuthState = {
   error: string | null
   hydrate: () => Promise<void>
   signInWithGoogle: (credential: string) => Promise<void>
-  devSignIn: () => Promise<void>
   signOut: () => void
 }
 
@@ -35,12 +34,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   signInWithGoogle: async (credential) => {
     set({ error: null })
     const payload = await googleSignIn(credential)
-    setTokens(payload.access_token, payload.refresh_token)
-    set({ user: payload.user, loading: false, error: null })
-  },
-  devSignIn: async () => {
-    set({ error: null })
-    const payload = await devSignIn()
     setTokens(payload.access_token, payload.refresh_token)
     set({ user: payload.user, loading: false, error: null })
   },
