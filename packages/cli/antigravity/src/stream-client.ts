@@ -1,9 +1,11 @@
+import fs from "node:fs";
+import path from "node:path";
 import { spawn, execFile, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
 import readline from "node:readline";
 import crypto from "node:crypto";
 import type { CliRunOptions, CliEvent } from "@cloud-agent/cli-interface";
-import { getAgyBinaryPath } from "./paths.js";
+import { getAgyBinaryPath, getBrainDir } from "./paths.js";
 import { mapAntigravityStreamEvent } from "./mapper.js";
 
 const execFileAsync = promisify(execFile);
@@ -13,6 +15,7 @@ const BUILTIN_CLI_COMMANDS = new Set([
   "/skills",
   "/models",
   "/agents",
+  "/agent",
   "/mcp",
   "/usage",
   "/quota",
@@ -31,6 +34,112 @@ function getBuiltinCliCommand(prompt: string): string | null {
     return trimmed;
   }
   return null;
+}
+
+function getSubcommandForBuiltin(cmd: string): { args: string[]; stripAnsi?: boolean } {
+  const parts = cmd.trim().split(/\s+/);
+  const name = parts[0].toLowerCase();
+  const rest = parts.slice(1);
+
+  switch (name) {
+    case "/usage":
+    case "/quota":
+    case "/credits":
+      return { args: ["--print", "/usage"] };
+
+    case "/models":
+      return { args: ["models", ...rest], stripAnsi: true };
+
+    case "/mcp":
+      return { args: ["mcp", ...(rest.length > 0 ? rest : ["list"])], stripAnsi: true };
+
+    case "/changelog":
+      return { args: ["changelog", ...rest] };
+
+    case "/help":
+      return { args: ["help", ...rest] };
+
+    case "/agents":
+    case "/agent":
+      return { args: ["agents", ...rest], stripAnsi: true };
+
+    case "/skills":
+      return { args: ["--print", "/skills"] };
+
+    case "/permissions":
+    case "/config":
+    case "/settings":
+    case "/hooks":
+    default:
+      return { args: ["--print", cmd] };
+  }
+}
+
+function cleanCliOutput(raw: string): string {
+  return raw
+    .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
+    .replace(/[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]/g, "")
+    .replace(/Fetching available models\.\.\./g, "")
+    .trim();
+}
+
+function appendCommandToTranscript(
+  sessionId: string,
+  prompt: string,
+  output: string
+): void {
+  try {
+    const brainDir = getBrainDir();
+    const transcriptPath = path.join(
+      brainDir,
+      sessionId,
+      ".system_generated",
+      "logs",
+      "transcript.jsonl"
+    );
+
+    if (!fs.existsSync(transcriptPath)) {
+      return;
+    }
+
+    const content = fs.readFileSync(transcriptPath, "utf-8");
+    const lines = content.split("\n").filter((l) => l.trim().length > 0);
+    let nextStepIndex = lines.length;
+    if (lines.length > 0) {
+      try {
+        const lastObj = JSON.parse(lines[lines.length - 1]);
+        if (typeof lastObj.step_index === "number") {
+          nextStepIndex = lastObj.step_index + 1;
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+
+    const now = new Date().toISOString();
+    const userLine = JSON.stringify({
+      step_index: nextStepIndex,
+      source: "USER_EXPLICIT",
+      type: "USER_INPUT",
+      status: "DONE",
+      created_at: now,
+      content: `<USER_REQUEST>\n${prompt}\n</USER_REQUEST>`,
+    });
+
+    const assistantLine = JSON.stringify({
+      step_index: nextStepIndex + 1,
+      source: "MODEL",
+      type: "PLANNER_RESPONSE",
+      status: "DONE",
+      created_at: now,
+      content: output,
+      tool_calls: [],
+    });
+
+    fs.appendFileSync(transcriptPath, `${userLine}\n${assistantLine}\n`, "utf-8");
+  } catch (err) {
+    console.warn(`[stream-client] Failed to append command turn to transcript for ${sessionId}:`, err);
+  }
 }
 
 type QueueItem = { event?: CliEvent; error?: Error; done?: boolean };
@@ -312,28 +421,38 @@ export class AntigravityStreamClient {
         type: "status",
         sessionId,
         timestamp: new Date().toISOString(),
-        data: { status: "thinking", message: `Executing Antigravity command ${builtinCmd}...` },
+        data: { status: "thinking", message: `Executing Antigravity command ${builtinCmd}...`, isCommand: true },
       };
 
       try {
-        const { stdout, stderr } = await execFileAsync(binary, ["--print", builtinCmd], {
+        const cmdConfig = getSubcommandForBuiltin(builtinCmd);
+        const { stdout, stderr } = await execFileAsync(binary, cmdConfig.args, {
           cwd: options.cwd,
           env: { ...process.env, ...options.env },
         });
 
-        const outputText = stdout || stderr || "Command executed with no output.";
+        let outputText = stdout || stderr || "Command executed with no output.";
+        if (cmdConfig.stripAnsi) {
+          outputText = cleanCliOutput(outputText);
+        }
+
+        // Persist to session transcript if an active session exists
+        if (options.sessionId) {
+          appendCommandToTranscript(options.sessionId, options.prompt, outputText);
+        }
+
         yield {
           type: "text_chunk",
           sessionId,
           timestamp: new Date().toISOString(),
-          data: { text: outputText, delta: false },
+          data: { text: outputText, delta: false, isCommand: true },
         };
 
         yield {
           type: "status",
           sessionId,
           timestamp: new Date().toISOString(),
-          data: { status: "done", message: "Command executed successfully" },
+          data: { status: "done", message: "Command executed successfully", isCommand: true },
         };
       } catch (err: any) {
         yield {
@@ -343,13 +462,14 @@ export class AntigravityStreamClient {
           data: {
             text: `⚠️ Error executing ${builtinCmd}: ${err?.message || String(err)}`,
             delta: false,
+            isCommand: true,
           },
         };
         yield {
           type: "status",
           sessionId,
           timestamp: new Date().toISOString(),
-          data: { status: "error", message: String(err) },
+          data: { status: "error", message: String(err), isCommand: true },
         };
       }
       return;

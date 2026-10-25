@@ -171,7 +171,11 @@ export class RpcDispatcher {
             options,
           });
 
+          let isCommand = false;
           for await (const event of stream) {
+            if ((event as any).data?.isCommand) {
+              isCommand = true;
+            }
             onStream({
               id: req.id,
               stream: true,
@@ -179,7 +183,11 @@ export class RpcDispatcher {
             });
           }
 
-          return { id: req.id, result: { completed: true }, done: true };
+          return {
+            id: req.id,
+            result: { completed: true, isCommand, sessionId: options.sessionId },
+            done: true,
+          };
         }
 
         case "agent.cancel": {

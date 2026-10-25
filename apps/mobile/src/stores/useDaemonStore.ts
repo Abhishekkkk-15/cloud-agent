@@ -242,7 +242,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             const currentContent = typeof lastMsg.content === 'string' ? lastMsg.content : '';
             msgs[msgs.length - 1] = {
               ...lastMsg,
-              content: isDelta ? currentContent + text : (currentContent.length > 0 ? currentContent : text),
+              content: isDelta ? currentContent + text : text,
             };
             return { sessionMessages: msgs };
           } else {
@@ -609,9 +609,14 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           isLoadingSessions: false,
         });
 
-        // Auto-select first session if none selected
+        // Auto-select first session ONLY IF none selected AND we don't have active chat messages
         if (!get().activeSession && parsed.length > 0) {
-          get().selectSession(parsed[0]);
+          if (get().sessionMessages.length === 0) {
+            get().selectSession(parsed[0]);
+          } else {
+            // Associate with newly created session on disk without wiping in-memory sessionMessages
+            set({ activeSession: parsed[0] });
+          }
         }
       } else {
         set({ isLoadingSessions: false });
@@ -623,6 +628,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   selectSession: async (session: RealSessionItem) => {
+    // If selecting the currently active session and it already has messages, avoid wiping
+    if (get().activeSession?.id === session.id && get().sessionMessages.length > 0) {
+      return;
+    }
     set({
       activeSession: session,
       sessionMessages: [],
@@ -740,7 +749,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }));
 
     try {
-      await mobileP2P.sendRpc('agent.run', {
+      const runResult = await mobileP2P.sendRpc<any>('agent.run', {
         options: {
           prompt: promptText,
           sessionId: activeSession?.id,
@@ -757,6 +766,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         mode: sessionConfig.mode,
       });
       set({ isSendingPrompt: false });
+
+      // If this was a built-in CLI command (/usage, /models, /mcp, etc.),
+      // the result was already rendered in real-time in sessionMessages!
+      // Do not re-query or wipe session messages.
+      if (runResult?.isCommand) {
+        return;
+      }
 
       // Automatically re-sync messages from disk transcript once turn completes
       if (activeSession) {
@@ -780,10 +796,16 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             timestamp: m.timestamp || new Date().toISOString(),
             toolCalls: m.toolCalls,
           }));
-          set({
-            sessionMessages: msgs,
-            messagesOffset: rawList.length,
-            hasMoreMessages: Boolean(resp?.hasMore),
+          // Guard: Only replace if disk has at least as many messages as local state
+          set((state) => {
+            if (msgs.length >= state.sessionMessages.length) {
+              return {
+                sessionMessages: msgs,
+                messagesOffset: rawList.length,
+                hasMoreMessages: Boolean(resp?.hasMore),
+              };
+            }
+            return state;
           });
         }
       } else {
