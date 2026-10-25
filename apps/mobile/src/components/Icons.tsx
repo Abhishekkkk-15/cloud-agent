@@ -75,3 +75,6 @@ export const ChevronLeft = wrapIcon(Lucide.ChevronLeft);
 export const Menu = wrapIcon(Lucide.Menu);
 export const MessageSquare = wrapIcon(Lucide.MessageSquare);
 export const LogOut = wrapIcon(Lucide.LogOut);
+export const Square = wrapIcon(Lucide.Square);
+export const Trash2 = wrapIcon(Lucide.Trash2);
+export const QrCode = wrapIcon(Lucide.QrCode);

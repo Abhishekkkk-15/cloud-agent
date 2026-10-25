@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { colors, radii, typography } from '../theme/tokens';
+import { DiffViewer } from './DiffViewer';
 import {
   Copy,
   Check,
@@ -616,7 +617,11 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
   };
 
   // Check if code is a diff
-  const isDiff = block.language.toLowerCase() === 'diff' || /^[+-]\s/m.test(block.code);
+  const isDiff = block.language.toLowerCase() === 'diff' || (/^--- /m.test(block.code) && /^\+\+\+ /m.test(block.code));
+  if (isDiff) {
+    return <DiffViewer diffText={block.code} filePath={block.language.toLowerCase() === 'diff' ? 'changes.diff' : 'patch'} />;
+  }
+
   const lines = block.code.split(/\r?\n/);
 
   return (

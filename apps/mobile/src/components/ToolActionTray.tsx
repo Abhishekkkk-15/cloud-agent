@@ -32,6 +32,7 @@ import {
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { MarkdownText, JsonViewer } from './MarkdownText';
+import { DiffViewer } from './DiffViewer';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -359,6 +360,19 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                     </Text>
                   ) : null}
                 </View>
+
+                {/* If this is a file edit or creation, render the GitHub-Style Diff Viewer */}
+                {(args.Target !== undefined || args.Replacement !== undefined || args.Content !== undefined || (action.output && action.output.includes('@@'))) ? (
+                  <View style={{ marginTop: 10 }}>
+                    <DiffViewer
+                      filePath={filePath}
+                      target={typeof args.Target === 'string' ? args.Target : undefined}
+                      replacement={typeof args.Replacement === 'string' ? args.Replacement : undefined}
+                      content={typeof args.Content === 'string' && toolName === 'write_file' ? args.Content : undefined}
+                      diffText={action.output && action.output.includes('@@') ? action.output : undefined}
+                    />
+                  </View>
+                ) : null}
               </View>
             ) : null}
 

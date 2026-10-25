@@ -39,6 +39,7 @@ import { MarkdownText } from '../components/MarkdownText';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
 import { SessionConfigSheet } from '../components/SessionConfigSheet';
+import { TerminalSheet } from '../components/TerminalSheet';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -80,6 +81,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [promptInput, setPromptInput] = useState('');
   const [showCommandPicker, setShowCommandPicker] = useState(false);
   const [showConfigSheet, setShowConfigSheet] = useState(false);
+  const [showTerminal, setShowTerminal] = useState(false);
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
   const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
@@ -342,6 +344,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         title={titleStr}
         subtitle={subtitleStr}
         onBack={onOpenDrawer || onBack}
+        rightElement={
+          <TouchableOpacity
+            style={styles.headerTerminalBtn}
+            onPress={() => setShowTerminal(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Open Terminal"
+          >
+            <Terminal size={16} color="#f0f6fc" />
+          </TouchableOpacity>
+        }
         onMore={() => {
           Alert.alert(
             'Session Options',
@@ -676,6 +689,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         visible={showConfigSheet}
         onClose={() => setShowConfigSheet(false)}
       />
+
+      {/* 10. Live Interactive Terminal Sheet */}
+      <TerminalSheet
+        visible={showTerminal}
+        onClose={() => setShowTerminal(false)}
+      />
     </View>
   );
 };
@@ -684,6 +703,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0d1117',
+  },
+  headerTerminalBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#21262d',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
   },
   scroll: {
     flex: 1,

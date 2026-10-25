@@ -100,6 +100,13 @@ export interface DirectoryBrowseResult {
   dirs: Array<{ name: string; fullPath: string }>;
 }
 
+export interface TerminalOutputLine {
+  id: string;
+  text: string;
+  stream: 'stdout' | 'stderr' | 'info';
+  timestamp: string;
+}
+
 interface DaemonStoreState {
   apiUrl: string;
   gatewayUrl: string;
@@ -131,6 +138,8 @@ interface DaemonStoreState {
     details: string;
   }>;
   sessionConfig: SessionConfig;
+  terminalLines: TerminalOutputLine[];
+  isTerminalRunning: boolean;
 
   // Actions
   init: () => Promise<void>;
@@ -138,6 +147,8 @@ interface DaemonStoreState {
   loginWithDev: () => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
   logout: () => void;
+  execTerminalCommand: (command: string, cwd?: string) => Promise<{ exitCode: number }>;
+  clearTerminal: () => void;
   refreshStatus: () => Promise<void>;
   fetchSessions: () => Promise<void>;
   fetchKnownWorkspaces: () => Promise<void>;
@@ -145,6 +156,7 @@ interface DaemonStoreState {
   browseDirectories: (path?: string) => Promise<DirectoryBrowseResult | null>;
   startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => void;
   generateMachinePairingToken: (machineName?: string) => Promise<{ token: string; installCommand: string; instructions: string } | null>;
+  pairWithPayload: (payload: string) => Promise<{ success: boolean; message: string }>;
   selectSession: (session: RealSessionItem) => Promise<void>;
   createNewSession: () => void;
   loadOlderMessages: () => Promise<void>;
@@ -184,6 +196,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     effort: 'high',
     mode: 'auto',
   },
+  terminalLines: [],
+  isTerminalRunning: false,
 
   setSessionConfig: (newCfg: Partial<SessionConfig>) => {
     set((state) => ({
@@ -377,6 +391,23 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         } else if (statusVal === 'done') {
           set({ isSendingPrompt: false });
         }
+      } else if (event.type === 'terminal.output') {
+        const trData = event.data || event;
+        const text = trData.text || '';
+        const stream = trData.stream || 'stdout';
+        if (text) {
+          set((state) => ({
+            terminalLines: [
+              ...state.terminalLines,
+              {
+                id: `line_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                text,
+                stream,
+                timestamp: new Date().toISOString(),
+              },
+            ],
+          }));
+        }
       }
     });
 
@@ -487,6 +518,61 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     });
   },
 
+  execTerminalCommand: async (command: string, cwd?: string) => {
+    const activeWs = cwd || get().targetWorkspacePath || get().activeSession?.workspacePath;
+    set((state) => ({
+      isTerminalRunning: true,
+      terminalLines: [
+        ...state.terminalLines,
+        {
+          id: `cmd_${Date.now()}`,
+          text: `$ ${command}`,
+          stream: 'info',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    }));
+
+    try {
+      const res = await mobileP2P.sendRpc<{ exitCode: number; durationMs?: number }>(
+        'terminal.exec',
+        { command, cwd: activeWs },
+        180000
+      );
+      set((state) => ({
+        isTerminalRunning: false,
+        terminalLines: [
+          ...state.terminalLines,
+          {
+            id: `done_${Date.now()}`,
+            text: `[Process exited with code ${res?.exitCode ?? 0}]`,
+            stream: (res?.exitCode ?? 0) === 0 ? 'info' : 'stderr',
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }));
+      return res || { exitCode: 0 };
+    } catch (err: any) {
+      set((state) => ({
+        isTerminalRunning: false,
+        terminalLines: [
+          ...state.terminalLines,
+          {
+            id: `err_${Date.now()}`,
+            text: `Error: ${err?.message || 'Execution failed'}`,
+            stream: 'stderr',
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }));
+      return { exitCode: 1 };
+    }
+  },
+
+  clearTerminal: () => {
+    set({ terminalLines: [] });
+  },
+
   fetchKnownWorkspaces: async () => {
     try {
       const res = await mobileP2P.sendRpc<{ workspaces: KnownWorkspaceItem[] }>('workspaces.list');
@@ -561,6 +647,59 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch (err) {
       console.error('[DaemonStore] generateMachinePairingToken error:', err);
       return null;
+    }
+  },
+
+  pairWithPayload: async (payload: string) => {
+    try {
+      let token = '';
+      let machineId = '';
+      let machineName = '';
+      let gateway = get().gatewayUrl;
+
+      const trimmed = payload.trim();
+      if (trimmed.startsWith('ca_pair://connect?')) {
+        const queryStr = trimmed.slice('ca_pair://connect?'.length);
+        const params = new URLSearchParams(queryStr);
+        token = params.get('token') || '';
+        machineId = params.get('machineId') || '';
+        machineName = params.get('name') || '';
+        if (params.get('gateway')) {
+          gateway = params.get('gateway')!;
+        }
+      } else if (trimmed.startsWith('ca_mach_') || trimmed.length > 20) {
+        token = trimmed;
+      } else {
+        return { success: false, message: 'Invalid pairing format. Expected ca_pair:// URL or token.' };
+      }
+
+      if (!token) {
+        return { success: false, message: 'No valid token found in payload.' };
+      }
+
+      set({
+        token,
+        isAuthenticated: true,
+        gatewayUrl: gateway,
+        ...(machineId
+          ? {
+              activeMachine: {
+                machineId,
+                name: machineName || 'Paired Machine',
+                platform: 'linux',
+                arch: 'x64',
+                isOnline: true,
+                status: 'online',
+              },
+            }
+          : {}),
+      });
+
+      await get().connectGateway();
+      return { success: true, message: 'Machine paired successfully!' };
+    } catch (err: any) {
+      console.error('[DaemonStore] pairWithPayload error:', err);
+      return { success: false, message: err?.message || 'Failed to pair machine.' };
     }
   },
 

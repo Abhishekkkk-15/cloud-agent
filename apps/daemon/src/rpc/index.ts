@@ -1,11 +1,14 @@
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
+import { spawn, type ChildProcess } from "node:child_process";
 import { registry } from "../registry.js";
 import { handleSessionsList, handleSessionsGet, handleMessagesGet } from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
 import { buildFileTree, readFileContent, writeFileContent, listDirectories } from "./fs.js";
 import type { CliEvent } from "@cloud-agent/cli-interface";
+
+const activeTerminalProcesses = new Map<string, ChildProcess>();
 
 export interface RpcRequest {
   id: string;
@@ -212,6 +215,81 @@ export class RpcDispatcher {
             allow: Boolean(params.allow),
           });
           return { id: req.id, result };
+        }
+
+        case "terminal.exec": {
+          const command = params.command;
+          if (!command || typeof command !== "string") {
+            throw new Error("Missing or invalid command parameter");
+          }
+          const cwd = params.cwd || process.cwd();
+          const startTime = Date.now();
+
+          return new Promise<RpcResponse>((resolve) => {
+            const child = spawn(command, {
+              shell: true,
+              cwd,
+              env: { ...process.env, ...(params.env || {}) },
+            });
+
+            activeTerminalProcesses.set(req.id, child);
+
+            const streamChunk = (text: string, streamType: "stdout" | "stderr") => {
+              if (onStream) {
+                onStream({
+                  id: req.id,
+                  stream: true,
+                  event: {
+                    type: "terminal.output" as any,
+                    sessionId: req.id,
+                    timestamp: new Date().toISOString(),
+                    data: { text, stream: streamType } as any,
+                  },
+                });
+              }
+            };
+
+            child.stdout?.on("data", (chunk: Buffer) => {
+              streamChunk(chunk.toString("utf-8"), "stdout");
+            });
+
+            child.stderr?.on("data", (chunk: Buffer) => {
+              streamChunk(chunk.toString("utf-8"), "stderr");
+            });
+
+            child.on("error", (err: Error) => {
+              activeTerminalProcesses.delete(req.id);
+              streamChunk(`Process error: ${err.message}\n`, "stderr");
+              resolve({
+                id: req.id,
+                result: { exitCode: 1, error: err.message, durationMs: Date.now() - startTime },
+                done: true,
+              });
+            });
+
+            child.on("close", (code: number | null) => {
+              activeTerminalProcesses.delete(req.id);
+              resolve({
+                id: req.id,
+                result: { exitCode: code ?? 0, durationMs: Date.now() - startTime },
+                done: true,
+              });
+            });
+          });
+        }
+
+        case "terminal.kill": {
+          const targetId = params.targetId || req.id;
+          const child = activeTerminalProcesses.get(targetId);
+          if (child && !child.killed) {
+            child.kill("SIGTERM");
+            setTimeout(() => {
+              if (!child.killed) child.kill("SIGKILL");
+            }, 1000);
+            activeTerminalProcesses.delete(targetId);
+            return { id: req.id, result: { killed: true, targetId } };
+          }
+          return { id: req.id, result: { killed: false, message: "Process not found or already exited" } };
         }
 
         case "fs.tree": {

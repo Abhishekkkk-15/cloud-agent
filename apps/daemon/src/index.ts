@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import os from "node:os";
 import { loadConfig, saveConfig, getConfigPath } from "./config.js";
 import { registry } from "./registry.js";
 import { GatewayConnection } from "./connection.js";
@@ -120,6 +121,41 @@ function parseCliFlags(args: string[]): {
   return { command, flags, positionals };
 }
 
+async function pairMachine(flags: Record<string, string>) {
+  const config = loadConfig();
+  const token = flags.token || config.token;
+  const name = flags.name || config.machineName || os.hostname();
+  const gateway = flags.gateway || config.gatewayUrl;
+
+  console.log(`\x1b[1m\x1b[36mPairing Machine:\x1b[0m ${name} (${config.machineId})`);
+  console.log(`\x1b[90mGateway: ${gateway}\x1b[0m\n`);
+
+  if (!token) {
+    console.warn(`\x1b[33m[!] No pairing token provided or stored in config.\x1b[0m`);
+    console.log(`Run with a token: cloud-agent-daemon pair --token "<ca_mach_...>"\n`);
+    return;
+  }
+
+  // Format payload for mobile QR scanner
+  const payload = `ca_pair://connect?token=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}&machineId=${encodeURIComponent(config.machineId)}&gateway=${encodeURIComponent(gateway)}`;
+
+  console.log(`Scan this QR code with the Cloud Agent mobile app to pair instantly:\n`);
+  try {
+    const qrcode = await import("qrcode-terminal");
+    const gen = (qrcode as any).default?.generate || (qrcode as any).generate;
+    if (typeof gen === "function") {
+      gen(payload, { small: true }, (qr: string) => {
+        console.log(qr);
+      });
+    }
+  } catch (err) {
+    console.warn(`Failed to render terminal QR code:`, err);
+  }
+
+  console.log(`\x1b[90mOr copy the start command:\x1b[0m`);
+  console.log(`\x1b[32mpnpm --filter @cloud-agent/daemon dev start --token "${token}"\x1b[0m\n`);
+}
+
 async function startDaemon(flags: Record<string, string>) {
   const config = loadConfig();
 
@@ -186,6 +222,10 @@ async function main() {
   switch (command) {
     case "start":
       await startDaemon(flags);
+      break;
+
+    case "pair":
+      await pairMachine(flags);
       break;
 
     case "check":
