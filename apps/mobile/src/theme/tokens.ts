@@ -15,27 +15,35 @@ export const colors = {
   textMuted: '#8b949e',
   textDisabled: '#484f58',
 
-  // Primer Green & GitHub Light Whitish-Green (#7ee787)
-  green: '#7ee787',
-  greenLight: '#7ee787',
-  greenWhitish: '#aff5b4',
-  greenBg: '#238636',
-  greenHover: '#2ea043',
-  greenSubtle: 'rgba(35, 134, 54, 0.15)',
-  greenBorder: 'rgba(126, 231, 135, 0.25)',
+  // Primary Accent: Pacific Azure Blue (#0077b6)
+  primary: '#0077b6',
+  primaryLight: '#0096c7',
+  primarySubtle: 'rgba(0, 119, 182, 0.15)',
+  primaryBorder: 'rgba(0, 119, 182, 0.35)',
+  primaryHover: '#023e8a',
 
-  // Legacy mappings remapped to Green/Gray for unified dark/gray/green palette
-  blue: '#7ee787',
-  blueBg: '#238636',
-  blueSubtle: 'rgba(35, 134, 54, 0.15)',
-  blueBorder: 'rgba(126, 231, 135, 0.25)',
+  // Blue Accent mappings
+  blue: '#0077b6',
+  blueLight: '#48cae4',
+  blueBg: '#0077b6',
+  blueSubtle: 'rgba(0, 119, 182, 0.15)',
+  blueBorder: 'rgba(0, 119, 182, 0.35)',
 
-  purple: '#7ee787',
-  purpleBg: '#238636',
-  purpleSubtle: 'rgba(35, 134, 54, 0.15)',
-  purpleBorder: 'rgba(126, 231, 135, 0.25)',
+  // Legacy mappings remapped to #0077b6 for unified black, white, gray, and #0077b6 palette
+  green: '#0077b6',
+  greenLight: '#0096c7',
+  greenWhitish: '#48cae4',
+  greenBg: '#0077b6',
+  greenHover: '#023e8a',
+  greenSubtle: 'rgba(0, 119, 182, 0.15)',
+  greenBorder: 'rgba(0, 119, 182, 0.35)',
 
-  // Danger Red
+  purple: '#0077b6',
+  purpleBg: '#0077b6',
+  purpleSubtle: 'rgba(0, 119, 182, 0.15)',
+  purpleBorder: 'rgba(0, 119, 182, 0.35)',
+
+  // Danger Red (Alerts and security exceptions only)
   red: '#f85149',
   redBg: '#da3633',
   redSubtle: 'rgba(218, 54, 51, 0.15)',

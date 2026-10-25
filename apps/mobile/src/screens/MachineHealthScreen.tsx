@@ -30,10 +30,11 @@ import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
 interface MachineHealthScreenProps {
+  onBack?: () => void;
   onNavigateTab?: (tab: string) => void;
 }
 
-export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavigateTab }) => {
+export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack, onNavigateTab }) => {
   const connectionState = useDaemonStore((s) => s.connectionState);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
@@ -86,6 +87,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
       <HeaderBar
         title="Machine & CLI Health"
         subtitle={`${hostName} • ${platformStr}`}
+        onBack={onBack}
         onMore={refreshStatus}
       />
 

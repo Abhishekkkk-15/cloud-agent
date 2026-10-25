@@ -39,10 +39,10 @@ This document provides development instructions, operational rules, code style s
 
 ---
 
-## 🎨 UI & Styling Standards (Dark Black, Gray & Primer Green)
+## 🎨 UI & Styling Standards (Black, White, Gray & #0077b6)
 
 When working on `apps/mobile` or client UI components:
-- Strictly adhere to the **Dark Black, Gray, and Primer Green** palette:
+- Strictly adhere to the **Black, White, Gray, and `#0077b6`** palette:
   - **Canvas Background**: `#0d1117`
   - **Canvas Inset**: `#010409`
   - **Card / Surface**: `#161b22`
@@ -51,12 +51,14 @@ When working on `apps/mobile` or client UI components:
   - **Primary Text**: `#f0f6fc`
   - **Secondary Text**: `#c9d1d9`
   - **Muted Text**: `#8b949e` / `#6e7681`
-  - **Primer Green & GitHub Light Whitish-Green (Primary Accent)**: `#238636` (action buttons / badge bg), `#7ee787` (GitHub Dark light whitish-green for active text / status / highlights), `#aff5b4` (soft whitish-green), `rgba(35, 134, 54, 0.15)` (subtle pill bg)
-  - **Chat Panel Tool Icons**: Use clean white (`#ffffff` / `#f0f6fc`) for all tool category icons (shell, file, repo, mcp, search) in chat panels and slide trays to prevent green overload.
+  - **Pacific Azure Blue (Primary Accent)**: `#0077b6` (primary buttons / active highlights), `#0096c7` / `#48cae4` (light accent text / highlights), `rgba(0, 119, 182, 0.15)` (subtle pill/active item bg), `rgba(0, 119, 182, 0.35)` (subtle border)
+  - **Chat Panel Tool Icons**: Use clean white (`#ffffff` / `#f0f6fc`) for all tool category icons (shell, file, repo, mcp, search) in chat panels and slide trays.
   - **Danger Red (Exceptions / Alerts only)**: `#f85149` (text/icons), `#da3633` (bg)
-- **Extraneous Colors Policy**:
-  - Do **NOT** introduce GitHub Blue (`#1f6feb`, `#58a6ff`), Purple (`#8957e5`, `#d2a8ff`), or random pastel accents.
-  - Buttons, send controls, active tabs, and primary action indicators must use Primer Green (`#238636` / `#3fb950`) or neutral gray surfaces.
+- **Navigation & Layout Conventions**:
+  - **Default Screen**: App opens by default on the Chat screen (`AgentTurnScreen`) with the previously/last opened session auto-selected.
+  - **No Bottom Navbar**: Navigation is driven by a swipeable sidebar drawer (`SidebarDrawer.tsx`) accessible via left-edge swipe or tapping the circular `<` header button.
+  - **Header Bar**: Features a circular 36x36 dark gray button with `<` icon beside the clean session title.
+  - **Chat Input Bar**: Capsule pill-shaped container (`borderRadius: 28`) with an embedded circular `+` button on the left, "Type a message..." placeholder, and send / microphone action on the right.
 - Use Lucide icons wrapped via [`apps/mobile/src/components/Icons.tsx`](file:///mnt/dev/projects/cloud-agent/apps/mobile/src/components/Icons.tsx).
 - Ensure all agent tool outputs (e.g. `read_file`, `run_command`, `json`) are rendered cleanly through [`apps/mobile/src/components/MarkdownText.tsx`](file:///mnt/dev/projects/cloud-agent/apps/mobile/src/components/MarkdownText.tsx).
 

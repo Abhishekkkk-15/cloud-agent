@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ArrowLeft, MoreVertical } from './Icons';
+import { ChevronLeft, MoreVertical } from './Icons';
 import { colors, radii } from '../theme/tokens';
 
 interface HeaderBarProps {
@@ -23,12 +23,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       <View style={styles.leftRow}>
         {onBack && (
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.circleButton}
             onPress={onBack}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ArrowLeft size={22} color="#f0f6fc" />
+            <ChevronLeft size={18} color="#f0f6fc" />
           </TouchableOpacity>
         )}
         <View style={styles.titleColumn}>
@@ -51,7 +51,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <MoreVertical size={22} color={colors.textSecondary} />
+            <MoreVertical size={20} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -61,7 +61,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 52,
+    height: 54,
     backgroundColor: '#0d1117',
     borderBottomWidth: 1,
     borderBottomColor: '#21262d',
@@ -78,14 +78,21 @@ const styles = StyleSheet.create({
     marginRight: 8,
     overflow: 'hidden',
   },
-  backButton: {
-    padding: 4,
-    marginRight: 6,
+  circleButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#21262d',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 10,
   },
   moreButton: {
-    padding: 4,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -102,10 +109,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#8b949e',
     marginTop: 1,
-    lineHeight: 16,
+    lineHeight: 14,
   },
   rightRow: {
     flexDirection: 'row',

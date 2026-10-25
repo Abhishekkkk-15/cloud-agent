@@ -69,3 +69,7 @@ export const Brain = wrapIcon(Lucide.Brain);
 export const SlidersHorizontal = wrapIcon(Lucide.SlidersHorizontal);
 export const Flame = wrapIcon(Lucide.Flame);
 export const Command = wrapIcon(Lucide.Command);
+export const Plus = wrapIcon(Lucide.Plus);
+export const ChevronLeft = wrapIcon(Lucide.ChevronLeft);
+export const Menu = wrapIcon(Lucide.Menu);
+export const MessageSquare = wrapIcon(Lucide.MessageSquare);

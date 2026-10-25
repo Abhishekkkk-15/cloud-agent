@@ -1,8 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, StatusBar, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  Platform,
+  PanResponder,
+} from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { colors } from './theme/tokens';
-import { BottomNavBar, TabId } from './components/BottomNavBar';
+import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
 import { MachineHealthScreen } from './screens/MachineHealthScreen';
 import { ApprovalsScreen } from './screens/ApprovalsScreen';
 import { AgentTurnScreen } from './screens/AgentTurnScreen';
@@ -10,47 +17,79 @@ import { SessionsScreen } from './screens/SessionsScreen';
 import { useDaemonStore } from './stores/useDaemonStore';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>('health');
+  // Default screen is Chat with the last opened session
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>('agent');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   const init = useDaemonStore((s) => s.init);
-  const pendingApproval = useDaemonStore((s) => s.pendingApproval);
 
   useEffect(() => {
     init();
   }, [init]);
 
+  // Left-edge swipe responder to smoothly slide open the sidebar drawer
+  const edgePanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dx > 15 && Math.abs(gestureState.dy) < 30;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > 25 || gestureState.vx > 0.3) {
+          setIsDrawerOpen(true);
+        }
+      },
+    })
+  ).current;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ExpoStatusBar style="light" />
+
+      {/* Edge Swipe Detection Zone for opening drawer */}
+      {!isDrawerOpen && (
+        <View
+          style={styles.edgeGestureStrip}
+          {...edgePanResponder.panHandlers}
+          pointerEvents="box-only"
+        />
+      )}
+
+      {/* Main Screens */}
       <View style={styles.screenContainer}>
-        {activeTab === 'health' && (
-          <MachineHealthScreen
-            onNavigateTab={(tab) => setActiveTab(tab as TabId)}
-          />
-        )}
-        {activeTab === 'approvals' && (
-          <ApprovalsScreen
-            onBack={() => setActiveTab('health')}
-            onNavigateTab={(tab) => setActiveTab(tab as TabId)}
-          />
-        )}
-        {activeTab === 'agent' && (
+        {currentScreen === 'agent' && (
           <AgentTurnScreen
-            onBack={() => setActiveTab('health')}
-            onNavigateTab={(tab) => setActiveTab(tab as TabId)}
+            onBack={() => setIsDrawerOpen(true)}
+            onOpenDrawer={() => setIsDrawerOpen(true)}
+            onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
           />
         )}
-        {activeTab === 'sessions' && (
+        {currentScreen === 'health' && (
+          <MachineHealthScreen
+            onBack={() => setCurrentScreen('agent')}
+            onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
+          />
+        )}
+        {currentScreen === 'approvals' && (
+          <ApprovalsScreen
+            onBack={() => setCurrentScreen('agent')}
+            onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
+          />
+        )}
+        {currentScreen === 'sessions' && (
           <SessionsScreen
-            onBack={() => setActiveTab('health')}
-            onSelectSession={() => setActiveTab('agent')}
+            onBack={() => setCurrentScreen('agent')}
+            onSelectSession={() => setCurrentScreen('agent')}
           />
         )}
       </View>
 
-      <BottomNavBar
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        pendingApprovalsCount={pendingApproval ? 1 : 0}
+      {/* Swipeable Sidebar Drawer */}
+      <SidebarDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        currentScreen={currentScreen}
+        onNavigateScreen={(screen) => setCurrentScreen(screen)}
       />
     </SafeAreaView>
   );
@@ -65,5 +104,14 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
+  },
+  edgeGestureStrip: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 24,
+    zIndex: 100,
+    backgroundColor: 'transparent',
   },
 });

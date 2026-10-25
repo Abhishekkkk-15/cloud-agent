@@ -302,7 +302,7 @@ export const JsonViewer: React.FC<{
     <View style={styles.codeContainer}>
       <View style={styles.codeHeader}>
         <View style={styles.codeHeaderLeft}>
-          <FileCode size={12} color="#3fb950" />
+          <FileCode size={12} color={colors.primary} />
           <Text style={styles.codeLangText}>{title}</Text>
           <Text style={styles.jsonLineCountBadge}>{lines.length} lines</Text>
         </View>
@@ -335,12 +335,12 @@ export const JsonViewer: React.FC<{
         >
           {isExpanded ? (
             <>
-              <ChevronUp size={13} color="#3fb950" />
+              <ChevronUp size={13} color={colors.primary} />
               <Text style={styles.expandJsonText}>Collapse ({lines.length} lines)</Text>
             </>
           ) : (
             <>
-              <ChevronDown size={13} color="#3fb950" />
+              <ChevronDown size={13} color={colors.primary} />
               <Text style={styles.expandJsonText}>
                 Show full JSON (+{lines.length - maxInitialLines} more lines)
               </Text>
@@ -360,7 +360,7 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
     <View style={styles.dirContainer}>
       <View style={styles.dirHeader}>
         <View style={styles.dirHeaderLeft}>
-          <Folder size={14} color="#3fb950" />
+          <Folder size={14} color={colors.primary} />
           <Text style={styles.dirTitle}>Workspace Directory</Text>
         </View>
         <Text style={styles.dirSummary}>
@@ -371,7 +371,7 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
         {folders.map((item, idx) => (
           <View key={`dir_${idx}`} style={styles.dirRow}>
             <View style={styles.dirRowLeft}>
-              <Folder size={13} color="#3fb950" />
+              <Folder size={13} color={colors.primary} />
               <Text style={styles.dirFolderName}>{item.name}</Text>
             </View>
             <View style={styles.dirBadge}>
@@ -401,7 +401,7 @@ const FileHeaderView: React.FC<{ block: FileHeaderBlock }> = ({ block }) => {
   return (
     <View style={styles.fileHeaderBanner}>
       <View style={styles.fileHeaderLeft}>
-        <FileText size={14} color="#3fb950" />
+        <FileText size={14} color={colors.primary} />
         <Text style={styles.fileHeaderName}>{fileName}</Text>
         <Text style={styles.fileHeaderPath} numberOfLines={1}>
           {block.path}
@@ -1295,7 +1295,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderDefault,
   },
   commitHashBadge: {
-    color: '#3fb950',
+    color: colors.primary,
   },
   filePathBadge: {
     fontSize: 11,
@@ -1345,7 +1345,7 @@ const styles = StyleSheet.create({
   jsonKey: {
     fontFamily: typography.mono,
     fontSize: 11.5,
-    color: '#3fb950',
+    color: colors.primary,
   },
   jsonString: {
     fontFamily: typography.mono,

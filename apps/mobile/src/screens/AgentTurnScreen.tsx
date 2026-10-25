@@ -29,6 +29,8 @@ import {
   Brain,
   SlidersHorizontal,
   Command,
+  Plus,
+  Mic,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -40,6 +42,7 @@ import { SessionConfigSheet } from '../components/SessionConfigSheet';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
+  onOpenDrawer?: () => void;
   onNavigateTab?: (tab: string) => void;
 }
 
@@ -59,7 +62,11 @@ interface ChatTurn {
   };
 }
 
-export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavigateTab }) => {
+export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
+  onBack,
+  onOpenDrawer,
+  onNavigateTab,
+}) => {
   const activeSession = useDaemonStore((s) => s.activeSession);
   const sessionConfig = useDaemonStore((s) => s.sessionConfig);
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
@@ -331,7 +338,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
       <HeaderBar
         title={titleStr}
         subtitle={subtitleStr}
-        onBack={onBack}
+        onBack={onOpenDrawer || onBack}
         onMore={() => {
           Alert.alert(
             'Session Options',
@@ -582,7 +589,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         </TouchableOpacity>
       </View>
 
-      {/* 7. Chat Input Bar */}
+      {/* 7. Chat Input Bar (Image 1 Capsule Shape) */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
@@ -596,44 +603,61 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
           onClose={() => setShowCommandPicker(false)}
         />
 
-        <View style={styles.chatInputBar}>
-          {/* Quick Slash Commands Button */}
+        <View style={styles.chatCapsuleContainer}>
+          {/* Circular '+' Button on Left */}
           <TouchableOpacity
-            style={[styles.slashTriggerBtn, showCommandPicker && styles.slashTriggerBtnActive]}
+            style={[styles.capsulePlusBtn, showCommandPicker && styles.capsulePlusBtnActive]}
             activeOpacity={0.7}
             onPress={() => setShowCommandPicker((prev) => !prev)}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Command size={14} color={showCommandPicker ? colors.green : colors.textMuted} />
+            <Plus size={16} color={showCommandPicker ? colors.primary : '#c9d1d9'} />
           </TouchableOpacity>
 
-          <View style={styles.chatInputFieldContainer}>
-            <TextInput
-              style={styles.chatInputField}
-              placeholder="Ask anything or type /command..."
-              placeholderTextColor="#6e7681"
-              value={promptInput}
-              onChangeText={handleInputChange}
-              onSubmitEditing={handleSendPrompt}
-              returnKeyType="send"
-              editable={!isSendingPrompt}
-            />
-          </View>
+          {/* Capsule Text Field */}
+          <TextInput
+            style={styles.capsuleTextInput}
+            placeholder="Type a message..."
+            placeholderTextColor="#6e7681"
+            value={promptInput}
+            onChangeText={handleInputChange}
+            onSubmitEditing={handleSendPrompt}
+            returnKeyType="send"
+            multiline={false}
+            editable={!isSendingPrompt}
+          />
 
-          <TouchableOpacity
-            style={[
-              styles.chatSendButton,
-              (!promptInput.trim() || isSendingPrompt) && styles.chatSendButtonDisabled,
-            ]}
-            onPress={handleSendPrompt}
-            activeOpacity={0.85}
-            disabled={!promptInput.trim() || isSendingPrompt}
-          >
-            {isSendingPrompt ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Send size={16} color="#ffffff" />
-            )}
-          </TouchableOpacity>
+          {/* Action on Right: Send or Mic */}
+          {promptInput.trim().length > 0 || isSendingPrompt ? (
+            <TouchableOpacity
+              style={[
+                styles.capsuleSendBtn,
+                (!promptInput.trim() || isSendingPrompt) && styles.capsuleSendBtnDisabled,
+              ]}
+              onPress={handleSendPrompt}
+              activeOpacity={0.85}
+              disabled={!promptInput.trim() || isSendingPrompt}
+            >
+              {isSendingPrompt ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <Send size={15} color="#ffffff" />
+              )}
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.capsuleMicBtn}
+              activeOpacity={0.7}
+              onPress={() => {
+                Alert.alert(
+                  'Voice Input',
+                  'Antigravity voice input is ready. Type or speak your prompt directly.'
+                );
+              }}
+            >
+              <Mic size={18} color="#8b949e" />
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -788,7 +812,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#238636',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -980,7 +1004,7 @@ const styles = StyleSheet.create({
   // Floating Action Buttons
   scrollFabContainer: {
     position: 'absolute',
-    bottom: 58,
+    bottom: 74,
     right: 16,
     zIndex: 20,
   },
@@ -1000,61 +1024,61 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  // Chat Input Bar
+  // Chat Input Bar (Capsule Style)
   chatInputWrapper: {
+    backgroundColor: '#0d1117',
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+  },
+  chatCapsuleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#161b22',
-    borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    paddingHorizontal: 12,
-    paddingTop: 6,
-  },
-  chatInputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-    gap: 8,
-  },
-  slashTriggerBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.md,
-    backgroundColor: '#0d1117',
     borderWidth: 1,
     borderColor: '#30363d',
+    borderRadius: 28,
+    minHeight: 52,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  capsulePlusBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#21262d',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  slashTriggerBtnActive: {
-    borderColor: colors.green,
-    backgroundColor: 'rgba(35, 134, 54, 0.15)',
-  },
-  chatInputFieldContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0d1117',
+  capsulePlusBtnActive: {
+    backgroundColor: colors.primarySubtle,
+    borderColor: colors.primaryBorder,
     borderWidth: 1,
-    borderColor: '#30363d',
-    borderRadius: radii.lg,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
   },
-  chatInputField: {
+  capsuleTextInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 15,
     color: '#f0f6fc',
-    padding: 0,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
   },
-  chatSendButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.greenBg,
+  capsuleSendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chatSendButtonDisabled: {
+  capsuleSendBtnDisabled: {
     backgroundColor: '#21262d',
     opacity: 0.6,
+  },
+  capsuleMicBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

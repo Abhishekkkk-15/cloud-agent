@@ -113,6 +113,7 @@ interface DaemonStoreState {
   refreshStatus: () => Promise<void>;
   fetchSessions: () => Promise<void>;
   selectSession: (session: RealSessionItem) => Promise<void>;
+  createNewSession: () => void;
   loadOlderMessages: () => Promise<void>;
   sendPrompt: (promptText: string) => Promise<void>;
   respondApproval: (allowed: boolean) => Promise<void>;
@@ -490,6 +491,16 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch (err) {
       console.error('[DaemonStore] selectSession error:', err);
     }
+  },
+
+  createNewSession: () => {
+    set({
+      activeSession: null,
+      sessionMessages: [],
+      messagesOffset: 0,
+      hasMoreMessages: false,
+      isLoadingOlderMessages: false,
+    });
   },
 
   loadOlderMessages: async () => {
