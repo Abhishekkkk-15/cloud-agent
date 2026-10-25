@@ -66,6 +66,21 @@ export interface ICliAdapter {
   respondPermission?(sessionId: string, requestId: string, allow: boolean): Promise<void>;
 
   /**
+   * Renames a session.
+   */
+  renameSession?(sessionId: string, title: string): Promise<void>;
+
+  /**
+   * Deletes a session and its transcript from disk.
+   */
+  deleteSession?(sessionId: string): Promise<void>;
+
+  /**
+   * Pins or unpins a session.
+   */
+  pinSession?(sessionId: string, pinned: boolean): Promise<void>;
+
+  /**
    * Cancels/interrupts an ongoing agent execution.
    */
   cancel(sessionId: string): Promise<void>;
@@ -101,6 +116,18 @@ export abstract class BaseCliAdapter implements ICliAdapter {
 
   async respondPermission?(sessionId: string, requestId: string, allow: boolean): Promise<void> {
     throw new Error(`respondPermission is not implemented for ${this.id}`);
+  }
+
+  async renameSession?(sessionId: string, title: string): Promise<void> {
+    throw new Error(`renameSession is not implemented for ${this.id}`);
+  }
+
+  async deleteSession?(sessionId: string): Promise<void> {
+    throw new Error(`deleteSession is not implemented for ${this.id}`);
+  }
+
+  async pinSession?(sessionId: string, pinned: boolean): Promise<void> {
+    throw new Error(`pinSession is not implemented for ${this.id}`);
   }
 
   async createPty?(options: CliPtyOptions): Promise<CliPtyProcess> {

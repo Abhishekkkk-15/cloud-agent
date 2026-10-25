@@ -33,6 +33,7 @@ export interface CliSessionSummary {
   messageCount: number;
   status?: "active" | "idle" | "completed" | "error";
   model?: string;
+  pinned?: boolean;
 }
 
 export interface CliToolCall {

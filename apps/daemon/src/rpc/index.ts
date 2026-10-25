@@ -3,7 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
 import { registry } from "../registry.js";
-import { handleSessionsList, handleSessionsGet, handleMessagesGet } from "./session.js";
+import {
+  handleSessionsList,
+  handleSessionsGet,
+  handleMessagesGet,
+  handleSessionRename,
+  handleSessionDelete,
+  handleSessionPin,
+} from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
 import { buildFileTree, readFileContent, writeFileContent, listDirectories } from "./fs.js";
 import type { CliEvent } from "@cloud-agent/cli-interface";
@@ -152,6 +159,41 @@ export class RpcDispatcher {
           return { id: req.id, result };
         }
 
+        case "sessions.rename": {
+          if (!params.sessionId || !params.title) {
+            throw new Error("Missing sessionId or title parameter");
+          }
+          const result = await handleSessionRename({
+            cli: params.cli,
+            sessionId: params.sessionId,
+            title: params.title,
+          });
+          return { id: req.id, result };
+        }
+
+        case "sessions.delete": {
+          if (!params.sessionId) {
+            throw new Error("Missing sessionId parameter");
+          }
+          const result = await handleSessionDelete({
+            cli: params.cli,
+            sessionId: params.sessionId,
+          });
+          return { id: req.id, result };
+        }
+
+        case "sessions.pin": {
+          if (!params.sessionId || params.pinned === undefined) {
+            throw new Error("Missing sessionId or pinned parameter");
+          }
+          const result = await handleSessionPin({
+            cli: params.cli,
+            sessionId: params.sessionId,
+            pinned: Boolean(params.pinned),
+          });
+          return { id: req.id, result };
+        }
+
         case "agent.run": {
           const prompt = params.options?.prompt || params.prompt;
           if (!prompt) {
@@ -204,15 +246,15 @@ export class RpcDispatcher {
           return { id: req.id, result };
         }
 
+        case "agent.approve":
         case "agent.respondPermission": {
-          if (!params.sessionId || !params.requestId) {
-            throw new Error("Missing sessionId or requestId");
-          }
+          const reqId = params.requestId || params.approvalId || req.id;
+          const allow = params.allow !== undefined ? Boolean(params.allow) : Boolean(params.allowed);
           const result = await handleRespondPermission({
             cli: params.cli,
-            sessionId: params.sessionId,
-            requestId: params.requestId,
-            allow: Boolean(params.allow),
+            sessionId: params.sessionId || "default",
+            requestId: reqId,
+            allow,
           });
           return { id: req.id, result };
         }

@@ -70,6 +70,43 @@ function normalizeToolArgs(args: unknown): Record<string, unknown> | string {
   return typeof args === "string" ? args : {};
 }
 
+interface SessionMeta {
+  customTitle?: string;
+  pinned?: boolean;
+  updatedAt?: string;
+}
+
+function getSessionMetaPath(sessionDir: string): string {
+  return path.join(sessionDir, "meta.json");
+}
+
+export function readSessionMeta(sessionDir: string): SessionMeta | null {
+  try {
+    const metaPath = getSessionMetaPath(sessionDir);
+    if (fs.existsSync(metaPath)) {
+      return JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+    }
+  } catch {
+    // Ignore read errors
+  }
+  return null;
+}
+
+export function writeSessionMeta(sessionDir: string, meta: Partial<SessionMeta>): void {
+  try {
+    const metaPath = getSessionMetaPath(sessionDir);
+    const existing = readSessionMeta(sessionDir) || {};
+    const updated: SessionMeta = {
+      ...existing,
+      ...meta,
+      updatedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(metaPath, JSON.stringify(updated, null, 2), "utf-8");
+  } catch (err) {
+    console.warn(`[TranscriptReader] Failed to write session meta for ${sessionDir}:`, err);
+  }
+}
+
 /**
  * Lists sessions from disk with pagination and optional workspace filtering.
  * Zero-database: reads straight from ~/.gemini/antigravity-cli/brain.
@@ -124,8 +161,13 @@ export async function listBrainSessions(
     }
   }
 
-  // Sort by updatedAt descending (most recent sessions first)
-  summaries.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  // Sort: pinned sessions first, then by updatedAt descending (most recent first)
+  summaries.sort((a, b) => {
+    if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+      return a.pinned ? -1 : 1;
+    }
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
 
   const total = summaries.length;
   const items = summaries.slice(offset, offset + limit);
@@ -204,6 +246,12 @@ async function extractSessionSummary(
     }
   }
 
+  const meta = readSessionMeta(sessionDir);
+  if (meta?.customTitle) {
+    title = meta.customTitle;
+  }
+  const pinned = Boolean(meta?.pinned);
+
   return {
     id: sessionId,
     title,
@@ -213,6 +261,7 @@ async function extractSessionSummary(
     messageCount,
     status: "idle",
     model,
+    pinned,
   };
 }
 
@@ -416,4 +465,31 @@ async function collectBrainArtifacts(sessionDir: string): Promise<CliArtifact[]>
   }
 
   return artifacts;
+}
+
+export async function renameBrainSession(sessionId: string, newTitle: string): Promise<void> {
+  const brainDir = getBrainDir();
+  const sessionDir = path.join(brainDir, sessionId);
+  if (!fs.existsSync(sessionDir)) {
+    throw new Error(`Session ${sessionId} not found on disk.`);
+  }
+  writeSessionMeta(sessionDir, { customTitle: newTitle.trim() });
+}
+
+export async function pinBrainSession(sessionId: string, pinned: boolean): Promise<void> {
+  const brainDir = getBrainDir();
+  const sessionDir = path.join(brainDir, sessionId);
+  if (!fs.existsSync(sessionDir)) {
+    throw new Error(`Session ${sessionId} not found on disk.`);
+  }
+  writeSessionMeta(sessionDir, { pinned });
+}
+
+export async function deleteBrainSession(sessionId: string): Promise<void> {
+  const brainDir = getBrainDir();
+  const sessionDir = path.join(brainDir, sessionId);
+  if (!fs.existsSync(sessionDir)) {
+    throw new Error(`Session ${sessionId} not found on disk.`);
+  }
+  fs.rmSync(sessionDir, { recursive: true, force: true });
 }

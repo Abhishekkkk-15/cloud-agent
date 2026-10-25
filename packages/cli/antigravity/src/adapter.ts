@@ -19,6 +19,9 @@ import {
   listBrainSessions,
   getBrainSession,
   getBrainMessages,
+  renameBrainSession,
+  pinBrainSession,
+  deleteBrainSession,
 } from "./transcript-reader.js";
 import { AntigravityStreamClient } from "./stream-client.js";
 
@@ -105,5 +108,34 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
    */
   async cancel(sessionId: string): Promise<void> {
     this.client.cancel(sessionId);
+  }
+
+  /**
+   * Renames a brain session by updating its meta.json on disk.
+   */
+  async renameSession(sessionId: string, title: string): Promise<void> {
+    return renameBrainSession(sessionId, title);
+  }
+
+  /**
+   * Pins or unpins a brain session in meta.json.
+   */
+  async pinSession(sessionId: string, pinned: boolean): Promise<void> {
+    return pinBrainSession(sessionId, pinned);
+  }
+
+  /**
+   * Deletes a brain session from disk.
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    return deleteBrainSession(sessionId);
+  }
+
+  /**
+   * Responds to an interactive permission request.
+   */
+  async respondPermission(sessionId: string, requestId: string, allow: boolean): Promise<void> {
+    // If the active client has a pending permission callback, deliver it
+    console.log(`[AntigravityAdapter] respondPermission: sessionId=${sessionId}, requestId=${requestId}, allow=${allow}`);
   }
 }

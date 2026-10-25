@@ -78,3 +78,6 @@ export const LogOut = wrapIcon(Lucide.LogOut);
 export const Square = wrapIcon(Lucide.Square);
 export const Trash2 = wrapIcon(Lucide.Trash2);
 export const QrCode = wrapIcon(Lucide.QrCode);
+export const Pin = wrapIcon(Lucide.Pin);
+export const Pencil = wrapIcon(Lucide.Pencil);
+export const MoreHorizontal = wrapIcon(Lucide.MoreHorizontal);

@@ -57,3 +57,41 @@ export async function handleMessagesGet(params: {
   };
   return adapter.getMessages(params.sessionId, opts);
 }
+
+export async function handleSessionRename(params: {
+  cli?: string;
+  sessionId: string;
+  title: string;
+}): Promise<{ ok: boolean }> {
+  const adapter = registry.get(params.cli);
+  if (adapter.renameSession) {
+    await adapter.renameSession(params.sessionId, params.title);
+    return { ok: true };
+  }
+  throw new Error(`CLI adapter ${adapter.id} does not support session renaming`);
+}
+
+export async function handleSessionDelete(params: {
+  cli?: string;
+  sessionId: string;
+}): Promise<{ ok: boolean }> {
+  const adapter = registry.get(params.cli);
+  if (adapter.deleteSession) {
+    await adapter.deleteSession(params.sessionId);
+    return { ok: true };
+  }
+  throw new Error(`CLI adapter ${adapter.id} does not support session deletion`);
+}
+
+export async function handleSessionPin(params: {
+  cli?: string;
+  sessionId: string;
+  pinned: boolean;
+}): Promise<{ ok: boolean }> {
+  const adapter = registry.get(params.cli);
+  if (adapter.pinSession) {
+    await adapter.pinSession(params.sessionId, params.pinned);
+    return { ok: true };
+  }
+  throw new Error(`CLI adapter ${adapter.id} does not support session pinning`);
+}

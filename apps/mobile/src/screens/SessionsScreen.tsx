@@ -18,10 +18,13 @@ import {
   Sparkles,
   ArrowUpDown,
   RefreshCw,
+  Pin,
+  MoreHorizontal,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
+import { SessionActionModal } from '../components/SessionActionModal';
 
 interface SessionsScreenProps {
   onBack?: () => void;
@@ -40,8 +43,12 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const fetchSessions = useDaemonStore((s) => s.fetchSessions);
   const selectSessionInStore = useDaemonStore((s) => s.selectSession);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const renameSession = useDaemonStore((s) => s.renameSession);
+  const togglePinSession = useDaemonStore((s) => s.togglePinSession);
+  const deleteSession = useDaemonStore((s) => s.deleteSession);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
 
   const filteredSessions = sessions.filter((s) => {
     const matchesWorkspace =
@@ -222,10 +229,25 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
               >
                 <View style={styles.sessionCardTop}>
                   <View style={styles.sessionHeaderRow}>
-                    <Text style={styles.sessionTitle} numberOfLines={1}>
-                      {session.title}
-                    </Text>
-                    <Text style={styles.sessionTimeAgo}>{formatTimeAgo(session.updatedAt)}</Text>
+                    <View style={styles.sessionTitleLeft}>
+                      {session.pinned ? (
+                        <Pin size={12} color="#0077b6" style={{ marginRight: 6 }} />
+                      ) : null}
+                      <Text style={styles.sessionTitle} numberOfLines={1}>
+                        {session.title}
+                      </Text>
+                    </View>
+                    <View style={styles.sessionHeaderRight}>
+                      <Text style={styles.sessionTimeAgo}>{formatTimeAgo(session.updatedAt)}</Text>
+                      <TouchableOpacity
+                        style={styles.moreCardBtn}
+                        onPress={() => setActionSession(session)}
+                        activeOpacity={0.7}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <MoreHorizontal size={14} color="#8b949e" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                   <Text style={styles.sessionSub} numberOfLines={1}>
                     {session.workspaceName} • {session.workspacePath}
@@ -267,6 +289,22 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           </View>
         )}
       </ScrollView>
+
+      {/* Session Action Modal (Rename, Pin, Delete) */}
+      <SessionActionModal
+        visible={Boolean(actionSession)}
+        session={actionSession}
+        onClose={() => setActionSession(null)}
+        onRename={async (sess, title) => {
+          await renameSession(sess.id, title);
+        }}
+        onTogglePin={async (sess) => {
+          await togglePinSession(sess.id);
+        }}
+        onDelete={async (sess) => {
+          await deleteSession(sess.id);
+        }}
+      />
     </View>
   );
 };
@@ -441,6 +479,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  sessionTitleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 6,
+  },
+  sessionHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  moreCardBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#21262d',
   },
   sessionTitle: {
     fontSize: 13,

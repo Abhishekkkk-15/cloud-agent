@@ -10,6 +10,7 @@ import {
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { colors } from './theme/tokens';
 import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
+import { NotificationBanner } from './components/NotificationBanner';
 import { MachineHealthScreen } from './screens/MachineHealthScreen';
 import { ApprovalsScreen } from './screens/ApprovalsScreen';
 import { AgentTurnScreen } from './screens/AgentTurnScreen';
@@ -104,6 +105,9 @@ export default function App() {
         currentScreen={currentScreen}
         onNavigateScreen={(screen) => setCurrentScreen(screen)}
       />
+
+      {/* Global In-App Notification Toast */}
+      <NotificationBanner />
     </SafeAreaView>
   );
 }

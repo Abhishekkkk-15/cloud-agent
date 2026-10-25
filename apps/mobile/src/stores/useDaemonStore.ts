@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { NativeModules, Platform } from 'react-native';
 import { mobileP2P, ConnectionState, DaemonStatusResult } from '../lib/p2p-client';
+import {
+  requestNotificationPermission,
+  notifyTurnComplete,
+  notifyApprovalRequired,
+  notifyTurnError,
+} from '../lib/notifications';
 
 function getDefaultHost(): string {
   if (Platform.OS === 'web') {
@@ -39,6 +45,7 @@ export interface RealSessionItem {
   messageCount: number;
   model?: string;
   status?: string;
+  pinned?: boolean;
 }
 
 export interface RealMessageItem {
@@ -157,6 +164,9 @@ interface DaemonStoreState {
   startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => void;
   generateMachinePairingToken: (machineName?: string) => Promise<{ token: string; installCommand: string; instructions: string } | null>;
   pairWithPayload: (payload: string) => Promise<{ success: boolean; message: string }>;
+  renameSession: (sessionId: string, title: string) => Promise<boolean>;
+  deleteSession: (sessionId: string) => Promise<boolean>;
+  togglePinSession: (sessionId: string) => Promise<boolean>;
   selectSession: (session: RealSessionItem) => Promise<void>;
   createNewSession: () => void;
   loadOlderMessages: () => Promise<void>;
@@ -228,11 +238,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
       if (event.type === 'tool_approval_required' || event.type === 'ask_user' || event.type === 'permission_request') {
         const data = event.data || event;
+        const tool = event.tool || data.toolName || data.tool || 'bash';
+        const cmd = event.command || data.command || event.prompt || data.prompt || (data.details ? JSON.stringify(data.details) : '');
         set({
           pendingApproval: {
             id: event.approvalId || data.id || `appr_${Date.now()}`,
-            tool: event.tool || data.toolName || data.tool || 'bash',
-            command: event.command || data.command || event.prompt || data.prompt || (data.details ? JSON.stringify(data.details) : ''),
+            tool,
+            command: cmd,
             description: event.description || data.description || 'Elevated command requires approval',
             requestedAt: 'Just now',
             targetNode: get().activeMachine?.name || get().daemonStatus?.hostname || 'Local Machine',
@@ -240,6 +252,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             riskLevel: 'high',
           },
         });
+        notifyApprovalRequired(tool, cmd).catch(() => {});
       } else if (event.type === 'text_chunk') {
         const text = typeof event.data === 'string'
           ? event.data
@@ -376,6 +389,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         const statusVal = event.data?.status || event.status;
         const msg = event.data?.message || event.message;
         if (statusVal === 'error') {
+          notifyTurnError(msg || 'Execution failed').catch(() => {});
           set((state) => ({
             sessionMessages: [
               ...state.sessionMessages,
@@ -389,6 +403,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             isSendingPrompt: false,
           }));
         } else if (statusVal === 'done') {
+          if (get().isSendingPrompt) {
+            notifyTurnComplete(get().activeSession?.title || 'Active Session').catch(() => {});
+          }
           set({ isSendingPrompt: false });
         }
       } else if (event.type === 'terminal.output') {
@@ -412,6 +429,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     });
 
     try {
+      requestNotificationPermission().catch(() => {});
       // Connect automatically if token is already present
       if (get().token) {
         set({ isAuthenticated: true });
@@ -737,6 +755,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             messageCount: item.messageCount || 0,
             model: item.model || 'antigravity-runtime',
             status: item.status || 'idle',
+            pinned: Boolean(item.pinned),
           };
         });
 
@@ -763,6 +782,68 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch (err) {
       console.error('[DaemonStore] fetchSessions error:', err);
       set({ isLoadingSessions: false });
+    }
+  },
+
+  renameSession: async (sessionId: string, title: string) => {
+    try {
+      await mobileP2P.sendRpc('sessions.rename', { sessionId, title });
+      set((state) => ({
+        sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, title } : s)),
+        activeSession:
+          state.activeSession?.id === sessionId
+            ? { ...state.activeSession, title }
+            : state.activeSession,
+      }));
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] renameSession error:', err);
+      return false;
+    }
+  },
+
+  togglePinSession: async (sessionId: string) => {
+    const current = get().sessions.find((s) => s.id === sessionId);
+    const newPinned = !current?.pinned;
+    try {
+      await mobileP2P.sendRpc('sessions.pin', { sessionId, pinned: newPinned });
+      set((state) => {
+        const updated = state.sessions.map((s) =>
+          s.id === sessionId ? { ...s, pinned: newPinned } : s
+        );
+        updated.sort((a, b) => {
+          if (Boolean(a.pinned) !== Boolean(b.pinned)) {
+            return a.pinned ? -1 : 1;
+          }
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+        });
+        return {
+          sessions: updated,
+          activeSession:
+            state.activeSession?.id === sessionId
+              ? { ...state.activeSession, pinned: newPinned }
+              : state.activeSession,
+        };
+      });
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] togglePinSession error:', err);
+      return false;
+    }
+  },
+
+  deleteSession: async (sessionId: string) => {
+    try {
+      await mobileP2P.sendRpc('sessions.delete', { sessionId });
+      set((state) => ({
+        sessions: state.sessions.filter((s) => s.id !== sessionId),
+        activeSession: state.activeSession?.id === sessionId ? null : state.activeSession,
+        sessionMessages: state.activeSession?.id === sessionId ? [] : state.sessionMessages,
+      }));
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] deleteSession error:', err);
+      return false;
     }
   },
 

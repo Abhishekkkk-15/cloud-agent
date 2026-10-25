@@ -40,6 +40,8 @@ import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
 import { SessionConfigSheet } from '../components/SessionConfigSheet';
 import { TerminalSheet } from '../components/TerminalSheet';
+import { LiveApprovalCard } from '../components/LiveApprovalCard';
+import { SessionActionModal } from '../components/SessionActionModal';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -77,11 +79,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const hasMoreMessages = useDaemonStore((s) => s.hasMoreMessages);
   const isLoadingOlderMessages = useDaemonStore((s) => s.isLoadingOlderMessages);
   const loadOlderMessages = useDaemonStore((s) => s.loadOlderMessages);
+  const pendingApproval = useDaemonStore((s) => s.pendingApproval);
+  const respondApproval = useDaemonStore((s) => s.respondApproval);
+  const renameSession = useDaemonStore((s) => s.renameSession);
+  const togglePinSession = useDaemonStore((s) => s.togglePinSession);
+  const deleteSession = useDaemonStore((s) => s.deleteSession);
 
   const [promptInput, setPromptInput] = useState('');
   const [showCommandPicker, setShowCommandPicker] = useState(false);
   const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
+  const [showSessionActionModal, setShowSessionActionModal] = useState(false);
+  const [isRespondingApproval, setIsRespondingApproval] = useState(false);
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
   const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
@@ -356,14 +365,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           </TouchableOpacity>
         }
         onMore={() => {
-          Alert.alert(
-            'Session Options',
-            `Session: ${activeSession?.id || 'Active'}\nModel: ${modelStr}\nWorkspace: ${repoName}`,
-            [
-              { text: 'Browse Sessions', onPress: () => onNavigateTab && onNavigateTab('sessions') },
-              { text: 'Cancel', style: 'cancel' },
-            ]
-          );
+          if (activeSession) {
+            setShowSessionActionModal(true);
+          } else if (onNavigateTab) {
+            onNavigateTab('sessions');
+          }
         }}
       />
 
@@ -619,6 +625,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           onClose={() => setShowCommandPicker(false)}
         />
 
+        {/* Interactive Live Tool Approval Card */}
+        {pendingApproval && (
+          <LiveApprovalCard
+            approval={pendingApproval}
+            isResponding={isRespondingApproval}
+            onAuthorize={async () => {
+              setIsRespondingApproval(true);
+              await respondApproval(true);
+              setIsRespondingApproval(false);
+            }}
+            onDeny={async () => {
+              setIsRespondingApproval(true);
+              await respondApproval(false);
+              setIsRespondingApproval(false);
+            }}
+          />
+        )}
+
         <View style={styles.chatCapsuleContainer}>
           {/* Circular '+' Button on Left */}
           <TouchableOpacity
@@ -694,6 +718,22 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <TerminalSheet
         visible={showTerminal}
         onClose={() => setShowTerminal(false)}
+      />
+
+      {/* 11. Session Action Modal (Rename, Pin, Delete) */}
+      <SessionActionModal
+        visible={showSessionActionModal}
+        session={activeSession}
+        onClose={() => setShowSessionActionModal(false)}
+        onRename={async (sess, title) => {
+          await renameSession(sess.id, title);
+        }}
+        onTogglePin={async (sess) => {
+          await togglePinSession(sess.id);
+        }}
+        onDelete={async (sess) => {
+          await deleteSession(sess.id);
+        }}
       />
     </View>
   );

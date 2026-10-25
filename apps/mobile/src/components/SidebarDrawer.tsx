@@ -11,6 +11,7 @@ import {
   Modal,
   Platform,
   TouchableWithoutFeedback,
+  TextInput,
 } from 'react-native';
 import {
   Plus,
@@ -28,12 +29,16 @@ import {
   Search,
   LogOut,
   Folder,
+  Pin,
+  MoreHorizontal,
+  X,
 } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
 import { FolderPickerModal } from './FolderPickerModal';
+import { SessionActionModal } from './SessionActionModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(Math.round(SCREEN_WIDTH * 0.82), 340);
@@ -68,8 +73,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const logout = useDaemonStore((s) => s.logout);
   const currentUser = useDaemonStore((s) => s.currentUser);
   const pendingApproval = useDaemonStore((s) => s.pendingApproval);
+  const renameSession = useDaemonStore((s) => s.renameSession);
+  const togglePinSession = useDaemonStore((s) => s.togglePinSession);
+  const deleteSession = useDaemonStore((s) => s.deleteSession);
 
   const [activeFilterWs, setActiveFilterWs] = useState<string>('all');
+  const [drawerSearch, setDrawerSearch] = useState<string>('');
+  const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
   const [showDirectFolderPicker, setShowDirectFolderPicker] = useState<boolean>(false);
@@ -153,10 +163,19 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     onClose();
   };
 
-  const filteredSessions = sessions.filter((s) => {
-    if (activeFilterWs === 'all') return true;
-    return s.workspaceName.toLowerCase() === activeFilterWs.toLowerCase();
+  const searchedSessions = sessions.filter((s) => {
+    const matchesWs = activeFilterWs === 'all' || s.workspaceName.toLowerCase() === activeFilterWs.toLowerCase();
+    const query = drawerSearch.trim().toLowerCase();
+    const matchesQuery =
+      !query ||
+      s.title.toLowerCase().includes(query) ||
+      s.workspaceName.toLowerCase().includes(query) ||
+      s.id.toLowerCase().includes(query);
+    return matchesWs && matchesQuery;
   });
+
+  const pinnedSessions = searchedSessions.filter((s) => s.pinned);
+  const recentSessions = searchedSessions.filter((s) => !s.pinned);
 
   const formatTimeAgo = (isoDate: string) => {
     const diffMs = Date.now() - new Date(isoDate).getTime();
@@ -167,6 +186,55 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     if (diffHours > 0) return `${diffHours}h ago`;
     if (diffMins > 0) return `${diffMins}m ago`;
     return 'Just now';
+  };
+
+  const renderSessionRow = (item: RealSessionItem) => {
+    const isActive = activeSession?.id === item.id && currentScreen === 'agent';
+    return (
+      <View
+        key={item.id}
+        style={[styles.sessionItem, isActive && styles.sessionItemActive]}
+      >
+        <TouchableOpacity
+          style={styles.sessionItemContent}
+          onPress={() => handleSelectSession(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.sessionTitleRow}>
+            {item.pinned ? (
+              <Pin size={11} color="#0077b6" style={{ marginRight: 5 }} />
+            ) : null}
+            <Text
+              style={[
+                styles.sessionTitle,
+                isActive && styles.sessionTitleActive,
+              ]}
+              numberOfLines={1}
+            >
+              {item.title}
+            </Text>
+          </View>
+          <View style={styles.sessionMetaRow}>
+            <Text style={styles.sessionWorkspace} numberOfLines={1}>
+              {item.workspaceName}
+            </Text>
+            <Text style={styles.metaDot}>•</Text>
+            <Text style={styles.sessionTime}>
+              {formatTimeAgo(item.updatedAt || item.createdAt)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.moreActionBtn}
+          onPress={() => setActionSession(item)}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <MoreHorizontal size={14} color="#8b949e" />
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   if (!isOpen) return null;
@@ -309,54 +377,56 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           contentContainerStyle={styles.drawerScrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Section: Sessions */}
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>RECENT SESSIONS</Text>
-            <Text style={styles.sectionBadge}>{filteredSessions.length}</Text>
+          {/* Inline Search Bar */}
+          <View style={styles.drawerSearchBox}>
+            <Search size={13} color="#8b949e" />
+            <TextInput
+              style={styles.drawerSearchInput}
+              value={drawerSearch}
+              onChangeText={setDrawerSearch}
+              placeholder="Search sessions..."
+              placeholderTextColor="#6e7681"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {drawerSearch.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setDrawerSearch('')}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <X size={13} color="#8b949e" />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {filteredSessions.length === 0 ? (
+          {/* Section: Pinned Sessions */}
+          {pinnedSessions.length > 0 && (
+            <View style={styles.pinnedSection}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionTitleWithIcon}>
+                  <Pin size={11} color="#0077b6" />
+                  <Text style={styles.sectionTitle}>PINNED SESSIONS</Text>
+                </View>
+                <Text style={styles.sectionBadge}>{pinnedSessions.length}</Text>
+              </View>
+              {pinnedSessions.map((item) => renderSessionRow(item))}
+            </View>
+          )}
+
+          {/* Section: Recent Sessions */}
+          <View style={[styles.sectionHeaderRow, pinnedSessions.length > 0 && { marginTop: 12 }]}>
+            <Text style={styles.sectionTitle}>RECENT SESSIONS</Text>
+            <Text style={styles.sectionBadge}>{recentSessions.length}</Text>
+          </View>
+
+          {recentSessions.length === 0 ? (
             <View style={styles.emptySessionsBox}>
-              <Text style={styles.emptySessionsText}>No active sessions</Text>
+              <Text style={styles.emptySessionsText}>
+                {drawerSearch ? 'No matching sessions' : 'No active sessions'}
+              </Text>
             </View>
           ) : (
-            filteredSessions.map((item) => {
-              const isActive = activeSession?.id === item.id && currentScreen === 'agent';
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[styles.sessionItem, isActive && styles.sessionItemActive]}
-                  onPress={() => handleSelectSession(item)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.sessionItemContent}>
-                    <Text
-                      style={[
-                        styles.sessionTitle,
-                        isActive && styles.sessionTitleActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {item.title}
-                    </Text>
-                    <View style={styles.sessionMetaRow}>
-                      <Text style={styles.sessionWorkspace} numberOfLines={1}>
-                        {item.workspaceName}
-                      </Text>
-                      <Text style={styles.metaDot}>•</Text>
-                      <Text style={styles.sessionTime}>
-                        {formatTimeAgo(item.updatedAt || item.createdAt)}
-                      </Text>
-                    </View>
-                  </View>
-                  {isActive ? (
-                    <View style={styles.activeBar} />
-                  ) : (
-                    <ChevronRight size={14} color="#6e7681" />
-                  )}
-                </TouchableOpacity>
-              );
-            })
+            recentSessions.map((item) => renderSessionRow(item))
           )}
 
           {/* Section: System & Navigation */}
@@ -495,6 +565,22 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         visible={showDirectFolderPicker}
         onClose={() => setShowDirectFolderPicker(false)}
         onSelectFolder={handleStartSessionInWorkspace}
+      />
+
+      {/* Session Action Modal (Rename, Pin, Delete) */}
+      <SessionActionModal
+        visible={Boolean(actionSession)}
+        session={actionSession}
+        onClose={() => setActionSession(null)}
+        onRename={async (sess, title) => {
+          await renameSession(sess.id, title);
+        }}
+        onTogglePin={async (sess) => {
+          await togglePinSession(sess.id);
+        }}
+        onDelete={async (sess) => {
+          await deleteSession(sess.id);
+        }}
       />
     </View>
   );
@@ -645,6 +731,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
+  drawerSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#161b22',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#21262d',
+    paddingHorizontal: 10,
+    height: 36,
+    marginBottom: 12,
+    gap: 8,
+  },
+  drawerSearchInput: {
+    flex: 1,
+    height: 36,
+    color: '#f0f6fc',
+    fontSize: 12,
+  },
+  pinnedSection: {
+    marginBottom: 8,
+  },
+  sectionTitleWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -690,15 +802,28 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  sessionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   sessionTitle: {
     fontSize: 13,
     fontWeight: '500',
     color: '#c9d1d9',
     lineHeight: 18,
+    flex: 1,
   },
   sessionTitleActive: {
     color: '#f0f6fc',
     fontWeight: '600',
+  },
+  moreActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#161b22',
   },
   sessionMetaRow: {
     flexDirection: 'row',
