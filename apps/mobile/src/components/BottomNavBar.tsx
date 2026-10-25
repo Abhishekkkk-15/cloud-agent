@@ -80,7 +80,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
             activeTab === 'agent' && styles.activeTabLabel,
           ]}
         >
-          Copilot
+          Agent
         </Text>
       </TouchableOpacity>
 
@@ -91,12 +91,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       >
         <Layers
           size={20}
-          color={activeTab === 'sessions' ? colors.purple : colors.textMuted}
+          color={activeTab === 'sessions' ? colors.green : colors.textMuted}
         />
         <Text
           style={[
             styles.tabLabel,
-            activeTab === 'sessions' && { color: colors.purple, fontWeight: '700' },
+            activeTab === 'sessions' && { color: colors.green, fontWeight: '700' },
           ]}
         >
           Sessions
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   activePill: {
-    backgroundColor: '#1f6feb',
+    backgroundColor: colors.greenBg,
     paddingHorizontal: 16,
     paddingVertical: 3,
     borderRadius: 14,

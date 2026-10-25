@@ -22,7 +22,6 @@ import {
   Database,
   CheckCircle2,
   XCircle,
-  GitCommit,
   GitBranch,
   Link,
   ShieldAlert,
@@ -62,7 +61,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
     Alert.alert('Action Denied', 'Intervention token dispatched. Command aborted.');
   };
 
-  const targetNode = pendingApproval?.targetNode || activeMachine?.name || 'DESKTOP-BJI38IC';
+  const targetNode = pendingApproval?.targetNode || activeMachine?.name || 'Local Machine';
 
   return (
     <View style={styles.container}>
@@ -82,8 +81,8 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
           </Text>
         </View>
         <View style={styles.hitlBadge}>
-          <Shield size={11} color={colors.purple} />
-          <Text style={styles.hitlBadgeText}>HITL Policy v2</Text>
+          <Shield size={11} color={colors.green} />
+          <Text style={styles.hitlBadgeText}>HITL Policy</Text>
         </View>
       </View>
 
@@ -98,7 +97,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
             <View style={styles.agentCallout}>
               <View style={styles.agentCalloutHeader}>
                 <View style={styles.agentIconBox}>
-                  <Bot size={13} color={colors.purple} />
+                  <Bot size={13} color={colors.green} />
                 </View>
                 <Text style={styles.agentCalloutLabel}>{pendingApproval.caller || 'Antigravity Agent'} requested confirmation:</Text>
               </View>
@@ -113,17 +112,19 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               <View style={styles.approvalHeaderRow}>
                 <View style={styles.dangerPill}>
                   <AlertTriangle size={12} color={colors.red} />
-                  <Text style={styles.dangerPillText}>HIGH PRIVILEGE · SYSTEMD & VOLUME</Text>
+                  <Text style={styles.dangerPillText}>
+                    {pendingApproval.riskLevel ? `${pendingApproval.riskLevel.toUpperCase()} PRIVILEGE` : 'ELEVATED PRIVILEGE'}
+                  </Text>
                 </View>
                 <View style={styles.timerBadge}>
                   <Clock size={11} color={colors.textMuted} />
-                  <Text style={styles.timerText}>04:39</Text>
+                  <Text style={styles.timerText}>{pendingApproval.requestedAt || 'Pending'}</Text>
                 </View>
               </View>
 
               {/* Title */}
-              <Text style={styles.cardTitle}>Execute Shell Command</Text>
-              <Text style={styles.cardSubtitle}>Elevated runtime privilege request for system daemon cycle</Text>
+              <Text style={styles.cardTitle}>{pendingApproval.tool ? `Execute ${pendingApproval.tool}` : 'Execute Action'}</Text>
+              <Text style={styles.cardSubtitle}>{pendingApproval.description || 'Elevated runtime privilege request'}</Text>
 
               {/* Target Metadata Pills */}
               <View style={styles.metaRow}>
@@ -135,7 +136,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                 <View style={styles.metaPill}>
                   <Terminal size={12} color={colors.textMuted} />
                   <Text style={styles.metaLabel}>Caller:</Text>
-                  <Text style={[styles.metaValue, { color: colors.blue }]}>
+                  <Text style={[styles.metaValue, { color: colors.green }]}>
                     {pendingApproval.caller}
                   </Text>
                 </View>
@@ -146,7 +147,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                 <View style={styles.terminalHeader}>
                   <View style={styles.terminalHeaderLeft}>
                     <ShieldAlert size={13} color={colors.red} />
-                    <Text style={styles.terminalTitle}>tool:{pendingApproval.tool} (root)</Text>
+                    <Text style={styles.terminalTitle}>tool:{pendingApproval.tool}</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.copyBtn}
@@ -171,11 +172,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               <View style={styles.indicatorsRow}>
                 <View style={styles.indicatorPillRed}>
                   <AlertTriangle size={11} color={colors.red} />
-                  <Text style={styles.indicatorTextRed}>Elevated Root (Sudo)</Text>
-                </View>
-                <View style={styles.indicatorPillBlue}>
-                  <Database size={11} color={colors.blue} />
-                  <Text style={styles.indicatorTextBlue}>Volume Mutation</Text>
+                  <Text style={styles.indicatorTextRed}>Privilege Check</Text>
                 </View>
                 <View style={styles.indicatorPillGreen}>
                   <CheckCircle2 size={11} color={colors.green} />
@@ -184,11 +181,13 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               </View>
 
               {/* Agent Reflection Justification */}
-              <View style={styles.justificationBox}>
-                <Text style={styles.justificationText}>
-                  "Restarting daemon workers to flush socket queue and re-spool with updated config. Volume purge prevents redis deadlock."
-                </Text>
-              </View>
+              {pendingApproval.justification ? (
+                <View style={styles.justificationBox}>
+                  <Text style={styles.justificationText}>
+                    "{pendingApproval.justification}"
+                  </Text>
+                </View>
+              ) : null}
 
               {/* Remember Rule Checkbox */}
               <TouchableOpacity
@@ -232,7 +231,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
             </View>
             <Text style={styles.clearTitle}>Zero-Trust Gateways Clear</Text>
             <Text style={styles.clearSubtitle}>
-              No elevated privilege requests currently pending. The autonomous runtime will interrupt here if high-privilege shell or git operations occur.
+              No elevated privilege requests currently pending. The autonomous runtime will interrupt here if high-privilege operations occur.
             </Text>
           </View>
         )}
@@ -250,7 +249,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               </View>
               <View style={styles.treeHeaderTextCol}>
                 <Text style={styles.treeTitle}>Runtime Security Checks</Text>
-                <Text style={styles.treeSubtitle}>33 security policies active</Text>
+                <Text style={styles.treeSubtitle}>Security policies active</Text>
               </View>
             </View>
             <View style={styles.treeHeaderRight}>
@@ -270,11 +269,11 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                 <Text style={styles.treeItemText}>Workspace Sandboxing: Strict</Text>
               </View>
               <View style={styles.treeItem}>
-                <Link size={14} color={colors.blue} />
+                <Link size={14} color={colors.green} />
                 <Text style={styles.treeItemText}>Inbound Ports: 0 Open (Zero-Trust)</Text>
               </View>
               <View style={styles.treeItem}>
-                <GitCommit size={14} color={colors.purple} />
+                <ShieldCheck size={14} color={colors.green} />
                 <Text style={[styles.treeItemText, { color: colors.textPrimary }]}>
                   WebRTC P2P Direct Tunnel: Encrypted
                 </Text>
@@ -407,9 +406,9 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: radii.full,
-    backgroundColor: colors.purpleSubtle,
+    backgroundColor: colors.greenSubtle,
     borderWidth: 1,
-    borderColor: colors.purpleBorder,
+    borderColor: colors.greenBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -581,22 +580,6 @@ const styles = StyleSheet.create({
   indicatorTextRed: {
     fontSize: 11,
     color: colors.red,
-    fontFamily: typography.mono,
-  },
-  indicatorPillBlue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.bgPrimary,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-  },
-  indicatorTextBlue: {
-    fontSize: 11,
-    color: colors.blue,
     fontFamily: typography.mono,
   },
   indicatorPillGreen: {

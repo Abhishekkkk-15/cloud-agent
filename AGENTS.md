@@ -32,23 +32,33 @@ This document provides development instructions, operational rules, code style s
    - Do **NOT** spawn a new CLI process per chat turn. Re-reading transcripts from disk introduces 10+ second latency.
    - Always maintain a persistent worker with an open `stdin` pipe for active sessions and feed user messages via NDJSON stream.
 
+6. **Zero-Mock & Clean Agent UI Invariant**:
+   - All UI components (chat sessions, turns, tool execution trays, machine health, and approvals) must render dynamic data from daemon and gateway streams only.
+   - **NEVER** introduce hardcoded fallback turns, fake pull request or merge conflict simulations, fake user usernames (e.g. `@Abhishekkk-15 commented:`), fake credits, or hardcoded machine hostnames (e.g. `DESKTOP-...`).
+   - Remove GitHub PR UI artifacts ("commit", "merge", floating "VIEW PR" buttons).
+
 ---
 
-## 🎨 UI & Styling Standards (GitHub Primer Dark)
+## 🎨 UI & Styling Standards (Dark Black, Gray & Primer Green)
 
 When working on `apps/mobile` or client UI components:
-- Strictly adhere to the GitHub Primer Dark color palette:
+- Strictly adhere to the **Dark Black, Gray, and Primer Green** palette:
   - **Canvas Background**: `#0d1117`
+  - **Canvas Inset**: `#010409`
   - **Card / Surface**: `#161b22`
   - **Borders & Dividers**: `#21262d` (subtle) / `#30363d` (card boundaries)
   - **Hover / Inset**: `#21262d`
-  - **Primer Green (Success / PR / View)**: `#238636` (accent) / `#3fb950` (text/icons)
-  - **GitHub Blue (Actions / Selection)**: `#1f6feb` (buttons) / `#58a6ff` (menu/options)
-  - **Commit Badges**: `#79c0ff` text in `#21262d` pill with `#30363d` border
   - **Primary Text**: `#f0f6fc`
+  - **Secondary Text**: `#c9d1d9`
   - **Muted Text**: `#8b949e` / `#6e7681`
-- Use Lucide icons wrapped via [`apps/mobile/src/components/Icons.tsx`](file:///D:/python/cloud-agent/apps/mobile/src/components/Icons.tsx).
-- Ensure all agent tool outputs (e.g. `read_file`, `list_directory`) are rendered cleanly through [`apps/mobile/src/components/MarkdownText.tsx`](file:///D:/python/cloud-agent/apps/mobile/src/components/MarkdownText.tsx).
+  - **Primer Green & GitHub Light Whitish-Green (Primary Accent)**: `#238636` (action buttons / badge bg), `#7ee787` (GitHub Dark light whitish-green for active text / status / highlights), `#aff5b4` (soft whitish-green), `rgba(35, 134, 54, 0.15)` (subtle pill bg)
+  - **Chat Panel Tool Icons**: Use clean white (`#ffffff` / `#f0f6fc`) for all tool category icons (shell, file, repo, mcp, search) in chat panels and slide trays to prevent green overload.
+  - **Danger Red (Exceptions / Alerts only)**: `#f85149` (text/icons), `#da3633` (bg)
+- **Extraneous Colors Policy**:
+  - Do **NOT** introduce GitHub Blue (`#1f6feb`, `#58a6ff`), Purple (`#8957e5`, `#d2a8ff`), or random pastel accents.
+  - Buttons, send controls, active tabs, and primary action indicators must use Primer Green (`#238636` / `#3fb950`) or neutral gray surfaces.
+- Use Lucide icons wrapped via [`apps/mobile/src/components/Icons.tsx`](file:///mnt/dev/projects/cloud-agent/apps/mobile/src/components/Icons.tsx).
+- Ensure all agent tool outputs (e.g. `read_file`, `run_command`, `json`) are rendered cleanly through [`apps/mobile/src/components/MarkdownText.tsx`](file:///mnt/dev/projects/cloud-agent/apps/mobile/src/components/MarkdownText.tsx).
 
 ---
 

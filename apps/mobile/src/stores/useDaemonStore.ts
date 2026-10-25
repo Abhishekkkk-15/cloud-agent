@@ -54,6 +54,7 @@ export interface RealMessageItem {
     result?: any;
     error?: any;
     status?: 'running' | 'success' | 'error';
+    duration?: string;
   }>;
   toolCallId?: string;
 }
@@ -63,6 +64,7 @@ export interface ApprovalRequest {
   tool: string;
   command: string;
   description: string;
+  justification?: string;
   requestedAt: string;
   targetNode: string;
   caller: string;
@@ -158,7 +160,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             command: event.command || data.command || event.prompt || data.prompt || (data.details ? JSON.stringify(data.details) : ''),
             description: event.description || data.description || 'Elevated command requires approval',
             requestedAt: 'Just now',
-            targetNode: get().activeMachine?.name || 'DESKTOP-BJI38IC',
+            targetNode: get().activeMachine?.name || get().daemonStatus?.hostname || 'Local Machine',
             caller: 'Google Antigravity CLI',
             riskLevel: 'high',
           },
@@ -167,6 +169,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         const text = typeof event.data === 'string'
           ? event.data
           : event.data?.text ?? event.text ?? '';
+        const isDelta = typeof event.data === 'object' && event.data !== null && 'delta' in event.data
+          ? (event.data as any).delta
+          : true;
         if (!text) return;
 
         set((state) => {
@@ -176,7 +181,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             const currentContent = typeof lastMsg.content === 'string' ? lastMsg.content : '';
             msgs[msgs.length - 1] = {
               ...lastMsg,
-              content: currentContent + text,
+              content: isDelta ? currentContent + text : (currentContent.length > 0 ? currentContent : text),
             };
             return { sessionMessages: msgs };
           } else {
@@ -222,21 +227,25 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         });
       } else if (event.type === 'tool_call') {
         const tcData = event.data || event;
+        const toolCallId = tcData.id || `tc_${Date.now()}`;
         set((state) => {
           const msgs = [...state.sessionMessages];
           const lastMsg = msgs[msgs.length - 1];
           const newToolCall = {
-            id: tcData.id || `tc_${Date.now()}`,
+            id: toolCallId,
             name: tcData.name || 'tool',
             arguments: tcData.arguments || {},
             status: 'running' as const,
           };
           if (lastMsg && lastMsg.role === 'assistant') {
             const existingCalls = lastMsg.toolCalls || [];
-            msgs[msgs.length - 1] = {
-              ...lastMsg,
-              toolCalls: [...existingCalls, newToolCall],
-            };
+            const exists = existingCalls.some((c) => c.id === toolCallId);
+            if (!exists) {
+              msgs[msgs.length - 1] = {
+                ...lastMsg,
+                toolCalls: [...existingCalls, newToolCall],
+              };
+            }
             return { sessionMessages: msgs };
           } else {
             return {
@@ -257,21 +266,36 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         const trData = event.data || event;
         set((state) => {
           const msgs = [...state.sessionMessages];
+          let updated = false;
           for (let i = msgs.length - 1; i >= 0; i--) {
             const msg = msgs[i];
             if (msg.toolCalls && msg.toolCalls.length > 0) {
-              const found = msg.toolCalls.find(
+              const hasMatch = msg.toolCalls.some(
                 (tc) => tc.id === trData.toolCallId || tc.name === trData.name
               );
-              if (found) {
-                found.result = trData.output ?? trData.result;
-                found.error = trData.error;
-                found.status = trData.isError || trData.error ? 'error' : 'success';
-                return { sessionMessages: msgs };
+              if (hasMatch) {
+                const newToolCalls = msg.toolCalls.map((tc) => {
+                  if (tc.id === trData.toolCallId || tc.name === trData.name) {
+                    return {
+                      ...tc,
+                      result: trData.output ?? trData.result ?? '',
+                      error: trData.error,
+                      status: trData.isError || trData.error ? ('error' as const) : ('success' as const),
+                      duration: trData.duration ? String(trData.duration) : tc.duration,
+                    };
+                  }
+                  return tc;
+                });
+                msgs[i] = {
+                  ...msg,
+                  toolCalls: newToolCalls,
+                };
+                updated = true;
+                break;
               }
             }
           }
-          return state;
+          return updated ? { sessionMessages: msgs } : state;
         });
       } else if (event.type === 'status') {
         const statusVal = event.data?.status || event.status;
@@ -518,6 +542,36 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         cwd: activeSession?.workspacePath,
       });
       set({ isSendingPrompt: false });
+
+      // Automatically re-sync messages from disk transcript once turn completes
+      if (activeSession) {
+        const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
+          sessionId: activeSession.id,
+          limit: 50,
+          offset: 0,
+          order: 'desc',
+        });
+        const rawList = Array.isArray(resp?.items)
+          ? resp.items
+          : Array.isArray(resp?.messages)
+          ? resp.messages
+          : [];
+        if (rawList.length > 0) {
+          const msgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
+            id: m.id,
+            role: m.role || 'user',
+            content: m.content || '',
+            reasoning: m.reasoning,
+            timestamp: m.timestamp || new Date().toISOString(),
+            toolCalls: m.toolCalls,
+          }));
+          set({
+            sessionMessages: msgs,
+            messagesOffset: rawList.length,
+            hasMoreMessages: Boolean(resp?.hasMore),
+          });
+        }
+      }
     } catch (err: any) {
       console.error('[DaemonStore] sendPrompt error:', err);
       const errMsg = err?.message || String(err);

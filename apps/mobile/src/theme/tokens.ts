@@ -15,24 +15,25 @@ export const colors = {
   textMuted: '#8b949e',
   textDisabled: '#484f58',
 
-  // Primer Green
-  green: '#3fb950',
+  // Primer Green & GitHub Light Whitish-Green (#7ee787)
+  green: '#7ee787',
+  greenLight: '#7ee787',
+  greenWhitish: '#aff5b4',
   greenBg: '#238636',
   greenHover: '#2ea043',
-  greenSubtle: 'rgba(35, 134, 54, 0.2)',
-  greenBorder: 'rgba(35, 134, 54, 0.4)',
+  greenSubtle: 'rgba(35, 134, 54, 0.15)',
+  greenBorder: 'rgba(126, 231, 135, 0.25)',
 
-  // GitHub Blue
-  blue: '#58a6ff',
-  blueBg: '#1f6feb',
-  blueSubtle: 'rgba(31, 111, 235, 0.2)',
-  blueBorder: 'rgba(31, 111, 235, 0.4)',
+  // Legacy mappings remapped to Green/Gray for unified dark/gray/green palette
+  blue: '#7ee787',
+  blueBg: '#238636',
+  blueSubtle: 'rgba(35, 134, 54, 0.15)',
+  blueBorder: 'rgba(126, 231, 135, 0.25)',
 
-  // Purple / Agent Accent
-  purple: '#d2a8ff',
-  purpleBg: '#8957e5',
-  purpleSubtle: 'rgba(137, 87, 229, 0.2)',
-  purpleBorder: 'rgba(137, 87, 229, 0.4)',
+  purple: '#7ee787',
+  purpleBg: '#238636',
+  purpleSubtle: 'rgba(35, 134, 54, 0.15)',
+  purpleBorder: 'rgba(126, 231, 135, 0.25)',
 
   // Danger Red
   red: '#f85149',

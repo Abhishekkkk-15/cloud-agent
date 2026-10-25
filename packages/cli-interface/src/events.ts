@@ -52,6 +52,7 @@ export interface ToolResultEventData {
   output?: string;
   error?: string;
   isError?: boolean;
+  duration?: string | number;
 }
 
 export interface PermissionRequestEventData {

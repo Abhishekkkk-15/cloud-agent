@@ -302,7 +302,7 @@ export const JsonViewer: React.FC<{
     <View style={styles.codeContainer}>
       <View style={styles.codeHeader}>
         <View style={styles.codeHeaderLeft}>
-          <FileCode size={12} color="#58a6ff" />
+          <FileCode size={12} color="#3fb950" />
           <Text style={styles.codeLangText}>{title}</Text>
           <Text style={styles.jsonLineCountBadge}>{lines.length} lines</Text>
         </View>
@@ -335,12 +335,12 @@ export const JsonViewer: React.FC<{
         >
           {isExpanded ? (
             <>
-              <ChevronUp size={13} color="#58a6ff" />
+              <ChevronUp size={13} color="#3fb950" />
               <Text style={styles.expandJsonText}>Collapse ({lines.length} lines)</Text>
             </>
           ) : (
             <>
-              <ChevronDown size={13} color="#58a6ff" />
+              <ChevronDown size={13} color="#3fb950" />
               <Text style={styles.expandJsonText}>
                 Show full JSON (+{lines.length - maxInitialLines} more lines)
               </Text>
@@ -360,7 +360,7 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
     <View style={styles.dirContainer}>
       <View style={styles.dirHeader}>
         <View style={styles.dirHeaderLeft}>
-          <Folder size={14} color="#58a6ff" />
+          <Folder size={14} color="#3fb950" />
           <Text style={styles.dirTitle}>Workspace Directory</Text>
         </View>
         <Text style={styles.dirSummary}>
@@ -371,7 +371,7 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
         {folders.map((item, idx) => (
           <View key={`dir_${idx}`} style={styles.dirRow}>
             <View style={styles.dirRowLeft}>
-              <Folder size={13} color="#58a6ff" />
+              <Folder size={13} color="#3fb950" />
               <Text style={styles.dirFolderName}>{item.name}</Text>
             </View>
             <View style={styles.dirBadge}>
@@ -401,7 +401,7 @@ const FileHeaderView: React.FC<{ block: FileHeaderBlock }> = ({ block }) => {
   return (
     <View style={styles.fileHeaderBanner}>
       <View style={styles.fileHeaderLeft}>
-        <FileText size={14} color="#58a6ff" />
+        <FileText size={14} color="#3fb950" />
         <Text style={styles.fileHeaderName}>{fileName}</Text>
         <Text style={styles.fileHeaderPath} numberOfLines={1}>
           {block.path}
@@ -435,10 +435,10 @@ const AlertBlockView: React.FC<{ block: AlertBlock }> = ({ block }) => {
       case 'important':
         return {
           title: 'Important',
-          borderColor: colors.purple,
-          titleColor: colors.purple,
-          bgColor: colors.purpleSubtle,
-          icon: <AlertTriangle size={14} color={colors.purple} />,
+          borderColor: colors.green,
+          titleColor: colors.green,
+          bgColor: colors.greenSubtle,
+          icon: <AlertTriangle size={14} color={colors.green} />,
         };
       case 'warning':
         return {
@@ -460,10 +460,10 @@ const AlertBlockView: React.FC<{ block: AlertBlock }> = ({ block }) => {
       default:
         return {
           title: 'Note',
-          borderColor: colors.blue,
-          titleColor: colors.blue,
-          bgColor: colors.blueSubtle,
-          icon: <Sparkles size={14} color={colors.blue} />,
+          borderColor: colors.borderDefault,
+          titleColor: colors.textSecondary,
+          bgColor: colors.bgHover,
+          icon: <Sparkles size={14} color={colors.green} />,
         };
     }
   };
@@ -548,7 +548,7 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
     <View style={styles.commandOutputContainer}>
       <View style={styles.commandOutputHeader}>
         <View style={styles.codeHeaderLeft}>
-          <Terminal size={12} color={colors.textMuted} />
+          <Terminal size={12} color="#ffffff" />
           <Text style={styles.codeLangText}>TERMINAL OUTPUT</Text>
           <View
             style={[
@@ -623,7 +623,7 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
     <View style={styles.codeContainer}>
       <View style={styles.codeHeader}>
         <View style={styles.codeHeaderLeft}>
-          <Terminal size={12} color={colors.textMuted} />
+          <Terminal size={12} color="#ffffff" />
           <Text style={styles.codeLangText}>
             {block.language ? block.language.toUpperCase() : 'CODE'}
           </Text>
@@ -1295,7 +1295,7 @@ const styles = StyleSheet.create({
     borderColor: colors.borderDefault,
   },
   commitHashBadge: {
-    color: '#79c0ff',
+    color: '#3fb950',
   },
   filePathBadge: {
     fontSize: 11,
@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   linkText: {
-    color: colors.blue,
+    color: colors.green,
     textDecorationLine: 'underline',
   },
 
@@ -1345,17 +1345,17 @@ const styles = StyleSheet.create({
   jsonKey: {
     fontFamily: typography.mono,
     fontSize: 11.5,
-    color: '#79c0ff',
+    color: '#3fb950',
   },
   jsonString: {
     fontFamily: typography.mono,
     fontSize: 11.5,
-    color: '#a5d6ff',
+    color: '#c9d1d9',
   },
   jsonNumber: {
     fontFamily: typography.mono,
     fontSize: 11.5,
-    color: colors.blue,
+    color: colors.green,
   },
   jsonBoolean: {
     fontFamily: typography.mono,
@@ -1394,7 +1394,7 @@ const styles = StyleSheet.create({
   },
   expandJsonText: {
     fontSize: 11.5,
-    color: colors.blue,
+    color: colors.green,
     fontFamily: typography.mono,
     fontWeight: '600',
   },
@@ -1582,16 +1582,16 @@ const styles = StyleSheet.create({
     fontFamily: typography.mono,
   },
   dirBadge: {
-    backgroundColor: colors.blueSubtle,
+    backgroundColor: colors.greenSubtle,
     borderWidth: 1,
-    borderColor: colors.blueBorder,
+    borderColor: colors.greenBorder,
     borderRadius: 3,
     paddingHorizontal: 5,
     paddingVertical: 1,
   },
   dirBadgeText: {
     fontSize: 10,
-    color: colors.blue,
+    color: colors.green,
     fontFamily: typography.mono,
     fontWeight: '600',
   },

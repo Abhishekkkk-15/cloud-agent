@@ -20,13 +20,13 @@ import {
   Link,
   FileText,
   Send,
-  GitPullRequest,
   FolderGit2,
   GitFork,
   ArrowDown,
   ArrowUp,
   Sparkles,
   Search,
+  Brain,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -55,26 +55,6 @@ interface ChatTurn {
   };
 }
 
-const DEFAULT_RESOLUTION_MARKDOWN = `Done — I fixed the merge conflicts and replied on the PR comment.
-
-### What I changed
-- Merged \`origin/main\` into your branch and resolved the conflict in:
-\`/home/runner/work/abhishekkk.in/abhishekkk.in/src/components/sections/ProjectDossier.tsx\`
-- Kept both sides' intended behavior (ASCII shark layout + \`ArchitecturePipeline\` integration).
-
-### Additional fix (from required security check)
-- CodeQL flagged a reflected XSS issue in:
-\`/home/runner/work/abhishekkk.in/abhishekkk.in/src/app/api/spotify/callback/route.ts\`
-- I fixed it and re-ran CodeQL; it now reports **0 alerts**.
-
-### Commits
-- \`9af270e\` — merge conflict resolution
-- \`830b868\` — XSS safety fix in Spotify callback route
-
-### Validation
-- \`codeql_checker\`: clean (0 alerts)
-- \`npm run lint\` could not run in this environment because \`next\` is not installed (sh: 1: next: not found).`;
-
 export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavigateTab }) => {
   const activeSession = useDaemonStore((s) => s.activeSession);
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
@@ -86,6 +66,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
 
   const [promptInput, setPromptInput] = useState('');
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
+  const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
   const scrollViewRef = useRef<any>(null);
 
@@ -95,6 +76,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
     setOpenTurnAccordions((prev) => ({
       ...prev,
       [turnId]: !isTurnOpen(turnId),
+    }));
+  };
+
+  const isReasoningOpen = (turnId: string) => openReasoningAccordions[turnId] ?? false;
+
+  const toggleReasoningAccordion = (turnId: string) => {
+    setOpenReasoningAccordions((prev) => ({
+      ...prev,
+      [turnId]: !isReasoningOpen(turnId),
     }));
   };
 
@@ -125,10 +115,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
     return 'Just now';
   };
 
-  const titleStr = activeSession?.title || 'Resolving merge conflicts for ...';
-  const repoName = activeSession?.workspaceName || 'Abhishekkk-15 / abhishekkk.in';
-  const modelStr = activeSession?.model || 'gpt-5.3-c...';
-  const subtitleStr = `${repoName} • ${modelStr}`;
+  const titleStr = activeSession?.title || 'Agent Session';
+  const repoName = activeSession?.workspaceName || 'Workspace';
+  const modelStr = activeSession?.model || 'antigravity';
+  const subtitleStr = activeSession ? `${repoName} • ${modelStr}` : modelStr;
   const timeAgoStr = formatTimeAgo(activeSession?.createdAt);
 
   // Group linear chronological messages into sequential chat turns matching Antigravity CLI flow
@@ -278,89 +268,34 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
     return turns;
   }, [sessionMessages]);
 
-  // Demo fallback turn for empty/initial demonstration sessions
-  const demoFallbackTurns = useMemo<ChatTurn[]>(() => {
-    return [
-      {
-        id: 'turn_demo_1',
-        userMessage: {
-          id: 'usr_demo_1',
-          content: activeSession?.title || '@copilot please fix the merge conflicts in this pull request.',
-          timestamp: activeSession?.createdAt,
-        },
-        assistant: {
-          id: 'asst_demo_1',
-          timestamp: activeSession?.createdAt,
-          reasoning: 'I inspected git status, identified conflict markers in ProjectDossier.tsx and Spotify callback route, and formulated a resolution plan.',
-          actions: [
-            {
-              id: 'step_clone',
-              title: `Clone repository ${repoName.replace(' / ', '/')}`,
-              category: 'repo',
-              duration: '0.4s',
-              hasDetails: true,
-              toolName: 'git_clone',
-              args: { repository: repoName, branch: 'patch-1', destination: '/workspace/project' },
-              output: `Cloning into 'abhishekkk.in'...\nremote: Enumerating objects: 1204, done.\nResolving deltas: 100% (524/524), done in 0.4s.`,
-              status: 'success',
-              exitCode: 0,
-            },
-            {
-              id: 'step_mcp_1',
-              title: 'Connected to runtime-tools MCP Server',
-              category: 'mcp',
-              duration: '0.2s',
-              hasDetails: true,
-              toolName: 'mcp_connect',
-              args: { server: 'runtime-tools', capabilities: ['bash', 'fs', 'git'] },
-              output: 'Connected to runtime-tools (PID 14201). Initialized MCP tool server session.',
-              status: 'success',
-            },
-            {
-              id: 'step_branch_status',
-              title: 'Check branch status and recent commits',
-              category: 'terminal',
-              hasDetails: true,
-              toolName: 'run_command',
-              args: { CommandLine: 'git status --porcelain && git log -n 5 --oneline' },
-              output: `The command exited with code 0.\nOutput:\nUU src/components/sections/ProjectDossier.tsx\n9af270e merge conflict resolution\n830b868 XSS safety fix`,
-              status: 'success',
-              exitCode: 0,
-            },
-            {
-              id: 'step_chore_outline',
-              title: 'chore: outline merge conflict resolution',
-              category: 'file',
-              hasDetails: true,
-              toolName: 'edit_file',
-              args: { Path: '/workspace/src/components/sections/ProjectDossier.tsx' },
-              output: 'Resolved 3 conflict markers in ProjectDossier.tsx. Merged ASCII layout with ArchitecturePipeline.',
-              status: 'success',
-            },
-          ],
-          content: DEFAULT_RESOLUTION_MARKDOWN,
-        },
-      },
-    ];
-  }, [activeSession, repoName]);
+  const liveSelectedAction = useMemo(() => {
+    if (!selectedActionForTray) return null;
+    for (const turn of chatTurns) {
+      if (turn.assistant?.actions) {
+        const found = turn.assistant.actions.find((a) => a.id === selectedActionForTray.id);
+        if (found) return found;
+      }
+    }
+    return selectedActionForTray;
+  }, [chatTurns, selectedActionForTray]);
 
-  const displayedTurns = chatTurns.length > 0 ? chatTurns : demoFallbackTurns;
+  const displayedTurns = chatTurns;
 
   const renderActionIcon = (category: ActionStep['category']) => {
     switch (category) {
       case 'repo':
-        return <FolderGit2 size={16} color="#58a6ff" />;
+        return <FolderGit2 size={16} color="#ffffff" />;
       case 'mcp':
-        return <Link size={16} color="#58a6ff" />;
+        return <Link size={16} color="#ffffff" />;
       case 'skill':
-        return <GitFork size={16} color="#d2a8ff" />;
+        return <GitFork size={16} color="#ffffff" />;
       case 'file':
-        return <FileText size={16} color="#58a6ff" />;
+        return <FileText size={16} color="#ffffff" />;
       case 'search':
-        return <Search size={16} color="#79c0ff" />;
+        return <Search size={16} color="#ffffff" />;
       case 'terminal':
       default:
-        return <Terminal size={16} color="#3fb950" />;
+        return <Terminal size={16} color="#ffffff" />;
     }
   };
 
@@ -392,8 +327,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         {/* 2. Metadata Summary Row */}
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>
-            Created {timeAgoStr} <Text style={styles.metaDot}>•</Text> 1 session{' '}
-            <Text style={styles.metaDot}>•</Text> 29.2 AI credits
+            {activeSession?.createdAt ? `Created ${timeAgoStr}` : 'Active Session'}
+            {chatTurns.length > 0 ? (
+              <>
+                <Text style={styles.metaDot}> • </Text>
+                {chatTurns.length} {chatTurns.length === 1 ? 'turn' : 'turns'}
+              </>
+            ) : null}
+            <Text style={styles.metaDot}> • </Text>
+            {modelStr}
           </Text>
         </View>
 
@@ -407,10 +349,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
               activeOpacity={0.7}
             >
               {isLoadingOlderMessages ? (
-                <ActivityIndicator size="small" color="#58a6ff" />
+                <ActivityIndicator size="small" color={colors.green} />
               ) : (
                 <>
-                  <ArrowUp size={13} color="#58a6ff" />
+                  <ArrowUp size={13} color={colors.green} />
                   <Text style={styles.loadOlderText}>Load older messages</Text>
                 </>
               )}
@@ -419,130 +361,172 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         )}
 
         {/* 4. Sequential Turn-by-Turn Timeline */}
-        {displayedTurns.map((turn, turnIdx) => (
-          <View key={turn.id || turnIdx} style={styles.turnCardContainer}>
-            {/* User Prompt (if present in turn) */}
-            {turn.userMessage?.content ? (
-              <View style={styles.userCommentCard}>
-                <View style={styles.userHeaderRow}>
-                  <Text style={styles.userCommentHeader}>@Abhishekkk-15 commented:</Text>
-                  {turn.userMessage.timestamp ? (
-                    <Text style={styles.userTimestamp}>
-                      {formatTimeAgo(turn.userMessage.timestamp)}
-                    </Text>
+        {displayedTurns.length === 0 ? (
+          <View style={styles.emptyChatBox}>
+            <View style={styles.emptyChatIconBox}>
+              <Terminal size={22} color="#ffffff" />
+            </View>
+            <Text style={styles.emptyChatTitle}>No messages in this session yet</Text>
+            <Text style={styles.emptyChatSubtitle}>
+              Send a prompt below to interact with the Antigravity agent runtime.
+            </Text>
+          </View>
+        ) : (
+          displayedTurns.map((turn, turnIdx) => (
+            <View key={turn.id || turnIdx} style={styles.turnCardContainer}>
+              {/* User Prompt (if present in turn) */}
+              {turn.userMessage?.content ? (
+                <View style={styles.userCommentCard}>
+                  <View style={styles.userHeaderRow}>
+                    <Text style={styles.userCommentHeader}>User</Text>
+                    {turn.userMessage.timestamp ? (
+                      <Text style={styles.userTimestamp}>
+                        {formatTimeAgo(turn.userMessage.timestamp)}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.userCommentBody}>{turn.userMessage.content}</Text>
+                </View>
+              ) : null}
+
+              {/* Assistant Turn Body */}
+              {turn.assistant ? (
+                <View style={styles.assistantTurnWrapper}>
+                  {/* Reasoning Process (Collapsible, subtle dark/gray theme) */}
+                  {turn.assistant.reasoning ? (
+                    <View style={styles.reasoningContainer}>
+                      <TouchableOpacity
+                        style={styles.reasoningToggleBtn}
+                        onPress={() => toggleReasoningAccordion(turn.id)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.reasoningToggleLeft}>
+                          <Brain size={13} color="#8b949e" />
+                          <Text style={styles.reasoningToggleText}>Thought process</Text>
+                        </View>
+                        <View style={styles.reasoningToggleRight}>
+                          {isReasoningOpen(turn.id) ? (
+                            <ChevronUp size={14} color="#8b949e" />
+                          ) : (
+                            <ChevronDown size={14} color="#8b949e" />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+
+                      {isReasoningOpen(turn.id) && (
+                        <View style={styles.reasoningBody}>
+                          <Text style={styles.reasoningText} selectable>
+                            {turn.assistant.reasoning.trim()}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ) : null}
+
+                  {/* Inline Actions executed for THIS turn */}
+                  {turn.assistant.actions && turn.assistant.actions.length > 0 ? (
+                    <View style={styles.accordionSection}>
+                      <TouchableOpacity
+                        style={styles.accordionHeader}
+                        onPress={() => toggleTurnAccordion(turn.id)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.accordionHeaderLeft}>
+                          {turn.assistant.actions.some((a) => a.status === 'running') ? (
+                            <View style={[styles.greenCheckCircle, { backgroundColor: 'transparent' }]}>
+                              <ActivityIndicator size="small" color={colors.green} />
+                            </View>
+                          ) : (
+                            <View style={styles.greenCheckCircle}>
+                              <Check size={12} color="#ffffff" />
+                            </View>
+                          )}
+                          <View style={styles.accordionTitleCol}>
+                            <Text style={styles.accordionTitle} numberOfLines={1}>
+                              {turn.assistant.actions[0]?.title || 'Executed turn actions'}
+                            </Text>
+                            <Text style={styles.accordionSubtitle}>
+                              {turn.assistant.actions.length} action
+                              {turn.assistant.actions.length > 1 ? 's' : ''}
+                              {turn.assistant.actions.some((a) => a.status === 'running') ? ' • Running...' : ''}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.accordionHeaderRight}>
+                          {isTurnOpen(turn.id) ? (
+                            <ChevronUp size={16} color="#8b949e" />
+                          ) : (
+                            <ChevronDown size={16} color="#8b949e" />
+                          )}
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Action Step Rows */}
+                      {isTurnOpen(turn.id) && (
+                        <View style={styles.actionStepsList}>
+                          {turn.assistant.actions.map((action) => (
+                            <TouchableOpacity
+                              key={action.id}
+                              style={styles.actionStepRow}
+                              activeOpacity={0.7}
+                              onPress={() => setSelectedActionForTray(action)}
+                            >
+                              <View style={styles.actionStepLeft}>
+                                <View style={styles.actionStepIconBox}>
+                                  {renderActionIcon(action.category)}
+                                </View>
+                                <Text style={styles.actionStepText} numberOfLines={1}>
+                                  {action.title}
+                                </Text>
+                              </View>
+
+                              <View style={styles.actionStepRightCol}>
+                                {action.status === 'running' ? (
+                                  <View style={styles.actionRunningPill}>
+                                    <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.7 }] }} />
+                                    <Text style={styles.actionRunningText}>Running</Text>
+                                  </View>
+                                ) : action.duration ? (
+                                  <Text style={styles.actionStepDuration}>{action.duration}</Text>
+                                ) : null}
+                                <TouchableOpacity
+                                  style={styles.actionStepChevronBox}
+                                  activeOpacity={0.7}
+                                  onPress={() => setSelectedActionForTray(action)}
+                                >
+                                  <ChevronRight size={16} color="#8b949e" />
+                                </TouchableOpacity>
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  ) : null}
+
+                  {/* Assistant Resolution / Markdown Response */}
+                  {turn.assistant.content ? (
+                    <View style={styles.resolutionContainer}>
+                      <MarkdownText content={turn.assistant.content} isUser={false} />
+                    </View>
                   ) : null}
                 </View>
-                <Text style={styles.userCommentBody}>{turn.userMessage.content}</Text>
-              </View>
-            ) : null}
-
-            {/* Assistant Turn Body */}
-            {turn.assistant ? (
-              <View style={styles.assistantTurnWrapper}>
-                {/* Reasoning Box (if any) */}
-                {turn.assistant.reasoning ? (
-                  <View style={styles.reasoningBox}>
-                    <View style={styles.reasoningHeader}>
-                      <Sparkles size={11} color="#d2a8ff" />
-                      <Text style={styles.reasoningTitle}>Reasoning</Text>
-                    </View>
-                    <Text style={styles.reasoningText} numberOfLines={8}>
-                      {turn.assistant.reasoning}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {/* Inline Actions executed for THIS turn */}
-                {turn.assistant.actions && turn.assistant.actions.length > 0 ? (
-                  <View style={styles.accordionSection}>
-                    <TouchableOpacity
-                      style={styles.accordionHeader}
-                      onPress={() => toggleTurnAccordion(turn.id)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={styles.accordionHeaderLeft}>
-                        <View style={styles.greenCheckCircle}>
-                          <Check size={12} color="#ffffff" />
-                        </View>
-                        <View style={styles.accordionTitleCol}>
-                          <Text style={styles.accordionTitle} numberOfLines={1}>
-                            {turn.assistant.actions[0]?.title || 'Executed turn actions'}
-                          </Text>
-                          <Text style={styles.accordionSubtitle}>
-                            {turn.assistant.actions.length} action
-                            {turn.assistant.actions.length > 1 ? 's' : ''}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.accordionHeaderRight}>
-                        {isTurnOpen(turn.id) ? (
-                          <ChevronUp size={16} color="#8b949e" />
-                        ) : (
-                          <ChevronDown size={16} color="#8b949e" />
-                        )}
-                      </View>
-                    </TouchableOpacity>
-
-                    {/* Action Step Rows */}
-                    {isTurnOpen(turn.id) && (
-                      <View style={styles.actionStepsList}>
-                        {turn.assistant.actions.map((action) => (
-                          <TouchableOpacity
-                            key={action.id}
-                            style={styles.actionStepRow}
-                            activeOpacity={0.7}
-                            onPress={() => setSelectedActionForTray(action)}
-                          >
-                            <View style={styles.actionStepLeft}>
-                              <View style={styles.actionStepIconBox}>
-                                {renderActionIcon(action.category)}
-                              </View>
-                              <Text style={styles.actionStepText} numberOfLines={1}>
-                                {action.title}
-                              </Text>
-                            </View>
-
-                            <View style={styles.actionStepRightCol}>
-                              {action.duration ? (
-                                <Text style={styles.actionStepDuration}>{action.duration}</Text>
-                              ) : null}
-                              <TouchableOpacity
-                                style={styles.actionStepChevronBox}
-                                activeOpacity={0.7}
-                                onPress={() => setSelectedActionForTray(action)}
-                              >
-                                <ChevronRight size={16} color="#8b949e" />
-                              </TouchableOpacity>
-                            </View>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                ) : null}
-
-                {/* Assistant Resolution / Markdown Response */}
-                {turn.assistant.content ? (
-                  <View style={styles.resolutionContainer}>
-                    <MarkdownText content={turn.assistant.content} isUser={false} />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
-        ))}
+              ) : null}
+            </View>
+          ))
+        )}
 
         {/* 5. Streaming Live Indicator */}
         {isSendingPrompt && (
           <View style={styles.streamingIndicatorRow}>
-            <ActivityIndicator size="small" color="#58a6ff" />
-            <Text style={styles.streamingText}>Copilot is thinking and executing...</Text>
+            <ActivityIndicator size="small" color={colors.green} />
+            <Text style={styles.streamingText}>Agent is thinking and executing...</Text>
           </View>
         )}
       </ScrollView>
 
-      {/* 6. Floating Action Buttons */}
+      {/* 6. Floating Scroll FAB */}
       <View style={[styles.scrollFabContainer, { pointerEvents: 'box-none' }]}>
         <TouchableOpacity
           style={styles.scrollFab}
@@ -550,23 +534,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
           onPress={handleScrollToBottom}
         >
           <ArrowDown size={14} color="#8b949e" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={[styles.viewFabContainer, { pointerEvents: 'box-none' }]}>
-        <TouchableOpacity
-          style={styles.viewFab}
-          activeOpacity={0.85}
-          onPress={() => {
-            Alert.alert(
-              'View Pull Request',
-              `Active branch/PR for ${repoName}\nStatus: Merge conflicts resolved.`,
-              [{ text: 'OK' }]
-            );
-          }}
-        >
-          <GitPullRequest size={15} color="#ffffff" />
-          <Text style={styles.viewFabText}>VIEW</Text>
         </TouchableOpacity>
       </View>
 
@@ -610,7 +577,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
       {/* 8. Draggable Tool Slide Tray */}
       <ToolActionTray
         visible={Boolean(selectedActionForTray)}
-        action={selectedActionForTray}
+        action={liveSelectedAction}
         onClose={() => setSelectedActionForTray(null)}
       />
     </View>
@@ -666,7 +633,7 @@ const styles = StyleSheet.create({
   loadOlderText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: colors.blue,
+    color: colors.green,
     fontFamily: typography.mono,
   },
 
@@ -797,6 +764,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  actionRunningPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(35, 134, 54, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+  },
+  actionRunningText: {
+    color: colors.green,
+    fontSize: 11,
+    fontWeight: '500',
+    fontFamily: typography.mono,
+  },
   actionStepDuration: {
     fontSize: 11,
     color: '#8b949e',
@@ -814,33 +796,51 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
 
-  // Reasoning process box
-  reasoningBox: {
+  // Reasoning Collapsible Block
+  reasoningContainer: {
+    marginVertical: 4,
+    borderRadius: radii.md,
     backgroundColor: '#010409',
     borderWidth: 1,
-    borderColor: 'rgba(137, 87, 229, 0.4)',
-    borderRadius: radii.md,
-    padding: 10,
-    marginBottom: 10,
+    borderColor: '#21262d',
+    overflow: 'hidden',
   },
-  reasoningHeader: {
+  reasoningToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginBottom: 4,
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: 'rgba(22, 27, 34, 0.4)',
   },
-  reasoningTitle: {
-    fontSize: 10.5,
+  reasoningToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  reasoningToggleText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#8b949e',
     fontFamily: typography.mono,
-    color: '#d2a8ff',
-    textTransform: 'uppercase',
-    fontWeight: '700',
+  },
+  reasoningToggleRight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reasoningBody: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderTopWidth: 1,
+    borderTopColor: '#21262d',
+    borderLeftWidth: 2,
+    borderLeftColor: '#30363d',
   },
   reasoningText: {
     fontSize: 11.5,
-    lineHeight: 17,
+    lineHeight: 18,
     color: '#8b949e',
-    fontStyle: 'italic',
+    fontFamily: typography.mono,
   },
 
   // Streaming indicator
@@ -852,16 +852,48 @@ const styles = StyleSheet.create({
   },
   streamingText: {
     fontSize: 13,
-    color: '#58a6ff',
+    color: colors.green,
     fontStyle: 'italic',
+  },
+
+  // Empty chat state
+  emptyChatBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyChatIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  emptyChatTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyChatSubtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
   },
 
   // Floating Action Buttons
   scrollFabContainer: {
     position: 'absolute',
     bottom: 58,
-    left: '50%',
-    marginLeft: -16,
+    right: 16,
     zIndex: 20,
   },
   scrollFab: {
@@ -878,32 +910,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
-  },
-  viewFabContainer: {
-    position: 'absolute',
-    bottom: 58,
-    right: 16,
-    zIndex: 20,
-  },
-  viewFab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: '#238636',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  viewFabText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#ffffff',
-    letterSpacing: 0.5,
   },
 
   // Chat Input Bar
@@ -938,7 +944,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#1f6feb',
+    backgroundColor: colors.greenBg,
     alignItems: 'center',
     justifyContent: 'center',
   },

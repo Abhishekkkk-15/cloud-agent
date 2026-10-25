@@ -76,7 +76,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
     <View style={styles.container}>
       <HeaderBar
         title="Agent Sessions & Transcripts"
-        subtitle={`${activeMachine?.name || 'DESKTOP-BJI38IC'} • cloud-daemon`}
+        subtitle={`${activeMachine?.name || 'Local Machine'} • daemon`}
         onBack={onBack}
         onMore={fetchSessions}
       />
@@ -190,7 +190,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
             activeOpacity={0.7}
           >
             {isLoadingSessions ? (
-              <ActivityIndicator size="small" color={colors.blue} />
+              <ActivityIndicator size="small" color={colors.green} />
             ) : (
               <RefreshCw size={13} color={colors.textMuted} />
             )}
@@ -201,7 +201,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         {/* Session Cards List */}
         {isLoadingSessions && sessions.length === 0 ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={colors.blue} />
+            <ActivityIndicator size="large" color={colors.green} />
             <Text style={styles.loadingText}>Loading sessions from Antigravity runtime...</Text>
           </View>
         ) : filteredSessions.length === 0 ? (
@@ -249,15 +249,15 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
                   </View>
 
                   <View style={styles.metaItem}>
-                    <GitBranch size={10} color={colors.blue} />
-                    <Text style={[styles.metaItemText, { color: colors.blue }]}>
+                    <GitBranch size={10} color={colors.green} />
+                    <Text style={[styles.metaItemText, { color: colors.textSecondary }]}>
                       {session.id.slice(0, 7)}
                     </Text>
                   </View>
 
                   <View style={[styles.metaItem, styles.metaItemRight]}>
-                    <Sparkles size={10} color={colors.purple} />
-                    <Text style={[styles.metaItemText, { color: colors.purple }]}>
+                    <Sparkles size={10} color={colors.green} />
+                    <Text style={[styles.metaItemText, { color: colors.green }]}>
                       {session.model || 'Antigravity'}
                     </Text>
                   </View>
@@ -364,8 +364,8 @@ const styles = StyleSheet.create({
     borderColor: colors.borderDefault,
   },
   filterChipActive: {
-    backgroundColor: colors.blueBg,
-    borderColor: colors.blueBg,
+    backgroundColor: colors.greenBg,
+    borderColor: colors.green,
   },
   chipText: {
     fontSize: 12,

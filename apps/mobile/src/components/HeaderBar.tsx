@@ -51,7 +51,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <MoreVertical size={22} color="#58a6ff" />
+            <MoreVertical size={22} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>

@@ -65,9 +65,76 @@ export function mapAntigravityStreamEvent(
             delta: false,
           })
         );
+      } else if (typeof su.thought === "string" && su.thought.length > 0) {
+        events.push(
+          createCliEvent<ThoughtEventData>("thought", convId, {
+            thought: su.thought,
+            delta: true,
+          })
+        );
       }
 
-      // Tool Call
+      // Antigravity Native Tool Step:
+      // step_type === "tool"
+      // state === "ACTIVE" -> tool invocation started
+      // state === "DONE" -> tool invocation completed with output
+      if (
+        su.step_type === "tool" ||
+        (su.tool_name && typeof su.tool_name === "string") ||
+        (su.tool_info && typeof su.tool_info === "object")
+      ) {
+        const toolInfo = (su.tool_info as Record<string, unknown>) || {};
+        const toolName =
+          (su.tool_name as string) ||
+          (toolInfo.name as string) ||
+          "tool";
+        const toolId =
+          su.step_index !== undefined
+            ? `${toolName}_step_${su.step_index}`
+            : (su.id as string) || `tc_${Date.now()}`;
+        const params =
+          (toolInfo.parameters as Record<string, unknown>) ||
+          (su.arguments as Record<string, unknown>) ||
+          (su.args as Record<string, unknown>) ||
+          {};
+
+        if (su.state === "ACTIVE" || !su.state) {
+          events.push(
+            createCliEvent<ToolCallEventData>("tool_call", convId, {
+              id: toolId,
+              name: toolName,
+              arguments: params,
+            })
+          );
+        } else if (su.state === "DONE") {
+          const output =
+            (toolInfo.output as string) ||
+            (su.output as string) ||
+            "";
+          const error =
+            (toolInfo.error as string) ||
+            (su.error as string) ||
+            undefined;
+          const duration =
+            typeof su.duration_seconds === "number"
+              ? su.duration_seconds < 1
+                ? `${Math.round(su.duration_seconds * 1000)}ms`
+                : `${su.duration_seconds.toFixed(1)}s`
+              : undefined;
+          events.push(
+            createCliEvent<ToolResultEventData>("tool_result", convId, {
+              toolCallId: toolId,
+              name: toolName,
+              output,
+              error,
+              isError: Boolean(error),
+              duration,
+            })
+          );
+        }
+      }
+
+      // Fallback: Tool Call format { tool_call: { id, name, args } }
       if (su.tool_call && typeof su.tool_call === "object") {
         const tc = su.tool_call as { id?: string; name?: string; args?: unknown };
         events.push(
@@ -79,7 +146,7 @@ export function mapAntigravityStreamEvent(
         );
       }
 
-      // Tool Result
+      // Fallback: Tool Result format { tool_result: { tool_call_id, name, output, error } }
       if (su.tool_result && typeof su.tool_result === "object") {
         const tr = su.tool_result as { tool_call_id?: string; name?: string; output?: string; error?: string };
         events.push(
@@ -108,6 +175,15 @@ export function mapAntigravityStreamEvent(
           })
         );
       } else {
+        // If response string exists and was not streamed, emit it
+        if (typeof res.response === "string" && res.response.length > 0) {
+          events.push(
+            createCliEvent<TextChunkEventData>("text_chunk", convId, {
+              text: res.response,
+              delta: false,
+            })
+          );
+        }
         events.push(
           createCliEvent<StatusEventData>("status", convId, {
             status: "done",

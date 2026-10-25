@@ -11,6 +11,7 @@ import {
   ScrollView,
   Platform,
   Pressable,
+  ActivityIndicator,
 } from 'react-native';
 import {
   Terminal,
@@ -152,18 +153,18 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
   const renderCategoryIcon = (category: ActionStep['category'], size = 16) => {
     switch (category) {
       case 'repo':
-        return <FolderGit2 size={size} color="#58a6ff" />;
+        return <FolderGit2 size={size} color="#ffffff" />;
       case 'mcp':
-        return <Link size={size} color="#58a6ff" />;
+        return <Link size={size} color="#ffffff" />;
       case 'skill':
-        return <GitFork size={size} color="#d2a8ff" />;
+        return <GitFork size={size} color="#ffffff" />;
       case 'file':
-        return <FileText size={size} color="#58a6ff" />;
+        return <FileText size={size} color="#ffffff" />;
       case 'search':
-        return <Search size={size} color="#79c0ff" />;
+        return <Search size={size} color="#ffffff" />;
       case 'terminal':
       default:
-        return <Terminal size={size} color="#3fb950" />;
+        return <Terminal size={size} color="#ffffff" />;
     }
   };
 
@@ -191,7 +192,9 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
   const hasCommandLine = Boolean(args.CommandLine);
   const commandLine = args.CommandLine ? String(args.CommandLine).replace(/^"|"$/g, '') : '';
   const filePath = args.Path || args.AbsolutePath ? String(args.Path || args.AbsolutePath).replace(/^"|"$/g, '') : '';
-  const isSuccess = action.status !== 'error' && (action.exitCode === undefined || action.exitCode === 0);
+  const isRunning = action.status === 'running';
+  const isSuccess = !isRunning && action.status !== 'error' && (action.exitCode === undefined || action.exitCode === 0);
+  const isError = !isRunning && (action.status === 'error' || (action.exitCode !== undefined && action.exitCode !== 0));
 
   // Prepare input text for raw copy
   const rawInputStr = commandLine || (args && Object.keys(args).length > 0 ? JSON.stringify(args, null, 2) : action.details || '');
@@ -240,10 +243,16 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                   <View
                     style={[
                       styles.statusPill,
-                      isSuccess ? styles.statusPillSuccess : styles.statusPillError,
+                      isRunning
+                        ? styles.statusPillRunning
+                        : isSuccess
+                        ? styles.statusPillSuccess
+                        : styles.statusPillError,
                     ]}
                   >
-                    {isSuccess ? (
+                    {isRunning ? (
+                      <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.65 }] }} />
+                    ) : isSuccess ? (
                       <CheckCircle2 size={11} color={colors.green} />
                     ) : (
                       <XCircle size={11} color={colors.red} />
@@ -251,10 +260,16 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                     <Text
                       style={[
                         styles.statusPillText,
-                        { color: isSuccess ? colors.green : colors.red },
+                        { color: isRunning ? colors.green : isSuccess ? colors.green : colors.red },
                       ]}
                     >
-                      {action.exitCode !== undefined ? `Exit ${action.exitCode}` : isSuccess ? 'Success' : 'Failed'}
+                      {isRunning
+                        ? 'Running...'
+                        : action.exitCode !== undefined
+                        ? `Exit ${action.exitCode}`
+                        : isSuccess
+                        ? 'Success'
+                        : 'Failed'}
                     </Text>
                   </View>
                 </View>
@@ -289,7 +304,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <Terminal size={13} color={colors.textMuted} />
+                    <Terminal size={13} color="#ffffff" />
                     <Text style={styles.sectionHeaderTitle}>COMMAND EXECUTED</Text>
                   </View>
                   <TouchableOpacity
@@ -330,7 +345,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <FileCode size={13} color={colors.textMuted} />
+                    <FileCode size={13} color="#ffffff" />
                     <Text style={styles.sectionHeaderTitle}>TARGET FILE</Text>
                   </View>
                 </View>
@@ -387,6 +402,11 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               {rawOutputStr ? (
                 <View style={styles.outputBox}>
                   <MarkdownText content={rawOutputStr} isUser={false} />
+                </View>
+              ) : isRunning ? (
+                <View style={styles.runningOutputBox}>
+                  <ActivityIndicator size="small" color={colors.green} />
+                  <Text style={styles.runningOutputText}>Tool execution in progress...</Text>
                 </View>
               ) : (
                 <View style={styles.emptyOutputBox}>
@@ -491,6 +511,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.xs,
+  },
+  statusPillRunning: {
+    backgroundColor: 'rgba(35, 134, 54, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 185, 80, 0.3)',
   },
   statusPillSuccess: {
     backgroundColor: colors.greenSubtle,
@@ -624,7 +649,7 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   filePathText: {
-    color: colors.blue,
+    color: colors.green,
     fontFamily: typography.mono,
     fontSize: 12,
     lineHeight: 17,
@@ -647,6 +672,21 @@ const styles = StyleSheet.create({
     borderColor: colors.borderMuted,
     borderRadius: radii.md,
     padding: 12,
+  },
+  runningOutputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(35, 134, 54, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 185, 80, 0.25)',
+    borderRadius: radii.md,
+    padding: 14,
+  },
+  runningOutputText: {
+    fontSize: 12.5,
+    color: colors.green,
+    fontWeight: '500',
   },
   emptyOutputText: {
     fontSize: 12.5,

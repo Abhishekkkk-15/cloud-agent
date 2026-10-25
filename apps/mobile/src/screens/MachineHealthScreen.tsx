@@ -63,31 +63,23 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
 
   const uptimeStr = daemonStatus?.uptime ? formatUptime(daemonStatus.uptime) : 'Online';
   const pidStr = daemonStatus?.pid ? String(daemonStatus.pid) : 'Daemon';
-  const hostName = activeMachine?.name || daemonStatus?.hostname || 'DESKTOP-BJI38IC';
+  const hostName = activeMachine?.name || daemonStatus?.hostname || 'Local Machine';
   const platformStr = activeMachine
     ? `${activeMachine.platform} ${activeMachine.arch}`
     : daemonStatus
     ? `${daemonStatus.platform} ${daemonStatus.arch}`
-    : 'win32 x64';
+    : 'Host System';
 
   const adapters = daemonStatus?.adapters?.map((a) => {
     const avail = daemonStatus?.availability?.[a.id];
     return {
       id: a.id,
       name: a.displayName || a.name || a.id,
-      version: avail?.version ? `agy ${avail.version}` : (a.version || 'v1.4.7'),
+      version: avail?.version ? `agy ${avail.version}` : (a.version || 'installed'),
       binaryPath: avail?.binaryPath || a.binaryPath || 'stdio RPC',
       status: avail?.available ? ('active' as const) : ('ready' as const),
     };
-  }) || [
-    {
-      id: 'antigravity',
-      name: 'Google Antigravity CLI',
-      version: 'agy v1.4.7',
-      binaryPath: 'C:\\Users\\USE05\\AppData\\Local\\agy\\bin\\agy.exe • stdio RPC',
-      status: 'active' as const,
-    },
-  ];
+  }) || [];
 
   return (
     <View style={styles.container}>
@@ -165,7 +157,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
             </View>
 
             <View style={styles.badgeCard}>
-              <Lock size={16} color={colors.blue} />
+              <Lock size={16} color={colors.green} />
               <View style={styles.badgeCardTextCol}>
                 <Text style={styles.badgeCardLabel}>Tunnel Transport</Text>
                 <Text style={styles.badgeCardValue}>WebRTC DataChannel</Text>
@@ -234,7 +226,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
                   styles.progressBarFill,
                   {
                     width: `${Math.min(100, Math.max(3, daemonStatus?.telemetry?.ram?.percent ?? 0))}%`,
-                    backgroundColor: colors.blueBg,
+                    backgroundColor: colors.green,
                   },
                 ]}
               />
@@ -267,7 +259,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
                       styles.progressBarFill,
                       {
                         width: `${Math.min(100, Math.max(3, daemonStatus.telemetry.disk.percent))}%`,
-                        backgroundColor: colors.purpleBg,
+                        backgroundColor: colors.green,
                       },
                     ]}
                   />
@@ -307,54 +299,56 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
           <Text style={styles.sectionSubtitle}>{adapters.length} registered</Text>
         </View>
 
-        <View style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
-          {adapters.map((adapter, idx) => (
-            <React.Fragment key={adapter.id || idx}>
-              {idx > 0 && <View style={styles.divider} />}
-              <TouchableOpacity
-                style={styles.adapterItem}
-                activeOpacity={0.7}
-                onPress={() => onNavigateTab && onNavigateTab('agent')}
-              >
-                <View style={styles.adapterLeft}>
-                  <View style={styles.adapterIconBox}>
-                    {idx === 0 ? (
+        {adapters.length === 0 ? (
+          <View style={[styles.card, { padding: 18, alignItems: 'center' }]}>
+            <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: typography.mono }}>
+              No adapters detected yet. Connect daemon to register CLI tools.
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
+            {adapters.map((adapter, idx) => (
+              <React.Fragment key={adapter.id || idx}>
+                {idx > 0 && <View style={styles.divider} />}
+                <TouchableOpacity
+                  style={styles.adapterItem}
+                  activeOpacity={0.7}
+                  onPress={() => onNavigateTab && onNavigateTab('agent')}
+                >
+                  <View style={styles.adapterLeft}>
+                    <View style={styles.adapterIconBox}>
                       <Terminal size={17} color={colors.green} />
-                    ) : idx === 1 ? (
-                      <Code2 size={17} color={colors.blue} />
-                    ) : (
-                      <FileCode size={17} color={colors.purple} />
-                    )}
-                  </View>
-                  <View style={styles.adapterTexts}>
-                    <View style={styles.adapterTitleRow}>
-                      <Text style={styles.adapterName}>{adapter.name || adapter.id}</Text>
-                      <View style={styles.versionBadge}>
-                        <Text style={styles.versionBadgeText}>{adapter.version || 'v1.4.7'}</Text>
+                    </View>
+                    <View style={styles.adapterTexts}>
+                      <View style={styles.adapterTitleRow}>
+                        <Text style={styles.adapterName}>{adapter.name || adapter.id}</Text>
+                        <View style={styles.versionBadge}>
+                          <Text style={styles.versionBadgeText}>{adapter.version || 'installed'}</Text>
+                        </View>
                       </View>
+                      <Text style={styles.adapterPath} numberOfLines={1}>
+                        {adapter.binaryPath || 'stdio RPC'}
+                      </Text>
                     </View>
-                    <Text style={styles.adapterPath} numberOfLines={1}>
-                      {adapter.binaryPath || '/usr/local/bin/agy • stdio RPC'}
-                    </Text>
                   </View>
-                </View>
-                <View style={styles.adapterRight}>
-                  {idx === 0 ? (
-                    <View style={styles.primaryBadge}>
-                      <View style={styles.pulseDotTiny} />
-                      <Text style={styles.primaryBadgeText}>Active & Primary</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.readyBadge}>
-                      <Text style={styles.readyBadgeText}>Ready</Text>
-                    </View>
-                  )}
-                  <ChevronRight size={16} color={colors.textMuted} />
-                </View>
-              </TouchableOpacity>
-            </React.Fragment>
-          ))}
-        </View>
+                  <View style={styles.adapterRight}>
+                    {idx === 0 || adapter.status === 'active' ? (
+                      <View style={styles.primaryBadge}>
+                        <View style={styles.pulseDotTiny} />
+                        <Text style={styles.primaryBadgeText}>Active</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.readyBadge}>
+                        <Text style={styles.readyBadgeText}>Ready</Text>
+                      </View>
+                    )}
+                    <ChevronRight size={16} color={colors.textMuted} />
+                  </View>
+                </TouchableOpacity>
+              </React.Fragment>
+            ))}
+          </View>
+        )}
 
         {/* Daemon Operations */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
@@ -379,7 +373,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
             }}
             activeOpacity={0.7}
           >
-            <RefreshCw size={16} color={colors.blue} />
+            <RefreshCw size={16} color={colors.green} />
             <Text style={styles.operationBtnText}>Flush Cache</Text>
           </TouchableOpacity>
 
@@ -388,7 +382,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onNavi
             onPress={() => onNavigateTab && onNavigateTab('sessions')}
             activeOpacity={0.7}
           >
-            <Zap size={16} color={colors.purple} />
+            <Zap size={16} color={colors.green} />
             <Text style={styles.operationBtnText}>STDOUT Stream</Text>
           </TouchableOpacity>
 
@@ -694,7 +688,7 @@ const styles = StyleSheet.create({
   },
   versionBadgeText: {
     fontSize: 10,
-    color: colors.blue,
+    color: colors.green,
     fontFamily: typography.mono,
   },
   adapterPath: {
@@ -728,14 +722,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radii.full,
-    backgroundColor: colors.blueSubtle,
+    backgroundColor: colors.bgHover,
     borderWidth: 1,
-    borderColor: colors.blueBorder,
+    borderColor: colors.borderDefault,
   },
   readyBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.blue,
+    color: colors.textMuted,
   },
   operationsGrid: {
     flexDirection: 'row',
