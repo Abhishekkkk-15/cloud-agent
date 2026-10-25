@@ -59,6 +59,15 @@ export interface RealMessageItem {
   toolCallId?: string;
 }
 
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type ExecutionMode = 'auto' | 'plan' | 'accept-edits';
+
+export interface SessionConfig {
+  model: string;
+  effort: ReasoningEffort;
+  mode: ExecutionMode;
+}
+
 export interface ApprovalRequest {
   id: string;
   tool: string;
@@ -97,6 +106,7 @@ interface DaemonStoreState {
     timestamp: string;
     details: string;
   }>;
+  sessionConfig: SessionConfig;
 
   // Actions
   init: () => Promise<void>;
@@ -108,6 +118,7 @@ interface DaemonStoreState {
   respondApproval: (allowed: boolean) => Promise<void>;
   pingHeartbeat: () => Promise<void>;
   setSelectedWorkspace: (ws: string) => void;
+  setSessionConfig: (config: Partial<SessionConfig>) => void;
 }
 
 export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
@@ -130,6 +141,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isSendingPrompt: false,
   pendingApproval: null,
   decisionTrail: [],
+  sessionConfig: {
+    model: 'gemini-3.8-flash-high',
+    effort: 'high',
+    mode: 'auto',
+  },
+
+  setSessionConfig: (newCfg: Partial<SessionConfig>) => {
+    set((state) => ({
+      sessionConfig: { ...state.sessionConfig, ...newCfg },
+    }));
+  },
 
   setSelectedWorkspace: (ws: string) => {
     set({ selectedWorkspace: ws });
@@ -517,7 +539,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   sendPrompt: async (promptText: string) => {
     if (!promptText.trim()) return;
-    const { activeSession } = get();
+    const { activeSession, sessionConfig } = get();
 
     // Optimistically append user message
     const userMsg: RealMessageItem = {
@@ -536,10 +558,16 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           prompt: promptText,
           sessionId: activeSession?.id,
           cwd: activeSession?.workspacePath,
+          model: sessionConfig.model,
+          effort: sessionConfig.effort,
+          mode: sessionConfig.mode,
         },
         prompt: promptText,
         sessionId: activeSession?.id,
         cwd: activeSession?.workspacePath,
+        model: sessionConfig.model,
+        effort: sessionConfig.effort,
+        mode: sessionConfig.mode,
       });
       set({ isSendingPrompt: false });
 

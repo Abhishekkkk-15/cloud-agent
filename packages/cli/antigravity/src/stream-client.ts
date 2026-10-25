@@ -1,9 +1,37 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, execFile, type ChildProcess } from "node:child_process";
+import { promisify } from "node:util";
 import readline from "node:readline";
 import crypto from "node:crypto";
 import type { CliRunOptions, CliEvent } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath } from "./paths.js";
 import { mapAntigravityStreamEvent } from "./mapper.js";
+
+const execFileAsync = promisify(execFile);
+
+const BUILTIN_CLI_COMMANDS = new Set([
+  "/help",
+  "/skills",
+  "/models",
+  "/agents",
+  "/mcp",
+  "/usage",
+  "/quota",
+  "/changelog",
+  "/credits",
+  "/config",
+  "/settings",
+  "/permissions",
+  "/hooks",
+]);
+
+function getBuiltinCliCommand(prompt: string): string | null {
+  const trimmed = prompt.trim();
+  const firstWord = trimmed.split(/\s+/)[0]?.toLowerCase();
+  if (firstWord && BUILTIN_CLI_COMMANDS.has(firstWord)) {
+    return trimmed;
+  }
+  return null;
+}
 
 type QueueItem = { event?: CliEvent; error?: Error; done?: boolean };
 
@@ -20,6 +48,9 @@ class PersistentWorker {
   private resolveWait: (() => void) | null = null;
   private idleTimer: NodeJS.Timeout | null = null;
   private isTurnRunning = false;
+  readonly activeModel?: string;
+  readonly activeEffort?: string;
+  readonly activeMode?: string;
 
   constructor(
     binary: string,
@@ -28,6 +59,9 @@ class PersistentWorker {
     private onExit: (worker: PersistentWorker) => void
   ) {
     this.sessionId = sessionId;
+    this.activeModel = options.model;
+    this.activeEffort = options.effort;
+    this.activeMode = options.mode;
 
     const args: string[] = [
       "--input-format",
@@ -72,6 +106,13 @@ class PersistentWorker {
 
   get isRunning(): boolean {
     return this.isAlive && !this.child.killed;
+  }
+
+  hasConfigChanged(options: CliRunOptions): boolean {
+    if (options.model && options.model !== this.activeModel) return true;
+    if (options.effort && options.effort !== this.activeEffort) return true;
+    if (options.mode && options.mode !== this.activeMode) return true;
+    return false;
   }
 
   private pushItem(item: QueueItem): void {
@@ -264,7 +305,65 @@ export class AntigravityStreamClient {
     const binary = getAgyBinaryPath() || "agy";
     const sessionId = options.sessionId || crypto.randomUUID();
 
+    // 1. Intercept CLI built-in utility commands (/help, /skills, /models, /mcp, /usage, etc.)
+    const builtinCmd = getBuiltinCliCommand(options.prompt);
+    if (builtinCmd) {
+      yield {
+        type: "status",
+        sessionId,
+        timestamp: new Date().toISOString(),
+        data: { status: "thinking", message: `Executing Antigravity command ${builtinCmd}...` },
+      };
+
+      try {
+        const { stdout, stderr } = await execFileAsync(binary, ["--print", builtinCmd], {
+          cwd: options.cwd,
+          env: { ...process.env, ...options.env },
+        });
+
+        const outputText = stdout || stderr || "Command executed with no output.";
+        yield {
+          type: "text_chunk",
+          sessionId,
+          timestamp: new Date().toISOString(),
+          data: { text: outputText, delta: false },
+        };
+
+        yield {
+          type: "status",
+          sessionId,
+          timestamp: new Date().toISOString(),
+          data: { status: "done", message: "Command executed successfully" },
+        };
+      } catch (err: any) {
+        yield {
+          type: "text_chunk",
+          sessionId,
+          timestamp: new Date().toISOString(),
+          data: {
+            text: `⚠️ Error executing ${builtinCmd}: ${err?.message || String(err)}`,
+            delta: false,
+          },
+        };
+        yield {
+          type: "status",
+          sessionId,
+          timestamp: new Date().toISOString(),
+          data: { status: "error", message: String(err) },
+        };
+      }
+      return;
+    }
+
+    // 2. Standard prompt / workflow execution via persistent worker
     let worker = this.workers.get(sessionId);
+
+    // If config (model/effort/mode) changed, destroy old worker and respool with new configuration
+    if (worker && worker.hasConfigChanged(options)) {
+      worker.destroy();
+      this.workers.delete(sessionId);
+      worker = undefined;
+    }
 
     // If no warm worker or previous process died, spawn a new one
     if (!worker || !worker.isRunning) {

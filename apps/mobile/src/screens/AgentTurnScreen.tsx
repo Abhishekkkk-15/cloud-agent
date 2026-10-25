@@ -27,12 +27,16 @@ import {
   Sparkles,
   Search,
   Brain,
+  SlidersHorizontal,
+  Command,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from '../components/MarkdownText';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
+import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
+import { SessionConfigSheet } from '../components/SessionConfigSheet';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -57,6 +61,7 @@ interface ChatTurn {
 
 export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavigateTab }) => {
   const activeSession = useDaemonStore((s) => s.activeSession);
+  const sessionConfig = useDaemonStore((s) => s.sessionConfig);
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
   const isSendingPrompt = useDaemonStore((s) => s.isSendingPrompt);
   const sendPrompt = useDaemonStore((s) => s.sendPrompt);
@@ -65,6 +70,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
   const loadOlderMessages = useDaemonStore((s) => s.loadOlderMessages);
 
   const [promptInput, setPromptInput] = useState('');
+  const [showCommandPicker, setShowCommandPicker] = useState(false);
+  const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
   const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
@@ -86,6 +93,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
       ...prev,
       [turnId]: !isReasoningOpen(turnId),
     }));
+  };
+
+  const handleInputChange = (text: string) => {
+    setPromptInput(text);
+    if (text.startsWith('/')) {
+      setShowCommandPicker(true);
+    } else if (showCommandPicker && !text.includes('/')) {
+      setShowCommandPicker(false);
+    }
+  };
+
+  const handleSelectCommand = (item: SlashCommandItem, immediate?: boolean) => {
+    setShowCommandPicker(false);
+    if (immediate) {
+      setPromptInput('');
+      sendPrompt(item.template);
+    } else {
+      setPromptInput(item.template);
+    }
   };
 
   const handleSendPrompt = async () => {
@@ -324,9 +350,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Metadata Summary Row */}
+        {/* 2. Metadata Summary Row & Config Pill */}
         <View style={styles.metaRow}>
-          <Text style={styles.metaText}>
+          <Text style={styles.metaText} numberOfLines={1}>
             {activeSession?.createdAt ? `Created ${timeAgoStr}` : 'Active Session'}
             {chatTurns.length > 0 ? (
               <>
@@ -334,9 +360,28 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
                 {chatTurns.length} {chatTurns.length === 1 ? 'turn' : 'turns'}
               </>
             ) : null}
-            <Text style={styles.metaDot}> • </Text>
-            {modelStr}
           </Text>
+
+          {/* Interactive Session Parameters Pill */}
+          <TouchableOpacity
+            style={styles.configPill}
+            onPress={() => setShowConfigSheet(true)}
+            activeOpacity={0.75}
+          >
+            <SlidersHorizontal size={11} color={colors.green} />
+            <Text style={styles.configPillText} numberOfLines={1}>
+              {sessionConfig.model.includes('flash')
+                ? 'gemini flash'
+                : sessionConfig.model.includes('sonnet')
+                ? 'sonnet 4.6'
+                : sessionConfig.model.includes('opus')
+                ? 'opus 4.6'
+                : sessionConfig.model.split('-')[0]}
+              {' • '}
+              {sessionConfig.effort}
+              {sessionConfig.mode !== 'auto' ? ` • ${sessionConfig.mode}` : ''}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* 3. Pagination: Load Older History Button */}
@@ -541,15 +586,33 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+        style={styles.chatInputWrapper}
       >
+        {/* Autocomplete Slash Command Picker Overlay */}
+        <SlashCommandPicker
+          visible={showCommandPicker}
+          searchQuery={promptInput}
+          onSelect={handleSelectCommand}
+          onClose={() => setShowCommandPicker(false)}
+        />
+
         <View style={styles.chatInputBar}>
+          {/* Quick Slash Commands Button */}
+          <TouchableOpacity
+            style={[styles.slashTriggerBtn, showCommandPicker && styles.slashTriggerBtnActive]}
+            activeOpacity={0.7}
+            onPress={() => setShowCommandPicker((prev) => !prev)}
+          >
+            <Command size={14} color={showCommandPicker ? colors.green : colors.textMuted} />
+          </TouchableOpacity>
+
           <View style={styles.chatInputFieldContainer}>
             <TextInput
               style={styles.chatInputField}
-              placeholder="Ask anything"
+              placeholder="Ask anything or type /command..."
               placeholderTextColor="#6e7681"
               value={promptInput}
-              onChangeText={setPromptInput}
+              onChangeText={handleInputChange}
               onSubmitEditing={handleSendPrompt}
               returnKeyType="send"
               editable={!isSendingPrompt}
@@ -580,6 +643,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({ onBack, onNavi
         action={liveSelectedAction}
         onClose={() => setSelectedActionForTray(null)}
       />
+
+      {/* 9. Session Parameters Bottom Sheet */}
+      <SessionConfigSheet
+        visible={showConfigSheet}
+        onClose={() => setShowConfigSheet(false)}
+      />
     </View>
   );
 };
@@ -598,19 +667,38 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
 
-  // Metadata summary row
+  // Metadata summary row & session config
   metaRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 4,
     marginBottom: 8,
+    gap: 8,
   },
   metaText: {
     fontSize: 12,
     color: '#8b949e',
-    textAlign: 'center',
+    flex: 1,
   },
   metaDot: {
     color: '#484f58',
+  },
+  configPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  configPillText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontFamily: typography.mono,
   },
 
   // Pagination header
@@ -913,15 +1001,32 @@ const styles = StyleSheet.create({
   },
 
   // Chat Input Bar
-  chatInputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  chatInputWrapper: {
     backgroundColor: '#161b22',
     borderTopWidth: 1,
     borderTopColor: '#21262d',
+    paddingHorizontal: 12,
+    paddingTop: 6,
+  },
+  chatInputBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 24 : 8,
     gap: 8,
+  },
+  slashTriggerBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.md,
+    backgroundColor: '#0d1117',
+    borderWidth: 1,
+    borderColor: '#30363d',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slashTriggerBtnActive: {
+    borderColor: colors.green,
+    backgroundColor: 'rgba(35, 134, 54, 0.15)',
   },
   chatInputFieldContainer: {
     flex: 1,

@@ -66,3 +66,6 @@ export const Wrench = wrapIcon(Lucide.Wrench);
 export const Share2 = wrapIcon(Lucide.Share2);
 export const GitFork = wrapIcon(Lucide.GitFork);
 export const Brain = wrapIcon(Lucide.Brain);
+export const SlidersHorizontal = wrapIcon(Lucide.SlidersHorizontal);
+export const Flame = wrapIcon(Lucide.Flame);
+export const Command = wrapIcon(Lucide.Command);
