@@ -80,10 +80,32 @@ export interface ApprovalRequest {
   riskLevel: 'high' | 'medium' | 'low';
 }
 
+export interface KnownWorkspaceItem {
+  path: string;
+  name: string;
+  lastUsed?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string;
+}
+
+export interface DirectoryBrowseResult {
+  currentPath: string;
+  parentPath: string | null;
+  homePath: string;
+  dirs: Array<{ name: string; fullPath: string }>;
+}
+
 interface DaemonStoreState {
   apiUrl: string;
   gatewayUrl: string;
   token: string | null;
+  isAuthenticated: boolean;
+  currentUser: UserProfile | null;
   activeMachine: MachineInfo | null;
   connectionState: ConnectionState;
   daemonStatus: DaemonStatusResult | null;
@@ -91,6 +113,8 @@ interface DaemonStoreState {
   sessions: RealSessionItem[];
   selectedWorkspace: string;
   workspaces: string[];
+  knownWorkspaces: KnownWorkspaceItem[];
+  targetWorkspacePath: string | null;
   activeSession: RealSessionItem | null;
   sessionMessages: RealMessageItem[];
   messagesOffset: number;
@@ -110,8 +134,17 @@ interface DaemonStoreState {
 
   // Actions
   init: () => Promise<void>;
+  connectGateway: () => Promise<void>;
+  loginWithDev: () => Promise<boolean>;
+  loginWithGoogle: (credential: string) => Promise<boolean>;
+  logout: () => void;
   refreshStatus: () => Promise<void>;
   fetchSessions: () => Promise<void>;
+  fetchKnownWorkspaces: () => Promise<void>;
+  fetchDirectorySuggestions: (parentPath?: string) => Promise<Array<{ name: string; fullPath: string }>>;
+  browseDirectories: (path?: string) => Promise<DirectoryBrowseResult | null>;
+  startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => void;
+  generateMachinePairingToken: (machineName?: string) => Promise<{ token: string; installCommand: string; instructions: string } | null>;
   selectSession: (session: RealSessionItem) => Promise<void>;
   createNewSession: () => void;
   loadOlderMessages: () => Promise<void>;
@@ -126,6 +159,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   apiUrl: `http://${defaultHost}:8000`,
   gatewayUrl: `http://${defaultHost}:8080`,
   token: null,
+  isAuthenticated: false,
+  currentUser: null,
   activeMachine: null,
   connectionState: 'disconnected',
   daemonStatus: null,
@@ -133,6 +168,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   sessions: [],
   selectedWorkspace: 'all',
   workspaces: [],
+  knownWorkspaces: [],
+  targetWorkspacePath: null,
   activeSession: null,
   sessionMessages: [],
   messagesOffset: 0,
@@ -167,6 +204,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       if (state === 'connected') {
         get().refreshStatus();
         get().fetchSessions();
+        get().fetchKnownWorkspaces();
       }
     });
 
@@ -343,23 +381,21 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     });
 
     try {
-      // 1. Fetch Auth JWT
-      let token = get().token;
-      if (!token) {
-        const loginRes = await fetch(`${apiUrl}/auth/dev-login`, { method: 'POST' });
-        if (loginRes.ok) {
-          const login = await loginRes.json();
-          token = login.access_token;
-          set({ token });
-        }
+      // Connect automatically if token is already present
+      if (get().token) {
+        set({ isAuthenticated: true });
+        await get().connectGateway();
       }
+    } catch (err) {
+      console.error('[DaemonStore] Init error:', err);
+    }
+  },
 
-      if (!token) {
-        console.warn('[DaemonStore] No auth token available.');
-        return;
-      }
+  connectGateway: async () => {
+    const { gatewayUrl, token } = get();
+    if (!token) return;
 
-      // 2. Fetch Machines from Gateway
+    try {
       const machRes = await fetch(`${gatewayUrl}/api/machines`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -385,7 +421,146 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         await mobileP2P.connect(gatewayUrl, token, targetMachine.machineId);
       }
     } catch (err) {
-      console.error('[DaemonStore] Init error:', err);
+      console.error('[DaemonStore] connectGateway error:', err);
+    }
+  },
+
+  loginWithDev: async () => {
+    const { apiUrl } = get();
+    try {
+      const loginRes = await fetch(`${apiUrl}/auth/dev-login`, { method: 'POST' });
+      if (!loginRes.ok) return false;
+      const login = await loginRes.json();
+      const token = login.access_token;
+      set({
+        token,
+        isAuthenticated: true,
+        currentUser: {
+          id: 'dev_user_1',
+          name: 'Developer',
+          email: 'developer@cloud-agent.internal',
+        },
+      });
+      await get().connectGateway();
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] loginWithDev error:', err);
+      return false;
+    }
+  },
+
+  loginWithGoogle: async (credential: string) => {
+    const { apiUrl } = get();
+    try {
+      const res = await fetch(`${apiUrl}/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      const token = data.access_token;
+      set({
+        token,
+        isAuthenticated: true,
+        currentUser: data.user || null,
+      });
+      await get().connectGateway();
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] loginWithGoogle error:', err);
+      return false;
+    }
+  },
+
+  logout: () => {
+    mobileP2P.disconnect();
+    set({
+      token: null,
+      isAuthenticated: false,
+      currentUser: null,
+      activeMachine: null,
+      sessions: [],
+      activeSession: null,
+      sessionMessages: [],
+      connectionState: 'disconnected',
+    });
+  },
+
+  fetchKnownWorkspaces: async () => {
+    try {
+      const res = await mobileP2P.sendRpc<{ workspaces: KnownWorkspaceItem[] }>('workspaces.list');
+      if (res && Array.isArray(res.workspaces)) {
+        set({ knownWorkspaces: res.workspaces });
+        if (!get().targetWorkspacePath && res.workspaces.length > 0) {
+          set({ targetWorkspacePath: res.workspaces[0].path });
+        }
+      }
+    } catch (err) {
+      console.error('[DaemonStore] fetchKnownWorkspaces error:', err);
+    }
+  },
+
+  fetchDirectorySuggestions: async (parentPath?: string) => {
+    try {
+      const res = await mobileP2P.sendRpc<any>(
+        'fs.listDirs',
+        { parentPath }
+      );
+      return res?.dirs || [];
+    } catch (err) {
+      console.error('[DaemonStore] fetchDirectorySuggestions error:', err);
+      return [];
+    }
+  },
+
+  browseDirectories: async (targetPath?: string) => {
+    try {
+      const res = await mobileP2P.sendRpc<DirectoryBrowseResult>('fs.listDirs', {
+        path: targetPath,
+        parentPath: targetPath,
+      });
+      return res || null;
+    } catch (err) {
+      console.error('[DaemonStore] browseDirectories error:', err);
+      return null;
+    }
+  },
+
+  startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => {
+    set((state) => ({
+      activeSession: null,
+      targetWorkspacePath: workspacePath,
+      sessionMessages: [],
+      messagesOffset: 0,
+      hasMoreMessages: false,
+      isLoadingOlderMessages: false,
+      sessionConfig: config ? { ...state.sessionConfig, ...config } : state.sessionConfig,
+    }));
+  },
+
+  generateMachinePairingToken: async (machineName?: string) => {
+    const { gatewayUrl, token } = get();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${gatewayUrl}/api/machines/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: machineName }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return {
+        token: data.token,
+        installCommand: data.installCommand,
+        instructions: data.instructions,
+      };
+    } catch (err) {
+      console.error('[DaemonStore] generateMachinePairingToken error:', err);
+      return null;
     }
   },
 
@@ -550,7 +725,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   sendPrompt: async (promptText: string) => {
     if (!promptText.trim()) return;
-    const { activeSession, sessionConfig } = get();
+    const { activeSession, targetWorkspacePath, sessionConfig } = get();
+    const effectiveCwd = targetWorkspacePath || activeSession?.workspacePath || undefined;
 
     // Optimistically append user message
     const userMsg: RealMessageItem = {
@@ -568,14 +744,14 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         options: {
           prompt: promptText,
           sessionId: activeSession?.id,
-          cwd: activeSession?.workspacePath,
+          cwd: effectiveCwd,
           model: sessionConfig.model,
           effort: sessionConfig.effort,
           mode: sessionConfig.mode,
         },
         prompt: promptText,
         sessionId: activeSession?.id,
-        cwd: activeSession?.workspacePath,
+        cwd: effectiveCwd,
         model: sessionConfig.model,
         effort: sessionConfig.effort,
         mode: sessionConfig.mode,
@@ -610,6 +786,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             hasMoreMessages: Boolean(resp?.hasMore),
           });
         }
+      } else {
+        // Newly initiated session: refresh sessions from disk transcripts
+        await get().fetchSessions();
       }
     } catch (err: any) {
       console.error('[DaemonStore] sendPrompt error:', err);

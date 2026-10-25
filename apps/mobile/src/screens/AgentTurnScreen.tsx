@@ -68,6 +68,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   onNavigateTab,
 }) => {
   const activeSession = useDaemonStore((s) => s.activeSession);
+  const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const sessionConfig = useDaemonStore((s) => s.sessionConfig);
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
   const isSendingPrompt = useDaemonStore((s) => s.isSendingPrompt);
@@ -148,10 +149,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     return 'Just now';
   };
 
-  const titleStr = activeSession?.title || 'Agent Session';
-  const repoName = activeSession?.workspaceName || 'Workspace';
-  const modelStr = activeSession?.model || 'antigravity';
-  const subtitleStr = activeSession ? `${repoName} • ${modelStr}` : modelStr;
+  const repoName =
+    activeSession?.workspaceName ||
+    (targetWorkspacePath ? targetWorkspacePath.split(/[\\/]/).pop() || 'Workspace' : 'Workspace');
+  const titleStr = activeSession?.title || 'New Session';
+  const modelStr = activeSession?.model || sessionConfig.model.split('-')[0] || 'antigravity';
+  const subtitleStr = `${repoName} • ${modelStr}`;
   const timeAgoStr = formatTimeAgo(activeSession?.createdAt);
 
   // Group linear chronological messages into sequential chat turns matching Antigravity CLI flow

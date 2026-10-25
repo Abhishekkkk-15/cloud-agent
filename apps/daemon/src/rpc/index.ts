@@ -1,9 +1,10 @@
 import os from "node:os";
 import fs from "node:fs";
+import path from "node:path";
 import { registry } from "../registry.js";
 import { handleSessionsList, handleSessionsGet, handleMessagesGet } from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
-import { buildFileTree, readFileContent, writeFileContent } from "./fs.js";
+import { buildFileTree, readFileContent, writeFileContent, listDirectories } from "./fs.js";
 import type { CliEvent } from "@cloud-agent/cli-interface";
 
 export interface RpcRequest {
@@ -223,6 +224,47 @@ export class RpcDispatcher {
           }
           writeFileContent(params.path, params.content);
           return { id: req.id, result: { ok: true } };
+        }
+
+        case "workspaces.list": {
+          // Query sessions from the adapter to gather unique recent workspaces
+          const sessionsResult = await handleSessionsList({ cli: params.cli, limit: 100 });
+          const workspacesMap = new Map<string, { path: string; name: string; lastUsed: string }>();
+
+          // Always include current process cwd as baseline
+          const cwd = process.cwd();
+          workspacesMap.set(path.normalize(cwd).toLowerCase(), {
+            path: cwd,
+            name: path.basename(cwd) || cwd,
+            lastUsed: new Date().toISOString(),
+          });
+
+          // Extract from existing sessions
+          for (const sess of sessionsResult.items) {
+            if (sess.workspacePath && sess.workspacePath.trim() !== "") {
+              const cleanPath = sess.workspacePath;
+              const key = path.normalize(cleanPath).toLowerCase();
+              if (!workspacesMap.has(key)) {
+                workspacesMap.set(key, {
+                  path: cleanPath,
+                  name: (sess as any).workspaceName || path.basename(cleanPath) || cleanPath,
+                  lastUsed: sess.updatedAt || sess.createdAt || new Date().toISOString(),
+                });
+              }
+            }
+          }
+
+          const workspaces = Array.from(workspacesMap.values()).sort((a, b) => {
+            return new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime();
+          });
+
+          return { id: req.id, result: { workspaces } };
+        }
+
+        case "fs.listDirs": {
+          const targetPath = params.parentPath || params.path;
+          const result = listDirectories(targetPath);
+          return { id: req.id, result };
         }
 
         default:

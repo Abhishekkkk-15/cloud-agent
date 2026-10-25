@@ -26,9 +26,14 @@ import {
   Server,
   Sparkles,
   Search,
+  LogOut,
+  Folder,
 } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
+import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
+import { PairMachineModal } from './PairMachineModal';
+import { FolderPickerModal } from './FolderPickerModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(Math.round(SCREEN_WIDTH * 0.82), 340);
@@ -59,9 +64,15 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const setSelectedWorkspace = useDaemonStore((s) => s.setSelectedWorkspace);
   const selectSession = useDaemonStore((s) => s.selectSession);
   const createNewSession = useDaemonStore((s) => s.createNewSession);
+  const startNewSessionInWorkspace = useDaemonStore((s) => s.startNewSessionInWorkspace);
+  const logout = useDaemonStore((s) => s.logout);
+  const currentUser = useDaemonStore((s) => s.currentUser);
   const pendingApproval = useDaemonStore((s) => s.pendingApproval);
 
   const [activeFilterWs, setActiveFilterWs] = useState<string>('all');
+  const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
+  const [showPairModal, setShowPairModal] = useState<boolean>(false);
+  const [showDirectFolderPicker, setShowDirectFolderPicker] = useState<boolean>(false);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
@@ -122,7 +133,11 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   ).current;
 
   const handleNewChat = () => {
-    createNewSession();
+    setShowNewChatSheet(true);
+  };
+
+  const handleStartSessionInWorkspace = (workspacePath: string) => {
+    startNewSessionInWorkspace(workspacePath);
     onNavigateScreen('agent');
     onClose();
   };
@@ -215,7 +230,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* 2. Primary Action: + New Chat */}
+        {/* 2. Primary Actions: + New Chat & + Pair Machine */}
         <View style={styles.actionSection}>
           <TouchableOpacity
             style={styles.newChatBtn}
@@ -226,6 +241,15 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <Plus size={16} color="#ffffff" />
             </View>
             <Text style={styles.newChatText}>New Chat</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.pairMachineBtn}
+            onPress={() => setShowPairModal(true)}
+            activeOpacity={0.7}
+          >
+            <Server size={14} color="#8b949e" />
+            <Text style={styles.pairMachineText}>Pair Machine</Text>
           </TouchableOpacity>
         </View>
 
@@ -419,9 +443,22 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               All Transcripts & Workspaces
             </Text>
           </TouchableOpacity>
+
+          {/* Nav: Browse Machine Folders */}
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => setShowDirectFolderPicker(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.navIconBox}>
+              <Folder size={17} color="#c9d1d9" />
+            </View>
+            <Text style={styles.navLabel}>Browse Machine Folders</Text>
+            <ChevronRight size={14} color="#6e7681" />
+          </TouchableOpacity>
         </ScrollView>
 
-        {/* 5. Drawer Footer */}
+        {/* 5. Drawer Footer with VPS Status & Sign Out */}
         <View style={styles.footer}>
           <View style={styles.footerStatus}>
             <View style={styles.pingDot} />
@@ -429,8 +466,36 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               VPS Connected • {pingRtt || '12ms'}
             </Text>
           </View>
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={logout}
+            activeOpacity={0.7}
+          >
+            <LogOut size={13} color="#8b949e" />
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {/* Interactive New Chat Workspace Sheet */}
+      <NewChatWorkspaceSheet
+        visible={showNewChatSheet}
+        onClose={() => setShowNewChatSheet(false)}
+        onStartSession={handleStartSessionInWorkspace}
+      />
+
+      {/* Machine Pairing Modal */}
+      <PairMachineModal
+        visible={showPairModal}
+        onClose={() => setShowPairModal(false)}
+      />
+
+      {/* Direct Remote Folder Browser Modal */}
+      <FolderPickerModal
+        visible={showDirectFolderPicker}
+        onClose={() => setShowDirectFolderPicker(false)}
+        onSelectFolder={handleStartSessionInWorkspace}
+      />
     </View>
   );
 };
@@ -501,6 +566,7 @@ const styles = StyleSheet.create({
   actionSection: {
     paddingHorizontal: 14,
     paddingVertical: 12,
+    gap: 8,
   },
   newChatBtn: {
     flexDirection: 'row',
@@ -525,6 +591,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#f0f6fc',
+  },
+  pairMachineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0d1117',
+    borderWidth: 1,
+    borderColor: '#21262d',
+    borderRadius: radii.md,
+    height: 36,
+    gap: 6,
+  },
+  pairMachineText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#8b949e',
   },
   workspacesFilterContainer: {
     paddingBottom: 8,
@@ -683,6 +765,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderTopWidth: 1,
@@ -701,6 +786,22 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   footerText: {
+    fontSize: 11,
+    color: '#8b949e',
+    fontWeight: '500',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: radii.sm,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#21262d',
+  },
+  logoutText: {
     fontSize: 11,
     color: '#8b949e',
     fontWeight: '500',

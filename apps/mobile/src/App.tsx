@@ -14,6 +14,7 @@ import { MachineHealthScreen } from './screens/MachineHealthScreen';
 import { ApprovalsScreen } from './screens/ApprovalsScreen';
 import { AgentTurnScreen } from './screens/AgentTurnScreen';
 import { SessionsScreen } from './screens/SessionsScreen';
+import { AuthScreen } from './screens/AuthScreen';
 import { useDaemonStore } from './stores/useDaemonStore';
 
 export default function App() {
@@ -22,12 +23,14 @@ export default function App() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const init = useDaemonStore((s) => s.init);
+  const isAuthenticated = useDaemonStore((s) => s.isAuthenticated);
+  const token = useDaemonStore((s) => s.token);
 
   useEffect(() => {
     init();
   }, [init]);
 
-  // Left-edge swipe responder to smoothly slide open the sidebar drawer
+  // Left-edge swipe responder to smoothly slide open the sidebar drawer (called unconditionally)
   const edgePanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
@@ -41,6 +44,16 @@ export default function App() {
       },
     })
   ).current;
+
+  // If not authenticated, present the clean AuthScreen
+  if (!isAuthenticated && !token) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ExpoStatusBar style="light" />
+        <AuthScreen />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
