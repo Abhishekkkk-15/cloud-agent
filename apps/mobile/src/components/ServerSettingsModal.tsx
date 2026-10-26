@@ -14,16 +14,14 @@ import {
 import {
   X,
   Globe,
-  Server,
   Zap,
   CheckCircle2,
   XCircle,
   RefreshCw,
-  ArrowRight,
   Database,
   Radio,
 } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 import { useDaemonStore, EndpointTestResult } from '../stores/useDaemonStore';
 
 interface ServerSettingsModalProps {
@@ -35,14 +33,12 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
   visible,
   onClose,
 }) => {
-  const currentApiUrl = useDaemonStore((s) => s.apiUrl);
   const currentGatewayUrl = useDaemonStore((s) => s.gatewayUrl);
   const setServerEndpoints = useDaemonStore((s) => s.setServerEndpoints);
   const resetServerEndpoints = useDaemonStore((s) => s.resetServerEndpoints);
   const testServerEndpoints = useDaemonStore((s) => s.testServerEndpoints);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
 
-  const [inputApiUrl, setInputApiUrl] = useState('');
   const [inputGatewayUrl, setInputGatewayUrl] = useState('');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<EndpointTestResult | null>(null);
@@ -51,78 +47,67 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
 
   useEffect(() => {
     if (visible) {
-      setInputApiUrl(currentApiUrl);
       setInputGatewayUrl(currentGatewayUrl);
       setTestResult(null);
       setStatusMessage(null);
     }
-  }, [visible, currentApiUrl, currentGatewayUrl]);
+  }, [visible, currentGatewayUrl]);
 
-  const handleApplyPreset = (api: string, gateway: string) => {
-    setInputApiUrl(api);
+  const handleApplyPreset = (gateway: string) => {
     setInputGatewayUrl(gateway);
     setTestResult(null);
     setStatusMessage(null);
   };
 
   const handleTest = async () => {
-    if (!inputApiUrl.trim() || !inputGatewayUrl.trim()) {
-      setStatusMessage({ type: 'error', text: 'Please enter both API and Gateway URLs.' });
+    if (!inputGatewayUrl.trim()) {
+      setStatusMessage({ type: 'error', text: 'Please enter a Gateway Hub URL.' });
       return;
     }
     setIsTesting(true);
     setStatusMessage(null);
     try {
-      const res = await testServerEndpoints(inputApiUrl, inputGatewayUrl);
+      const res = await testServerEndpoints(inputGatewayUrl.trim(), inputGatewayUrl.trim());
       setTestResult(res);
-      if (res.apiOk && res.gatewayOk) {
+      if (res.gatewayOk) {
         setStatusMessage({
           type: 'success',
-          text: `Both endpoints online! API: ${res.apiLatencyMs}ms | Gateway: ${res.gatewayLatencyMs}ms (${res.connectedDaemons ?? 0} machine(s) linked)`,
-        });
-      } else if (!res.apiOk && !res.gatewayOk) {
-        setStatusMessage({
-          type: 'error',
-          text: 'Both endpoints failed to respond. Check URL format and network accessibility.',
-        });
-      } else if (!res.apiOk) {
-        setStatusMessage({
-          type: 'error',
-          text: `API endpoint unreachable: ${res.apiError || 'Failed to connect'}`,
+          text: `Gateway online! Latency: ${res.gatewayLatencyMs}ms (${res.connectedDaemons ?? 0} machine(s) connected)`,
         });
       } else {
         setStatusMessage({
           type: 'error',
-          text: `Gateway endpoint unreachable: ${res.gatewayError || 'Failed to connect'}`,
+          text: `Gateway unreachable: ${res.gatewayError || 'Connection failed'}. Verify network and URL.`,
         });
       }
     } catch (err: any) {
-      setStatusMessage({ type: 'error', text: err?.message || 'Endpoint test failed.' });
+      setStatusMessage({ type: 'error', text: err?.message || 'Gateway test failed.' });
     } finally {
       setIsTesting(false);
     }
   };
 
   const handleSave = async () => {
-    if (!inputApiUrl.trim() || !inputGatewayUrl.trim()) {
-      setStatusMessage({ type: 'error', text: 'API and Gateway URLs cannot be empty.' });
+    if (!inputGatewayUrl.trim()) {
+      setStatusMessage({ type: 'error', text: 'Gateway URL cannot be empty.' });
       return;
     }
 
     setIsSaving(true);
     try {
+      const clean = inputGatewayUrl.trim();
       await setServerEndpoints({
-        apiUrl: inputApiUrl.trim(),
-        gatewayUrl: inputGatewayUrl.trim(),
+        apiUrl: clean,
+        gatewayUrl: clean,
       });
-      setStatusMessage({ type: 'success', text: 'Server endpoints updated successfully.' });
+      setStatusMessage({ type: 'success', text: 'Gateway endpoint updated. Reconnecting...' });
       setTimeout(() => {
         setIsSaving(false);
         onClose();
       }, 500);
     } catch (err: any) {
       setIsSaving(false);
-      setStatusMessage({ type: 'error', text: err?.message || 'Failed to save endpoints.' });
+      setStatusMessage({ type: 'error', text: err?.message || 'Failed to save gateway URL.' });
     }
   };
 
@@ -130,10 +115,9 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
     setIsSaving(true);
     try {
       await resetServerEndpoints();
-      setInputApiUrl(useDaemonStore.getState().apiUrl);
       setInputGatewayUrl(useDaemonStore.getState().gatewayUrl);
       setTestResult(null);
-      setStatusMessage({ type: 'success', text: 'Reset to default endpoints.' });
+      setStatusMessage({ type: 'success', text: 'Reset to default Gateway endpoint.' });
       setTimeout(() => {
         setIsSaving(false);
       }, 400);
@@ -160,9 +144,9 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   <Globe size={18} color={colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.title}>Server & Network Endpoints</Text>
+                  <Text style={styles.title}>Gateway Hub Endpoint</Text>
                   <Text style={styles.subtitle}>
-                    Configure Cloud Agent API & Gateway Hub endpoints
+                    Unified server for authentication, machines, and real-time streaming
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -179,76 +163,47 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                 contentContainerStyle={styles.body}
                 keyboardShouldPersistTaps="handled"
               >
-                {/* Deployment Notice */}
+                {/* Architecture Info Banner */}
                 <View style={styles.infoBanner}>
                   <Radio size={14} color="#0096c7" style={{ marginTop: 2 }} />
                   <Text style={styles.infoBannerText}>
-                    Ensure your deployed FastAPI (<Text style={styles.codeText}>:8000</Text>) and Gateway Hub (<Text style={styles.codeText}>:8080</Text>) share the same MongoDB and JWT secret.
+                    All mobile operations (Google OAuth, developer login, machine discovery, and WebRTC streaming) connect exclusively through this Gateway Hub.
                   </Text>
                 </View>
 
-                {/* Preset Chips */}
+                {/* Quick Presets */}
                 <Text style={styles.inputLabel}>QUICK PRESETS</Text>
                 <View style={styles.presetRow}>
                   <TouchableOpacity
                     style={styles.presetChip}
-                    onPress={() => handleApplyPreset('http://127.0.0.1:8000', 'http://127.0.0.1:8080')}
+                    onPress={() => handleApplyPreset('https://unushered-chantal-unpsychotic.ngrok-free.dev')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.presetChipText}>Localhost (127.0.0.1)</Text>
+                    <Text style={styles.presetChipText}>ngrok Live Tunnel</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.presetChip}
-                    onPress={() => handleApplyPreset('http://10.0.2.2:8000', 'http://10.0.2.2:8080')}
+                    onPress={() => handleApplyPreset('http://127.0.0.1:8080')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.presetChipText}>Localhost (:8080)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.presetChip}
+                    onPress={() => handleApplyPreset('http://10.0.2.2:8080')}
                     activeOpacity={0.7}
                   >
                     <Text style={styles.presetChipText}>Android Emulator</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* API URL Field */}
-                <View style={styles.fieldGroup}>
-                  <View style={styles.fieldLabelRow}>
-                    <Server size={13} color="#0077b6" />
-                    <Text style={styles.fieldLabel}>FastAPI Backend URL</Text>
-                  </View>
-                  <View style={styles.inputContainer}>
-                    <TextInput
-                      style={styles.textInput}
-                      value={inputApiUrl}
-                      onChangeText={(t) => {
-                        setInputApiUrl(t);
-                        setTestResult(null);
-                      }}
-                      placeholder="e.g. https://api.yourdomain.com or http://192.168.1.10:8000"
-                      placeholderTextColor="#6e7681"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    {testResult && (
-                      <View style={styles.testBadge}>
-                        {testResult.apiOk ? (
-                          <View style={styles.badgeSuccess}>
-                            <CheckCircle2 size={12} color="#0077b6" />
-                            <Text style={styles.badgeSuccessText}>{testResult.apiLatencyMs}ms</Text>
-                          </View>
-                        ) : (
-                          <View style={styles.badgeError}>
-                            <XCircle size={12} color={colors.red} />
-                            <Text style={styles.badgeErrorText}>Offline</Text>
-                          </View>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                </View>
-
                 {/* Gateway URL Field */}
                 <View style={styles.fieldGroup}>
                   <View style={styles.fieldLabelRow}>
                     <Database size={13} color="#0077b6" />
-                    <Text style={styles.fieldLabel}>Gateway Hub WebSocket / HTTP URL</Text>
+                    <Text style={styles.fieldLabel}>Gateway Server URL</Text>
                   </View>
                   <View style={styles.inputContainer}>
                     <TextInput
@@ -258,7 +213,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                         setInputGatewayUrl(t);
                         setTestResult(null);
                       }}
-                      placeholder="e.g. https://gateway.yourdomain.com or http://192.168.1.10:8080"
+                      placeholder="e.g. https://unushered-chantal-unpsychotic.ngrok-free.dev"
                       placeholderTextColor="#6e7681"
                       autoCapitalize="none"
                       autoCorrect={false}
@@ -319,7 +274,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   ) : (
                     <>
                       <Zap size={14} color="#0077b6" />
-                      <Text style={styles.testButtonText}>Test Connection to Endpoints</Text>
+                      <Text style={styles.testButtonText}>Test Connection</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -456,11 +411,6 @@ const styles = StyleSheet.create({
     color: '#c9d1d9',
     lineHeight: 17,
   },
-  codeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#48cae4',
-    fontWeight: '600',
-  },
   inputLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -501,114 +451,112 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'relative',
-    backgroundColor: '#010409',
+    justifyContent: 'center',
+  },
+  textInput: {
+    backgroundColor: '#161b22',
     borderWidth: 1,
     borderColor: '#30363d',
     borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
-  },
-  textInput: {
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    paddingRight: 110,
     color: '#f0f6fc',
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    paddingRight: 80,
   },
   testBadge: {
     position: 'absolute',
     right: 8,
-    top: 8,
-    bottom: 8,
-    justifyContent: 'center',
+    alignSelf: 'center',
   },
   badgeSuccess: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: 'rgba(0, 119, 182, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
     borderWidth: 1,
     borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   badgeSuccessText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
     color: '#48cae4',
+    fontWeight: '600',
   },
   badgeError: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    backgroundColor: 'rgba(248, 81, 73, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(248, 81, 73, 0.35)',
+    borderColor: 'rgba(248, 81, 73, 0.3)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   badgeErrorText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
     color: colors.red,
+    fontWeight: '600',
   },
   feedbackBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    padding: 10,
     borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderWidth: 1,
   },
   feedbackSuccess: {
     backgroundColor: 'rgba(0, 119, 182, 0.1)',
     borderColor: 'rgba(0, 119, 182, 0.3)',
   },
-  feedbackSuccessText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#48cae4',
-    lineHeight: 16,
-  },
   feedbackError: {
     backgroundColor: 'rgba(248, 81, 73, 0.1)',
     borderColor: 'rgba(248, 81, 73, 0.3)',
   },
-  feedbackErrorText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#ff7b72',
-    lineHeight: 16,
-  },
   feedbackText: {
     fontSize: 12,
+    flex: 1,
+    lineHeight: 16,
+  },
+  feedbackSuccessText: {
+    color: '#48cae4',
+  },
+  feedbackErrorText: {
+    color: colors.red,
   },
   testButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: 'rgba(0, 119, 182, 0.1)',
+    backgroundColor: '#161b22',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderColor: '#30363d',
     borderRadius: 10,
     paddingVertical: 11,
+    marginTop: 4,
   },
   testButtonText: {
-    color: '#0077b6',
-    fontWeight: '600',
+    color: '#0096c7',
     fontSize: 13,
+    fontWeight: '600',
   },
   activeMachineCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     backgroundColor: '#161b22',
-    padding: 10,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#21262d',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   machineDot: {
     width: 8,
@@ -633,10 +581,13 @@ const styles = StyleSheet.create({
   resetBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    borderRadius: 8,
+    borderRadius: 6,
+    backgroundColor: '#0d1117',
+    borderWidth: 1,
+    borderColor: '#30363d',
   },
   resetBtnText: {
     fontSize: 12,
@@ -644,8 +595,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   cancelBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
   cancelBtnText: {
     fontSize: 13,
@@ -655,14 +607,15 @@ const styles = StyleSheet.create({
   saveBtn: {
     backgroundColor: '#0077b6',
     paddingVertical: 9,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 110,
   },
   saveBtnText: {
-    color: '#ffffff',
     fontSize: 13,
+    color: '#ffffff',
     fontWeight: '600',
   },
 });

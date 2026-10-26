@@ -12,6 +12,9 @@ export interface GatewayConfig {
   databaseName: string;
   jwtSecret: string;
   corsOrigin: string;
+  googleClientId?: string;
+  googleClientSecret?: string;
+  googleRedirectUri?: string;
 }
 
 export const config: GatewayConfig = {
@@ -20,4 +23,7 @@ export const config: GatewayConfig = {
   databaseName: process.env.DATABASE_NAME || "cloud-agent",
   jwtSecret: process.env.JWT_SECRET || "dev-cloud-agent-jwt-change-me",
   corsOrigin: process.env.CORS_ORIGIN || "*",
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI,
 };

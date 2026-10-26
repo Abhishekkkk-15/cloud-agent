@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,23 +10,19 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import {
   Bot,
   Zap,
   Lock,
   ArrowRight,
-  ShieldCheck,
-  Server,
   Globe,
 } from '../components/Icons';
-import { colors, radii, typography } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 
 WebBrowser.maybeCompleteAuthSession();
-
-const GOOGLE_CLIENT_ID = '79012036030-97ef859oi3hdate2lg8v2ojjehpt1uee.apps.googleusercontent.com';
 
 const GoogleIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -49,58 +45,53 @@ const GoogleIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   </Svg>
 );
 
+function parseAuthCallbackUrl(urlStr: string): {
+  token?: string;
+  refreshToken?: string;
+  userId?: string;
+  email?: string;
+  name?: string;
+  avatarUrl?: string;
+  error?: string;
+} {
+  try {
+    const url = new URL(urlStr);
+    return {
+      token: url.searchParams.get('token') || undefined,
+      refreshToken: url.searchParams.get('refreshToken') || undefined,
+      userId: url.searchParams.get('userId') || undefined,
+      email: url.searchParams.get('email') || undefined,
+      name: url.searchParams.get('name') || undefined,
+      avatarUrl: url.searchParams.get('avatarUrl') || undefined,
+      error: url.searchParams.get('error') || undefined,
+    };
+  } catch {
+    const queryPart = urlStr.includes('?') ? urlStr.split('?')[1] : '';
+    const params = new URLSearchParams(queryPart);
+    return {
+      token: params.get('token') || undefined,
+      refreshToken: params.get('refreshToken') || undefined,
+      userId: params.get('userId') || undefined,
+      email: params.get('email') || undefined,
+      name: params.get('name') || undefined,
+      avatarUrl: params.get('avatarUrl') || undefined,
+      error: params.get('error') || undefined,
+    };
+  }
+}
+
 interface AuthScreenProps {
   onSuccess?: () => void;
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const loginWithDev = useDaemonStore((s) => s.loginWithDev);
-  const loginWithGoogle = useDaemonStore((s) => s.loginWithGoogle);
+  const loginWithToken = useDaemonStore((s) => s.loginWithToken);
   const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
-  const apiUrl = useDaemonStore((s) => s.apiUrl);
 
   const [isLoadingDev, setIsLoadingDev] = useState(false);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
   const [showServerSettings, setShowServerSettings] = useState(false);
-
-  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: GOOGLE_CLIENT_ID,
-    webClientId: GOOGLE_CLIENT_ID,
-    iosClientId: GOOGLE_CLIENT_ID,
-    androidClientId: GOOGLE_CLIENT_ID,
-  });
-
-  const exchangeToken = async (idToken: string) => {
-    setIsLoadingGoogle(true);
-    try {
-      const ok = await loginWithGoogle(idToken);
-      if (ok) {
-        if (onSuccess) onSuccess();
-      } else {
-        Alert.alert(
-          'Sign-In Failed',
-          `Google verification failed on backend at ${apiUrl}. Ensure backend services are running.`
-        );
-      }
-    } catch (err: any) {
-      console.error('[AuthScreen] Exchange error:', err);
-      Alert.alert('Sign-In Error', err?.message || 'Failed to complete sign-in.');
-    } finally {
-      setIsLoadingGoogle(false);
-    }
-  };
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const idToken = response.params?.id_token;
-      if (idToken) {
-        exchangeToken(idToken);
-      }
-    } else if (response?.type === 'error') {
-      setIsLoadingGoogle(false);
-      Alert.alert('Google Sign-In Error', response.error?.message || 'Authentication failed');
-    }
-  }, [response]);
 
   const handleDevLogin = async () => {
     setIsLoadingDev(true);
@@ -111,7 +102,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     } else {
       Alert.alert(
         'Connection Error',
-        `Unable to reach API at ${apiUrl}. Ensure backend services are running.`
+        `Unable to reach Gateway at ${gatewayUrl}. Ensure services are running.`
       );
     }
   };
@@ -119,17 +110,40 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const handleGoogleLogin = async () => {
     try {
       setIsLoadingGoogle(true);
-      const res = await promptAsync();
-      if (res.type === 'success') {
-        const idToken = res.params?.id_token;
-        if (idToken) {
-          await exchangeToken(idToken);
+
+      // Create return deep-link URL: cloud-agent://auth
+      const returnUrl = makeRedirectUri({ scheme: 'cloud-agent', path: 'auth' });
+      const authUrl = `${gatewayUrl}/auth/google?returnUrl=${encodeURIComponent(returnUrl)}`;
+
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, returnUrl);
+
+      if (result.type === 'success' && result.url) {
+        const parsed = parseAuthCallbackUrl(result.url);
+
+        if (parsed.error) {
+          Alert.alert('Sign-In Error', `Google authentication failed: ${parsed.error}`);
           return;
         }
-      } else if (res.type === 'cancel' || res.type === 'dismiss') {
-        // User cancelled popup
-      } else if (res.type === 'error') {
-        Alert.alert('Google Sign-In Error', res.error?.message || 'Failed to authenticate with Google.');
+
+        if (parsed.token) {
+          const ok = await loginWithToken(parsed.token, {
+            id: parsed.userId || 'user',
+            email: parsed.email || '',
+            name: parsed.name || 'User',
+            avatarUrl: parsed.avatarUrl,
+          });
+
+          if (ok) {
+            if (onSuccess) onSuccess();
+          } else {
+            Alert.alert(
+              'Sign-In Failed',
+              `Could not complete login on Gateway at ${gatewayUrl}.`
+            );
+          }
+        } else {
+          Alert.alert('Sign-In Error', 'No authorization token returned.');
+        }
       }
     } catch (err: any) {
       console.error('[AuthScreen] Google OAuth error:', err);
@@ -162,42 +176,42 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
         {/* Auth Action Card */}
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <ShieldCheck size={18} color={colors.primary} />
-            <Text style={styles.cardTitle}>Sign in to access your machines</Text>
+            <Lock size={16} color={colors.primary} />
+            <Text style={styles.cardTitle}>Authenticate Session</Text>
           </View>
+          <Text style={styles.cardSubtitle}>
+            Sign in with your Google account or connect using developer mode.
+          </Text>
 
-          {/* Primary Action: Real Google OAuth */}
+          {/* Primary Action: Google Sign-In via Gateway */}
           <TouchableOpacity
-            style={styles.googleBtn}
+            style={[styles.googleBtn, isLoadingGoogle && styles.btnDisabled]}
             onPress={handleGoogleLogin}
-            activeOpacity={0.85}
             disabled={isLoadingGoogle || isLoadingDev}
+            activeOpacity={0.8}
           >
             {isLoadingGoogle ? (
-              <ActivityIndicator size="small" color="#1f1f1f" />
+              <ActivityIndicator size="small" color="#1f2328" />
             ) : (
               <>
-                <View style={styles.googleIconBox}>
-                  <GoogleIcon size={18} />
-                </View>
-                <Text style={styles.googleBtnText}>Continue with Google</Text>
+                <GoogleIcon size={18} />
+                <Text style={styles.googleBtnText}>Sign in with Google</Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR LOCAL TESTING</Text>
+            <Text style={styles.dividerText}>OR</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          {/* Secondary Action: Developer Quick Connect */}
+          {/* Secondary Action: Developer Login */}
           <TouchableOpacity
-            style={styles.devBtn}
+            style={[styles.devBtn, isLoadingDev && styles.btnDisabled]}
             onPress={handleDevLogin}
-            activeOpacity={0.75}
-            disabled={isLoadingGoogle || isLoadingDev}
+            disabled={isLoadingDev || isLoadingGoogle}
+            activeOpacity={0.7}
           >
             {isLoadingDev ? (
               <ActivityIndicator size="small" color={colors.primary} />
@@ -271,11 +285,15 @@ const styles = StyleSheet.create({
     borderColor: '#30363d',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    shadowColor: '#0077b6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#f0f6fc',
     letterSpacing: -0.5,
   },
@@ -283,15 +301,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#8b949e',
     textAlign: 'center',
-    maxWidth: 280,
     lineHeight: 18,
+    maxWidth: 280,
   },
   card: {
     width: '100%',
     backgroundColor: '#161b22',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#30363d',
     padding: 20,
     gap: 16,
   },
@@ -299,43 +317,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 4,
   },
   cardTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#c9d1d9',
+    color: '#f0f6fc',
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#8b949e',
+    lineHeight: 17,
   },
   googleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: radii.md,
-    height: 48,
     gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  googleIconBox: {
-    width: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 4,
   },
   googleBtnText: {
-    fontSize: 15,
+    color: '#1f2328',
+    fontSize: 14,
     fontWeight: '600',
-    color: '#1f1f1f',
-    letterSpacing: -0.1,
   },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   dividerLine: {
     flex: 1,
@@ -343,26 +355,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#21262d',
   },
   dividerText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: 11,
+    fontWeight: '600',
     color: '#6e7681',
-    letterSpacing: 0.8,
   },
   devBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
     backgroundColor: '#0d1117',
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#30363d',
-    borderRadius: radii.md,
-    height: 46,
-    paddingHorizontal: 14,
-    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   devBtnText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#c9d1d9',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
   footer: {
     alignItems: 'center',
@@ -371,16 +385,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.full,
     backgroundColor: '#161b22',
     borderWidth: 1,
     borderColor: '#21262d',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   serverText: {
     fontSize: 11,
     color: '#8b949e',
-    fontFamily: typography.mono,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

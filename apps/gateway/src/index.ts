@@ -3,6 +3,7 @@ import dns from "node:dns";
 import { config } from "./config.js";
 import { connectMongo, closeMongo } from "./db/mongo.js";
 import { handleMachinesRoutes, sendJson } from "./routes/machines.js";
+import { handleAuthRoutes } from "./routes/auth.js";
 import { setupWebSocketUpgrades } from "./routes/ws.js";
 import { daemonHub } from "./hub/daemon-hub.js";
 
@@ -44,6 +45,10 @@ async function main() {
         return;
       }
 
+      // Authentication API routes (/auth/*, /api/auth/*)
+      const authHandled = await handleAuthRoutes(req, res, url);
+      if (authHandled) return;
+
       // Machines API routes
       const handled = await handleMachinesRoutes(req, res, url);
       if (handled) return;
@@ -61,9 +66,11 @@ async function main() {
 
   server.listen(config.port, () => {
     console.log(`[Gateway] Server listening on http://localhost:${config.port}`);
-    console.log(`[Gateway] VPS Daemon endpoint: ws://localhost:${config.port}/daemon/ws`);
-    console.log(`[Gateway] Client UI endpoint:  ws://localhost:${config.port}/client/ws`);
-    console.log(`[Gateway] Machines REST API:   http://localhost:${config.port}/api/machines`);
+    console.log(`[Gateway] Google OAuth endpoint: http://localhost:${config.port}/auth/google`);
+    console.log(`[Gateway] Developer Auth:       http://localhost:${config.port}/auth/dev-login`);
+    console.log(`[Gateway] VPS Daemon endpoint:  ws://localhost:${config.port}/daemon/ws`);
+    console.log(`[Gateway] Client UI endpoint:   ws://localhost:${config.port}/client/ws`);
+    console.log(`[Gateway] Machines REST API:    http://localhost:${config.port}/api/machines`);
   });
 
   // Graceful shutdown

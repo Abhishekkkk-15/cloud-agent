@@ -214,6 +214,7 @@ interface DaemonStoreState {
   connectGateway: () => Promise<void>;
   loginWithDev: () => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
+  loginWithToken: (token: string, user?: any) => Promise<boolean>;
   logout: () => void;
   execTerminalCommand: (command: string, cwd?: string) => Promise<{ exitCode: number }>;
   clearTerminal: () => void;
@@ -539,10 +540,15 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   loginWithDev: async () => {
-    const { apiUrl } = get();
+    const { gatewayUrl, apiUrl } = get();
     try {
-      const loginRes = await fetch(`${apiUrl}/auth/dev-login`, { method: 'POST' });
-      if (!loginRes.ok) return false;
+      let loginRes: Response | null = null;
+      try {
+        loginRes = await fetch(`${gatewayUrl}/auth/dev-login`, { method: 'POST' });
+      } catch {}
+      if (!loginRes || !loginRes.ok) {
+        loginRes = await fetch(`${apiUrl}/auth/dev-login`, { method: 'POST' });
+      }
       const login = await loginRes.json();
       const token = login.access_token;
       set({
@@ -558,6 +564,21 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       return true;
     } catch (err) {
       console.error('[DaemonStore] loginWithDev error:', err);
+      return false;
+    }
+  },
+
+  loginWithToken: async (token: string, user?: any) => {
+    try {
+      set({
+        token,
+        isAuthenticated: true,
+        currentUser: user || null,
+      });
+      await get().connectGateway();
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] loginWithToken error:', err);
       return false;
     }
   },
@@ -1210,17 +1231,21 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     let connectedDaemons: number | undefined;
     let gatewayError: string | undefined;
 
-    // Test API
-    const startApi = Date.now();
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
-      const res = await fetch(`${cleanApi}/docs`, { method: 'GET', signal: controller.signal });
-      clearTimeout(timeout);
-      apiLatencyMs = Date.now() - startApi;
-      apiOk = res.ok || res.status === 404 || res.status === 401;
-    } catch (e: any) {
-      apiError = e?.message || 'Connection failed';
+    // Test API (only if distinct from gateway)
+    if (cleanApi && cleanApi !== cleanGateway) {
+      const startApi = Date.now();
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(`${cleanApi}/docs`, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeout);
+        apiLatencyMs = Date.now() - startApi;
+        apiOk = res.ok || res.status === 404 || res.status === 401;
+      } catch (e: any) {
+        apiError = e?.message || 'Connection failed';
+      }
+    } else {
+      apiOk = true;
     }
 
     // Test Gateway
