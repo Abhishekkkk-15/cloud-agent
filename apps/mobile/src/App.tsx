@@ -6,6 +6,7 @@ import {
   StatusBar,
   Platform,
   PanResponder,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { colors } from './theme/tokens';
@@ -25,6 +26,7 @@ export default function App() {
 
   const init = useDaemonStore((s) => s.init);
   const isAuthenticated = useDaemonStore((s) => s.isAuthenticated);
+  const isInitializingAuth = useDaemonStore((s) => s.isInitializingAuth);
   const token = useDaemonStore((s) => s.token);
 
   useEffect(() => {
@@ -45,6 +47,16 @@ export default function App() {
       },
     })
   ).current;
+
+  // While restoring persisted auth session from storage, prevent flash of AuthScreen
+  if (isInitializingAuth) {
+    return (
+      <View style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#0d1117' }]}>
+        <ExpoStatusBar style="light" />
+        <ActivityIndicator size="small" color="#0077b6" />
+      </View>
+    );
+  }
 
   // If not authenticated, present the clean AuthScreen
   if (!isAuthenticated && !token) {

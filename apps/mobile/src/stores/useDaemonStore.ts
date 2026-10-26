@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { NativeModules, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CliArtifact } from '@cloud-agent/cli-interface';
 import { mobileP2P, ConnectionState, DaemonStatusResult } from '../lib/p2p-client';
 import {
@@ -27,10 +28,45 @@ function getDefaultHost(): string {
 
 const defaultHost = getDefaultHost();
 
+const STORAGE_KEY_TOKEN = 'cloud_agent_token';
+const STORAGE_KEY_USER = 'cloud_agent_user';
 const STORAGE_KEY_API = 'cloud_agent_api_url';
 const STORAGE_KEY_GATEWAY = 'cloud_agent_gateway_url';
 
-function getStoredUrl(key: string): string | null {
+async function getStorageItem(key: string): Promise<string | null> {
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+    return await AsyncStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+async function setStorageItem(key: string, value: string): Promise<void> {
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+    await AsyncStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+}
+
+async function removeStorageItem(key: string): Promise<void> {
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+    await AsyncStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
+function getStoredUrlSync(key: string): string | null {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       return window.localStorage.getItem(key);
@@ -41,38 +77,18 @@ function getStoredUrl(key: string): string | null {
   return null;
 }
 
-function setStoredUrl(key: string, value: string): void {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.setItem(key, value);
-    }
-  } catch {
-    // ignore
-  }
-}
-
-function removeStoredUrl(key: string): void {
-  try {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem(key);
-    }
-  } catch {
-    // ignore
-  }
-}
-
 const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
 const envGatewayUrl = process.env.EXPO_PUBLIC_GATEWAY_URL;
 
 export function resolveInitialApiUrl(): string {
-  const stored = getStoredUrl(STORAGE_KEY_API);
+  const stored = getStoredUrlSync(STORAGE_KEY_API);
   if (stored && stored.trim()) return stored.trim();
   if (envApiUrl && envApiUrl.trim()) return envApiUrl.trim();
   return `http://${defaultHost}:8000`;
 }
 
 export function resolveInitialGatewayUrl(): string {
-  const stored = getStoredUrl(STORAGE_KEY_GATEWAY);
+  const stored = getStoredUrlSync(STORAGE_KEY_GATEWAY);
   if (stored && stored.trim()) return stored.trim();
   if (envGatewayUrl && envGatewayUrl.trim()) return envGatewayUrl.trim();
   return `http://${defaultHost}:8080`;
@@ -181,6 +197,7 @@ interface DaemonStoreState {
   gatewayUrl: string;
   token: string | null;
   isAuthenticated: boolean;
+  isInitializingAuth: boolean;
   currentUser: UserProfile | null;
   activeMachine: MachineInfo | null;
   machines: MachineInfo[];
@@ -259,6 +276,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   gatewayUrl: resolveInitialGatewayUrl(),
   token: null,
   isAuthenticated: false,
+  isInitializingAuth: true,
   currentUser: null,
   activeMachine: null,
   machines: [],
@@ -517,13 +535,46 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
     try {
       requestNotificationPermission().catch(() => {});
-      // Connect automatically if token is already present
-      if (get().token) {
-        set({ isAuthenticated: true });
+
+      // Restore stored token, user profile, and custom endpoints from persistent storage
+      const [storedToken, storedUserJson, storedApi, storedGateway] = await Promise.all([
+        getStorageItem(STORAGE_KEY_TOKEN),
+        getStorageItem(STORAGE_KEY_USER),
+        getStorageItem(STORAGE_KEY_API),
+        getStorageItem(STORAGE_KEY_GATEWAY),
+      ]);
+
+      let restoredUser: UserProfile | null = null;
+      if (storedUserJson) {
+        try {
+          restoredUser = JSON.parse(storedUserJson);
+        } catch {
+          // ignore
+        }
+      }
+
+      const effectiveApi = storedApi || get().apiUrl;
+      const effectiveGateway = storedGateway || get().gatewayUrl;
+
+      if (storedToken) {
+        set({
+          token: storedToken,
+          isAuthenticated: true,
+          currentUser: restoredUser,
+          apiUrl: effectiveApi,
+          gatewayUrl: effectiveGateway,
+        });
         await get().connectGateway();
+      } else {
+        set({
+          apiUrl: effectiveApi,
+          gatewayUrl: effectiveGateway,
+        });
       }
     } catch (err) {
       console.error('[DaemonStore] Init error:', err);
+    } finally {
+      set({ isInitializingAuth: false });
     }
   },
 
@@ -662,14 +713,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
       const login = await loginRes.json();
       const token = login.access_token;
+      const devUser = {
+        id: 'dev_user_1',
+        name: 'Developer',
+        email: 'developer@cloud-agent.internal',
+      };
+      await setStorageItem(STORAGE_KEY_TOKEN, token);
+      await setStorageItem(STORAGE_KEY_USER, JSON.stringify(devUser));
       set({
         token,
         isAuthenticated: true,
-        currentUser: {
-          id: 'dev_user_1',
-          name: 'Developer',
-          email: 'developer@cloud-agent.internal',
-        },
+        currentUser: devUser,
       });
       await get().connectGateway();
       return true;
@@ -681,6 +735,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   loginWithToken: async (token: string, user?: any) => {
     try {
+      await setStorageItem(STORAGE_KEY_TOKEN, token);
+      if (user) {
+        await setStorageItem(STORAGE_KEY_USER, JSON.stringify(user));
+      }
       set({
         token,
         isAuthenticated: true,
@@ -705,6 +763,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       if (!res.ok) return false;
       const data = await res.json();
       const token = data.access_token;
+      await setStorageItem(STORAGE_KEY_TOKEN, token);
+      if (data.user) {
+        await setStorageItem(STORAGE_KEY_USER, JSON.stringify(data.user));
+      }
       set({
         token,
         isAuthenticated: true,
@@ -720,14 +782,18 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   logout: () => {
     mobileP2P.disconnect();
+    removeStorageItem(STORAGE_KEY_TOKEN);
+    removeStorageItem(STORAGE_KEY_USER);
     set({
       token: null,
       isAuthenticated: false,
       currentUser: null,
       activeMachine: null,
+      machines: [],
       sessions: [],
       activeSession: null,
       sessionMessages: [],
+      sessionArtifacts: [],
       connectionState: 'disconnected',
     });
   },
@@ -1354,8 +1420,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   setServerEndpoints: async ({ apiUrl, gatewayUrl }: { apiUrl: string; gatewayUrl: string }) => {
     const cleanApi = apiUrl.trim().replace(/\/$/, '');
     const cleanGateway = gatewayUrl.trim().replace(/\/$/, '');
-    setStoredUrl(STORAGE_KEY_API, cleanApi);
-    setStoredUrl(STORAGE_KEY_GATEWAY, cleanGateway);
+    await setStorageItem(STORAGE_KEY_API, cleanApi);
+    await setStorageItem(STORAGE_KEY_GATEWAY, cleanGateway);
     set({ apiUrl: cleanApi, gatewayUrl: cleanGateway });
 
     try {
@@ -1367,8 +1433,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   resetServerEndpoints: async () => {
-    removeStoredUrl(STORAGE_KEY_API);
-    removeStoredUrl(STORAGE_KEY_GATEWAY);
+    await removeStorageItem(STORAGE_KEY_API);
+    await removeStorageItem(STORAGE_KEY_GATEWAY);
     const defApi = envApiUrl || `http://${defaultHost}:8000`;
     const defGateway = envGatewayUrl || `http://${defaultHost}:8080`;
     set({ apiUrl: defApi, gatewayUrl: defGateway });
