@@ -70,6 +70,54 @@ function normalizeToolArgs(args: unknown): Record<string, unknown> | string {
   return typeof args === "string" ? args : {};
 }
 
+function resolveWorkspaceRoot(rawCandidate: string): string {
+  let current = rawCandidate.replace(/^"|"$/g, "").trim();
+  if (!current) return "";
+
+  // If path is a file, take its directory
+  try {
+    if (fs.existsSync(current)) {
+      const stat = fs.statSync(current);
+      if (!stat.isDirectory()) {
+        current = path.dirname(current);
+      }
+    } else if (path.extname(current)) {
+      current = path.dirname(current);
+    }
+  } catch {
+    if (path.extname(current)) {
+      current = path.dirname(current);
+    }
+  }
+
+  // Search upwards for project root indicators (.git, .agents, package.json, pyproject.toml)
+  let root = current;
+  let dir = current;
+  while (dir && dir !== path.dirname(dir)) {
+    try {
+      if (
+        fs.existsSync(path.join(dir, ".git")) ||
+        fs.existsSync(path.join(dir, ".agents")) ||
+        fs.existsSync(path.join(dir, "package.json")) ||
+        fs.existsSync(path.join(dir, "pyproject.toml"))
+      ) {
+        root = dir;
+        break;
+      }
+    } catch {
+      // ignore stat errors
+    }
+    dir = path.dirname(dir);
+  }
+
+  // Normalize trailing slashes (e.g. E:\99acers\ -> E:\99acers)
+  if (root.length > 3 && (root.endsWith('/') || root.endsWith('\\'))) {
+    root = root.slice(0, -1);
+  }
+
+  return root;
+}
+
 interface SessionMeta {
   customTitle?: string;
   pinned?: boolean;
@@ -226,16 +274,40 @@ async function extractSessionSummary(
         }
       }
 
+      if (!workspacePath && parsed.content && typeof parsed.content === "string") {
+        const cwdMatch = /Command Working Directory:\s*([^\r\n<]+)/i.exec(parsed.content);
+        if (cwdMatch && cwdMatch[1]) {
+          const candidate = cwdMatch[1].trim();
+          if (candidate.includes("/") || candidate.includes("\\")) {
+            workspacePath = resolveWorkspaceRoot(candidate);
+          }
+        }
+        if (!workspacePath) {
+          const wsMatch = /Active Workspaces:\s*\r?\n\s*-\s*([^\r\n<]+)/i.exec(parsed.content);
+          if (wsMatch && wsMatch[1]) {
+            const candidate = wsMatch[1].trim();
+            if (candidate.includes("/") || candidate.includes("\\")) {
+              workspacePath = resolveWorkspaceRoot(candidate);
+            }
+          }
+        }
+      }
+
       if (!workspacePath && parsed.tool_calls && parsed.tool_calls.length > 0) {
         for (const tc of parsed.tool_calls) {
           if (tc.args && typeof tc.args === "object") {
             const rawArgs = tc.args as Record<string, unknown>;
-            const dir = (rawArgs.DirectoryPath || rawArgs.SearchPath || rawArgs.AbsolutePath) as string | undefined;
+            const dir = (rawArgs.DirectoryPath ||
+              rawArgs.SearchPath ||
+              rawArgs.AbsolutePath ||
+              rawArgs.Path ||
+              rawArgs.cwd ||
+              rawArgs.filePath) as string | undefined;
             if (dir && typeof dir === "string") {
               const clean = dir.replace(/^"|"$/g, "");
               if (clean.includes("/") || clean.includes("\\")) {
-                workspacePath = path.isAbsolute(clean) ? clean : path.dirname(clean);
-                break;
+                workspacePath = resolveWorkspaceRoot(clean);
+                if (workspacePath) break;
               }
             }
           }

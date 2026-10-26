@@ -359,15 +359,7 @@ export class RpcDispatcher {
           const sessionsResult = await handleSessionsList({ cli: params.cli, limit: 100 });
           const workspacesMap = new Map<string, { path: string; name: string; lastUsed: string }>();
 
-          // Always include current process cwd as baseline
-          const cwd = process.cwd();
-          workspacesMap.set(path.normalize(cwd).toLowerCase(), {
-            path: cwd,
-            name: path.basename(cwd) || cwd,
-            lastUsed: new Date().toISOString(),
-          });
-
-          // Extract from existing sessions
+          // Extract from existing sessions first
           for (const sess of sessionsResult.items) {
             if (sess.workspacePath && sess.workspacePath.trim() !== "") {
               const cleanPath = sess.workspacePath;
@@ -380,6 +372,17 @@ export class RpcDispatcher {
                 });
               }
             }
+          }
+
+          // Include current process cwd as fallback if no session workspaces exist
+          const cwd = process.cwd();
+          const cwdKey = path.normalize(cwd).toLowerCase();
+          if (!workspacesMap.has(cwdKey)) {
+            workspacesMap.set(cwdKey, {
+              path: cwd,
+              name: path.basename(cwd) || cwd,
+              lastUsed: workspacesMap.size === 0 ? new Date().toISOString() : new Date(0).toISOString(),
+            });
           }
 
           const workspaces = Array.from(workspacesMap.values()).sort((a, b) => {

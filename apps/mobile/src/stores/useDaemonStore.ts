@@ -1165,11 +1165,15 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   selectSession: async (session: RealSessionItem) => {
     // If selecting the currently active session and it already has messages, avoid wiping
     if (get().activeSession?.id === session.id && get().sessionMessages.length > 0) {
+      if (session.workspacePath && get().targetWorkspacePath !== session.workspacePath) {
+        set({ targetWorkspacePath: session.workspacePath });
+      }
       get().fetchSessionArtifacts(session.id);
       return;
     }
     set({
       activeSession: session,
+      targetWorkspacePath: session.workspacePath || null,
       sessionMessages: [],
       sessionArtifacts: [],
       messagesOffset: 0,
@@ -1218,6 +1222,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   createNewSession: () => {
     set({
       activeSession: null,
+      targetWorkspacePath: null,
       sessionMessages: [],
       sessionArtifacts: [],
       messagesOffset: 0,
@@ -1274,7 +1279,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   sendPrompt: async (promptText: string) => {
     if (!promptText.trim()) return;
     const { activeSession, targetWorkspacePath, sessionConfig } = get();
-    const effectiveCwd = targetWorkspacePath || activeSession?.workspacePath || undefined;
+    const effectiveCwd = activeSession?.workspacePath || targetWorkspacePath || undefined;
 
     // Optimistically append user message
     const userMsg: RealMessageItem = {

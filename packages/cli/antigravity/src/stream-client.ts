@@ -7,6 +7,7 @@ import crypto from "node:crypto";
 import type { CliRunOptions, CliEvent } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath, getBrainDir } from "./paths.js";
 import { mapAntigravityStreamEvent } from "./mapper.js";
+import { getBrainSession } from "./transcript-reader.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -161,6 +162,7 @@ class PersistentWorker {
   readonly activeEffort?: string;
   readonly activeMode?: string;
   readonly activeDangerouslySkipPermissions: boolean;
+  readonly activeCwd?: string;
 
   constructor(
     binary: string,
@@ -173,6 +175,7 @@ class PersistentWorker {
     this.activeEffort = options.effort;
     this.activeMode = options.mode;
     this.activeDangerouslySkipPermissions = options.dangerouslySkipPermissions !== false;
+    this.activeCwd = options.cwd ? path.normalize(options.cwd).toLowerCase() : undefined;
 
     const args: string[] = [
       "--input-format",
@@ -225,6 +228,10 @@ class PersistentWorker {
     if (options.mode && options.mode !== this.activeMode) return true;
     const targetSkip = options.dangerouslySkipPermissions !== false;
     if (targetSkip !== this.activeDangerouslySkipPermissions) return true;
+    if (options.cwd) {
+      const normTargetCwd = path.normalize(options.cwd).toLowerCase();
+      if (this.activeCwd && normTargetCwd !== this.activeCwd) return true;
+    }
     return false;
   }
 
@@ -500,10 +507,32 @@ export class AntigravityStreamClient {
     }
 
     // 2. Standard prompt / workflow execution via persistent worker
+    let effectiveCwd = options.cwd;
+    if (options.sessionId) {
+      const isDaemonCwd =
+        effectiveCwd &&
+        path.normalize(effectiveCwd).toLowerCase() === path.normalize(process.cwd()).toLowerCase();
+      if (!effectiveCwd || isDaemonCwd) {
+        try {
+          const sessDetail = await getBrainSession(options.sessionId);
+          if (sessDetail?.workspacePath && sessDetail.workspacePath.trim() !== "") {
+            effectiveCwd = sessDetail.workspacePath;
+          }
+        } catch {
+          // ignore lookup failure
+        }
+      }
+    }
+
+    const effectiveOptions: CliRunOptions = {
+      ...options,
+      cwd: effectiveCwd || options.cwd || process.cwd(),
+    };
+
     let worker = this.workers.get(sessionId);
 
-    // If config (model/effort/mode) changed, destroy old worker and respool with new configuration
-    if (worker && worker.hasConfigChanged(options)) {
+    // If config (model/effort/mode/cwd/permissions) changed, destroy old worker and respool with new configuration
+    if (worker && worker.hasConfigChanged(effectiveOptions)) {
       worker.destroy();
       this.workers.delete(sessionId);
       worker = undefined;
@@ -511,7 +540,7 @@ export class AntigravityStreamClient {
 
     // If no warm worker or previous process died, spawn a new one
     if (!worker || !worker.isRunning) {
-      worker = new PersistentWorker(binary, options, sessionId, (w) => {
+      worker = new PersistentWorker(binary, effectiveOptions, sessionId, (w) => {
         if (this.workers.get(w.sessionId) === w) {
           this.workers.delete(w.sessionId);
         }
