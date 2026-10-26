@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 export interface NotificationPayload {
   id: string;
@@ -18,63 +19,59 @@ export interface PushRegistrationState {
 type NotificationListener = (payload: NotificationPayload) => void;
 const listeners = new Set<NotificationListener>();
 
-// Dynamic references to native modules
 let nativeNotifications: any = null;
 let nativeDevice: any = null;
-let nativeConstants: any = null;
-
-let isExpoGoEnvironment = false;
 let currentPushToken: string | null = null;
-let registrationState: PushRegistrationState = {
-  isSupported: false,
-  isRegistered: false,
-  pushToken: null,
-  statusMessage: 'Initializing...',
-};
 
 /**
- * Safely initialize native notifications without crashing in Expo Go
+ * Checks if currently running inside the standard Expo Go client app.
+ * In Expo Go, native push modules like expo-notifications are not registered
+ * by the prebuilt binary and will crash with ExpoTopicSubscriptionModule errors.
+ */
+export function isRunningInExpoGo(): boolean {
+  if (Platform.OS === 'web') return false;
+  try {
+    if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return true;
+    if ((Constants as any).appOwnership === 'expo') return true;
+    if (Boolean((Constants as any).expoGoConfig)) return true;
+    if (Boolean((globalThis as any).__exponent || (globalThis as any).Expo)) return true;
+  } catch {
+    // fallback safe assumption
+  }
+  return false;
+}
+
+let registrationState: PushRegistrationState = isRunningInExpoGo()
+  ? {
+      isSupported: false,
+      isRegistered: false,
+      pushToken: null,
+      statusMessage: 'Expo Go: In-app toasts active (lock-screen push requires Dev APK build)',
+    }
+  : {
+      isSupported: false,
+      isRegistered: false,
+      pushToken: null,
+      statusMessage: 'Initializing notification engine...',
+    };
+
+/**
+ * Safely initialize native notifications ONLY when running in a real standalone
+ * or development build (NOT Expo Go).
  */
 function getNativeModules() {
-  if (Platform.OS === 'web') {
-    return { isExpoGo: false, notifications: null, device: null, constants: null };
+  if (Platform.OS === 'web' || isRunningInExpoGo()) {
+    return { isExpoGo: true, notifications: null, device: null };
   }
 
-  if (nativeNotifications || isExpoGoEnvironment) {
-    return {
-      isExpoGo: isExpoGoEnvironment,
-      notifications: nativeNotifications,
-      device: nativeDevice,
-      constants: nativeConstants,
-    };
+  if (nativeNotifications) {
+    return { isExpoGo: false, notifications: nativeNotifications, device: nativeDevice };
   }
 
   try {
-    // 1. Detect if running inside standard Expo Go client
-    nativeConstants = require('expo-constants').default;
-    const appOwnership = nativeConstants?.appOwnership;
-    const executionEnvironment = nativeConstants?.executionEnvironment;
-
-    // 'expo' or 'storeClient' means standard Expo Go
-    if (appOwnership === 'expo' || executionEnvironment === 'storeClient') {
-      isExpoGoEnvironment = true;
-      console.log(
-        '[Notifications] Running in Expo Go client. Native remote push requires a Development Build (EAS APK). Safe fallback active.'
-      );
-      registrationState = {
-        isSupported: false,
-        isRegistered: false,
-        pushToken: null,
-        statusMessage: 'Expo Go: Native push requires Development APK',
-      };
-      return { isExpoGo: true, notifications: null, device: null, constants: nativeConstants };
-    }
-
-    // 2. Running in Development Build, Standalone APK, or Prebuild
     nativeDevice = require('expo-device');
     nativeNotifications = require('expo-notifications');
 
-    // Configure foreground notification handling
     if (nativeNotifications && typeof nativeNotifications.setNotificationHandler === 'function') {
       nativeNotifications.setNotificationHandler({
         handleNotification: async () => ({
@@ -89,18 +86,10 @@ function getNativeModules() {
       isExpoGo: false,
       notifications: nativeNotifications,
       device: nativeDevice,
-      constants: nativeConstants,
     };
   } catch (err) {
-    console.warn('[Notifications] Error loading native notification modules:', err);
-    isExpoGoEnvironment = true;
-    registrationState = {
-      isSupported: false,
-      isRegistered: false,
-      pushToken: null,
-      statusMessage: 'Native push module not found. Using in-app toasts.',
-    };
-    return { isExpoGo: true, notifications: null, device: null, constants: null };
+    console.warn('[Notifications] Could not load native notifications module:', err);
+    return { isExpoGo: true, notifications: null, device: null };
   }
 }
 
@@ -143,14 +132,24 @@ export async function registerForPushNotificationsAsync(options?: {
     return null;
   }
 
-  const { isExpoGo, notifications, device, constants } = getNativeModules();
+  if (isRunningInExpoGo()) {
+    registrationState = {
+      isSupported: false,
+      isRegistered: false,
+      pushToken: null,
+      statusMessage: 'Expo Go: In-app toasts active (lock-screen push requires Dev APK build)',
+    };
+    return null;
+  }
+
+  const { isExpoGo, notifications, device } = getNativeModules();
 
   if (isExpoGo || !notifications) {
     registrationState = {
       isSupported: false,
       isRegistered: false,
       pushToken: null,
-      statusMessage: 'Expo Go: In-app toasts active (requires APK dev client for lock-screen push)',
+      statusMessage: 'In-app toasts active',
     };
     return null;
   }
@@ -175,7 +174,7 @@ export async function registerForPushNotificationsAsync(options?: {
         isSupported: false,
         isRegistered: false,
         pushToken: null,
-        statusMessage: 'Simulator detected (Push requires physical device)',
+        statusMessage: 'Simulator detected (Remote push requires physical device)',
       };
       return null;
     }
@@ -201,8 +200,8 @@ export async function registerForPushNotificationsAsync(options?: {
 
     // 4. Retrieve Expo Push Token
     const projectId =
-      constants?.expoConfig?.extra?.eas?.projectId ||
-      constants?.easConfig?.projectId ||
+      Constants?.expoConfig?.extra?.eas?.projectId ||
+      Constants?.easConfig?.projectId ||
       'a3cb31cf-6c3f-4979-babe-45a2ea20a75e';
 
     const tokenResponse = await notifications.getExpoPushTokenAsync({
@@ -272,6 +271,10 @@ export async function requestNotificationPermission(): Promise<boolean> {
     return true;
   }
 
+  if (isRunningInExpoGo()) {
+    return true;
+  }
+
   const { notifications } = getNativeModules();
   if (notifications && typeof notifications.requestPermissionsAsync === 'function') {
     try {
@@ -312,22 +315,24 @@ export async function scheduleNotification(options: {
     }
   }
 
-  // 2. Native local notification if available
-  const { notifications } = getNativeModules();
-  if (notifications && typeof notifications.scheduleNotificationAsync === 'function') {
-    try {
-      await notifications.scheduleNotificationAsync({
-        content: {
-          title: options.title,
-          body: options.body,
-          data: options.data || {},
-          sound: 'default',
-          channelId: 'agent-alerts',
-        },
-        trigger: null, // show immediately
-      });
-    } catch (err) {
-      console.warn('[Notifications] Native local notification error:', err);
+  // 2. Native local notification if available (only in Dev Build/APK)
+  if (!isRunningInExpoGo()) {
+    const { notifications } = getNativeModules();
+    if (notifications && typeof notifications.scheduleNotificationAsync === 'function') {
+      try {
+        await notifications.scheduleNotificationAsync({
+          content: {
+            title: options.title,
+            body: options.body,
+            data: options.data || {},
+            sound: 'default',
+            channelId: 'agent-alerts',
+          },
+          trigger: null,
+        });
+      } catch (err) {
+        console.warn('[Notifications] Native local notification error:', err);
+      }
     }
   }
 

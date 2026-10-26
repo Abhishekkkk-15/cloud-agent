@@ -11,6 +11,8 @@ import {
   registerForPushNotificationsAsync,
   triggerGatewayTestPush,
   getPushRegistrationState,
+  isRunningInExpoGo,
+  emitInAppNotification,
 } from '../lib/notifications';
 
 function getDefaultHost(): string {
@@ -352,6 +354,23 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   triggerTestPushNotification: async () => {
     const { gatewayUrl, token } = get();
     try {
+      const isExpoGo = isRunningInExpoGo();
+      const pushState = getPushRegistrationState();
+
+      if (isExpoGo || !pushState.pushToken) {
+        // In Expo Go or when no remote push token is registered:
+        // Trigger simulated in-app notification banner directly so developer can verify notifications working
+        emitInAppNotification({
+          title: 'Cloud Agent • Notification Alert (Expo Go)',
+          body: 'In-app notification working! (Remote lock-screen push requires an APK development build via EAS).',
+          type: 'info',
+        });
+        return {
+          success: true,
+          message: 'In-App notification banner verified! Note: Remote lock-screen push requires an APK development build.',
+        };
+      }
+
       const ok = await triggerGatewayTestPush(gatewayUrl, token || undefined);
       return {
         success: ok,

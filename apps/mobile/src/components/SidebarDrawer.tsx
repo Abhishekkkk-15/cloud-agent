@@ -34,6 +34,7 @@ import {
   X,
   Globe,
   ChevronDown,
+  Bell,
 } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
@@ -549,16 +550,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <ChevronRight size={14} color="#6e7681" />
           </TouchableOpacity>
 
-          {/* Nav: Server & Network Endpoints */}
+          {/* Nav: Push Notifications & Server Endpoints */}
           <TouchableOpacity
             style={styles.navItem}
             onPress={() => setShowServerSettings(true)}
             activeOpacity={0.7}
           >
             <View style={styles.navIconBox}>
-              <Globe size={17} color="#c9d1d9" />
+              <Bell size={17} color="#c9d1d9" />
             </View>
-            <Text style={styles.navLabel}>Server Endpoints</Text>
+            <Text style={styles.navLabel}>Push Notifications & Server</Text>
             <ChevronRight size={14} color="#6e7681" />
           </TouchableOpacity>
         </ScrollView>

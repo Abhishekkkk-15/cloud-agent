@@ -24,12 +24,14 @@ import {
   Zap,
   Power,
   ChevronRight,
+  Bell,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
 import { PairMachineModal } from '../components/PairMachineModal';
+import { ServerSettingsModal } from '../components/ServerSettingsModal';
 
 interface MachineHealthScreenProps {
   onBack?: () => void;
@@ -43,10 +45,14 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   const pingRtt = useDaemonStore((s) => s.pingRtt);
   const pingHeartbeat = useDaemonStore((s) => s.pingHeartbeat);
   const refreshStatus = useDaemonStore((s) => s.refreshStatus);
+  const pushStatus = useDaemonStore((s) => s.pushStatus);
+  const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
+  const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
 
   const [isPinging, setIsPinging] = useState(false);
   const [showMachineSwitcher, setShowMachineSwitcher] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);
+  const [showServerSettings, setShowServerSettings] = useState(false);
 
   const handlePing = async () => {
     setIsPinging(true);
@@ -366,6 +372,54 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
           </View>
         )}
 
+        {/* Push Notifications & Gateway */}
+        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
+          <Text style={styles.sectionTitle}>PUSH NOTIFICATIONS & GATEWAY</Text>
+          <TouchableOpacity onPress={() => setShowServerSettings(true)} activeOpacity={0.7}>
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Configure</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.card, { padding: 14 }]}
+          onPress={() => setShowServerSettings(true)}
+          activeOpacity={0.7}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Bell size={16} color={colors.primary} />
+              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '600' }}>Native Push Notifications</Text>
+            </View>
+            <View style={{
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              borderRadius: 12,
+              backgroundColor: isPushRegistered ? 'rgba(0, 119, 182, 0.15)' : '#21262d',
+              borderWidth: 1,
+              borderColor: isPushRegistered ? 'rgba(0, 119, 182, 0.4)' : '#30363d',
+            }}>
+              <Text style={{
+                color: isPushRegistered ? '#48cae4' : '#8b949e',
+                fontSize: 11,
+                fontWeight: '600',
+              }}>
+                {isPushRegistered ? 'Active' : 'Standby'}
+              </Text>
+            </View>
+          </View>
+          <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 16 }} numberOfLines={2}>
+            {pushStatus}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#21262d' }}>
+            <Text style={{ color: '#6e7681', fontSize: 11 }}>
+              Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
+            </Text>
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+              Test Push Notification →
+            </Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Daemon Operations */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
           <Text style={styles.sectionTitle}>DAEMON OPERATIONS</Text>
@@ -424,6 +478,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
       <PairMachineModal
         visible={showPairModal}
         onClose={() => setShowPairModal(false)}
+      />
+
+      {/* Server & Push Notifications Modal */}
+      <ServerSettingsModal
+        visible={showServerSettings}
+        onClose={() => setShowServerSettings(false)}
       />
     </View>
   );
