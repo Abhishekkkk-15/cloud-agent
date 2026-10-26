@@ -78,6 +78,22 @@ export const ANTIGRAVITY_COMMANDS: SlashCommandItem[] = [
 
   // 2. Context & Learning
   {
+    command: '/artifact',
+    category: 'context',
+    title: 'Artifacts & Plans',
+    description: 'Browse, preview & inspect session artifacts, plans, and reports',
+    template: '/artifact',
+    immediate: true,
+  },
+  {
+    command: '/artifacts',
+    category: 'context',
+    title: 'All Artifacts',
+    description: 'View all session artifacts, plans, diffs, and generated documents',
+    template: '/artifacts',
+    immediate: true,
+  },
+  {
     command: '/compact',
     category: 'context',
     title: 'Compact Context',

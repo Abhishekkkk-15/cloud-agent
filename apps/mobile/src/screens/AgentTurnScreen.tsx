@@ -31,6 +31,7 @@ import {
   Command,
   Plus,
   Mic,
+  Layers,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -42,6 +43,7 @@ import { SessionConfigSheet } from '../components/SessionConfigSheet';
 import { TerminalSheet } from '../components/TerminalSheet';
 import { LiveApprovalCard } from '../components/LiveApprovalCard';
 import { SessionActionModal } from '../components/SessionActionModal';
+import { ArtifactsSheet } from '../components/ArtifactsSheet';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -84,11 +86,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
+  const sessionArtifacts = useDaemonStore((s) => s.sessionArtifacts);
+  const fetchSessionArtifacts = useDaemonStore((s) => s.fetchSessionArtifacts);
 
   const [promptInput, setPromptInput] = useState('');
   const [showCommandPicker, setShowCommandPicker] = useState(false);
   const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
+  const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
+  const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
   const [showSessionActionModal, setShowSessionActionModal] = useState(false);
   const [isRespondingApproval, setIsRespondingApproval] = useState(false);
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
@@ -125,6 +131,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   const handleSelectCommand = (item: SlashCommandItem, immediate?: boolean) => {
     setShowCommandPicker(false);
+    if (item.command === '/artifact' || item.command === '/artifacts') {
+      setPromptInput('');
+      setArtifactFilterQuery('');
+      setShowArtifactsSheet(true);
+      fetchSessionArtifacts().catch(() => {});
+      return;
+    }
     if (immediate) {
       setPromptInput('');
       sendPrompt(item.template);
@@ -136,6 +149,26 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const handleSendPrompt = async () => {
     if (!promptInput.trim() || isSendingPrompt) return;
     const text = promptInput;
+    const trimmed = text.trim();
+    const lower = trimmed.toLowerCase();
+
+    // Client-side interception of /artifact and /artifacts commands
+    if (lower === '/artifact' || lower === '/artifacts') {
+      setPromptInput('');
+      setArtifactFilterQuery('');
+      setShowArtifactsSheet(true);
+      fetchSessionArtifacts().catch(() => {});
+      return;
+    }
+    if (lower.startsWith('/artifact ') || lower.startsWith('/artifacts ')) {
+      const q = trimmed.replace(/^\/artifacts?\s+/i, '');
+      setPromptInput('');
+      setArtifactFilterQuery(q);
+      setShowArtifactsSheet(true);
+      fetchSessionArtifacts().catch(() => {});
+      return;
+    }
+
     setPromptInput('');
     await sendPrompt(text);
     setTimeout(() => {
@@ -354,15 +387,36 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         subtitle={subtitleStr}
         onBack={onOpenDrawer || onBack}
         rightElement={
-          <TouchableOpacity
-            style={styles.headerTerminalBtn}
-            onPress={() => setShowTerminal(true)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Open Terminal"
-          >
-            <Terminal size={16} color="#f0f6fc" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              style={styles.headerTerminalBtn}
+              onPress={() => {
+                setArtifactFilterQuery('');
+                setShowArtifactsSheet(true);
+                fetchSessionArtifacts().catch(() => {});
+              }}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="View Session Artifacts"
+            >
+              <Layers size={16} color="#f0f6fc" />
+              {sessionArtifacts.length > 0 ? (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.headerTerminalBtn}
+              onPress={() => setShowTerminal(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Open Terminal"
+            >
+              <Terminal size={16} color="#f0f6fc" />
+            </TouchableOpacity>
+          </View>
         }
         onMore={() => {
           if (activeSession) {
@@ -735,6 +789,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           await deleteSession(sess.id);
         }}
       />
+
+      {/* 12. Session Artifacts Bottom Sheet */}
+      <ArtifactsSheet
+        visible={showArtifactsSheet}
+        onClose={() => setShowArtifactsSheet(false)}
+        initialSearchQuery={artifactFilterQuery}
+      />
     </View>
   );
 };
@@ -754,6 +815,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
+    position: 'relative',
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#0077b6',
+    borderRadius: 7,
+    minWidth: 14,
+    height: 14,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   scroll: {
     flex: 1,

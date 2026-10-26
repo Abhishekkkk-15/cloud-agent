@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { NativeModules, Platform } from 'react-native';
+import type { CliArtifact } from '@cloud-agent/cli-interface';
 import { mobileP2P, ConnectionState, DaemonStatusResult } from '../lib/p2p-client';
 import {
   requestNotificationPermission,
@@ -208,6 +209,10 @@ interface DaemonStoreState {
   sessionConfig: SessionConfig;
   terminalLines: TerminalOutputLine[];
   isTerminalRunning: boolean;
+  sessionArtifacts: CliArtifact[];
+  isLoadingArtifacts: boolean;
+  selectedArtifactContent: Record<string, string>;
+  isLoadingArtifactContent: boolean;
 
   // Actions
   init: () => Promise<void>;
@@ -221,6 +226,8 @@ interface DaemonStoreState {
   refreshStatus: () => Promise<void>;
   fetchSessions: () => Promise<void>;
   fetchKnownWorkspaces: () => Promise<void>;
+  fetchSessionArtifacts: (sessionId?: string) => Promise<CliArtifact[]>;
+  fetchArtifactContent: (artifactPath: string) => Promise<string>;
   fetchDirectorySuggestions: (parentPath?: string) => Promise<Array<{ name: string; fullPath: string }>>;
   browseDirectories: (path?: string) => Promise<DirectoryBrowseResult | null>;
   startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => void;
@@ -273,6 +280,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
   terminalLines: [],
   isTerminalRunning: false,
+  sessionArtifacts: [],
+  isLoadingArtifacts: false,
+  selectedArtifactContent: {},
+  isLoadingArtifactContent: false,
 
   setSessionConfig: (newCfg: Partial<SessionConfig>) => {
     set((state) => ({
@@ -472,7 +483,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             notifyTurnComplete(get().activeSession?.title || 'Active Session').catch(() => {});
           }
           set({ isSendingPrompt: false });
+          get().fetchSessionArtifacts();
         }
+      } else if (event.type === 'artifact') {
+        get().fetchSessionArtifacts();
       } else if (event.type === 'terminal.output') {
         const trData = event.data || event;
         const text = trData.text || '';
@@ -690,6 +704,51 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }
   },
 
+  fetchSessionArtifacts: async (sessionId?: string) => {
+    const targetId = sessionId || get().activeSession?.id;
+    if (!targetId) {
+      set({ sessionArtifacts: [] });
+      return [];
+    }
+    set({ isLoadingArtifacts: true });
+    try {
+      const resp = await mobileP2P.sendRpc<any>('sessions.get', {
+        sessionId: targetId,
+        includeArtifacts: true,
+      });
+      const artifacts: CliArtifact[] = Array.isArray(resp?.artifacts) ? resp.artifacts : [];
+      set({ sessionArtifacts: artifacts, isLoadingArtifacts: false });
+      return artifacts;
+    } catch (err) {
+      console.error('[DaemonStore] fetchSessionArtifacts error:', err);
+      set({ isLoadingArtifacts: false });
+      return [];
+    }
+  },
+
+  fetchArtifactContent: async (artifactPath: string) => {
+    const cached = get().selectedArtifactContent[artifactPath];
+    if (cached !== undefined) return cached;
+
+    set({ isLoadingArtifactContent: true });
+    try {
+      const res = await mobileP2P.sendRpc<any>('fs.read', { path: artifactPath });
+      const content = typeof res?.content === 'string' ? res.content : '';
+      set((state) => ({
+        selectedArtifactContent: {
+          ...state.selectedArtifactContent,
+          [artifactPath]: content,
+        },
+        isLoadingArtifactContent: false,
+      }));
+      return content;
+    } catch (err) {
+      console.error('[DaemonStore] fetchArtifactContent error:', err);
+      set({ isLoadingArtifactContent: false });
+      return '';
+    }
+  },
+
   fetchDirectorySuggestions: async (parentPath?: string) => {
     try {
       const res = await mobileP2P.sendRpc<any>(
@@ -721,6 +780,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       activeSession: null,
       targetWorkspacePath: workspacePath,
       sessionMessages: [],
+      sessionArtifacts: [],
       messagesOffset: 0,
       hasMoreMessages: false,
       isLoadingOlderMessages: false,
@@ -935,15 +995,18 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   selectSession: async (session: RealSessionItem) => {
     // If selecting the currently active session and it already has messages, avoid wiping
     if (get().activeSession?.id === session.id && get().sessionMessages.length > 0) {
+      get().fetchSessionArtifacts(session.id);
       return;
     }
     set({
       activeSession: session,
       sessionMessages: [],
+      sessionArtifacts: [],
       messagesOffset: 0,
       hasMoreMessages: false,
       isLoadingOlderMessages: false,
     });
+    get().fetchSessionArtifacts(session.id);
     try {
       // Query the latest 50 messages in reverse chronological order
       const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
@@ -986,6 +1049,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     set({
       activeSession: null,
       sessionMessages: [],
+      sessionArtifacts: [],
       messagesOffset: 0,
       hasMoreMessages: false,
       isLoadingOlderMessages: false,
@@ -1117,6 +1181,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         // Newly initiated session: refresh sessions from disk transcripts
         await get().fetchSessions();
       }
+      get().fetchSessionArtifacts();
     } catch (err: any) {
       console.error('[DaemonStore] sendPrompt error:', err);
       const errMsg = err?.message || String(err);
