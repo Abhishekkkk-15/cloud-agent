@@ -7,7 +7,6 @@
     "start": "expo start --tunnel",
     "start:lan": "expo start -c",
     "android": "expo start --android",
-    "ios": "expo start --ios",
     "web": "expo start --web",
     "dev": "expo start --web",
     "build:dev": "eas build --profile development --platform android",
