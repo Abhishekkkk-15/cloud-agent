@@ -26,6 +26,67 @@ function getDefaultHost(): string {
 
 const defaultHost = getDefaultHost();
 
+const STORAGE_KEY_API = 'cloud_agent_api_url';
+const STORAGE_KEY_GATEWAY = 'cloud_agent_gateway_url';
+
+function getStoredUrl(key: string): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function setStoredUrl(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+function removeStoredUrl(key: string): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
+const envGatewayUrl = process.env.EXPO_PUBLIC_GATEWAY_URL;
+
+export function resolveInitialApiUrl(): string {
+  const stored = getStoredUrl(STORAGE_KEY_API);
+  if (stored && stored.trim()) return stored.trim();
+  if (envApiUrl && envApiUrl.trim()) return envApiUrl.trim();
+  return `http://${defaultHost}:8000`;
+}
+
+export function resolveInitialGatewayUrl(): string {
+  const stored = getStoredUrl(STORAGE_KEY_GATEWAY);
+  if (stored && stored.trim()) return stored.trim();
+  if (envGatewayUrl && envGatewayUrl.trim()) return envGatewayUrl.trim();
+  return `http://${defaultHost}:8080`;
+}
+
+export interface EndpointTestResult {
+  apiOk: boolean;
+  apiLatencyMs?: number;
+  apiError?: string;
+  gatewayOk: boolean;
+  gatewayLatencyMs?: number;
+  connectedDaemons?: number;
+  gatewayError?: string;
+}
+
 export interface MachineInfo {
   machineId: string;
   name: string;
@@ -175,11 +236,14 @@ interface DaemonStoreState {
   pingHeartbeat: () => Promise<void>;
   setSelectedWorkspace: (ws: string) => void;
   setSessionConfig: (config: Partial<SessionConfig>) => void;
+  setServerEndpoints: (urls: { apiUrl: string; gatewayUrl: string }) => Promise<void>;
+  resetServerEndpoints: () => Promise<void>;
+  testServerEndpoints: (apiUrl: string, gatewayUrl: string) => Promise<EndpointTestResult>;
 }
 
 export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
-  apiUrl: `http://${defaultHost}:8000`,
-  gatewayUrl: `http://${defaultHost}:8080`,
+  apiUrl: resolveInitialApiUrl(),
+  gatewayUrl: resolveInitialGatewayUrl(),
   token: null,
   isAuthenticated: false,
   currentUser: null,
@@ -1102,5 +1166,90 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch {
       set({ pingRtt: 'error' });
     }
+  },
+
+  setServerEndpoints: async ({ apiUrl, gatewayUrl }: { apiUrl: string; gatewayUrl: string }) => {
+    const cleanApi = apiUrl.trim().replace(/\/$/, '');
+    const cleanGateway = gatewayUrl.trim().replace(/\/$/, '');
+    setStoredUrl(STORAGE_KEY_API, cleanApi);
+    setStoredUrl(STORAGE_KEY_GATEWAY, cleanGateway);
+    set({ apiUrl: cleanApi, gatewayUrl: cleanGateway });
+
+    try {
+      mobileP2P.disconnect();
+    } catch {
+      // ignore
+    }
+    if (get().token) { await get().connectGateway(); }
+  },
+
+  resetServerEndpoints: async () => {
+    removeStoredUrl(STORAGE_KEY_API);
+    removeStoredUrl(STORAGE_KEY_GATEWAY);
+    const defApi = envApiUrl || `http://${defaultHost}:8000`;
+    const defGateway = envGatewayUrl || `http://${defaultHost}:8080`;
+    set({ apiUrl: defApi, gatewayUrl: defGateway });
+    try {
+      mobileP2P.disconnect();
+    } catch {
+      // ignore
+    }
+    if (get().token) { await get().connectGateway(); }
+  },
+
+  testServerEndpoints: async (apiUrl: string, gatewayUrl: string): Promise<EndpointTestResult> => {
+    const cleanApi = apiUrl.trim().replace(/\/$/, '');
+    const cleanGateway = gatewayUrl.trim().replace(/\/$/, '');
+
+    let apiOk = false;
+    let apiLatencyMs: number | undefined;
+    let apiError: string | undefined;
+
+    let gatewayOk = false;
+    let gatewayLatencyMs: number | undefined;
+    let connectedDaemons: number | undefined;
+    let gatewayError: string | undefined;
+
+    // Test API
+    const startApi = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(`${cleanApi}/docs`, { method: 'GET', signal: controller.signal });
+      clearTimeout(timeout);
+      apiLatencyMs = Date.now() - startApi;
+      apiOk = res.ok || res.status === 404 || res.status === 401;
+    } catch (e: any) {
+      apiError = e?.message || 'Connection failed';
+    }
+
+    // Test Gateway
+    const startGw = Date.now();
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(`${cleanGateway}/health`, { method: 'GET', signal: controller.signal });
+      clearTimeout(timeout);
+      gatewayLatencyMs = Date.now() - startGw;
+      if (res.ok) {
+        const data = await res.json();
+        gatewayOk = true;
+        connectedDaemons = typeof data.connectedDaemons === 'number' ? data.connectedDaemons : 0;
+      } else {
+        gatewayOk = res.status < 500;
+      }
+    } catch (e: any) {
+      gatewayError = e?.message || 'Connection failed';
+    }
+
+    return {
+      apiOk,
+      apiLatencyMs,
+      apiError,
+      gatewayOk,
+      gatewayLatencyMs,
+      connectedDaemons,
+      gatewayError,
+    };
   },
 }));

@@ -18,9 +18,11 @@ import {
   ArrowRight,
   ShieldCheck,
   Server,
+  Globe,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { ServerSettingsModal } from '../components/ServerSettingsModal';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -59,6 +61,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
   const [isLoadingDev, setIsLoadingDev] = useState(false);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+  const [showServerSettings, setShowServerSettings] = useState(false);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE_CLIENT_ID,
@@ -210,13 +213,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
         {/* Telemetry / Status Footer */}
         <View style={styles.footer}>
-          <View style={styles.serverPill}>
-            <Server size={12} color="#8b949e" />
+          <TouchableOpacity
+            style={styles.serverPill}
+            onPress={() => setShowServerSettings(true)}
+            activeOpacity={0.7}
+          >
+            <Globe size={12} color="#0077b6" />
             <Text style={styles.serverText}>
               Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
+
+        {/* Server & Network Endpoints Modal */}
+        <ServerSettingsModal
+          visible={showServerSettings}
+          onClose={() => setShowServerSettings(false)}
+        />
       </View>
     </View>
   );

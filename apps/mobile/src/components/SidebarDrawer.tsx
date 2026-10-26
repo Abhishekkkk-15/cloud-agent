@@ -32,6 +32,7 @@ import {
   Pin,
   MoreHorizontal,
   X,
+  Globe,
 } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
@@ -39,6 +40,7 @@ import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
 import { FolderPickerModal } from './FolderPickerModal';
 import { SessionActionModal } from './SessionActionModal';
+import { ServerSettingsModal } from './ServerSettingsModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(Math.round(SCREEN_WIDTH * 0.82), 340);
@@ -83,6 +85,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
   const [showDirectFolderPicker, setShowDirectFolderPicker] = useState<boolean>(false);
+  const [showServerSettings, setShowServerSettings] = useState<boolean>(false);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropAnim = useRef(new Animated.Value(0)).current;
 
@@ -526,6 +529,19 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <Text style={styles.navLabel}>Browse Machine Folders</Text>
             <ChevronRight size={14} color="#6e7681" />
           </TouchableOpacity>
+
+          {/* Nav: Server & Network Endpoints */}
+          <TouchableOpacity
+            style={styles.navItem}
+            onPress={() => setShowServerSettings(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.navIconBox}>
+              <Globe size={17} color="#c9d1d9" />
+            </View>
+            <Text style={styles.navLabel}>Server Endpoints</Text>
+            <ChevronRight size={14} color="#6e7681" />
+          </TouchableOpacity>
         </ScrollView>
 
         {/* 5. Drawer Footer with VPS Status & Sign Out */}
@@ -565,6 +581,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         visible={showDirectFolderPicker}
         onClose={() => setShowDirectFolderPicker(false)}
         onSelectFolder={handleStartSessionInWorkspace}
+      />
+
+      {/* Server & Network Endpoints Modal */}
+      <ServerSettingsModal
+        visible={showServerSettings}
+        onClose={() => setShowServerSettings(false)}
       />
 
       {/* Session Action Modal (Rename, Pin, Delete) */}
