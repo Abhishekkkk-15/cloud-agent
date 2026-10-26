@@ -183,6 +183,8 @@ interface DaemonStoreState {
   isAuthenticated: boolean;
   currentUser: UserProfile | null;
   activeMachine: MachineInfo | null;
+  machines: MachineInfo[];
+  isLoadingMachines: boolean;
   connectionState: ConnectionState;
   daemonStatus: DaemonStatusResult | null;
   pingRtt: string;
@@ -231,6 +233,9 @@ interface DaemonStoreState {
   fetchDirectorySuggestions: (parentPath?: string) => Promise<Array<{ name: string; fullPath: string }>>;
   browseDirectories: (path?: string) => Promise<DirectoryBrowseResult | null>;
   startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => void;
+  fetchMachines: () => Promise<MachineInfo[]>;
+  selectMachine: (machine: MachineInfo) => Promise<void>;
+  unpairMachine: (machineId: string) => Promise<boolean>;
   generateMachinePairingToken: (machineName?: string) => Promise<{ token: string; installCommand: string; instructions: string } | null>;
   pairWithPayload: (payload: string) => Promise<{ success: boolean; message: string }>;
   renameSession: (sessionId: string, title: string) => Promise<boolean>;
@@ -256,6 +261,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isAuthenticated: false,
   currentUser: null,
   activeMachine: null,
+  machines: [],
+  isLoadingMachines: false,
   connectionState: 'disconnected',
   daemonStatus: null,
   pingRtt: '14ms',
@@ -305,6 +312,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         get().refreshStatus();
         get().fetchSessions();
         get().fetchKnownWorkspaces();
+        get().fetchMachines();
       }
     });
 
@@ -519,31 +527,120 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }
   },
 
-  connectGateway: async () => {
+  fetchMachines: async () => {
     const { gatewayUrl, token } = get();
-    if (!token) return;
+    if (!token) return [];
 
+    set({ isLoadingMachines: true });
     try {
       const machRes = await fetch(`${gatewayUrl}/api/machines`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!machRes.ok) {
-        console.warn('[DaemonStore] Failed to fetch machines from gateway.');
-        return;
+        set({ isLoadingMachines: false });
+        return get().machines;
       }
 
       const machData = await machRes.json();
       const machines: MachineInfo[] = (machData.machines || []).map((m: any) => ({
         machineId: m.machineId,
         name: m.name,
-        platform: m.platform,
-        arch: m.arch,
+        platform: m.platform || 'Linux',
+        arch: m.arch || 'x64',
         isOnline: m.isOnline ?? m.status === 'online',
         status: m.status,
       }));
 
-      const targetMachine = machines.find((m) => m.isOnline) || machines[0];
+      set({ machines, isLoadingMachines: false });
+
+      // Keep activeMachine synced or auto-select first online/available machine
+      const currentActive = get().activeMachine;
+      const matched = machines.find((m) => m.machineId === currentActive?.machineId);
+      if (!currentActive && machines.length > 0) {
+        const next = machines.find((m) => m.isOnline) || machines[0];
+        set({ activeMachine: next });
+      } else if (matched) {
+        set({ activeMachine: { ...currentActive, ...matched } });
+      }
+
+      return machines;
+    } catch (err) {
+      console.error('[DaemonStore] fetchMachines error:', err);
+      set({ isLoadingMachines: false });
+      return get().machines;
+    }
+  },
+
+  selectMachine: async (machine: MachineInfo) => {
+    const prev = get().activeMachine;
+    if (prev?.machineId === machine.machineId) return;
+
+    set({
+      activeMachine: machine,
+      sessions: [],
+      activeSession: null,
+      sessionMessages: [],
+      sessionArtifacts: [],
+      workspaces: [],
+      knownWorkspaces: [],
+      targetWorkspacePath: null,
+      terminalLines: [],
+    });
+
+    await mobileP2P.switchMachine(machine.machineId);
+
+    // Refresh telemetry, sessions, and workspaces for the new VPS
+    await Promise.allSettled([
+      get().refreshStatus(),
+      get().fetchSessions(),
+      get().fetchKnownWorkspaces(),
+      get().fetchMachines(),
+    ]);
+  },
+
+  unpairMachine: async (machineId: string) => {
+    const { gatewayUrl, token } = get();
+    if (!token) return false;
+
+    try {
+      const res = await fetch(`${gatewayUrl}/api/machines/${machineId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return false;
+
+      const remaining = get().machines.filter((m) => m.machineId !== machineId);
+      set({ machines: remaining });
+
+      if (get().activeMachine?.machineId === machineId) {
+        if (remaining.length > 0) {
+          const next = remaining.find((m) => m.isOnline) || remaining[0];
+          await get().selectMachine(next);
+        } else {
+          set({
+            activeMachine: null,
+            sessions: [],
+            activeSession: null,
+            sessionMessages: [],
+            sessionArtifacts: [],
+          });
+        }
+      }
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] unpairMachine error:', err);
+      return false;
+    }
+  },
+
+  connectGateway: async () => {
+    const { gatewayUrl, token } = get();
+    if (!token) return;
+
+    try {
+      const machines = await get().fetchMachines();
+      const targetMachine = get().activeMachine || machines.find((m) => m.isOnline) || machines[0];
       if (targetMachine) {
         set({ activeMachine: targetMachine });
         await mobileP2P.connect(gatewayUrl, token, targetMachine.machineId);

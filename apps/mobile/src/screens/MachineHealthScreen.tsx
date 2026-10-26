@@ -28,6 +28,8 @@ import {
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
+import { PairMachineModal } from '../components/PairMachineModal';
 
 interface MachineHealthScreenProps {
   onBack?: () => void;
@@ -43,6 +45,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   const refreshStatus = useDaemonStore((s) => s.refreshStatus);
 
   const [isPinging, setIsPinging] = useState(false);
+  const [showMachineSwitcher, setShowMachineSwitcher] = useState(false);
+  const [showPairModal, setShowPairModal] = useState(false);
 
   const handlePing = async () => {
     setIsPinging(true);
@@ -89,6 +93,16 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
         subtitle={`${hostName} • ${platformStr}`}
         onBack={onBack}
         onMore={refreshStatus}
+        rightElement={
+          <TouchableOpacity
+            style={styles.switchMachineBtn}
+            onPress={() => setShowMachineSwitcher(true)}
+            activeOpacity={0.7}
+          >
+            <Server size={14} color="#f0f6fc" />
+            <Text style={styles.switchMachineBtnText}>Switch</Text>
+          </TouchableOpacity>
+        }
       />
 
       {/* Sub-bar */}
@@ -398,6 +412,19 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Machine & VPS Switcher Modal */}
+      <MachineSwitcherModal
+        visible={showMachineSwitcher}
+        onClose={() => setShowMachineSwitcher(false)}
+        onPairNew={() => setShowPairModal(true)}
+      />
+
+      {/* Machine Pairing Modal */}
+      <PairMachineModal
+        visible={showPairModal}
+        onClose={() => setShowPairModal(false)}
+      />
     </View>
   );
 };
@@ -406,6 +433,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
+  },
+  switchMachineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#30363d',
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginRight: 6,
+  },
+  switchMachineBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#f0f6fc',
   },
   subBar: {
     paddingHorizontal: 16,

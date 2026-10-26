@@ -33,11 +33,13 @@ import {
   MoreHorizontal,
   X,
   Globe,
+  ChevronDown,
 } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
+import { MachineSwitcherModal } from './MachineSwitcherModal';
 import { FolderPickerModal } from './FolderPickerModal';
 import { SessionActionModal } from './SessionActionModal';
 import { ServerSettingsModal } from './ServerSettingsModal';
@@ -61,6 +63,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   onNavigateScreen,
 }) => {
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const machines = useDaemonStore((s) => s.machines);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
   const connectionState = useDaemonStore((s) => s.connectionState);
   const pingRtt = useDaemonStore((s) => s.pingRtt);
@@ -84,6 +87,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
+  const [showMachineSwitcher, setShowMachineSwitcher] = useState<boolean>(false);
   const [showDirectFolderPicker, setShowDirectFolderPicker] = useState<boolean>(false);
   const [showServerSettings, setShowServerSettings] = useState<boolean>(false);
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -272,25 +276,40 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       >
         {/* 1. Drawer Header */}
         <View style={styles.header}>
-          <View style={styles.nodeInfo}>
+          <TouchableOpacity
+            style={styles.nodeInfo}
+            onPress={() => setShowMachineSwitcher(true)}
+            activeOpacity={0.7}
+          >
             <View
               style={[
                 styles.statusDot,
                 {
                   backgroundColor:
-                    connectionState === 'connected' ? colors.primary : '#e3b341',
+                    activeMachine?.isOnline
+                      ? '#3fb950'
+                      : connectionState === 'connected'
+                      ? colors.primary
+                      : '#e3b341',
                 },
               ]}
             />
             <View style={styles.nodeTextCol}>
-              <Text style={styles.nodeName} numberOfLines={1}>
-                {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={styles.nodeName} numberOfLines={1}>
+                  {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
+                </Text>
+                <ChevronDown size={14} color="#8b949e" />
+              </View>
               <Text style={styles.nodeSub} numberOfLines={1}>
-                {daemonStatus?.platform ? `${daemonStatus.platform} • ` : ''}Antigravity CLI
+                {machines.length > 1
+                  ? `${machines.length} machines • Tap to switch`
+                  : activeMachine
+                  ? `${activeMachine.platform} • ${activeMachine.isOnline ? 'Online' : 'Offline'}`
+                  : 'Antigravity CLI'}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.closeBtn}
             onPress={onClose}
@@ -574,6 +593,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       <PairMachineModal
         visible={showPairModal}
         onClose={() => setShowPairModal(false)}
+      />
+
+      {/* Machine & VPS Switcher Modal */}
+      <MachineSwitcherModal
+        visible={showMachineSwitcher}
+        onClose={() => setShowMachineSwitcher(false)}
+        onPairNew={() => setShowPairModal(true)}
       />
 
       {/* Direct Remote Folder Browser Modal */}

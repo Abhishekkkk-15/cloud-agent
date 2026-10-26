@@ -277,6 +277,75 @@ export class MobileP2PClient {
     });
   }
 
+  getMachineId(): string {
+    return this.machineId;
+  }
+
+  async switchMachine(newMachineId: string): Promise<void> {
+    if (this.machineId === newMachineId) return;
+    this.machineId = newMachineId;
+    console.log('[MobileP2P] Switched active machineId to:', newMachineId);
+
+    // Close previous DataChannel/PeerConnection so we cleanly reset or re-negotiate
+    if (this.pc) {
+      try {
+        this.dc?.close();
+        this.pc?.close();
+      } catch {
+        // ignore
+      }
+      this.dc = null;
+      this.pc = null;
+    }
+
+    // Attempt WebRTC re-negotiation with the new machine over the open Gateway WS
+    const RTCPC = typeof window !== 'undefined' && (window as any).RTCPeerConnection
+      ? (window as any).RTCPeerConnection
+      : typeof globalThis !== 'undefined' && (globalThis as any).RTCPeerConnection
+      ? (globalThis as any).RTCPeerConnection
+      : null;
+
+    if (RTCPC && this.ws && this.ws.readyState === WebSocket.OPEN && this.clientId) {
+      try {
+        this.pc = new RTCPC({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        });
+
+        this.dc = this.pc.createDataChannel('cloud-agent-rpc');
+
+        this.pc.onicecandidate = (event: any) => {
+          if (event.candidate && this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+              type: 'webrtc.candidate',
+              machineId: this.machineId,
+              clientId: this.clientId,
+              candidate: event.candidate.toJSON ? event.candidate.toJSON() : event.candidate,
+            }));
+          }
+        };
+
+        this.dc.onopen = () => {
+          console.log('[MobileP2P] WebRTC DataChannel OPENED for switched machine:', newMachineId);
+        };
+        this.dc.onmessage = (event: any) => {
+          this.handleIncomingMessage(event.data);
+        };
+
+        const offer = await this.pc.createOffer();
+        await this.pc.setLocalDescription(offer);
+
+        this.ws.send(JSON.stringify({
+          type: 'webrtc.offer',
+          machineId: this.machineId,
+          clientId: this.clientId,
+          sdp: offer,
+        }));
+      } catch (e) {
+        console.warn('[MobileP2P] WebRTC re-negotiation on machine switch failed, falling back to Gateway WS relay:', e);
+      }
+    }
+  }
+
   disconnect() {
     this.dc?.close();
     this.pc?.close();
