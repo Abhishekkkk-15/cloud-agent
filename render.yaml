@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: cloud-agent-gateway
+    runtime: node
+    plan: free
+    buildCommand: pnpm install && pnpm --filter @cloud-agent/gateway build
+    startCommand: pnpm --filter @cloud-agent/gateway start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URI
+        sync: false
+      - key: DATABASE_NAME
+        value: cloud-agent
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
