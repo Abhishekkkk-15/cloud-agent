@@ -8,19 +8,37 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0b141c"
+      "backgroundColor": "#0d1117"
+    },
+    "ios": {
+      "bundleIdentifier": "com.cloudagent.mobile",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.cloudagent.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0d1117"
+      },
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "VIBRATE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "plugins": [],
+    "owner": "abhishekkkk-15",
     "extra": {
       "eas": {
-        "projectId": "a3cb31cf-6c3f-4979-babe-45a2ea20a75e"
+        "projectId": "6728caf6-ea80-471d-bb0f-7037b97e5fc5"
       }
-    },
-    "owner": "abhishek-15s-team"
+    }
   }
 }

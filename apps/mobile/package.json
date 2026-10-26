@@ -10,6 +10,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "dev": "expo start --web",
+    "build:dev": "eas build --profile development --platform android",
+    "build:apk": "eas build --profile preview --platform android",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

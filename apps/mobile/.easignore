@@ -1,0 +1,19 @@
+# Monorepo upload optimizations for EAS Build
+apps/api/
+apps/daemon/
+apps/gateway/
+packages/cli/
+packages/webrtc-node/
+
+# Caches and dependencies
+node_modules/
+.pnpm-store/
+.turbo/
+.venv/
+dist/
+build/
+web-build/
+.expo/
+*.log
+.DS_Store
+Thumbs.db
