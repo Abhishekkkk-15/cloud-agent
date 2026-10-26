@@ -176,10 +176,18 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                 <View style={styles.presetRow}>
                   <TouchableOpacity
                     style={styles.presetChip}
+                    onPress={() => handleApplyPreset('https://cloud-agent-3q6w.onrender.com')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.presetChipText}>Render (Cloud)</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.presetChip}
                     onPress={() => handleApplyPreset('https://unushered-chantal-unpsychotic.ngrok-free.dev')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.presetChipText}>ngrok Live Tunnel</Text>
+                    <Text style={styles.presetChipText}>ngrok Tunnel</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
