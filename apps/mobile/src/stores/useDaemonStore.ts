@@ -217,6 +217,7 @@ interface DaemonStoreState {
   isLoadingOlderMessages: boolean;
   isLoadingSessions: boolean;
   isSendingPrompt: boolean;
+  isCancellingPrompt: boolean;
   pendingApproval: ApprovalRequest | null;
   decisionTrail: Array<{
     id: string;
@@ -262,6 +263,7 @@ interface DaemonStoreState {
   createNewSession: () => void;
   loadOlderMessages: () => Promise<void>;
   sendPrompt: (promptText: string) => Promise<void>;
+  cancelPrompt: () => Promise<boolean>;
   respondApproval: (allowed: boolean) => Promise<void>;
   pingHeartbeat: () => Promise<void>;
   setSelectedWorkspace: (ws: string) => void;
@@ -296,6 +298,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isLoadingOlderMessages: false,
   isLoadingSessions: false,
   isSendingPrompt: false,
+  isCancellingPrompt: false,
   pendingApproval: null,
   decisionTrail: [],
   sessionConfig: {
@@ -1360,6 +1363,42 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         ],
         isSendingPrompt: false,
       }));
+    }
+  },
+
+  cancelPrompt: async () => {
+    const { activeSession, isSendingPrompt } = get();
+    if (!isSendingPrompt) return false;
+
+    set({ isCancellingPrompt: true });
+    try {
+      const targetSessionId = activeSession?.id;
+      if (targetSessionId) {
+        await mobileP2P.sendRpc('agent.cancel', { sessionId: targetSessionId });
+      }
+
+      set((state) => ({
+        isSendingPrompt: false,
+        isCancellingPrompt: false,
+        sessionMessages: [
+          ...state.sessionMessages,
+          {
+            id: `cancel_${Date.now()}`,
+            role: 'assistant',
+            content: '⏹️ *Turn stopped by user.*',
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }));
+
+      if (targetSessionId) {
+        await get().fetchSessionArtifacts(targetSessionId);
+      }
+      return true;
+    } catch (err) {
+      console.error('[DaemonStore] cancelPrompt error:', err);
+      set({ isSendingPrompt: false, isCancellingPrompt: false });
+      return false;
     }
   },
 

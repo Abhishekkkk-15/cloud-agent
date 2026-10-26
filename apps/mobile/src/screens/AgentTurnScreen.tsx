@@ -32,6 +32,7 @@ import {
   Plus,
   Mic,
   Layers,
+  Square,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -77,7 +78,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const sessionConfig = useDaemonStore((s) => s.sessionConfig);
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
   const isSendingPrompt = useDaemonStore((s) => s.isSendingPrompt);
+  const isCancellingPrompt = useDaemonStore((s) => s.isCancellingPrompt);
   const sendPrompt = useDaemonStore((s) => s.sendPrompt);
+  const cancelPrompt = useDaemonStore((s) => s.cancelPrompt);
   const hasMoreMessages = useDaemonStore((s) => s.hasMoreMessages);
   const isLoadingOlderMessages = useDaemonStore((s) => s.isLoadingOlderMessages);
   const loadOlderMessages = useDaemonStore((s) => s.loadOlderMessages);
@@ -721,22 +724,28 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             editable={!isSendingPrompt}
           />
 
-          {/* Action on Right: Send or Mic */}
-          {promptInput.trim().length > 0 || isSendingPrompt ? (
+          {/* Action on Right: Stop, Send, or Mic */}
+          {isSendingPrompt ? (
             <TouchableOpacity
-              style={[
-                styles.capsuleSendBtn,
-                (!promptInput.trim() || isSendingPrompt) && styles.capsuleSendBtnDisabled,
-              ]}
-              onPress={handleSendPrompt}
-              activeOpacity={0.85}
-              disabled={!promptInput.trim() || isSendingPrompt}
+              style={styles.capsuleStopBtn}
+              onPress={cancelPrompt}
+              activeOpacity={0.8}
+              accessibilityLabel="Stop agent turn"
+              disabled={isCancellingPrompt}
             >
-              {isSendingPrompt ? (
+              {isCancellingPrompt ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Send size={15} color="#ffffff" />
+                <Square size={14} color="#ffffff" />
               )}
+            </TouchableOpacity>
+          ) : promptInput.trim().length > 0 ? (
+            <TouchableOpacity
+              style={styles.capsuleSendBtn}
+              onPress={handleSendPrompt}
+              activeOpacity={0.85}
+            >
+              <Send size={15} color="#ffffff" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -1219,6 +1228,14 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  capsuleStopBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#da3633',
     alignItems: 'center',
     justifyContent: 'center',
   },
