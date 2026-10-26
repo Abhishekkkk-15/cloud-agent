@@ -21,6 +21,7 @@
     "expo-application": "^58.1.2",
     "expo-auth-session": "^58.0.14",
     "expo-crypto": "^58.0.7",
+    "expo-dev-client": "^58.0.15",
     "expo-status-bar": "^58.0.4",
     "expo-web-browser": "^58.0.6",
     "lucide-react-native": "^0.475.0",

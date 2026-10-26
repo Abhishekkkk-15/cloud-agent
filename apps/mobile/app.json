@@ -29,7 +29,9 @@
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "plugins": [],
+    "plugins": [
+      "expo-dev-client"
+    ],
     "owner": "abhishek-15s-team",
     "extra": {
       "eas": {
