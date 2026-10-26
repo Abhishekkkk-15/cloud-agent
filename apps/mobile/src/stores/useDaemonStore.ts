@@ -8,6 +8,9 @@ import {
   notifyTurnComplete,
   notifyApprovalRequired,
   notifyTurnError,
+  registerForPushNotificationsAsync,
+  triggerGatewayTestPush,
+  getPushRegistrationState,
 } from '../lib/notifications';
 
 function getDefaultHost(): string {
@@ -235,9 +238,14 @@ interface DaemonStoreState {
   isLoadingArtifacts: boolean;
   selectedArtifactContent: Record<string, string>;
   isLoadingArtifactContent: boolean;
+  pushStatus: string;
+  isPushRegistered: boolean;
+  pushToken: string | null;
 
   // Actions
   init: () => Promise<void>;
+  registerPushNotifications: () => Promise<void>;
+  triggerTestPushNotification: () => Promise<{ success: boolean; message: string }>;
   connectGateway: () => Promise<void>;
   loginWithDev: () => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
@@ -315,6 +323,49 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isLoadingArtifacts: false,
   selectedArtifactContent: {},
   isLoadingArtifactContent: false,
+  pushStatus: 'Initializing...',
+  isPushRegistered: false,
+  pushToken: null,
+
+  registerPushNotifications: async () => {
+    const { gatewayUrl, token, activeMachine } = get();
+    try {
+      const pushToken = await registerForPushNotificationsAsync({
+        gatewayUrl,
+        userToken: token || undefined,
+        machineId: activeMachine?.machineId,
+      });
+      const pushState = getPushRegistrationState();
+      set({
+        pushStatus: pushState.statusMessage,
+        isPushRegistered: pushState.isRegistered,
+        pushToken: pushState.pushToken || pushToken,
+      });
+    } catch (e: any) {
+      set({
+        pushStatus: e?.message || 'Push registration failed',
+        isPushRegistered: false,
+      });
+    }
+  },
+
+  triggerTestPushNotification: async () => {
+    const { gatewayUrl, token } = get();
+    try {
+      const ok = await triggerGatewayTestPush(gatewayUrl, token || undefined);
+      return {
+        success: ok,
+        message: ok
+          ? 'Native push notification sent from Gateway! Check your lock-screen / notification shade.'
+          : 'Failed to send test push notification.',
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        message: e?.message || 'Test push request failed',
+      };
+    }
+  },
 
   setSessionConfig: (newCfg: Partial<SessionConfig>) => {
     set((state) => ({
@@ -572,11 +623,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           gatewayUrl: effectiveGateway,
         });
         await get().connectGateway();
+        get().registerPushNotifications().catch(() => {});
       } else {
         set({
           apiUrl: effectiveApi,
           gatewayUrl: effectiveGateway,
         });
+        get().registerPushNotifications().catch(() => {});
       }
     } catch (err) {
       console.error('[DaemonStore] Init error:', err);
@@ -655,6 +708,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       get().fetchKnownWorkspaces(),
       get().fetchMachines(),
     ]);
+
+    get().registerPushNotifications().catch(() => {});
   },
 
   unpairMachine: async (machineId: string) => {
@@ -752,6 +807,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         currentUser: user || null,
       });
       await get().connectGateway();
+      get().registerPushNotifications().catch(() => {});
       return true;
     } catch (err) {
       console.error('[DaemonStore] loginWithToken error:', err);
@@ -780,6 +836,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         currentUser: data.user || null,
       });
       await get().connectGateway();
+      get().registerPushNotifications().catch(() => {});
       return true;
     } catch (err) {
       console.error('[DaemonStore] loginWithGoogle error:', err);

@@ -30,7 +30,15 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-dev-client"
+      "expo-dev-client",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0077b6",
+          "defaultChannel": "agent-alerts"
+        }
+      ]
     ],
     "owner": "abhishek-15s-team",
     "extra": {

@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Database,
   Radio,
+  Bell,
 } from './Icons';
 import { colors } from '../theme/tokens';
 import { useDaemonStore, EndpointTestResult } from '../stores/useDaemonStore';
@@ -38,9 +39,15 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
   const resetServerEndpoints = useDaemonStore((s) => s.resetServerEndpoints);
   const testServerEndpoints = useDaemonStore((s) => s.testServerEndpoints);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const pushStatus = useDaemonStore((s) => s.pushStatus);
+  const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
+  const pushToken = useDaemonStore((s) => s.pushToken);
+  const triggerTestPushNotification = useDaemonStore((s) => s.triggerTestPushNotification);
+  const registerPushNotifications = useDaemonStore((s) => s.registerPushNotifications);
 
   const [inputGatewayUrl, setInputGatewayUrl] = useState('');
   const [isTesting, setIsTesting] = useState(false);
+  const [isSendingTestPush, setIsSendingTestPush] = useState(false);
   const [testResult, setTestResult] = useState<EndpointTestResult | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -84,6 +91,23 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
       setStatusMessage({ type: 'error', text: err?.message || 'Gateway test failed.' });
     } finally {
       setIsTesting(false);
+    }
+  };
+
+  const handleTestPush = async () => {
+    setIsSendingTestPush(true);
+    setStatusMessage(null);
+    try {
+      const res = await triggerTestPushNotification();
+      if (res.success) {
+        setStatusMessage({ type: 'success', text: res.message });
+      } else {
+        setStatusMessage({ type: 'error', text: res.message });
+      }
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err?.message || 'Push test failed.' });
+    } finally {
+      setIsSendingTestPush(false);
     }
   };
 
@@ -286,6 +310,39 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                     </>
                   )}
                 </TouchableOpacity>
+
+                {/* Native Push Notification Channel & Test */}
+                <View style={styles.pushCard}>
+                  <View style={styles.pushHeader}>
+                    <View style={styles.pushTitleRow}>
+                      <Bell size={14} color="#0077b6" />
+                      <Text style={styles.pushTitle}>Native Push Notifications</Text>
+                    </View>
+                    <View style={[styles.statusPill, isPushRegistered ? styles.statusPillActive : styles.statusPillInactive]}>
+                      <Text style={[styles.statusPillText, isPushRegistered ? styles.statusPillTextActive : styles.statusPillTextInactive]}>
+                        {isPushRegistered ? 'Active' : 'Standby'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.pushStatusText} numberOfLines={2}>
+                    {pushStatus}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.testPushButton, isSendingTestPush && { opacity: 0.6 }]}
+                    onPress={handleTestPush}
+                    disabled={isSendingTestPush}
+                    activeOpacity={0.7}
+                  >
+                    {isSendingTestPush ? (
+                      <ActivityIndicator size="small" color="#0077b6" />
+                    ) : (
+                      <>
+                        <Bell size={13} color="#0077b6" />
+                        <Text style={styles.testPushButtonText}>Send Test Push Notification</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
 
                 {/* Active Link Status Info */}
                 {activeMachine && (
@@ -575,6 +632,75 @@ const styles = StyleSheet.create({
   activeMachineText: {
     fontSize: 12,
     color: '#8b949e',
+  },
+  pushCard: {
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#30363d',
+    borderRadius: 10,
+    padding: 12,
+    gap: 8,
+  },
+  pushHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pushTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pushTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#f0f6fc',
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  statusPillActive: {
+    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    borderColor: 'rgba(0, 119, 182, 0.4)',
+  },
+  statusPillInactive: {
+    backgroundColor: '#21262d',
+    borderColor: '#30363d',
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  statusPillTextActive: {
+    color: '#48cae4',
+  },
+  statusPillTextInactive: {
+    color: '#8b949e',
+  },
+  pushStatusText: {
+    fontSize: 12,
+    color: '#8b949e',
+    lineHeight: 16,
+  },
+  testPushButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderRadius: 8,
+    paddingVertical: 8,
+    marginTop: 2,
+  },
+  testPushButtonText: {
+    color: '#0096c7',
+    fontSize: 12,
+    fontWeight: '600',
   },
   footer: {
     flexDirection: 'row',

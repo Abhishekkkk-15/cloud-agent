@@ -1,6 +1,7 @@
 import type { WebSocket } from "ws";
 import { updateMachineStatus, type MachineDocument } from "../db/machine-repo.js";
 import { clientHub } from "./client-hub.js";
+import { notifyMachineSubscribers } from "../routes/push.js";
 
 export interface DaemonSession {
   machineId: string;
@@ -120,6 +121,17 @@ export class DaemonHub {
         return;
       }
 
+      // 3. Direct push notification dispatch from daemon
+      if (data.type === "push.notification") {
+        notifyMachineSubscribers(machineId, {
+          title: data.title || "Cloud Agent Alert",
+          body: data.body || "",
+          data: data.data,
+          channelId: data.channelId || "agent-alerts",
+        }).catch((err) => console.warn("[DaemonHub] Push dispatch error:", err));
+        return;
+      }
+
       // 3. Standard fallback RPC response or stream chunk
       if (data.id && this.pendingRpcs.has(data.id)) {
         const pending = this.pendingRpcs.get(data.id)!;
@@ -128,10 +140,25 @@ export class DaemonHub {
           if (pending.onStream) {
             pending.onStream(data);
           }
+          if (data.event?.type === "permission_request") {
+            const toolName = data.event?.data?.tool || data.event?.data?.name || "Tool";
+            notifyMachineSubscribers(machineId, {
+              title: "Security Approval Required",
+              body: `Waiting for confirmation to execute: ${toolName}`,
+              data: { type: "approval_required", machineId },
+              channelId: "agent-alerts",
+            }).catch(() => {});
+          }
           if (data.done) {
             if (pending.timer) clearTimeout(pending.timer);
             this.pendingRpcs.delete(data.id);
             pending.resolve(data);
+            notifyMachineSubscribers(machineId, {
+              title: "Turn Complete",
+              body: "Antigravity agent has finished execution.",
+              data: { type: "turn_complete", machineId },
+              channelId: "agent-alerts",
+            }).catch(() => {});
           }
           return;
         }
