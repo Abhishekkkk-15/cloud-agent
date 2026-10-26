@@ -151,10 +151,12 @@ export interface SessionConfig {
   model: string;
   effort: ReasoningEffort;
   mode: ExecutionMode;
+  dangerouslySkipPermissions?: boolean;
 }
 
 export interface ApprovalRequest {
   id: string;
+  sessionId?: string;
   tool: string;
   command: string;
   description: string;
@@ -305,6 +307,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     model: 'gemini-3.8-flash-high',
     effort: 'high',
     mode: 'auto',
+    dangerouslySkipPermissions: true,
   },
   terminalLines: [],
   isTerminalRunning: false,
@@ -348,6 +351,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         set({
           pendingApproval: {
             id: event.approvalId || data.id || `appr_${Date.now()}`,
+            sessionId: event.sessionId || data.sessionId,
             tool,
             command: cmd,
             description: event.description || data.description || 'Elevated command requires approval',
@@ -1284,6 +1288,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }));
 
     try {
+      const skipPermissions = sessionConfig.dangerouslySkipPermissions !== false;
       const runResult = await mobileP2P.sendRpc<any>('agent.run', {
         options: {
           prompt: promptText,
@@ -1292,6 +1297,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           model: sessionConfig.model,
           effort: sessionConfig.effort,
           mode: sessionConfig.mode,
+          dangerouslySkipPermissions: skipPermissions,
         },
         prompt: promptText,
         sessionId: activeSession?.id,
@@ -1299,6 +1305,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         model: sessionConfig.model,
         effort: sessionConfig.effort,
         mode: sessionConfig.mode,
+        dangerouslySkipPermissions: skipPermissions,
       });
       set({ isSendingPrompt: false });
 
@@ -1409,7 +1416,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       await mobileP2P.sendRpc('agent.approve', {
         approvalId: pendingApproval.id,
+        requestId: pendingApproval.id,
+        sessionId: pendingApproval.sessionId || get().activeSession?.id,
         allowed,
+        allow: allowed,
       });
 
       // Record to audit trail

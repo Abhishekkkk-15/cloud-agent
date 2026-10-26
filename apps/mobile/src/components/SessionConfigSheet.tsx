@@ -20,6 +20,8 @@ import {
   Check,
   Shield,
   Layers,
+  ShieldCheck,
+  ShieldAlert,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import {
@@ -316,6 +318,87 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                 })}
               </View>
             </View>
+
+            {/* 4. Tool Permissions & HITL Security */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <ShieldCheck size={13} color={colors.primary} />
+                <Text style={styles.sectionTitle}>TOOL PERMISSIONS & HITL GATE</Text>
+              </View>
+
+              <View style={styles.modeCardsCol}>
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    sessionConfig.dangerouslySkipPermissions !== false && styles.modeCardActive,
+                  ]}
+                  activeOpacity={0.75}
+                  onPress={() => setSessionConfig({ dangerouslySkipPermissions: true })}
+                >
+                  <View style={styles.modeCardLeft}>
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        sessionConfig.dangerouslySkipPermissions !== false && styles.radioCircleActive,
+                      ]}
+                    >
+                      {sessionConfig.dangerouslySkipPermissions !== false && <View style={styles.radioDot} />}
+                    </View>
+                    <View style={styles.modeCardTextCol}>
+                      <View style={styles.permissionTitleRow}>
+                        <Text
+                          style={[
+                            styles.modeCardLabel,
+                            sessionConfig.dangerouslySkipPermissions !== false && styles.modeCardLabelActive,
+                          ]}
+                        >
+                          Auto-Approve All (Default)
+                        </Text>
+                        <View style={styles.badgeRecommended}>
+                          <Text style={styles.badgeRecommendedText}>Recommended</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.modeCardDesc}>
+                        Passes --dangerously-skip-permissions for uninterrupted autonomous tool runs.
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    sessionConfig.dangerouslySkipPermissions === false && styles.modeCardActive,
+                  ]}
+                  activeOpacity={0.75}
+                  onPress={() => setSessionConfig({ dangerouslySkipPermissions: false })}
+                >
+                  <View style={styles.modeCardLeft}>
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        sessionConfig.dangerouslySkipPermissions === false && styles.radioCircleActive,
+                      ]}
+                    >
+                      {sessionConfig.dangerouslySkipPermissions === false && <View style={styles.radioDot} />}
+                    </View>
+                    <View style={styles.modeCardTextCol}>
+                      <Text
+                        style={[
+                          styles.modeCardLabel,
+                          sessionConfig.dangerouslySkipPermissions === false && styles.modeCardLabelActive,
+                        ]}
+                      >
+                        Ask for Confirmation (HITL Gate)
+                      </Text>
+                      <Text style={styles.modeCardDesc}>
+                        Strict review. Elevated commands and sensitive tool calls will await your approval on mobile.
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            </View>
           </ScrollView>
 
           {/* Bottom Save Bar */}
@@ -585,5 +668,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  permissionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  badgeRecommended: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    backgroundColor: 'rgba(0, 119, 182, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 119, 182, 0.4)',
+    marginLeft: 8,
+  },
+  badgeRecommendedText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#48cae4',
   },
 });

@@ -160,6 +160,7 @@ class PersistentWorker {
   readonly activeModel?: string;
   readonly activeEffort?: string;
   readonly activeMode?: string;
+  readonly activeDangerouslySkipPermissions: boolean;
 
   constructor(
     binary: string,
@@ -171,6 +172,7 @@ class PersistentWorker {
     this.activeModel = options.model;
     this.activeEffort = options.effort;
     this.activeMode = options.mode;
+    this.activeDangerouslySkipPermissions = options.dangerouslySkipPermissions !== false;
 
     const args: string[] = [
       "--input-format",
@@ -193,7 +195,7 @@ class PersistentWorker {
     if (options.mode) {
       args.push("--mode", options.mode);
     }
-    if (options.dangerouslySkipPermissions !== false) {
+    if (this.activeDangerouslySkipPermissions) {
       args.push("--dangerously-skip-permissions");
     }
 
@@ -221,7 +223,29 @@ class PersistentWorker {
     if (options.model && options.model !== this.activeModel) return true;
     if (options.effort && options.effort !== this.activeEffort) return true;
     if (options.mode && options.mode !== this.activeMode) return true;
+    const targetSkip = options.dangerouslySkipPermissions !== false;
+    if (targetSkip !== this.activeDangerouslySkipPermissions) return true;
     return false;
+  }
+
+  respondPermission(requestId: string, allow: boolean): boolean {
+    if (!this.isRunning || !this.child.stdin?.writable) return false;
+    try {
+      const payload =
+        JSON.stringify({
+          event: "permission_response",
+          id: requestId,
+          allow,
+          allowed: allow,
+        }) + "\n";
+      this.child.stdin.write(payload);
+      // Also write standard interactive fallback line
+      this.child.stdin.write(allow ? "y\n" : "n\n");
+      return true;
+    } catch (err) {
+      console.error(`[PersistentWorker] Failed to write permission response:`, err);
+      return false;
+    }
   }
 
   private pushItem(item: QueueItem): void {
@@ -514,6 +538,17 @@ export class AntigravityStreamClient {
       worker.destroy();
       this.workers.delete(sessionId);
       return true;
+    }
+    return false;
+  }
+
+  /**
+   * Dispatches permission decision to an active worker by sessionId.
+   */
+  respondPermission(sessionId: string, requestId: string, allow: boolean): boolean {
+    const worker = this.workers.get(sessionId);
+    if (worker) {
+      return worker.respondPermission(requestId, allow);
     }
     return false;
   }

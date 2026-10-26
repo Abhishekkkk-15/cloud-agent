@@ -7,6 +7,7 @@ import {
   type ToolResultEventData,
   type StatusEventData,
   type ErrorEventData,
+  type PermissionRequestEventData,
 } from "@cloud-agent/cli-interface";
 
 /**
@@ -30,6 +31,40 @@ export function mapAntigravityStreamEvent(
         createCliEvent<StatusEventData>("status", convId, {
           status: "idle",
           message: "Antigravity initialized",
+        })
+      );
+      return events;
+    }
+
+    // 1b. Permission / Approval request event
+    if (
+      eventType === "permission_request" ||
+      eventType === "approval_required" ||
+      eventType === "tool_approval_required" ||
+      eventType === "ask_user"
+    ) {
+      const reqId =
+        (raw.id as string) ||
+        (raw.request_id as string) ||
+        (raw.approval_id as string) ||
+        `appr_${Date.now()}`;
+      const toolName =
+        (raw.tool as string) ||
+        (raw.tool_name as string) ||
+        (raw.toolName as string) ||
+        "action";
+      const details =
+        (raw.details as Record<string, unknown>) ||
+        (raw.arguments as Record<string, unknown>) ||
+        (raw.params as Record<string, unknown>) ||
+        raw;
+
+      events.push(
+        createCliEvent<PermissionRequestEventData>("permission_request", sessionId, {
+          id: reqId,
+          toolName,
+          details: typeof details === "object" ? details : { raw: String(details) },
+          defaultBehavior: "deny",
         })
       );
       return events;
@@ -104,6 +139,20 @@ export function mapAntigravityStreamEvent(
               id: toolId,
               name: toolName,
               arguments: params,
+            })
+          );
+        } else if (
+          su.state === "WAITING_FOR_APPROVAL" ||
+          su.state === "PENDING_APPROVAL" ||
+          su.requires_approval ||
+          su.needs_approval
+        ) {
+          events.push(
+            createCliEvent<PermissionRequestEventData>("permission_request", convId, {
+              id: toolId,
+              toolName,
+              details: params,
+              defaultBehavior: "deny",
             })
           );
         } else if (su.state === "DONE") {

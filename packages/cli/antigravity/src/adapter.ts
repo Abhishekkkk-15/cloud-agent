@@ -135,7 +135,10 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
    * Responds to an interactive permission request.
    */
   async respondPermission(sessionId: string, requestId: string, allow: boolean): Promise<void> {
-    // If the active client has a pending permission callback, deliver it
     console.log(`[AntigravityAdapter] respondPermission: sessionId=${sessionId}, requestId=${requestId}, allow=${allow}`);
+    const delivered = this.client.respondPermission(sessionId, requestId, allow);
+    if (!delivered) {
+      console.warn(`[AntigravityAdapter] No active worker found for session ${sessionId} to respond permission`);
+    }
   }
 }
