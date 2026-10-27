@@ -19,6 +19,11 @@ import {
   handleAutoPrReview,
   handlePostPrReview,
 } from "./auto-healer.js";
+import {
+  handleGithubStatus,
+  handleGithubSetToken,
+  handleGithubRemoveToken,
+} from "./github.js";
 import type { CliEvent } from "@cloud-agent/cli-interface";
 
 const activeTerminalProcesses = new Map<string, ChildProcess>();
@@ -310,6 +315,24 @@ export class RpcDispatcher {
             body: params.body,
             workspacePath: params.workspacePath,
           });
+          return { id: req.id, result };
+        }
+
+        case "github.status": {
+          const result = await handleGithubStatus();
+          return { id: req.id, result };
+        }
+
+        case "github.setToken": {
+          if (!params.token || typeof params.token !== "string") {
+            throw new Error("Missing or invalid token parameter for github.setToken");
+          }
+          const result = await handleGithubSetToken(params.token);
+          return { id: req.id, result };
+        }
+
+        case "github.removeToken": {
+          const result = await handleGithubRemoveToken();
           return { id: req.id, result };
         }
 

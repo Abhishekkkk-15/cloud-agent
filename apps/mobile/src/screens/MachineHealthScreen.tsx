@@ -29,6 +29,7 @@ import {
   Bug,
   GitPullRequest,
   Sparkles,
+  Key,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -37,6 +38,7 @@ import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
 import { PairMachineModal } from '../components/PairMachineModal';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 import { AutoHealerModal } from '../components/AutoHealerModal';
+import { GitHubWebhookModal } from '../components/GitHubWebhookModal';
 
 interface MachineHealthScreenProps {
   onBack?: () => void;
@@ -62,11 +64,14 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const openAutoHealerProposal = useDaemonStore((s) => s.openAutoHealerProposal);
   const openAutoPrReview = useDaemonStore((s) => s.openAutoPrReview);
+  const githubStatus = useDaemonStore((s) => s.githubStatus);
+  const fetchGithubStatus = useDaemonStore((s) => s.fetchGithubStatus);
 
   const [isPinging, setIsPinging] = useState(false);
   const [showMachineSwitcher, setShowMachineSwitcher] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);
   const [showServerSettings, setShowServerSettings] = useState(false);
+  const [showGithubModal, setShowGithubModal] = useState(false);
 
   const handlePing = async () => {
     setIsPinging(true);
@@ -451,18 +456,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
         {/* Autonomous On-Call & PR Reviewer */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
           <Text style={styles.sectionTitle}>AUTONOMOUS ON-CALL & PR REVIEWER</Text>
-          {(activeProposal || activePrReview) && (
-            <View style={{
-              backgroundColor: 'rgba(0, 119, 182, 0.15)',
-              borderColor: 'rgba(0, 119, 182, 0.4)',
-              borderWidth: 1,
-              borderRadius: 10,
-              paddingHorizontal: 8,
-              paddingVertical: 2,
-            }}>
-              <Text style={{ color: '#48cae4', fontSize: 11, fontWeight: '700' }}>Review Ready</Text>
-            </View>
-          )}
+          <TouchableOpacity onPress={() => setShowGithubModal(true)} activeOpacity={0.7}>
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Webhook & Token</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={[styles.card, { padding: 14, gap: 10 }]}>
@@ -584,6 +580,36 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               )}
             </TouchableOpacity>
           </View>
+
+          {/* GitHub Credentials & Webhook Setup Row */}
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#0d1117',
+              borderWidth: 1,
+              borderColor: '#21262d',
+              borderRadius: 8,
+              padding: 10,
+              marginTop: 4,
+            }}
+            onPress={() => setShowGithubModal(true)}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Key size={14} color="#0077b6" />
+              <Text style={{ color: '#f0f6fc', fontSize: 12, fontWeight: '600' }}>
+                GitHub PAT & Webhooks
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ color: githubStatus?.authenticated ? '#3fb950' : '#8b949e', fontSize: 11, fontWeight: '600' }}>
+                {githubStatus?.authenticated ? `@${githubStatus.username}` : 'Configure (Option B)'}
+              </Text>
+              <ChevronRight size={14} color="#8b949e" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Daemon Operations */}
@@ -656,6 +682,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
       <AutoHealerModal
         visible={isAutoHealerModalVisible}
         onClose={dismissAutoHealer}
+      />
+
+      {/* GitHub Credentials & Webhook Setup Modal */}
+      <GitHubWebhookModal
+        visible={showGithubModal}
+        onClose={() => setShowGithubModal(false)}
       />
     </View>
   );

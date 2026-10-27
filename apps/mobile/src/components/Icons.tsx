@@ -86,3 +86,5 @@ export const Pencil = wrapIcon(Lucide.Pencil);
 export const MoreHorizontal = wrapIcon(Lucide.MoreHorizontal);
 export const Globe = wrapIcon(Lucide.Globe);
 export const Settings = wrapIcon(Lucide.Settings);
+export const Key = wrapIcon(Lucide.Key);
+export const ExternalLink = wrapIcon(Lucide.ExternalLink);

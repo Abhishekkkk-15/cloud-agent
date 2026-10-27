@@ -229,6 +229,17 @@ export interface AutoPrReviewReport {
   status: 'pending_review' | 'posted' | 'discarded';
 }
 
+export interface GithubAuthStatus {
+  authenticated: boolean;
+  source?: 'token' | 'cli' | 'none';
+  username?: string;
+  name?: string;
+  avatarUrl?: string;
+  scopes?: string;
+  error?: string;
+  message?: string;
+}
+
 interface DaemonStoreState {
   apiUrl: string;
   gatewayUrl: string;
@@ -277,6 +288,9 @@ interface DaemonStoreState {
   activePrReview: AutoPrReviewReport | null;
   isAutoHealerModalVisible: boolean;
   isSimulatingIncident: boolean;
+  githubStatus: GithubAuthStatus | null;
+  isCheckingGithub: boolean;
+  isSavingGithubToken: boolean;
 
   // Actions
   init: () => Promise<void>;
@@ -289,6 +303,9 @@ interface DaemonStoreState {
   simulatePrReview: (machineId?: string) => Promise<{ success: boolean; message: string; review?: AutoPrReviewReport }>;
   approveAutoHealerProposal: (incidentId: string, action: 'pr' | 'merge' | 'discard') => Promise<{ success: boolean; message: string }>;
   postPrReviewToGitHub: (prNumber: number, verdict: string, body?: string) => Promise<{ success: boolean; message: string }>;
+  fetchGithubStatus: () => Promise<void>;
+  saveGithubToken: (token: string) => Promise<{ success: boolean; username?: string; error?: string }>;
+  removeGithubToken: () => Promise<void>;
   connectGateway: () => Promise<void>;
   loginWithDev: () => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
@@ -373,6 +390,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   activePrReview: null,
   isAutoHealerModalVisible: false,
   isSimulatingIncident: false,
+  githubStatus: null,
+  isCheckingGithub: false,
+  isSavingGithubToken: false,
 
   openAutoHealerProposal: (proposal: AutoHealerProposal) => {
     set({
@@ -514,6 +534,43 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         success: false,
         message: err?.message || 'Post review failed',
       };
+    }
+  },
+
+  fetchGithubStatus: async () => {
+    set({ isCheckingGithub: true });
+    try {
+      const res: any = await mobileP2P.sendRpc('github.status', {});
+      set({ githubStatus: res });
+    } catch (err: any) {
+      set({ githubStatus: { authenticated: false, source: 'none', error: err?.message } });
+    } finally {
+      set({ isCheckingGithub: false });
+    }
+  },
+
+  saveGithubToken: async (token: string) => {
+    set({ isSavingGithubToken: true });
+    try {
+      const res: any = await mobileP2P.sendRpc('github.setToken', { token });
+      if (res?.success) {
+        await get().fetchGithubStatus();
+        return { success: true, username: res.username };
+      }
+      return { success: false, error: res?.error || 'Failed to save token' };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Token verification error' };
+    } finally {
+      set({ isSavingGithubToken: false });
+    }
+  },
+
+  removeGithubToken: async () => {
+    try {
+      await mobileP2P.sendRpc('github.removeToken', {});
+      await get().fetchGithubStatus();
+    } catch {
+      // ignore
     }
   },
 

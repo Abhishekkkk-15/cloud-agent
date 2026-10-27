@@ -11,6 +11,7 @@ export interface DaemonConfig {
   allowedWorkspaces?: string[];
   defaultCli?: string;
   heartbeatIntervalMs?: number;
+  githubToken?: string;
 }
 
 export function getConfigPath(): string {
@@ -61,4 +62,23 @@ export function ensureDefaultConfig(): DaemonConfig {
 
   saveConfig(defaults);
   return defaults;
+}
+
+export function getGithubToken(): string | undefined {
+  const envToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+  if (envToken && envToken.trim().length > 0) return envToken.trim();
+  const cfg = loadConfig();
+  return cfg.githubToken?.trim() || undefined;
+}
+
+export function setGithubToken(token: string): void {
+  const cfg = loadConfig();
+  cfg.githubToken = token.trim();
+  saveConfig(cfg);
+}
+
+export function clearGithubToken(): void {
+  const cfg = loadConfig();
+  delete cfg.githubToken;
+  saveConfig(cfg);
 }
