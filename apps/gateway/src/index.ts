@@ -5,6 +5,7 @@ import { connectMongo, closeMongo } from "./db/mongo.js";
 import { handleMachinesRoutes, sendJson } from "./routes/machines.js";
 import { handleAuthRoutes } from "./routes/auth.js";
 import { handlePushRoutes } from "./routes/push.js";
+import { handleWebhookRoutes } from "./routes/webhooks.js";
 import { setupWebSocketUpgrades } from "./routes/ws.js";
 import { daemonHub } from "./hub/daemon-hub.js";
 
@@ -57,6 +58,10 @@ async function main() {
       // Push Notification API routes (/api/push/*, /push/*)
       const pushHandled = await handlePushRoutes(req, res, url);
       if (pushHandled) return;
+
+      // Webhook API routes (/webhooks/*)
+      const webhookHandled = await handleWebhookRoutes(req, res, url);
+      if (webhookHandled) return;
 
       // 404
       sendJson(res, 404, { error: `Route not found: ${req.method} ${url.pathname}` });

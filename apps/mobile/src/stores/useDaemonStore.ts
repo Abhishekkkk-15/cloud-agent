@@ -199,6 +199,36 @@ export interface TerminalOutputLine {
   timestamp: string;
 }
 
+export interface AutoHealerProposal {
+  incidentId: string;
+  title: string;
+  description: string;
+  source: 'github' | 'sentry' | 'simulator';
+  branchName: string;
+  diff: string;
+  testCommand: string;
+  testOutput: string;
+  testsPassed: boolean;
+  createdAt: string;
+  status: 'pending_review' | 'approved' | 'discarded';
+  url?: string;
+}
+
+export interface AutoPrReviewReport {
+  prNumber: number;
+  prTitle: string;
+  author: string;
+  baseBranch: string;
+  headBranch: string;
+  verdict: 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
+  summary: string;
+  securityRisks: string[];
+  lineComments: Array<{ file: string; line: number; comment: string; suggestion?: string }>;
+  fullMarkdown: string;
+  createdAt: string;
+  status: 'pending_review' | 'posted' | 'discarded';
+}
+
 interface DaemonStoreState {
   apiUrl: string;
   gatewayUrl: string;
@@ -243,11 +273,22 @@ interface DaemonStoreState {
   pushStatus: string;
   isPushRegistered: boolean;
   pushToken: string | null;
+  activeProposal: AutoHealerProposal | null;
+  activePrReview: AutoPrReviewReport | null;
+  isAutoHealerModalVisible: boolean;
+  isSimulatingIncident: boolean;
 
   // Actions
   init: () => Promise<void>;
   registerPushNotifications: () => Promise<void>;
   triggerTestPushNotification: () => Promise<{ success: boolean; message: string }>;
+  openAutoHealerProposal: (proposal: AutoHealerProposal) => void;
+  openAutoPrReview: (review: AutoPrReviewReport) => void;
+  dismissAutoHealer: () => void;
+  simulateAutoHealerIncident: (machineId?: string) => Promise<{ success: boolean; message: string; proposal?: AutoHealerProposal }>;
+  simulatePrReview: (machineId?: string) => Promise<{ success: boolean; message: string; review?: AutoPrReviewReport }>;
+  approveAutoHealerProposal: (incidentId: string, action: 'pr' | 'merge' | 'discard') => Promise<{ success: boolean; message: string }>;
+  postPrReviewToGitHub: (prNumber: number, verdict: string, body?: string) => Promise<{ success: boolean; message: string }>;
   connectGateway: () => Promise<void>;
   loginWithDev: () => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
@@ -328,6 +369,153 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   pushStatus: 'Initializing...',
   isPushRegistered: false,
   pushToken: null,
+  activeProposal: null,
+  activePrReview: null,
+  isAutoHealerModalVisible: false,
+  isSimulatingIncident: false,
+
+  openAutoHealerProposal: (proposal: AutoHealerProposal) => {
+    set({
+      activeProposal: proposal,
+      activePrReview: null,
+      isAutoHealerModalVisible: true,
+    });
+  },
+
+  openAutoPrReview: (review: AutoPrReviewReport) => {
+    set({
+      activePrReview: review,
+      activeProposal: null,
+      isAutoHealerModalVisible: true,
+    });
+  },
+
+  dismissAutoHealer: () => {
+    set({
+      activeProposal: null,
+      activePrReview: null,
+      isAutoHealerModalVisible: false,
+    });
+  },
+
+  simulateAutoHealerIncident: async (machineId?: string) => {
+    const { gatewayUrl, activeMachine } = get();
+    const targetId = machineId || activeMachine?.machineId;
+    if (!targetId) {
+      return { success: false, message: 'No target machine selected' };
+    }
+    set({ isSimulatingIncident: true });
+    try {
+      const cleanUrl = gatewayUrl.replace(/\/+$/, '');
+      const res = await fetch(`${cleanUrl}/webhooks/simulate/${targetId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      if (data.proposal) {
+        get().openAutoHealerProposal(data.proposal);
+      }
+      return {
+        success: true,
+        message: 'Auto-Healer incident simulated and verified!',
+        proposal: data.proposal,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Simulation failed',
+      };
+    } finally {
+      set({ isSimulatingIncident: false });
+    }
+  },
+
+  simulatePrReview: async (machineId?: string) => {
+    const { gatewayUrl, activeMachine } = get();
+    const targetId = machineId || activeMachine?.machineId;
+    if (!targetId) {
+      return { success: false, message: 'No target machine selected' };
+    }
+    set({ isSimulatingIncident: true });
+    try {
+      const cleanUrl = gatewayUrl.replace(/\/+$/, '');
+      const res = await fetch(`${cleanUrl}/webhooks/simulate-pr/${targetId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `HTTP ${res.status}`);
+      }
+      if (data.review) {
+        get().openAutoPrReview(data.review);
+      }
+      return {
+        success: true,
+        message: 'Autonomous PR review simulated and ready!',
+        review: data.review,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'PR simulation failed',
+      };
+    } finally {
+      set({ isSimulatingIncident: false });
+    }
+  },
+
+  approveAutoHealerProposal: async (incidentId: string, action: 'pr' | 'merge' | 'discard') => {
+    const { activeProposal, targetWorkspacePath, activeSession } = get();
+    const branchName = activeProposal?.branchName || `auto-healer/${incidentId}`;
+    const workspacePath = activeSession?.workspacePath || targetWorkspacePath || undefined;
+
+    try {
+      const res: any = await mobileP2P.sendRpc('auto_healer.approve', {
+        incidentId,
+        branchName,
+        action,
+        workspacePath,
+      });
+      return {
+        success: Boolean(res?.success ?? true),
+        message: res?.message || `Proposal ${action} executed successfully.`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Action failed',
+      };
+    }
+  },
+
+  postPrReviewToGitHub: async (prNumber: number, verdict: string, body?: string) => {
+    const { targetWorkspacePath, activeSession } = get();
+    const workspacePath = activeSession?.workspacePath || targetWorkspacePath || undefined;
+
+    try {
+      const res: any = await mobileP2P.sendRpc('auto_healer.post_pr_review', {
+        prNumber,
+        verdict,
+        body,
+        workspacePath,
+      });
+      return {
+        success: Boolean(res?.success ?? true),
+        message: res?.message || `PR Review posted to GitHub PR #${prNumber}.`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Post review failed',
+      };
+    }
+  },
 
   registerPushNotifications: async () => {
     const { gatewayUrl, token, activeMachine } = get();
@@ -411,8 +599,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     });
 
     // Subscribe to live agent events
-    mobileP2P.onEvent((event) => {
+    mobileP2P.onEvent((event: any) => {
       if (!event) return;
+
+      if (event.type === 'auto_healer.proposal' && event.proposal) {
+        get().openAutoHealerProposal(event.proposal);
+        return;
+      }
+      if (event.type === 'auto_healer.pr_review' && event.review) {
+        get().openAutoPrReview(event.review);
+        return;
+      }
 
       if (event.type === 'tool_approval_required' || event.type === 'ask_user' || event.type === 'permission_request') {
         const data = event.data || event;

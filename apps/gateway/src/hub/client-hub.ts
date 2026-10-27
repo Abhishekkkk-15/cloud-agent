@@ -125,6 +125,26 @@ export class ClientHub {
     }
     return false;
   }
+
+  broadcastToUser(userId: string, data: unknown): void {
+    const sockets = this.userSockets.get(userId);
+    if (!sockets) return;
+    const payload = JSON.stringify(data);
+    for (const ws of sockets) {
+      if (ws.readyState === 1) {
+        ws.send(payload);
+      }
+    }
+  }
+
+  broadcastAll(data: unknown): void {
+    const payload = JSON.stringify(data);
+    for (const ws of this.clientSockets.values()) {
+      if (ws.readyState === 1) {
+        ws.send(payload);
+      }
+    }
+  }
 }
 
 export const clientHub = new ClientHub();

@@ -45,6 +45,7 @@ import { TerminalSheet } from '../components/TerminalSheet';
 import { LiveApprovalCard } from '../components/LiveApprovalCard';
 import { SessionActionModal } from '../components/SessionActionModal';
 import { ArtifactsSheet } from '../components/ArtifactsSheet';
+import { AutoHealerModal } from '../components/AutoHealerModal';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -91,6 +92,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const deleteSession = useDaemonStore((s) => s.deleteSession);
   const sessionArtifacts = useDaemonStore((s) => s.sessionArtifacts);
   const fetchSessionArtifacts = useDaemonStore((s) => s.fetchSessionArtifacts);
+  const isAutoHealerModalVisible = useDaemonStore((s) => s.isAutoHealerModalVisible);
+  const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
 
   const [promptInput, setPromptInput] = useState('');
   const [showCommandPicker, setShowCommandPicker] = useState(false);
@@ -804,6 +807,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         visible={showArtifactsSheet}
         onClose={() => setShowArtifactsSheet(false)}
         initialSearchQuery={artifactFilterQuery}
+      />
+
+      {/* 13. Autonomous On-Call & PR Review Modal */}
+      <AutoHealerModal
+        visible={isAutoHealerModalVisible}
+        onClose={dismissAutoHealer}
       />
     </View>
   );

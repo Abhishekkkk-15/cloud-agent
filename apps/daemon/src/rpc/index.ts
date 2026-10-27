@@ -13,6 +13,12 @@ import {
 } from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
 import { buildFileTree, readFileContent, writeFileContent, listDirectories } from "./fs.js";
+import {
+  handleAutoHealerTrigger,
+  handleAutoHealerApprove,
+  handleAutoPrReview,
+  handlePostPrReview,
+} from "./auto-healer.js";
 import type { CliEvent } from "@cloud-agent/cli-interface";
 
 const activeTerminalProcesses = new Map<string, ChildProcess>();
@@ -255,6 +261,54 @@ export class RpcDispatcher {
             sessionId: params.sessionId || "default",
             requestId: reqId,
             allow,
+          });
+          return { id: req.id, result };
+        }
+
+        case "auto_healer.trigger": {
+          if (!params.incident) {
+            throw new Error("Missing 'incident' param for auto_healer.trigger");
+          }
+          const result = await handleAutoHealerTrigger({
+            cli: params.cli,
+            incident: params.incident,
+          });
+          return { id: req.id, result };
+        }
+
+        case "auto_healer.approve": {
+          if (!params.incidentId || !params.branchName || !params.action) {
+            throw new Error("Missing incidentId, branchName, or action for auto_healer.approve");
+          }
+          const result = await handleAutoHealerApprove({
+            incidentId: params.incidentId,
+            branchName: params.branchName,
+            action: params.action,
+            workspacePath: params.workspacePath,
+          });
+          return { id: req.id, result };
+        }
+
+        case "auto_healer.pr_review": {
+          if (!params.pr) {
+            throw new Error("Missing 'pr' param for auto_healer.pr_review");
+          }
+          const result = await handleAutoPrReview({
+            cli: params.cli,
+            pr: params.pr,
+          });
+          return { id: req.id, result };
+        }
+
+        case "auto_healer.post_pr_review": {
+          if (!params.prNumber || !params.verdict) {
+            throw new Error("Missing prNumber or verdict for auto_healer.post_pr_review");
+          }
+          const result = await handlePostPrReview({
+            prNumber: params.prNumber,
+            verdict: params.verdict,
+            body: params.body,
+            workspacePath: params.workspacePath,
           });
           return { id: req.id, result };
         }

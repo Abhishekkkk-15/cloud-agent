@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {
   Server,
@@ -25,6 +26,9 @@ import {
   Power,
   ChevronRight,
   Bell,
+  Bug,
+  GitPullRequest,
+  Sparkles,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -32,6 +36,7 @@ import { useDaemonStore } from '../stores/useDaemonStore';
 import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
 import { PairMachineModal } from '../components/PairMachineModal';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
+import { AutoHealerModal } from '../components/AutoHealerModal';
 
 interface MachineHealthScreenProps {
   onBack?: () => void;
@@ -48,6 +53,15 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   const pushStatus = useDaemonStore((s) => s.pushStatus);
   const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
   const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
+  const activeProposal = useDaemonStore((s) => s.activeProposal);
+  const activePrReview = useDaemonStore((s) => s.activePrReview);
+  const isAutoHealerModalVisible = useDaemonStore((s) => s.isAutoHealerModalVisible);
+  const isSimulatingIncident = useDaemonStore((s) => s.isSimulatingIncident);
+  const simulateAutoHealerIncident = useDaemonStore((s) => s.simulateAutoHealerIncident);
+  const simulatePrReview = useDaemonStore((s) => s.simulatePrReview);
+  const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
+  const openAutoHealerProposal = useDaemonStore((s) => s.openAutoHealerProposal);
+  const openAutoPrReview = useDaemonStore((s) => s.openAutoPrReview);
 
   const [isPinging, setIsPinging] = useState(false);
   const [showMachineSwitcher, setShowMachineSwitcher] = useState(false);
@@ -58,6 +72,20 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
     setIsPinging(true);
     await pingHeartbeat();
     setIsPinging(false);
+  };
+
+  const handleSimulateBug = async () => {
+    const res = await simulateAutoHealerIncident();
+    if (!res.success) {
+      Alert.alert('Simulation Note', res.message);
+    }
+  };
+
+  const handleSimulatePr = async () => {
+    const res = await simulatePrReview();
+    if (!res.success) {
+      Alert.alert('Simulation Note', res.message);
+    }
   };
 
   const isConnected = connectionState === 'connected';
@@ -420,6 +448,144 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
           </View>
         </TouchableOpacity>
 
+        {/* Autonomous On-Call & PR Reviewer */}
+        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
+          <Text style={styles.sectionTitle}>AUTONOMOUS ON-CALL & PR REVIEWER</Text>
+          {(activeProposal || activePrReview) && (
+            <View style={{
+              backgroundColor: 'rgba(0, 119, 182, 0.15)',
+              borderColor: 'rgba(0, 119, 182, 0.4)',
+              borderWidth: 1,
+              borderRadius: 10,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+            }}>
+              <Text style={{ color: '#48cae4', fontSize: 11, fontWeight: '700' }}>Review Ready</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={[styles.card, { padding: 14, gap: 10 }]}>
+          {/* Active Proposal / Review Card if available */}
+          {activeProposal && (
+            <TouchableOpacity
+              style={{
+                backgroundColor: 'rgba(63, 185, 80, 0.1)',
+                borderWidth: 1,
+                borderColor: 'rgba(63, 185, 80, 0.3)',
+                borderRadius: 8,
+                padding: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+              onPress={() => openAutoHealerProposal(activeProposal)}
+              activeOpacity={0.7}
+            >
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <Bug size={14} color="#3fb950" />
+                  <Text style={{ color: '#3fb950', fontSize: 12, fontWeight: '700' }}>Fix Proposal Ready</Text>
+                </View>
+                <Text style={{ color: '#f0f6fc', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+                  {activeProposal.title}
+                </Text>
+              </View>
+              <Text style={{ color: '#3fb950', fontSize: 12, fontWeight: '600' }}>Review →</Text>
+            </TouchableOpacity>
+          )}
+
+          {activePrReview && (
+            <TouchableOpacity
+              style={{
+                backgroundColor: 'rgba(0, 119, 182, 0.1)',
+                borderWidth: 1,
+                borderColor: 'rgba(0, 119, 182, 0.3)',
+                borderRadius: 8,
+                padding: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+              onPress={() => openAutoPrReview(activePrReview)}
+              activeOpacity={0.7}
+            >
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                  <GitPullRequest size={14} color="#0077b6" />
+                  <Text style={{ color: '#48cae4', fontSize: 12, fontWeight: '700' }}>PR Review Ready ({activePrReview.verdict})</Text>
+                </View>
+                <Text style={{ color: '#f0f6fc', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+                  PR #{activePrReview.prNumber}: {activePrReview.prTitle}
+                </Text>
+              </View>
+              <Text style={{ color: '#0096c7', fontSize: 12, fontWeight: '600' }}>Review →</Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={{ color: '#8b949e', fontSize: 12, lineHeight: 17 }}>
+            24/7 on-call agent listens to GitHub & Sentry webhooks, investigates bugs, writes tests, applies fixes, and conducts PR reviews autonomously.
+          </Text>
+
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: 'rgba(248, 81, 73, 0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(248, 81, 73, 0.35)',
+                borderRadius: 8,
+                paddingVertical: 9,
+                opacity: isSimulatingIncident ? 0.6 : 1,
+              }}
+              onPress={handleSimulateBug}
+              disabled={isSimulatingIncident}
+              activeOpacity={0.7}
+            >
+              {isSimulatingIncident ? (
+                <ActivityIndicator size="small" color="#f85149" />
+              ) : (
+                <>
+                  <Bug size={14} color="#f85149" />
+                  <Text style={{ color: '#f85149', fontSize: 12, fontWeight: '600' }}>Simulate Bug</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                backgroundColor: 'rgba(0, 119, 182, 0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(0, 119, 182, 0.35)',
+                borderRadius: 8,
+                paddingVertical: 9,
+                opacity: isSimulatingIncident ? 0.6 : 1,
+              }}
+              onPress={handleSimulatePr}
+              disabled={isSimulatingIncident}
+              activeOpacity={0.7}
+            >
+              {isSimulatingIncident ? (
+                <ActivityIndicator size="small" color="#0077b6" />
+              ) : (
+                <>
+                  <GitPullRequest size={14} color="#0077b6" />
+                  <Text style={{ color: '#0096c7', fontSize: 12, fontWeight: '600' }}>Simulate PR</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Daemon Operations */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
           <Text style={styles.sectionTitle}>DAEMON OPERATIONS</Text>
@@ -484,6 +650,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
       <ServerSettingsModal
         visible={showServerSettings}
         onClose={() => setShowServerSettings(false)}
+      />
+
+      {/* Autonomous On-Call & PR Review Modal */}
+      <AutoHealerModal
+        visible={isAutoHealerModalVisible}
+        onClose={dismissAutoHealer}
       />
     </View>
   );
