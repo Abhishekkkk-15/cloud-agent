@@ -264,7 +264,7 @@ Commands:
 
 Options for 'start':
   --token, -t <token>     Machine pairing token (e.g. ca_mach_...)
-  --gateway, -g <url>     Gateway WebSocket URL (default: ws://localhost:8080/daemon/ws)
+  --gateway, -g <url>     Gateway WebSocket URL (default: wss://cloud-agent-3q6w.onrender.com/daemon/ws)
   --name, -n <name>       Custom machine name override
 `);
       break;

@@ -92,11 +92,13 @@ export function resolveInitialApiUrl(): string {
   return `http://${defaultHost}:8000`;
 }
 
+export const DEFAULT_DEPLOYED_GATEWAY_URL = 'https://cloud-agent-3q6w.onrender.com';
+
 export function resolveInitialGatewayUrl(): string {
   const stored = getStoredUrlSync(STORAGE_KEY_GATEWAY);
   if (stored && stored.trim()) return stored.trim();
   if (envGatewayUrl && envGatewayUrl.trim()) return envGatewayUrl.trim();
-  return `http://${defaultHost}:8080`;
+  return DEFAULT_DEPLOYED_GATEWAY_URL;
 }
 
 export interface EndpointTestResult {
@@ -1820,7 +1822,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     await removeStorageItem(STORAGE_KEY_API);
     await removeStorageItem(STORAGE_KEY_GATEWAY);
     const defApi = envApiUrl || `http://${defaultHost}:8000`;
-    const defGateway = envGatewayUrl || `http://${defaultHost}:8080`;
+    const defGateway = envGatewayUrl || DEFAULT_DEPLOYED_GATEWAY_URL;
     set({ apiUrl: defApi, gatewayUrl: defGateway });
     try {
       mobileP2P.disconnect();

@@ -391,6 +391,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <HeaderBar
         title={titleStr}
         subtitle={subtitleStr}
+        showLiveDot={true}
+        liveColor={isSendingPrompt ? colors.statusLive : colors.primaryLight}
         onBack={onOpenDrawer || onBack}
         rightElement={
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -439,36 +441,38 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Metadata Summary Row & Config Pill */}
-        <View style={styles.metaRow}>
-          <Text style={styles.metaText} numberOfLines={1}>
-            {activeSession?.createdAt ? `Created ${timeAgoStr}` : 'Active Session'}
-            {chatTurns.length > 0 ? (
-              <>
-                <Text style={styles.metaDot}> • </Text>
-                {chatTurns.length} {chatTurns.length === 1 ? 'turn' : 'turns'}
-              </>
-            ) : null}
-          </Text>
-
-          {/* Interactive Session Parameters Pill */}
+        {/* 2. Top Session Meta Pill Row (Stitch Screen 2) */}
+        <View style={styles.sessionMetaPillRow}>
           <TouchableOpacity
-            style={styles.configPill}
+            style={styles.modelStatusPill}
             onPress={() => setShowConfigSheet(true)}
             activeOpacity={0.75}
           >
-            <SlidersHorizontal size={11} color={colors.green} />
-            <Text style={styles.configPillText} numberOfLines={1}>
+            <View
+              style={[
+                styles.modelStatusDot,
+                { backgroundColor: isSendingPrompt ? colors.statusLive : colors.primaryLight },
+              ]}
+            />
+            <Text style={styles.modelStatusText} numberOfLines={1}>
+              {isSendingPrompt ? 'agent.active' : 'agent.ready'} •{' '}
               {sessionConfig.model.includes('flash')
-                ? 'gemini flash'
+                ? 'gemini-flash'
                 : sessionConfig.model.includes('sonnet')
-                ? 'sonnet 4.6'
+                ? 'claude-3-5-sonnet'
                 : sessionConfig.model.includes('opus')
-                ? 'opus 4.6'
-                : sessionConfig.model.split('-')[0]}
-              {' • '}
-              {sessionConfig.effort}
-              {sessionConfig.mode !== 'auto' ? ` • ${sessionConfig.mode}` : ''}
+                ? 'claude-3-opus'
+                : sessionConfig.model}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.contextPill}
+            onPress={() => setShowConfigSheet(true)}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.contextPillText}>
+              ctx: {sessionMessages.length > 0 ? `${sessionMessages.length} msgs` : '0 msgs'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -508,11 +512,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         ) : (
           displayedTurns.map((turn, turnIdx) => (
             <View key={turn.id || turnIdx} style={styles.turnCardContainer}>
-              {/* User Prompt (if present in turn) */}
+              {/* User Prompt (Stitch Screen 2 Elevated Container) */}
               {turn.userMessage?.content ? (
                 <View style={styles.userCommentCard}>
                   <View style={styles.userHeaderRow}>
-                    <Text style={styles.userCommentHeader}>User</Text>
+                    <View style={styles.userHeaderLeft}>
+                      <Text style={styles.userPromptPrefix}>&gt;</Text>
+                      <Text style={styles.userCommentHeader}>
+                        user prompt • turn #{turnIdx + 1}
+                      </Text>
+                    </View>
                     {turn.userMessage.timestamp ? (
                       <Text style={styles.userTimestamp}>
                         {formatTimeAgo(turn.userMessage.timestamp)}
@@ -523,10 +532,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 </View>
               ) : null}
 
-              {/* Assistant Turn Body */}
+              {/* Assistant Turn Body (Stitch Screen 2 Cascade) */}
               {turn.assistant ? (
                 <View style={styles.assistantTurnWrapper}>
-                  {/* Reasoning Process (Collapsible, subtle dark/gray theme) */}
+                  {/* Reasoning Process (Collapsible Thought Accordion) */}
                   {turn.assistant.reasoning ? (
                     <View style={styles.reasoningContainer}>
                       <TouchableOpacity
@@ -535,14 +544,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         activeOpacity={0.7}
                       >
                         <View style={styles.reasoningToggleLeft}>
-                          <Brain size={13} color="#8b949e" />
-                          <Text style={styles.reasoningToggleText}>Thought process</Text>
+                          <Brain size={13} color={colors.primaryLight} />
+                          <Text style={styles.reasoningToggleText}>Reasoning synthesis</Text>
                         </View>
                         <View style={styles.reasoningToggleRight}>
                           {isReasoningOpen(turn.id) ? (
-                            <ChevronUp size={14} color="#8b949e" />
+                            <ChevronUp size={14} color={colors.textMuted} />
                           ) : (
-                            <ChevronDown size={14} color="#8b949e" />
+                            <ChevronDown size={14} color={colors.textMuted} />
                           )}
                         </View>
                       </TouchableOpacity>
@@ -862,36 +871,48 @@ const styles = StyleSheet.create({
   },
 
   // Metadata summary row & session config
-  metaRow: {
+  sessionMetaPillRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
-    marginBottom: 8,
+    paddingVertical: 6,
+    marginBottom: 10,
     gap: 8,
   },
-  metaText: {
-    fontSize: 12,
-    color: '#8b949e',
-    flex: 1,
-  },
-  metaDot: {
-    color: '#484f58',
-  },
-  configPill: {
+  modelStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: colors.bgCard,
+    gap: 6,
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors.borderDefault,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderColor: colors.borderMuted,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: radii.full,
+    flexShrink: 1,
   },
-  configPillText: {
+  modelStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  modelStatusText: {
     fontSize: 11,
     color: colors.textSecondary,
+    fontFamily: typography.mono,
+    fontWeight: '600',
+  },
+  contextPill: {
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+  },
+  contextPillText: {
+    fontSize: 10,
+    color: colors.textMuted,
     fontFamily: typography.mono,
   },
 
@@ -908,38 +929,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: radii.full,
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors.borderDefault,
+    borderColor: colors.borderMuted,
   },
   loadOlderText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: colors.green,
+    color: colors.primaryLight,
     fontFamily: typography.mono,
   },
 
   // Sequential Turn Card
   turnCardContainer: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   userCommentCard: {
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.surfaceContainerHigh,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: colors.borderDefault,
     borderRadius: radii.xl,
     padding: 14,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   userHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  userHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  userPromptPrefix: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primaryLight,
+    fontFamily: typography.mono,
   },
   userCommentHeader: {
-    fontSize: 12,
-    color: '#8b949e',
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: typography.mono,
+    fontWeight: '600',
   },
   userTimestamp: {
     fontSize: 11,
@@ -948,13 +982,19 @@ const styles = StyleSheet.create({
   },
   userCommentBody: {
     fontSize: 14,
-    lineHeight: 20,
-    color: '#f0f6fc',
+    lineHeight: 21,
+    color: colors.textPrimary,
   },
 
-  // Assistant turn wrapper
+  // Assistant turn wrapper (Stitch Screen 2 Cascade)
   assistantTurnWrapper: {
-    marginTop: 2,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radii.xl,
+    padding: 12,
+    marginTop: 4,
+    marginBottom: 10,
   },
 
   // Copilot Action Summary Accordion
@@ -1196,7 +1236,7 @@ const styles = StyleSheet.create({
 
   // Chat Input Bar (Capsule Style)
   chatInputWrapper: {
-    backgroundColor: '#0d1117',
+    backgroundColor: colors.surfaceContainerLowest,
     paddingHorizontal: 14,
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
@@ -1204,9 +1244,9 @@ const styles = StyleSheet.create({
   chatCapsuleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161b22',
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: colors.borderMuted,
     borderRadius: 28,
     minHeight: 52,
     paddingHorizontal: 8,
@@ -1216,7 +1256,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#21262d',
+    backgroundColor: colors.surfaceContainerHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,16 @@ import {
   Clock,
   GitBranch,
   Sparkles,
-  ArrowUpDown,
   RefreshCw,
   Pin,
   MoreHorizontal,
+  FolderGit2,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Layers,
+  Server,
+  Folder,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -29,11 +35,13 @@ import { SessionActionModal } from '../components/SessionActionModal';
 interface SessionsScreenProps {
   onBack?: () => void;
   onSelectSession?: (session: RealSessionItem) => void;
+  onNavigateTab?: (tab: string) => void;
 }
 
 export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   onBack,
   onSelectSession,
+  onNavigateTab,
 }) => {
   const sessions = useDaemonStore((s) => s.sessions);
   const workspaces = useDaemonStore((s) => s.workspaces);
@@ -42,13 +50,23 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const isLoadingSessions = useDaemonStore((s) => s.isLoadingSessions);
   const fetchSessions = useDaemonStore((s) => s.fetchSessions);
   const selectSessionInStore = useDaemonStore((s) => s.selectSession);
+  const startNewSessionInWorkspace = useDaemonStore((s) => s.startNewSessionInWorkspace);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const pingRtt = useDaemonStore((s) => s.pingRtt);
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroupCollapse = (groupName: string) => {
+    setCollapsedGroups((prev) => ({
+      ...prev,
+      [groupName]: !prev[groupName],
+    }));
+  };
 
   const filteredSessions = sessions.filter((s) => {
     const matchesWorkspace =
@@ -61,10 +79,44 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
     return matchesWorkspace && matchesSearch;
   });
 
+  const workspaceGroups = useMemo(() => {
+    const groups: { name: string; path: string; items: RealSessionItem[] }[] = [];
+    const groupedMap = new Map<string, { path: string; items: RealSessionItem[] }>();
+
+    for (const ws of workspaces) {
+      groupedMap.set(ws, { path: '', items: [] });
+    }
+
+    for (const s of filteredSessions) {
+      const key = s.workspaceName || 'Default';
+      const existing = groupedMap.get(key);
+      if (existing) {
+        if (!existing.path && s.workspacePath) existing.path = s.workspacePath;
+        existing.items.push(s);
+      } else {
+        groupedMap.set(key, { path: s.workspacePath || '', items: [s] });
+      }
+    }
+
+    for (const [name, val] of groupedMap.entries()) {
+      if (selectedWorkspace === 'all' || selectedWorkspace === name) {
+        groups.push({ name, path: val.path, items: val.items });
+      }
+    }
+    return groups;
+  }, [workspaces, filteredSessions, selectedWorkspace]);
+
   const handleCardPress = async (session: RealSessionItem) => {
     await selectSessionInStore(session);
     if (onSelectSession) {
       onSelectSession(session);
+    }
+  };
+
+  const handleNewSessionInGroup = (groupPath: string) => {
+    startNewSessionInWorkspace(groupPath);
+    if (onNavigateTab) {
+      onNavigateTab('agent');
     }
   };
 
@@ -82,8 +134,10 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   return (
     <View style={styles.container}>
       <HeaderBar
-        title="Agent Sessions & Transcripts"
-        subtitle={`${activeMachine?.name || 'Local Machine'} • daemon`}
+        title="Workspace & Fleets"
+        subtitle={`${activeMachine?.name || 'Local Machine'} • ${workspaces.length} workspaces`}
+        showLiveDot={true}
+        liveColor={colors.statusLive}
         onBack={onBack}
         onMore={fetchSessions}
       />
@@ -93,26 +147,92 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Host Status Micro-Bar */}
-        <View style={styles.microBar}>
-          <View style={styles.microBarLeft}>
-            <View style={styles.pulseDot} />
-            <Text style={styles.microBarTitle}>DAEMON ACTIVE</Text>
-            <Text style={styles.microBarSub}>• 0-db in-memory transcripts</Text>
+        {/* 1. Fleet & Organization Header Bar (Stitch Screen 3) */}
+        <View style={styles.fleetHeaderCard}>
+          <View style={styles.fleetHeaderLeft}>
+            <View style={styles.fleetBadgeBox}>
+              <Text style={styles.fleetBadgeText}>
+                {activeMachine?.name ? activeMachine.name[0].toUpperCase() : 'A'}
+              </Text>
+            </View>
+            <View style={styles.fleetTitleCol}>
+              <Text style={styles.fleetTitle}>Cloud Agent Fleet</Text>
+              <Text style={styles.fleetSub}>
+                {activeMachine?.name || 'Local Machine'} • {pingRtt || '18ms'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.creditsPill}>
-            <Zap size={12} color={colors.green} />
-            <Text style={styles.creditsText}>{sessions.length} sessions discovered</Text>
+          <View style={styles.liveAgentsPill}>
+            <View style={styles.livePulseDot} />
+            <Text style={styles.liveAgentsText}>{sessions.length} agents live</Text>
           </View>
         </View>
 
-        {/* Search Input Bar */}
+        {/* 2. Filter & Environment Carousel (Stitch Screen 3) */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.carouselScroll}
+          contentContainerStyle={styles.carouselContainer}
+        >
+          {/* Active Box Pill */}
+          <View style={styles.envPillActive}>
+            <View style={styles.envDot} />
+            <Text style={styles.envPillTextActive}>
+              {activeMachine?.name || 'Local Machine'}
+            </Text>
+          </View>
+
+          {/* All Filter Pill */}
+          <TouchableOpacity
+            style={[
+              styles.envPill,
+              selectedWorkspace === 'all' && styles.envPillSelected,
+            ]}
+            onPress={() => setSelectedWorkspace('all')}
+            activeOpacity={0.7}
+          >
+            <Text
+              style={[
+                styles.envPillText,
+                selectedWorkspace === 'all' && styles.envPillTextSelected,
+              ]}
+            >
+              All ({sessions.length})
+            </Text>
+          </TouchableOpacity>
+
+          {/* Workspaces Pills */}
+          {workspaces.map((ws) => {
+            const count = sessions.filter((s) => s.workspaceName === ws).length;
+            const isSelected = selectedWorkspace === ws;
+            return (
+              <TouchableOpacity
+                key={ws}
+                style={[styles.envPill, isSelected && styles.envPillSelected]}
+                onPress={() => setSelectedWorkspace(ws)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.envPillText,
+                    isSelected && styles.envPillTextSelected,
+                  ]}
+                >
+                  {ws} ({count})
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* 3. Search Bar */}
         <View style={styles.searchBar}>
-          <Search size={15} color={colors.textMuted} style={styles.searchIcon} />
+          <Search size={14} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search prompts, workspaces, session IDs..."
-            placeholderTextColor={colors.textMuted}
+            placeholder="Search sessions, prompts, repositories..."
+            placeholderTextColor={colors.textDisabled}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -126,166 +246,117 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           )}
         </View>
 
-        {/* Filter Chips Horizontal Scroll */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipsScroll}
-          contentContainerStyle={styles.chipsContainer}
-        >
-          <TouchableOpacity
-            style={[
-              styles.filterChip,
-              selectedWorkspace === 'all' && styles.filterChipActive,
-            ]}
-            onPress={() => setSelectedWorkspace('all')}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                selectedWorkspace === 'all' && styles.chipTextActive,
-              ]}
-            >
-              All Workspaces
-            </Text>
-            <View style={styles.chipCountBadge}>
-              <Text style={styles.chipCountText}>{sessions.length}</Text>
-            </View>
-          </TouchableOpacity>
-
-          {workspaces.map((ws) => {
-            const count = sessions.filter((s) => s.workspaceName === ws).length;
-            return (
-              <TouchableOpacity
-                key={ws}
-                style={[
-                  styles.filterChip,
-                  selectedWorkspace === ws && styles.filterChipActive,
-                ]}
-                onPress={() => setSelectedWorkspace(ws)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    selectedWorkspace === ws && styles.chipTextActive,
-                  ]}
-                >
-                  {ws}
-                </Text>
-                <View style={styles.chipCountBadge}>
-                  <Text style={styles.chipCountText}>{count}</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Counter and Sort Header */}
-        <View style={styles.counterRow}>
-          <View style={styles.counterLeft}>
-            <Text style={styles.counterTitle}>ACTIVE SESSIONS</Text>
-            <Text style={styles.counterDot}>•</Text>
-            <Text style={styles.counterNumber}>
-              {filteredSessions.length} {filteredSessions.length === 1 ? 'session' : 'sessions'}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.sortButton}
-            onPress={fetchSessions}
-            activeOpacity={0.7}
-          >
-            {isLoadingSessions ? (
-              <ActivityIndicator size="small" color={colors.green} />
-            ) : (
-              <RefreshCw size={13} color={colors.textMuted} />
-            )}
-            <Text style={styles.sortButtonText}>Refresh</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Session Cards List */}
+        {/* 4. Repository Fleets Tree (Stitch Screen 3) */}
         {isLoadingSessions && sessions.length === 0 ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator size="large" color={colors.green} />
-            <Text style={styles.loadingText}>Loading sessions from Antigravity runtime...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>Loading workspace tree...</Text>
           </View>
-        ) : filteredSessions.length === 0 ? (
+        ) : workspaceGroups.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>No sessions found</Text>
+            <Text style={styles.emptyTitle}>No workspaces discovered</Text>
             <Text style={styles.emptySub}>
-              {searchQuery ? `No sessions matching "${searchQuery}"` : 'No active workspace sessions detected on host'}
+              {searchQuery
+                ? `No sessions matching "${searchQuery}"`
+                : 'Connect to daemon to browse active repositories'}
             </Text>
           </View>
         ) : (
-          <View style={styles.sessionsList}>
-            {filteredSessions.map((session) => (
-              <TouchableOpacity
-                key={session.id}
-                style={styles.sessionCard}
-                onPress={() => handleCardPress(session)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.sessionCardTop}>
-                  <View style={styles.sessionHeaderRow}>
-                    <View style={styles.sessionTitleLeft}>
-                      {session.pinned ? (
-                        <Pin size={12} color="#0077b6" style={{ marginRight: 6 }} />
-                      ) : null}
-                      <Text style={styles.sessionTitle} numberOfLines={1}>
-                        {session.title}
+          <View style={styles.treeContainer}>
+            {workspaceGroups.map((group) => {
+              const isCollapsed = Boolean(collapsedGroups[group.name]);
+              return (
+                <View key={group.name} style={styles.groupCard}>
+                  {/* Workspace Group Header */}
+                  <View style={styles.groupHeaderRow}>
+                    <TouchableOpacity
+                      style={styles.groupHeaderLeft}
+                      onPress={() => toggleGroupCollapse(group.name)}
+                      activeOpacity={0.7}
+                    >
+                      {isCollapsed ? (
+                        <ChevronRight size={15} color={colors.textMuted} />
+                      ) : (
+                        <ChevronDown size={15} color={colors.textMuted} />
+                      )}
+                      <FolderGit2 size={16} color={colors.primaryLight} style={{ marginLeft: 6 }} />
+                      <Text style={styles.groupName} numberOfLines={1}>
+                        {group.name}
                       </Text>
+                      <View style={styles.groupBadge}>
+                        <Text style={styles.groupBadgeText}>{group.items.length}</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.newChatInGroupBtn}
+                      onPress={() => handleNewSessionInGroup(group.path || group.name)}
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      accessibilityLabel={`Start new session in ${group.name}`}
+                    >
+                      <Plus size={14} color={colors.primaryLight} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Sessions Tree Items */}
+                  {!isCollapsed && (
+                    <View style={styles.groupSessionsList}>
+                      {group.items.length === 0 ? (
+                        <View style={styles.emptyGroupSub}>
+                          <Text style={styles.emptyGroupText}>No sessions in this workspace</Text>
+                        </View>
+                      ) : (
+                        group.items.map((session) => (
+                          <TouchableOpacity
+                            key={session.id}
+                            style={styles.sessionTreeItem}
+                            onPress={() => handleCardPress(session)}
+                            activeOpacity={0.7}
+                          >
+                            <View style={styles.sessionItemContent}>
+                              <View style={styles.sessionTopRow}>
+                                <View style={styles.sessionTitleLeft}>
+                                  <Folder size={13} color={colors.primary} style={{ marginRight: 6 }} />
+                                  {session.pinned ? (
+                                    <Pin size={11} color={colors.primary} style={{ marginRight: 5 }} />
+                                  ) : null}
+                                  <Text style={styles.sessionTitle} numberOfLines={1}>
+                                    {session.title}
+                                  </Text>
+                                </View>
+                                <TouchableOpacity
+                                  style={styles.moreActionBtn}
+                                  onPress={() => setActionSession(session)}
+                                  activeOpacity={0.7}
+                                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                  <MoreHorizontal size={14} color={colors.textMuted} />
+                                </TouchableOpacity>
+                              </View>
+
+                              <View style={styles.sessionMetaRow}>
+                                <Text style={styles.sessionMetaText}>
+                                  {session.messageCount} msgs
+                                </Text>
+                                <Text style={styles.metaDot}>•</Text>
+                                <Text style={styles.sessionMetaText}>
+                                  {formatTimeAgo(session.updatedAt || session.createdAt)}
+                                </Text>
+                                <Text style={styles.metaDot}>•</Text>
+                                <Text style={styles.sessionModelTag}>
+                                  {session.model || 'claude-3-5-sonnet'}
+                                </Text>
+                              </View>
+                            </View>
+                          </TouchableOpacity>
+                        ))
+                      )}
                     </View>
-                    <View style={styles.sessionHeaderRight}>
-                      <Text style={styles.sessionTimeAgo}>{formatTimeAgo(session.updatedAt)}</Text>
-                      <TouchableOpacity
-                        style={styles.moreCardBtn}
-                        onPress={() => setActionSession(session)}
-                        activeOpacity={0.7}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <MoreHorizontal size={14} color="#8b949e" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  <Text style={styles.sessionSub} numberOfLines={1}>
-                    {session.workspaceName} • {session.workspacePath}
-                  </Text>
+                  )}
                 </View>
-
-                {/* Metadata Strip */}
-                <View style={styles.metaStrip}>
-                  <View style={styles.metaItem}>
-                    <Play size={10} color={colors.green} />
-                    <Text style={styles.metaItemText}>
-                      {session.messageCount} messages
-                    </Text>
-                  </View>
-
-                  <View style={styles.metaItem}>
-                    <Clock size={10} color={colors.textMuted} />
-                    <Text style={[styles.metaItemText, { color: colors.textMuted }]}>
-                      {formatTimeAgo(session.createdAt)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.metaItem}>
-                    <GitBranch size={10} color={colors.green} />
-                    <Text style={[styles.metaItemText, { color: colors.textSecondary }]}>
-                      {session.id.slice(0, 7)}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.metaItem, styles.metaItemRight]}>
-                    <Sparkles size={10} color={colors.green} />
-                    <Text style={[styles.metaItemText, { color: colors.green }]}>
-                      {session.model || 'Antigravity'}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -312,67 +383,146 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.bgPrimary,
+    backgroundColor: colors.surfaceContainerLowest,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 14,
     paddingBottom: 36,
   },
-  microBar: {
+  fleetHeaderCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
     borderColor: colors.borderDefault,
-    borderRadius: radii.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: radii.xl,
+    padding: 14,
     marginBottom: 12,
   },
-  microBarLeft: {
+  fleetHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  fleetBadgeBox: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  fleetBadgeText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primaryLight,
+  },
+  fleetTitleCol: {
+    flex: 1,
+  },
+  fleetTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: -0.1,
+  },
+  fleetSub: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 2,
+    fontFamily: typography.mono,
+  },
+  liveAgentsPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: colors.statusLiveSubtle,
+    borderWidth: 1,
+    borderColor: colors.statusLiveBorder,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: radii.full,
   },
-  pulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.green,
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.statusLive,
   },
-  microBarTitle: {
+  liveAgentsText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '600',
+    color: colors.statusLive,
+  },
+  carouselScroll: {
+    marginBottom: 12,
+  },
+  carouselContainer: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  envPillActive: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+  },
+  envDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.statusLive,
+  },
+  envPillTextActive: {
+    fontSize: 11,
+    fontWeight: '600',
     color: colors.textPrimary,
     fontFamily: typography.mono,
   },
-  microBarSub: {
+  envPill: {
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+  },
+  envPillSelected: {
+    backgroundColor: colors.primarySubtle,
+    borderColor: colors.primaryBorder,
+  },
+  envPillText: {
     fontSize: 11,
     color: colors.textMuted,
+    fontWeight: '500',
   },
-  creditsPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  creditsText: {
-    fontSize: 11,
-    color: colors.textMuted,
+  envPillTextSelected: {
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.bgCard,
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.full,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginBottom: 12,
+    borderColor: colors.borderMuted,
+    borderRadius: radii.md,
+    paddingHorizontal: 10,
+    height: 38,
+    marginBottom: 14,
   },
   searchIcon: {
     marginRight: 8,
@@ -383,102 +533,89 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingVertical: 0,
   },
-  chipsScroll: {
-    marginBottom: 12,
-  },
-  chipsContainer: {
-    flexDirection: 'row',
-    gap: 6,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-    backgroundColor: colors.bgHover,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-  },
-  filterChipActive: {
-    backgroundColor: colors.greenBg,
-    borderColor: colors.green,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  chipTextActive: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  chipCountBadge: {
-    backgroundColor: colors.borderDefault,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: radii.full,
-  },
-  chipCountText: {
-    fontSize: 10,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  counterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    paddingHorizontal: 2,
-  },
-  counterLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  counterTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-  },
-  counterDot: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  counterNumber: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  sortButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sortButtonText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  sessionsList: {
+  treeContainer: {
     gap: 10,
   },
-  sessionCard: {
-    backgroundColor: colors.bgCard,
+  groupCard: {
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
     borderColor: colors.borderDefault,
     borderRadius: radii.lg,
-    padding: 12,
+    overflow: 'hidden',
   },
-  sessionCardTop: {
-    marginBottom: 8,
-  },
-  sessionHeaderRow: {
+  groupHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.surfaceContainerHigh,
+  },
+  groupHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  groupName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    fontFamily: typography.mono,
+    marginLeft: 6,
+    flexShrink: 1,
+  },
+  groupBadge: {
+    backgroundColor: colors.surfaceContainerLowest,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radii.full,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+  },
+  groupBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
+    fontFamily: typography.mono,
+  },
+  newChatInGroupBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupSessionsList: {
+    padding: 8,
+    gap: 6,
+  },
+  emptyGroupSub: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  emptyGroupText: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  sessionTreeItem: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderRadius: radii.md,
+    padding: 10,
+  },
+  sessionItemContent: {
+    flex: 1,
+  },
+  sessionTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   sessionTitleLeft: {
     flexDirection: 'row',
@@ -486,63 +623,42 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 6,
   },
-  sessionHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  sessionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    fontFamily: typography.mono,
+    flex: 1,
   },
-  moreCardBtn: {
+  moreActionBtn: {
     width: 24,
     height: 24,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#21262d',
   },
-  sessionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    flex: 1,
-  },
-  sessionTimeAgo: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  sessionSub: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  metaStrip: {
+  sessionMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderMuted,
-    paddingTop: 8,
+    marginTop: 4,
+    gap: 5,
   },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.bgHover,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-  },
-  metaItemRight: {
-    marginLeft: 'auto',
-  },
-  metaItemText: {
+  sessionMetaText: {
     fontSize: 10,
-    color: colors.textPrimary,
+    color: colors.textMuted,
+  },
+  metaDot: {
+    fontSize: 8,
+    color: colors.textDisabled,
+  },
+  sessionModelTag: {
+    fontSize: 10,
+    color: colors.primaryLight,
     fontFamily: typography.mono,
   },
   loadingBox: {
-    padding: 30,
+    paddingVertical: 40,
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 10,
   },
   loadingText: {
@@ -550,15 +666,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   emptyBox: {
-    padding: 30,
+    paddingVertical: 40,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    paddingHorizontal: 20,
   },
   emptyTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textPrimary,
+    marginBottom: 4,
   },
   emptySub: {
     fontSize: 12,

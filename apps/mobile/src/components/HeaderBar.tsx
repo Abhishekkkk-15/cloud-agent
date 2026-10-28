@@ -1,14 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronLeft, MoreVertical } from './Icons';
+import { ChevronLeft, MoreVertical, Search } from './Icons';
 import { colors, radii } from '../theme/tokens';
 
-interface HeaderBarProps {
+export interface HeaderBarProps {
   title: string;
   subtitle?: string;
   onBack?: () => void;
   onMore?: () => void;
+  onSearch?: () => void;
   rightElement?: React.ReactNode;
+  showLiveDot?: boolean;
+  liveColor?: string;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -16,7 +19,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   subtitle,
   onBack,
   onMore,
+  onSearch,
   rightElement,
+  showLiveDot = false,
+  liveColor = colors.statusLive,
 }) => {
   return (
     <View style={styles.container}>
@@ -28,13 +34,18 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ChevronLeft size={18} color="#f0f6fc" />
+            <ChevronLeft size={18} color={colors.textPrimary} />
           </TouchableOpacity>
         )}
         <View style={styles.titleColumn}>
-          <Text style={styles.title} numberOfLines={1}>
-            {title}
-          </Text>
+          <View style={styles.titleRow}>
+            {showLiveDot && (
+              <View style={[styles.liveDot, { backgroundColor: liveColor }]} />
+            )}
+            <Text style={styles.title} numberOfLines={1}>
+              {title}
+            </Text>
+          </View>
           {subtitle ? (
             <Text style={styles.subtitle} numberOfLines={1}>
               {subtitle}
@@ -43,15 +54,25 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </View>
       </View>
       <View style={styles.rightRow}>
+        {onSearch && (
+          <TouchableOpacity
+            style={styles.circleActionBtn}
+            onPress={onSearch}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Search size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
         {rightElement}
         {onMore && (
           <TouchableOpacity
-            style={styles.moreButton}
+            style={styles.circleActionBtn}
             onPress={onMore}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <MoreVertical size={20} color={colors.textSecondary} />
+            <MoreVertical size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         )}
       </View>
@@ -61,14 +82,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    height: 54,
-    backgroundColor: '#0d1117',
+    height: 56,
+    backgroundColor: colors.bgPrimary,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: colors.borderMuted,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     zIndex: 50,
   },
   leftRow: {
@@ -82,35 +103,50 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#161b22',
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: colors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
-  moreButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  circleActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 6,
   },
   titleColumn: {
     flex: 1,
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 7,
+  },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: colors.textPrimary,
     letterSpacing: -0.2,
     lineHeight: 20,
+    flexShrink: 1,
   },
   subtitle: {
     fontSize: 11,
-    color: '#8b949e',
+    color: colors.textMuted,
     marginTop: 1,
     lineHeight: 14,
   },

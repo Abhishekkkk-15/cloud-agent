@@ -130,6 +130,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
       <HeaderBar
         title="Machine & CLI Health"
         subtitle={`${hostName} • ${platformStr}`}
+        showLiveDot={true}
+        liveColor={activeMachine?.isOnline ? colors.statusLive : colors.primaryLight}
         onBack={onBack}
         onMore={refreshStatus}
         rightElement={

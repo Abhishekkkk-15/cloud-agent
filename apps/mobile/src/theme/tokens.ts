@@ -6,6 +6,13 @@ export const colors = {
   bgInput: '#161b22',
   bgModal: 'rgba(13, 17, 23, 0.95)',
 
+  // Stitch Dark Surface Tiers
+  surfaceContainerLowest: '#0d0e0f',
+  surfaceContainerLow: '#1b1c1c',
+  surfaceContainer: '#1f2020',
+  surfaceContainerHigh: '#292a2a',
+  surfaceContainerHighest: '#343535',
+
   borderDefault: '#30363d',
   borderMuted: '#21262d',
   borderSubtle: 'rgba(48, 54, 61, 0.6)',
@@ -13,6 +20,8 @@ export const colors = {
   textPrimary: '#f0f6fc',
   textSecondary: '#c9d1d9',
   textMuted: '#8b949e',
+  textMutedOutline: '#869585',
+  textSecondaryOutline: '#bccbb9',
   textDisabled: '#484f58',
 
   // Primary Accent: Pacific Azure Blue (#0077b6)
@@ -21,6 +30,12 @@ export const colors = {
   primarySubtle: 'rgba(0, 119, 182, 0.15)',
   primaryBorder: 'rgba(0, 119, 182, 0.35)',
   primaryHover: '#023e8a',
+
+  // Live Status Indicator (Online / Compute Active)
+  statusLive: '#3fb950',
+  statusLivePulse: '#4ae176',
+  statusLiveSubtle: 'rgba(63, 185, 80, 0.15)',
+  statusLiveBorder: 'rgba(63, 185, 80, 0.35)',
 
   // Blue Accent mappings
   blue: '#0077b6',
@@ -56,6 +71,7 @@ export const radii = {
   md: 6,
   lg: 8,
   xl: 12,
+  xxl: 16,
   full: 9999,
 };
 

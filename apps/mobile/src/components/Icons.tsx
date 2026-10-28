@@ -88,3 +88,6 @@ export const Globe = wrapIcon(Lucide.Globe);
 export const Settings = wrapIcon(Lucide.Settings);
 export const Key = wrapIcon(Lucide.Key);
 export const ExternalLink = wrapIcon(Lucide.ExternalLink);
+export const ChevronsUpDown = wrapIcon(Lucide.ChevronsUpDown);
+export const CheckCheck = wrapIcon(Lucide.CheckCheck);
+export const Circle = wrapIcon(Lucide.Circle);

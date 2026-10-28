@@ -40,6 +40,8 @@ export function saveConfig(config: DaemonConfig): void {
   fs.writeFileSync(filePath, JSON.stringify(config, null, 2), "utf8");
 }
 
+export const DEFAULT_GATEWAY_WS_URL = "wss://cloud-agent-3q6w.onrender.com/daemon/ws";
+
 export function ensureDefaultConfig(): DaemonConfig {
   const filePath = getConfigPath();
   if (fs.existsSync(filePath)) {
@@ -53,7 +55,7 @@ export function ensureDefaultConfig(): DaemonConfig {
   const defaults: DaemonConfig = {
     machineId: crypto.randomUUID(),
     machineName: os.hostname(),
-    gatewayUrl: process.env.CLOUD_AGENT_GATEWAY_URL || "ws://localhost:8080/daemon/ws",
+    gatewayUrl: process.env.CLOUD_AGENT_GATEWAY_URL || DEFAULT_GATEWAY_WS_URL,
     token: process.env.CLOUD_AGENT_TOKEN || "",
     allowedWorkspaces: [process.cwd()],
     defaultCli: "antigravity",

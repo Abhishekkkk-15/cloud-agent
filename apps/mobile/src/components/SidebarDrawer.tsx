@@ -8,7 +8,6 @@ import {
   Animated,
   Dimensions,
   PanResponder,
-  Modal,
   Platform,
   TouchableWithoutFeedback,
   TextInput,
@@ -18,26 +17,22 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldAlert,
-  ShieldCheck,
   Activity,
   Cpu,
   Layers,
-  Terminal,
-  Radio,
   Server,
-  Sparkles,
   Search,
   LogOut,
   Folder,
   Pin,
   MoreHorizontal,
   X,
-  Globe,
-  ChevronDown,
   Bell,
+  ChevronsUpDown,
+  CheckCircle2,
 } from './Icons';
-import { colors, radii } from '../theme/tokens';
-import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
+import { colors, radii, typography } from '../theme/tokens';
+import { useDaemonStore, RealSessionItem, MachineInfo } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
 import { MachineSwitcherModal } from './MachineSwitcherModal';
@@ -46,7 +41,7 @@ import { SessionActionModal } from './SessionActionModal';
 import { ServerSettingsModal } from './ServerSettingsModal';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DRAWER_WIDTH = Math.min(Math.round(SCREEN_WIDTH * 0.82), 340);
+const DRAWER_WIDTH = Math.min(Math.round(SCREEN_WIDTH * 0.85), 350);
 
 export type AppScreen = 'agent' | 'health' | 'approvals' | 'sessions';
 
@@ -71,10 +66,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const sessions = useDaemonStore((s) => s.sessions);
   const activeSession = useDaemonStore((s) => s.activeSession);
   const workspaces = useDaemonStore((s) => s.workspaces);
-  const selectedWorkspace = useDaemonStore((s) => s.selectedWorkspace);
-  const setSelectedWorkspace = useDaemonStore((s) => s.setSelectedWorkspace);
   const selectSession = useDaemonStore((s) => s.selectSession);
-  const createNewSession = useDaemonStore((s) => s.createNewSession);
+  const selectMachine = useDaemonStore((s) => s.selectMachine);
   const startNewSessionInWorkspace = useDaemonStore((s) => s.startNewSessionInWorkspace);
   const logout = useDaemonStore((s) => s.logout);
   const currentUser = useDaemonStore((s) => s.currentUser);
@@ -85,6 +78,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
   const [activeFilterWs, setActiveFilterWs] = useState<string>('all');
   const [drawerSearch, setDrawerSearch] = useState<string>('');
+  const [showSearchInput, setShowSearchInput] = useState<boolean>(false);
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
@@ -150,10 +144,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     })
   ).current;
 
-  const handleNewChat = () => {
-    setShowNewChatSheet(true);
-  };
-
   const handleStartSessionInWorkspace = (workspacePath: string) => {
     startNewSessionInWorkspace(workspacePath);
     onNavigateScreen('agent');
@@ -185,6 +175,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const pinnedSessions = searchedSessions.filter((s) => s.pinned);
   const recentSessions = searchedSessions.filter((s) => !s.pinned);
 
+  // Standby nodes (excluding active)
+  const standbyMachines = machines.filter((m) => m.machineId !== activeMachine?.machineId);
+
   const formatTimeAgo = (isoDate: string) => {
     const diffMs = Date.now() - new Date(isoDate).getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -210,7 +203,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         >
           <View style={styles.sessionTitleRow}>
             {item.pinned ? (
-              <Pin size={11} color="#0077b6" style={{ marginRight: 5 }} />
+              <Pin size={11} color={colors.primary} style={{ marginRight: 5 }} />
             ) : null}
             <Text
               style={[
@@ -239,13 +232,21 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MoreHorizontal size={14} color="#8b949e" />
+          <MoreHorizontal size={14} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
     );
   };
 
   if (!isOpen) return null;
+
+  const operatorInitial = currentUser?.name ? currentUser.name[0].toUpperCase() : 'O';
+  const operatorName = currentUser?.name || 'Local Operator';
+  const operatorEmail = currentUser?.email || 'local@cloud-agent.internal';
+
+  const cpuCores = daemonStatus?.telemetry?.cpu?.cores || 8;
+  const ramGb = daemonStatus?.telemetry?.ram?.totalGb || 32;
+  const nodePlatform = activeMachine?.platform || daemonStatus?.platform || 'Host';
 
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 200 }]} pointerEvents="box-none">
@@ -275,160 +276,220 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         ]}
         {...panResponder.panHandlers}
       >
-        {/* 1. Drawer Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.nodeInfo}
-            onPress={() => setShowMachineSwitcher(true)}
-            activeOpacity={0.7}
-          >
-            <View
-              style={[
-                styles.statusDot,
-                {
-                  backgroundColor:
-                    activeMachine?.isOnline
-                      ? '#3fb950'
-                      : connectionState === 'connected'
-                      ? colors.primary
-                      : '#e3b341',
-                },
-              ]}
-            />
-            <View style={styles.nodeTextCol}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Text style={styles.nodeName} numberOfLines={1}>
-                  {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
+        {/* 1. Profile Bar (Stitch Screen 1 Style) */}
+        <View style={styles.profileHeader}>
+          <View style={styles.profileInfo}>
+            <View style={styles.avatarBox}>
+              <Text style={styles.avatarText}>{operatorInitial}</Text>
+              <View style={styles.avatarOnlineDot} />
+            </View>
+            <View style={styles.profileTextCol}>
+              <View style={styles.profileNameRow}>
+                <Text style={styles.profileName} numberOfLines={1}>
+                  {operatorName}
                 </Text>
-                <ChevronDown size={14} color="#8b949e" />
+                <CheckCircle2 size={13} color={colors.primary} />
               </View>
-              <Text style={styles.nodeSub} numberOfLines={1}>
-                {machines.length > 1
-                  ? `${machines.length} machines • Tap to switch`
-                  : activeMachine
-                  ? `${activeMachine.platform} • ${activeMachine.isOnline ? 'Online' : 'Offline'}`
-                  : 'Antigravity CLI'}
+              <Text style={styles.profileEmail} numberOfLines={1}>
+                {operatorEmail}
               </Text>
             </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.closeBtn}
-            onPress={onClose}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <ChevronLeft size={18} color="#f0f6fc" />
-          </TouchableOpacity>
-        </View>
-
-        {/* 2. Primary Actions: + New Chat & + Pair Machine */}
-        <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={styles.newChatBtn}
-            onPress={handleNewChat}
-            activeOpacity={0.8}
-          >
-            <View style={styles.newChatIconBox}>
-              <Plus size={16} color="#ffffff" />
-            </View>
-            <Text style={styles.newChatText}>New Chat</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.pairMachineBtn}
-            onPress={() => setShowPairModal(true)}
-            activeOpacity={0.7}
-          >
-            <Server size={14} color="#8b949e" />
-            <Text style={styles.pairMachineText}>Pair Machine</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 3. Workspaces Pill Filter */}
-        {workspaces.length > 0 && (
-          <View style={styles.workspacesFilterContainer}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.workspacePillScroll}
+          </View>
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity
+              style={styles.circleActionBtn}
+              onPress={() => setShowSearchInput((prev) => !prev)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
-              <TouchableOpacity
-                style={[
-                  styles.wsPill,
-                  activeFilterWs === 'all' && styles.wsPillActive,
-                ]}
-                onPress={() => setActiveFilterWs('all')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.wsPillText,
-                    activeFilterWs === 'all' && styles.wsPillTextActive,
-                  ]}
-                >
-                  All
-                </Text>
-              </TouchableOpacity>
-              {workspaces.map((ws) => (
+              <Search size={15} color={showSearchInput ? colors.primary : colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.circleActionBtn}
+              onPress={onClose}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <ChevronLeft size={17} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Search Input Box (Collapsible / Toggleable) */}
+        {showSearchInput && (
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <Search size={13} color={colors.textMuted} />
+              <TextInput
+                style={styles.searchInput}
+                value={drawerSearch}
+                onChangeText={setDrawerSearch}
+                placeholder="Search sessions or workspaces..."
+                placeholderTextColor={colors.textDisabled}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+              />
+              {drawerSearch.length > 0 && (
                 <TouchableOpacity
-                  key={ws}
-                  style={[
-                    styles.wsPill,
-                    activeFilterWs === ws && styles.wsPillActive,
-                  ]}
-                  onPress={() => setActiveFilterWs(ws)}
-                  activeOpacity={0.7}
+                  onPress={() => setDrawerSearch('')}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                 >
-                  <Text
-                    style={[
-                      styles.wsPillText,
-                      activeFilterWs === ws && styles.wsPillTextActive,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {ws}
-                  </Text>
+                  <X size={13} color={colors.textMuted} />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              )}
+            </View>
           </View>
         )}
 
-        {/* 4. Scrollable Sessions & Secondary Navigation */}
+        {/* Scrollable Content */}
         <ScrollView
           style={styles.drawerScroll}
           contentContainerStyle={styles.drawerScrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Inline Search Bar */}
-          <View style={styles.drawerSearchBox}>
-            <Search size={13} color="#8b949e" />
-            <TextInput
-              style={styles.drawerSearchInput}
-              value={drawerSearch}
-              onChangeText={setDrawerSearch}
-              placeholder="Search sessions..."
-              placeholderTextColor="#6e7681"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {drawerSearch.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setDrawerSearch('')}
-                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-              >
-                <X size={13} color="#8b949e" />
-              </TouchableOpacity>
-            )}
+          {/* 2. Compute Node Fleet Widget (Stitch Screen 1) */}
+          <View style={styles.computeNodeSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.computeLabelRow}>
+                <Server size={12} color={colors.textMuted} />
+                <Text style={styles.computeLabel}>COMPUTE NODE</Text>
+              </View>
+              <View style={styles.latencyTag}>
+                <Text style={styles.latencyTagText}>{pingRtt || '18ms'}</Text>
+              </View>
+            </View>
+
+            {/* Primary Connected Machine Card */}
+            <View style={styles.activeMachineCard}>
+              <View style={styles.machineCardTopRow}>
+                <View style={styles.machineTitleRow}>
+                  <View style={styles.livePulseDot} />
+                  <Text style={styles.machineHostname} numberOfLines={1}>
+                    {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.switchNodeBtn}
+                  onPress={() => setShowMachineSwitcher(true)}
+                  activeOpacity={0.7}
+                >
+                  <ChevronsUpDown size={12} color={colors.primaryLight} />
+                  <Text style={styles.switchNodeText}>Switch</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.machineSpecs} numberOfLines={1}>
+                {cpuCores} vCPU • {ramGb}GB RAM • {nodePlatform}
+              </Text>
+            </View>
+
+            {/* Standby Secondary Nodes Grid (2 Columns) */}
+            <View style={styles.standbyGrid}>
+              {standbyMachines.slice(0, 2).map((m) => (
+                <TouchableOpacity
+                  key={m.machineId}
+                  style={styles.standbyCard}
+                  onPress={() => selectMachine(m)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.standbyTopRow}>
+                    <View
+                      style={[
+                        styles.standbyDot,
+                        { backgroundColor: m.isOnline ? colors.statusLive : colors.textDisabled },
+                      ]}
+                    />
+                    <Text style={styles.standbyName} numberOfLines={1}>
+                      {m.name}
+                    </Text>
+                  </View>
+                  <Text style={styles.standbySub} numberOfLines={1}>
+                    {m.platform} • {m.isOnline ? 'Standby' : 'Offline'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              {standbyMachines.length < 2 && (
+                <TouchableOpacity
+                  style={styles.standbyAddCard}
+                  onPress={() => setShowPairModal(true)}
+                  activeOpacity={0.7}
+                >
+                  <Plus size={14} color={colors.textMuted} />
+                  <Text style={styles.standbyAddText}>Pair Node</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
-          {/* Section: Pinned Sessions */}
+          {/* 3. Primary Action: + New Session */}
+          <TouchableOpacity
+            style={styles.newSessionBtn}
+            onPress={() => setShowNewChatSheet(true)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.newSessionIconCircle}>
+              <Plus size={14} color="#ffffff" />
+            </View>
+            <Text style={styles.newSessionBtnText}>New Session</Text>
+          </TouchableOpacity>
+
+          {/* 4. Workspace Carousel Filter */}
+          {workspaces.length > 0 && (
+            <View style={styles.workspacesCarousel}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.workspacePillScroll}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.wsPill,
+                    activeFilterWs === 'all' && styles.wsPillActive,
+                  ]}
+                  onPress={() => setActiveFilterWs('all')}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.wsPillText,
+                      activeFilterWs === 'all' && styles.wsPillTextActive,
+                    ]}
+                  >
+                    All
+                  </Text>
+                </TouchableOpacity>
+                {workspaces.map((ws) => (
+                  <TouchableOpacity
+                    key={ws}
+                    style={[
+                      styles.wsPill,
+                      activeFilterWs === ws && styles.wsPillActive,
+                    ]}
+                    onPress={() => setActiveFilterWs(ws)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.wsPillText,
+                        activeFilterWs === ws && styles.wsPillTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {ws}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* 5. Sessions List */}
           {pinnedSessions.length > 0 && (
             <View style={styles.pinnedSection}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleWithIcon}>
-                  <Pin size={11} color="#0077b6" />
-                  <Text style={styles.sectionTitle}>PINNED SESSIONS</Text>
+                  <Pin size={11} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>PINNED</Text>
                 </View>
                 <Text style={styles.sectionBadge}>{pinnedSessions.length}</Text>
               </View>
@@ -436,7 +497,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             </View>
           )}
 
-          {/* Section: Recent Sessions */}
           <View style={[styles.sectionHeaderRow, pinnedSessions.length > 0 && { marginTop: 12 }]}>
             <Text style={styles.sectionTitle}>RECENT SESSIONS</Text>
             <Text style={styles.sectionBadge}>{recentSessions.length}</Text>
@@ -452,12 +512,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             recentSessions.map((item) => renderSessionRow(item))
           )}
 
-          {/* Section: System & Navigation */}
+          {/* 6. Management & Navigation Links */}
           <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>
-            <Text style={styles.sectionTitle}>SYSTEM & MANAGEMENT</Text>
+            <Text style={styles.sectionTitle}>MANAGEMENT & TOOLS</Text>
           </View>
 
-          {/* Nav: Security Approvals */}
+          {/* Security Approvals */}
           <TouchableOpacity
             style={[
               styles.navItem,
@@ -469,7 +529,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.navIconBox}>
               <ShieldAlert
                 size={17}
-                color={pendingApproval ? colors.red : '#c9d1d9'}
+                color={pendingApproval ? colors.red : colors.textSecondary}
               />
             </View>
             <Text
@@ -478,16 +538,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 currentScreen === 'approvals' && styles.navLabelActive,
               ]}
             >
-              Security Approvals
+              Security Approvals & Diff
             </Text>
             {pendingApproval ? (
               <View style={styles.pendingBadge}>
-                <Text style={styles.pendingBadgeText}>1 Pending</Text>
+                <Text style={styles.pendingBadgeText}>1 Action</Text>
               </View>
             ) : null}
           </TouchableOpacity>
 
-          {/* Nav: Machine Health */}
+          {/* Machine Health & Telemetry */}
           <TouchableOpacity
             style={[
               styles.navItem,
@@ -499,7 +559,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.navIconBox}>
               <Activity
                 size={17}
-                color={currentScreen === 'health' ? colors.primary : '#c9d1d9'}
+                color={currentScreen === 'health' ? colors.primary : colors.textSecondary}
               />
             </View>
             <Text
@@ -508,11 +568,11 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 currentScreen === 'health' && styles.navLabelActive,
               ]}
             >
-              Machine Health & Telemetry
+              Machine Health & Fleet
             </Text>
           </TouchableOpacity>
 
-          {/* Nav: All Workspaces */}
+          {/* Workspaces & Fleets Screen */}
           <TouchableOpacity
             style={[
               styles.navItem,
@@ -524,7 +584,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.navIconBox}>
               <Layers
                 size={17}
-                color={currentScreen === 'sessions' ? colors.primary : '#c9d1d9'}
+                color={currentScreen === 'sessions' ? colors.primary : colors.textSecondary}
               />
             </View>
             <Text
@@ -533,43 +593,43 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 currentScreen === 'sessions' && styles.navLabelActive,
               ]}
             >
-              All Transcripts & Workspaces
+              Workspace & Fleet Tree
             </Text>
           </TouchableOpacity>
 
-          {/* Nav: Browse Machine Folders */}
+          {/* Remote Folder Picker */}
           <TouchableOpacity
             style={styles.navItem}
             onPress={() => setShowDirectFolderPicker(true)}
             activeOpacity={0.7}
           >
             <View style={styles.navIconBox}>
-              <Folder size={17} color="#c9d1d9" />
+              <Folder size={17} color={colors.textSecondary} />
             </View>
-            <Text style={styles.navLabel}>Browse Machine Folders</Text>
-            <ChevronRight size={14} color="#6e7681" />
+            <Text style={styles.navLabel}>Browse Node Folders</Text>
+            <ChevronRight size={14} color={colors.textMuted} />
           </TouchableOpacity>
 
-          {/* Nav: Push Notifications & Server Endpoints */}
+          {/* Server & Notifications Settings */}
           <TouchableOpacity
             style={styles.navItem}
             onPress={() => setShowServerSettings(true)}
             activeOpacity={0.7}
           >
             <View style={styles.navIconBox}>
-              <Bell size={17} color="#c9d1d9" />
+              <Bell size={17} color={colors.textSecondary} />
             </View>
-            <Text style={styles.navLabel}>Push Notifications & Server</Text>
-            <ChevronRight size={14} color="#6e7681" />
+            <Text style={styles.navLabel}>Push & Server Settings</Text>
+            <ChevronRight size={14} color={colors.textMuted} />
           </TouchableOpacity>
         </ScrollView>
 
-        {/* 5. Drawer Footer with VPS Status & Sign Out */}
+        {/* 7. Drawer Footer: VPS Status & Sign Out */}
         <View style={styles.footer}>
           <View style={styles.footerStatus}>
             <View style={styles.pingDot} />
             <Text style={styles.footerText}>
-              VPS Connected • {pingRtt || '12ms'}
+              VPS Connected • {pingRtt || '18ms'}
             </Text>
           </View>
           <TouchableOpacity
@@ -577,7 +637,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             onPress={logout}
             activeOpacity={0.7}
           >
-            <LogOut size={13} color="#8b949e" />
+            <LogOut size={13} color={colors.textMuted} />
             <Text style={styles.logoutText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
@@ -645,133 +705,113 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: '#0d1117',
+    backgroundColor: colors.surfaceContainerLowest,
     borderRightWidth: 1,
-    borderRightColor: '#21262d',
+    borderRightColor: colors.borderMuted,
     flexDirection: 'column',
     justifyContent: 'space-between',
     zIndex: 210,
     paddingTop: Platform.OS === 'ios' ? 44 : 12,
   },
-  header: {
-    height: 56,
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: colors.borderMuted,
   },
-  nodeInfo: {
+  profileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 10,
+  avatarBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surfaceContainerHigh,
+    borderWidth: 1.5,
+    borderColor: colors.borderDefault,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  nodeTextCol: {
+  avatarText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  avatarOnlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.statusLive,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceContainerLowest,
+  },
+  profileTextCol: {
+    marginLeft: 10,
     flex: 1,
   },
-  nodeName: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#f0f6fc',
-    letterSpacing: -0.2,
+  profileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  nodeSub: {
+  profileName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: -0.1,
+  },
+  profileEmail: {
     fontSize: 11,
-    color: '#8b949e',
+    color: colors.textMuted,
     marginTop: 1,
   },
-  closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#21262d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionSection: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  newChatBtn: {
+  headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    borderRadius: radii.md,
-    height: 42,
-    gap: 8,
+    gap: 6,
   },
-  newChatIconBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primary,
+  circleActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  newChatText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#f0f6fc',
+  searchRow: {
+    paddingHorizontal: 14,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: colors.surfaceContainerLowest,
   },
-  pairMachineBtn: {
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0d1117',
-    borderWidth: 1,
-    borderColor: '#21262d',
+    backgroundColor: colors.surfaceContainer,
     borderRadius: radii.md,
-    height: 36,
-    gap: 6,
-  },
-  pairMachineText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#8b949e',
-  },
-  workspacesFilterContainer: {
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-  },
-  workspacePillScroll: {
-    paddingHorizontal: 14,
-    gap: 6,
-  },
-  wsPill: {
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
     paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.full,
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#21262d',
+    height: 36,
+    gap: 8,
   },
-  wsPillActive: {
-    backgroundColor: colors.primarySubtle,
-    borderColor: colors.primaryBorder,
-  },
-  wsPillText: {
+  searchInput: {
+    flex: 1,
+    height: 36,
+    color: colors.textPrimary,
     fontSize: 12,
-    color: '#8b949e',
-    fontWeight: '500',
-  },
-  wsPillTextActive: {
-    color: '#f0f6fc',
-    fontWeight: '600',
   },
   drawerScroll: {
     flex: 1,
@@ -780,23 +820,192 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  drawerSearchBox: {
+  computeNodeSection: {
+    marginBottom: 12,
+  },
+  computeLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161b22',
+    gap: 6,
+  },
+  computeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+  },
+  latencyTag: {
+    backgroundColor: colors.surfaceContainerHigh,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#21262d',
-    paddingHorizontal: 10,
-    height: 36,
-    marginBottom: 12,
-    gap: 8,
+    borderColor: colors.borderMuted,
   },
-  drawerSearchInput: {
+  latencyTagText: {
+    fontSize: 10,
+    fontFamily: typography.mono,
+    color: colors.textSecondary,
+  },
+  activeMachineCard: {
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    padding: 12,
+    marginTop: 6,
+  },
+  machineCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  machineTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    height: 36,
-    color: '#f0f6fc',
-    fontSize: 12,
+    marginRight: 8,
+  },
+  livePulseDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.statusLive,
+    marginRight: 8,
+  },
+  machineHostname: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: typography.mono,
+    color: colors.textPrimary,
+    flexShrink: 1,
+  },
+  switchNodeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primarySubtle,
+    borderWidth: 1,
+    borderColor: colors.primaryBorder,
+    borderRadius: radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    gap: 4,
+  },
+  switchNodeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.primaryLight,
+  },
+  machineSpecs: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 6,
+    fontFamily: typography.mono,
+  },
+  standbyGrid: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 6,
+  },
+  standbyCard: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    padding: 8,
+  },
+  standbyTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  standbyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  standbyName: {
+    fontSize: 11,
+    fontWeight: '600',
+    fontFamily: typography.mono,
+    color: colors.textSecondary,
+    flexShrink: 1,
+  },
+  standbySub: {
+    fontSize: 9,
+    color: colors.textMuted,
+    marginTop: 3,
+  },
+  standbyAddCard: {
+    flex: 1,
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 5,
+    paddingVertical: 10,
+  },
+  standbyAddText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  newSessionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+    borderRadius: radii.md,
+    height: 40,
+    gap: 8,
+    marginBottom: 10,
+  },
+  newSessionIconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newSessionBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  workspacesCarousel: {
+    marginBottom: 8,
+  },
+  workspacePillScroll: {
+    gap: 6,
+  },
+  wsPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+  },
+  wsPillActive: {
+    backgroundColor: colors.primarySubtle,
+    borderColor: colors.primaryBorder,
+  },
+  wsPillText: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  wsPillTextActive: {
+    color: colors.textPrimary,
+    fontWeight: '600',
   },
   pinnedSection: {
     marginBottom: 8,
@@ -810,40 +1019,40 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 8,
+    paddingHorizontal: 2,
+    marginBottom: 6,
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
-    color: '#8b949e',
+    color: colors.textMuted,
     letterSpacing: 0.8,
   },
   sectionBadge: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    color: '#6e7681',
+    color: colors.textMuted,
   },
   emptySessionsBox: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   emptySessionsText: {
     fontSize: 12,
-    color: '#6e7681',
+    color: colors.textMuted,
   },
   sessionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: radii.md,
     marginBottom: 3,
     backgroundColor: 'transparent',
   },
   sessionItemActive: {
-    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    backgroundColor: colors.primarySubtle,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
   },
@@ -858,21 +1067,21 @@ const styles = StyleSheet.create({
   sessionTitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#c9d1d9',
+    color: colors.textSecondary,
     lineHeight: 18,
     flex: 1,
   },
   sessionTitleActive: {
-    color: '#f0f6fc',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   moreActionBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#161b22',
+    backgroundColor: colors.surfaceContainer,
   },
   sessionMetaRow: {
     flexDirection: 'row',
@@ -881,72 +1090,66 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   sessionWorkspace: {
-    fontSize: 11,
-    color: '#8b949e',
-    maxWidth: 120,
+    fontSize: 10,
+    color: colors.textMuted,
+    maxWidth: 110,
   },
   metaDot: {
-    fontSize: 10,
-    color: '#6e7681',
+    fontSize: 9,
+    color: colors.textDisabled,
   },
   sessionTime: {
-    fontSize: 11,
-    color: '#6e7681',
-  },
-  activeBar: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.primary,
+    fontSize: 10,
+    color: colors.textMuted,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: radii.md,
     marginBottom: 3,
   },
   navItemActive: {
-    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    backgroundColor: colors.primarySubtle,
   },
   navIconBox: {
-    width: 26,
+    width: 24,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   navLabel: {
     fontSize: 13,
-    color: '#c9d1d9',
+    color: colors.textSecondary,
     flex: 1,
   },
   navLabelActive: {
-    color: '#f0f6fc',
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   pendingBadge: {
-    backgroundColor: 'rgba(248, 81, 73, 0.18)',
+    backgroundColor: colors.redSubtle,
     borderWidth: 1,
-    borderColor: 'rgba(248, 81, 73, 0.4)',
-    paddingHorizontal: 7,
+    borderColor: colors.redBorder,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.full,
   },
   pendingBadgeText: {
     fontSize: 10,
-    color: '#f85149',
+    color: colors.red,
     fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    backgroundColor: '#010409',
+    borderTopColor: colors.borderMuted,
+    backgroundColor: colors.bgCanvasInset,
   },
   footerStatus: {
     flexDirection: 'row',
@@ -957,12 +1160,13 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.statusLive,
   },
   footerText: {
     fontSize: 11,
-    color: '#8b949e',
+    color: colors.textMuted,
     fontWeight: '500',
+    fontFamily: typography.mono,
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -971,13 +1175,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: radii.sm,
-    backgroundColor: '#161b22',
+    backgroundColor: colors.surfaceContainer,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: colors.borderMuted,
   },
   logoutText: {
     fontSize: 11,
-    color: '#8b949e',
+    color: colors.textMuted,
     fontWeight: '500',
   },
 });
