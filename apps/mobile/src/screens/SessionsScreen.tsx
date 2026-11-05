@@ -136,8 +136,6 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
       <HeaderBar
         title="Workspace & Fleets"
         subtitle={`${activeMachine?.name || 'Local Machine'} • ${workspaces.length} workspaces`}
-        showLiveDot={true}
-        liveColor={colors.statusLive}
         onBack={onBack}
         onMore={fetchSessions}
       />
@@ -163,7 +161,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
             </View>
           </View>
           <View style={styles.liveAgentsPill}>
-            <View style={styles.livePulseDot} />
+            
             <Text style={styles.liveAgentsText}>{sessions.length} agents live</Text>
           </View>
         </View>
@@ -450,12 +448,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: radii.full,
-  },
-  livePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.statusLive,
   },
   liveAgentsText: {
     fontSize: 11,

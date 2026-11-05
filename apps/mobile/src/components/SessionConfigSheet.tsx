@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: radii.full,
-    backgroundColor: '#30363d',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
   header: {
     flexDirection: 'row',
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.green,
+    backgroundColor: '#fafafa',
   },
   bottomBar: {
     paddingHorizontal: 16,
@@ -677,14 +677,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.sm,
-    backgroundColor: 'rgba(0, 119, 182, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     marginLeft: 8,
   },
   badgeRecommendedText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#48cae4',
+    color: '#fafafa',
   },
 });

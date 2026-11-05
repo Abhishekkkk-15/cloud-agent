@@ -177,7 +177,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
           activeOpacity={collapsible ? 0.7 : 1}
           onPress={collapsible ? () => setExpanded((prev) => !prev) : undefined}
         >
-          <FileCode size={14} color="#f0f6fc" />
+          <FileCode size={14} color="#fafafa" />
           <View style={styles.titleColumn}>
             <Text style={styles.basenameText} numberOfLines={1}>
               {basename}
@@ -211,7 +211,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
             {copied ? (
               <Check size={13} color={colors.green} />
             ) : (
-              <Copy size={13} color="#8b949e" />
+              <Copy size={13} color="#a3a3a3" />
             )}
           </TouchableOpacity>
 
@@ -223,9 +223,9 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               {expanded ? (
-                <ChevronUp size={16} color="#8b949e" />
+                <ChevronUp size={16} color="#a3a3a3" />
               ) : (
-                <ChevronDown size={16} color="#8b949e" />
+                <ChevronDown size={16} color="#a3a3a3" />
               )}
             </TouchableOpacity>
           ) : null}
@@ -321,10 +321,10 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
     marginVertical: 6,
   },
@@ -332,11 +332,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -351,12 +351,12 @@ const styles = StyleSheet.create({
   basenameText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
     letterSpacing: -0.1,
   },
   fullPathText: {
     fontSize: 10,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   headerRight: {
@@ -368,12 +368,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
   },
   statsAddText: {
     fontSize: 11,
@@ -393,11 +393,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
 
   horizontalScroll: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
   },
   verticalScroll: {
     minWidth: '100%',
@@ -425,16 +425,16 @@ const styles = StyleSheet.create({
     borderLeftColor: '#da3633',
   },
   hunkRow: {
-    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     marginVertical: 2,
     borderLeftWidth: 3,
-    borderLeftColor: '#0077b6',
+    borderLeftColor: 'rgba(255, 255, 255, 0.35)',
   },
   hunkText: {
     fontSize: 11,
-    color: '#48cae4',
+    color: '#fafafa',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   metaRow: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   gutterNum: {
     width: 32,
     fontSize: 11,
-    color: '#6e7681',
+    color: '#737373',
     textAlign: 'right',
     paddingRight: 6,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     width: 14,
     fontSize: 12,
     fontWeight: '700',
-    color: '#8b949e',
+    color: '#a3a3a3',
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   codeText: {
     flex: 1,
     fontSize: 12,
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     lineHeight: 18,
   },

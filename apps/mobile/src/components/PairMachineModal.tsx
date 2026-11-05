@@ -115,7 +115,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerIconBox}>
-              <Server size={18} color="#0077b6" />
+              <Server size={18} color="#fafafa" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>Pair a New Machine</Text>
@@ -127,7 +127,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={18} color="#8b949e" />
+              <X size={18} color="#a3a3a3" />
             </TouchableOpacity>
           </View>
 
@@ -140,7 +140,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
             >
               <QrCode
                 size={14}
-                color={activeTab === 'qr' ? '#f0f6fc' : '#8b949e'}
+                color={activeTab === 'qr' ? '#fafafa' : '#a3a3a3'}
               />
               <Text
                 style={[
@@ -159,7 +159,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
             >
               <Terminal
                 size={14}
-                color={activeTab === 'terminal' ? '#f0f6fc' : '#8b949e'}
+                color={activeTab === 'terminal' ? '#fafafa' : '#a3a3a3'}
               />
               <Text
                 style={[
@@ -178,7 +178,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
             >
               <Link
                 size={14}
-                color={activeTab === 'paste' ? '#f0f6fc' : '#8b949e'}
+                color={activeTab === 'paste' ? '#fafafa' : '#a3a3a3'}
               />
               <Text
                 style={[
@@ -195,7 +195,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
           <View style={styles.body}>
             {isLoading ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color="#0077b6" />
+                <ActivityIndicator size="small" color="#fafafa" />
                 <Text style={styles.loadingText}>Generating secure pairing payload...</Text>
               </View>
             ) : pairingData ? (
@@ -208,7 +208,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                         value={qrPayload}
                         size={170}
                         color="#ffffff"
-                        backgroundColor="#010409"
+                        backgroundColor="#121212"
                       />
                     </View>
                     <Text style={styles.instructionText}>
@@ -226,7 +226,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
 
                     <View style={styles.codeBox}>
                       <View style={styles.codeHeader}>
-                        <Terminal size={12} color="#8b949e" />
+                        <Terminal size={12} color="#a3a3a3" />
                         <Text style={styles.codeLang}>Terminal Command</Text>
                         <TouchableOpacity
                           style={styles.copyBtn}
@@ -235,14 +235,14 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                         >
                           {copied ? (
                             <>
-                              <Check size={12} color="#0077b6" />
-                              <Text style={[styles.copyBtnText, { color: '#0077b6' }]}>
+                              <Check size={12} color="#fafafa" />
+                              <Text style={[styles.copyBtnText, { color: '#fafafa' }]}>
                                 Copied
                               </Text>
                             </>
                           ) : (
                             <>
-                              <Copy size={12} color="#8b949e" />
+                              <Copy size={12} color="#a3a3a3" />
                               <Text style={styles.copyBtnText}>Copy</Text>
                             </>
                           )}
@@ -268,7 +268,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                         value={pasteInput}
                         onChangeText={setPasteInput}
                         placeholder="ca_pair://connect?token=... or token"
-                        placeholderTextColor="#6e7681"
+                        placeholderTextColor="#737373"
                         autoCapitalize="none"
                         autoCorrect={false}
                         multiline
@@ -319,7 +319,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 <View style={styles.statusBox}>
                   {connectionState === 'connected' ? (
                     <View style={styles.connectedRow}>
-                      <CheckCircle2 size={16} color="#0077b6" />
+                      <CheckCircle2 size={16} color="#fafafa" />
                       <Text style={styles.connectedText}>
                         Machine connected: {activeMachine?.name || 'Online'}
                       </Text>
@@ -328,7 +328,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                     <View style={styles.waitingRow}>
                       <ActivityIndicator
                         size="small"
-                        color="#0077b6"
+                        color="#fafafa"
                         style={{ transform: [{ scale: 0.8 }] }}
                       />
                       <Text style={styles.waitingText}>
@@ -384,10 +384,10 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 440,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
   },
   header: {
@@ -397,41 +397,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
   },
   headerIconBox: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   subtitle: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     alignItems: 'center',
     justifyContent: 'center',
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
     paddingHorizontal: 8,
     paddingTop: 4,
   },
@@ -446,15 +446,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabItemActive: {
-    borderBottomColor: '#0077b6',
+    borderBottomColor: '#fafafa',
   },
   tabLabel: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 12,
     fontWeight: '600',
   },
   tabLabelActive: {
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   body: {
     padding: 16,
@@ -466,18 +466,18 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   qrContainer: {
     alignItems: 'center',
     paddingVertical: 8,
   },
   qrCodeBox: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     marginBottom: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -487,21 +487,21 @@ const styles = StyleSheet.create({
   },
   instructionText: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     lineHeight: 18,
     marginBottom: 12,
     textAlign: 'center',
   },
   codeHighlight: {
-    color: '#48cae4',
+    color: '#fafafa',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontWeight: '600',
   },
   codeBox: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
     marginBottom: 14,
   },
@@ -512,12 +512,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderBottomColor: '#262626',
+    backgroundColor: '#161616',
   },
   codeLang: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontFamily: typography.mono,
     flex: 1,
     marginLeft: 6,
@@ -528,37 +528,37 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 8,
     paddingVertical: 3,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     borderRadius: 4,
   },
   copyBtnText: {
     fontSize: 11,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
   },
   codeContent: {
     padding: 10,
     fontFamily: typography.mono,
     fontSize: 12,
-    color: '#3fb950',
+    color: '#fafafa',
     lineHeight: 18,
   },
   pasteInputContainer: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     padding: 8,
     marginBottom: 10,
   },
   pasteTextInput: {
     height: 70,
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontFamily: typography.mono,
     fontSize: 12,
     textAlignVertical: 'top',
   },
   pairActionBtn: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   pairActionBtnDisabled: {
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     opacity: 0.6,
   },
   pairActionBtnText: {
@@ -594,15 +594,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   feedbackTextSuccess: {
-    color: '#3fb950',
+    color: '#fafafa',
   },
   feedbackTextError: {
     color: '#f85149',
   },
   statusBox: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -614,7 +614,7 @@ const styles = StyleSheet.create({
   },
   connectedText: {
     fontSize: 12,
-    color: '#0077b6',
+    color: '#fafafa',
     fontWeight: '600',
   },
   waitingRow: {
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   },
   waitingText: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   errorBox: {
     alignItems: 'center',
@@ -639,30 +639,30 @@ const styles = StyleSheet.create({
   retryBtn: {
     paddingHorizontal: 16,
     paddingVertical: 6,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     borderRadius: 6,
   },
   retryText: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 12,
   },
   footer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderTopColor: '#262626',
+    backgroundColor: '#161616',
     alignItems: 'flex-end',
   },
   doneBtn: {
     paddingHorizontal: 18,
     paddingVertical: 8,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     borderRadius: 6,
   },
   doneBtnText: {
     fontSize: 13,
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontWeight: '600',
   },
 });

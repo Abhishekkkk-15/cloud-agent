@@ -37,15 +37,15 @@ interface TextSegment {
 }
 
 const ANSI_COLOR_MAP: Record<number, string> = {
-  30: '#6e7681',
+  30: '#737373',
   31: '#f85149',
-  32: '#3fb950',
+  32: '#fafafa',
   33: '#d29922',
   34: '#58a6ff',
   35: '#bc8cff',
   36: '#39c5cf',
-  37: '#f0f6fc',
-  90: '#8b949e',
+  37: '#fafafa',
+  90: '#a3a3a3',
   91: '#ffa198',
   92: '#56d364',
   93: '#e3b341',
@@ -155,7 +155,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
       );
     }
 
-    const defaultColor = line.stream === 'stderr' ? '#f85149' : '#c9d1d9';
+    const defaultColor = line.stream === 'stderr' ? '#f85149' : '#d4d4d4';
     const segments = parseAnsi(line.text, defaultColor);
 
     return (
@@ -193,17 +193,12 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Terminal size={16} color="#0077b6" />
+                <Terminal size={16} color="#fafafa" />
               </View>
               <View style={styles.titleCol}>
                 <View style={styles.titleRow}>
                   <Text style={styles.title}>Terminal</Text>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      { backgroundColor: isTerminalRunning ? '#0077b6' : '#238636' },
-                    ]}
-                  />
+
                   <Text style={styles.statusText}>
                     {isTerminalRunning ? 'Executing...' : 'Ready'}
                   </Text>
@@ -221,7 +216,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Clear terminal"
               >
-                <Trash2 size={16} color="#8b949e" />
+                <Trash2 size={16} color="#a3a3a3" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.closeBtn}
@@ -229,7 +224,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Close terminal"
               >
-                <X size={18} color="#f0f6fc" />
+                <X size={18} color="#fafafa" />
               </TouchableOpacity>
             </View>
           </View>
@@ -265,7 +260,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
             >
               {terminalLines.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Terminal size={28} color="#30363d" />
+                  <Terminal size={28} color="rgba(255, 255, 255, 0.10)" />
                   <Text style={styles.emptyStateTitle}>Daemon Shell Ready</Text>
                   <Text style={styles.emptyStateSub}>
                     Commands execute directly in your workspace environment on the host machine.
@@ -285,7 +280,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
               value={inputCommand}
               onChangeText={setInputCommand}
               placeholder="Enter bash command..."
-              placeholderTextColor="#6e7681"
+              placeholderTextColor="#737373"
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="send"
@@ -317,11 +312,11 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
   },
   container: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
   },
   header: {
     flexDirection: 'row',
@@ -330,8 +325,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderBottomColor: '#262626',
+    backgroundColor: '#161616',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -342,9 +337,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -357,24 +352,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 15,
     fontWeight: '700',
     marginRight: 8,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 5,
-  },
   statusText: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 11,
     fontWeight: '500',
   },
   subtitle: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 11,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginTop: 1,
@@ -390,7 +379,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   closeBtn: {
     width: 32,
@@ -398,12 +387,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   quickBar: {
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#0d1117',
+    borderBottomColor: '#262626',
+    backgroundColor: '#0a0a0a',
     paddingVertical: 8,
   },
   quickBarContent: {
@@ -411,21 +400,21 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   quickPill: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   quickPillText: {
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   consoleContainer: {
     flex: 1,
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
   },
   consoleScroll: {
     flex: 1,
@@ -441,14 +430,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyStateTitle: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 14,
     fontWeight: '600',
     marginTop: 12,
     marginBottom: 4,
   },
   emptyStateSub: {
-    color: '#6e7681',
+    color: '#737373',
     fontSize: 12,
     textAlign: 'center',
     lineHeight: 18,
@@ -460,27 +449,27 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 12,
     lineHeight: 18,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
   },
   commandPromptText: {
-    color: '#48cae4',
+    color: '#fafafa',
     fontWeight: '700',
   },
   systemInfoText: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontStyle: 'italic',
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
+    borderTopColor: '#262626',
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   promptSymbol: {
-    color: '#0077b6',
+    color: '#fafafa',
     fontSize: 16,
     fontWeight: '800',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -489,7 +478,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     height: 38,
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 13,
     paddingHorizontal: 8,
@@ -498,13 +487,13 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 8,
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 8,
   },
   runBtnDisabled: {
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     opacity: 0.6,
   },
 });

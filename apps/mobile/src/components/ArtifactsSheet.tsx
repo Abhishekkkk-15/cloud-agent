@@ -113,12 +113,12 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
   const renderIconForArtifact = (item: CliArtifact) => {
     const lang = (item.language || '').toLowerCase();
     if (lang === 'md' || lang === 'markdown') {
-      return <FileText size={16} color="#48cae4" />;
+      return <FileText size={16} color="#fafafa" />;
     }
     if (['ts', 'tsx', 'js', 'jsx', 'py', 'json', 'yaml', 'yml'].includes(lang)) {
-      return <Code2 size={16} color="#3fb950" />;
+      return <Code2 size={16} color="#fafafa" />;
     }
-    return <Layers size={16} color="#0077b6" />;
+    return <Layers size={16} color="#fafafa" />;
   };
 
   return (
@@ -142,13 +142,13 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                 onPress={handleBackToList}
                 activeOpacity={0.7}
               >
-                <ArrowLeft size={16} color="#f0f6fc" />
+                <ArrowLeft size={16} color="#fafafa" />
                 <Text style={styles.backButtonText}>All Artifacts</Text>
               </TouchableOpacity>
             ) : (
               <View style={styles.headerLeft}>
                 <View style={styles.headerIconBox}>
-                  <Layers size={18} color="#0077b6" />
+                  <Layers size={18} color="#fafafa" />
                 </View>
                 <View>
                   <View style={styles.titleRow}>
@@ -171,7 +171,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               >
                 <RefreshCw
                   size={16}
-                  color={isRefreshing ? '#0077b6' : '#8b949e'}
+                  color={isRefreshing ? '#fafafa' : '#a3a3a3'}
                 />
               </TouchableOpacity>
               <TouchableOpacity
@@ -179,7 +179,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                 onPress={onClose}
                 activeOpacity={0.7}
               >
-                <X size={18} color="#8b949e" />
+                <X size={18} color="#a3a3a3" />
               </TouchableOpacity>
             </View>
           </View>
@@ -229,9 +229,9 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   disabled={!content}
                 >
                   {copied ? (
-                    <Check size={14} color="#0077b6" />
+                    <Check size={14} color="#fafafa" />
                   ) : (
-                    <Copy size={14} color="#8b949e" />
+                    <Copy size={14} color="#a3a3a3" />
                   )}
                 </TouchableOpacity>
               </View>
@@ -239,7 +239,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Reader Scrollable Content */}
               {isLoadingArtifactContent ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color="#0077b6" />
+                  <ActivityIndicator size="small" color="#fafafa" />
                   <Text style={styles.loadingText}>Loading artifact content...</Text>
                 </View>
               ) : (
@@ -252,7 +252,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   {selectedArtifact.summary ? (
                     <View style={styles.summaryBox}>
                       <View style={styles.summaryHeader}>
-                        <Sparkles size={13} color="#0096c7" />
+                        <Sparkles size={13} color="#fafafa" />
                         <Text style={styles.summaryTitle}>Summary</Text>
                       </View>
                       <Text style={styles.summaryText}>{selectedArtifact.summary}</Text>
@@ -277,13 +277,13 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
             <View style={styles.listWrapper}>
               {/* Search Filter Bar */}
               <View style={styles.searchBarContainer}>
-                <Search size={15} color="#8b949e" style={styles.searchIcon} />
+                <Search size={15} color="#a3a3a3" style={styles.searchIcon} />
                 <TextInput
                   style={styles.searchInput}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   placeholder="Filter artifacts by title, summary, or type..."
-                  placeholderTextColor="#6e7681"
+                  placeholderTextColor="#737373"
                   autoCapitalize="none"
                   autoCorrect={false}
                   clearButtonMode="while-editing"
@@ -293,7 +293,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                     onPress={() => setSearchQuery('')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <X size={14} color="#8b949e" />
+                    <X size={14} color="#a3a3a3" />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -301,13 +301,13 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Artifacts List */}
               {isLoadingArtifacts && sessionArtifacts.length === 0 ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color="#0077b6" />
+                  <ActivityIndicator size="small" color="#fafafa" />
                   <Text style={styles.loadingText}>Fetching session artifacts...</Text>
                 </View>
               ) : filteredArtifacts.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <View style={styles.emptyIconBox}>
-                    <Layers size={28} color="#0077b6" />
+                    <Layers size={28} color="#fafafa" />
                   </View>
                   <Text style={styles.emptyTitle}>
                     {searchQuery ? 'No matching artifacts' : 'No artifacts created yet'}
@@ -358,7 +358,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                           )}
                         </View>
 
-                        <ChevronRight size={16} color="#6e7681" />
+                        <ChevronRight size={16} color="#737373" />
                       </TouchableOpacity>
                     );
                   })}
@@ -386,11 +386,11 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   sheetContainer: {
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderTopLeftRadius: radii.xl || 20,
     borderTopRightRadius: radii.xl || 20,
     borderTopWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     height: Math.min(SCREEN_HEIGHT * 0.85, 720),
     display: 'flex',
     flexDirection: 'column',
@@ -403,8 +403,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderColor: '#262626',
+    backgroundColor: '#161616',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -415,9 +415,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -429,10 +429,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   countBadge: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
     paddingHorizontal: 7,
     paddingVertical: 1.5,
     borderRadius: 10,
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   headerActions: {
@@ -456,7 +456,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -467,16 +467,16 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   backButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   listWrapper: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
   },
   searchBarContainer: {
     flexDirection: 'row',
@@ -486,9 +486,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingHorizontal: 12,
     height: 38,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 19,
   },
   searchIcon: {
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 13,
-    color: '#f0f6fc',
+    color: '#fafafa',
     paddingVertical: 0,
   },
   listScroll: {
@@ -512,9 +512,9 @@ const styles = StyleSheet.create({
   artifactCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 12,
     padding: 12,
     gap: 12,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -541,29 +541,29 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   extBadge: {
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   extBadgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#48cae4',
+    color: '#fafafa',
   },
   cardSummary: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     lineHeight: 16,
   },
   cardPath: {
     fontSize: 11,
-    color: '#6e7681',
+    color: '#737373',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   emptyContainer: {
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(0, 119, 182, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -584,13 +584,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
     marginBottom: 6,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 13,
-    color: '#8b949e',
+    color: '#a3a3a3',
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -603,34 +603,34 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   readerWrapper: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
   },
   readerSubHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderBottomWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
   },
   readerTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   readerMeta: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   modeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     borderRadius: 8,
     padding: 2,
     marginRight: 8,
@@ -641,12 +641,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   modeTabActive: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
   },
   modeTabText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   modeTabTextActive: {
     color: '#ffffff',
@@ -655,7 +655,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -667,9 +667,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   summaryBox: {
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
@@ -683,26 +683,26 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#48cae4',
+    color: '#fafafa',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   summaryText: {
     fontSize: 13,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     lineHeight: 18,
   },
   sourceBox: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     borderRadius: 8,
     padding: 12,
   },
   sourceText: {
     fontSize: 12,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     lineHeight: 18,
   },
 });

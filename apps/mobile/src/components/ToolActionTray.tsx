@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4.5,
     borderRadius: radii.full,
-    backgroundColor: '#30363d',
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
   },
   trayHeader: {
     flexDirection: 'row',

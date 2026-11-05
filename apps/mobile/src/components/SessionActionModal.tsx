@@ -109,7 +109,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={18} color="#8b949e" />
+              <X size={18} color="#a3a3a3" />
             </TouchableOpacity>
           </View>
 
@@ -123,7 +123,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
                   value={newTitle}
                   onChangeText={setNewTitle}
                   placeholder="Enter new title..."
-                  placeholderTextColor="#6e7681"
+                  placeholderTextColor="#737373"
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={handleSaveRename}
@@ -161,7 +161,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
                   <View style={styles.actionIconBox}>
                     <Pin
                       size={16}
-                      color={session.pinned ? '#0077b6' : '#c9d1d9'}
+                      color={session.pinned ? '#fafafa' : '#d4d4d4'}
                     />
                   </View>
                   <View style={styles.actionTextCol}>
@@ -184,7 +184,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
                   disabled={isLoading}
                 >
                   <View style={styles.actionIconBox}>
-                    <Pencil size={16} color="#c9d1d9" />
+                    <Pencil size={16} color="#d4d4d4" />
                   </View>
                   <View style={styles.actionTextCol}>
                     <Text style={styles.actionTitle}>Rename Session</Text>
@@ -232,10 +232,10 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
   },
   header: {
@@ -245,8 +245,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderBottomColor: '#262626',
+    backgroundColor: '#161616',
   },
   headerTextCol: {
     flex: 1,
@@ -255,18 +255,18 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   headerSubtitle: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 2,
   },
   closeBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -279,9 +279,9 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 6,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
   },
   actionRowDanger: {
     borderColor: 'rgba(248, 81, 73, 0.25)',
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -304,11 +304,11 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   actionDesc: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 2,
   },
   actionTitleDanger: {
@@ -327,17 +327,17 @@ const styles = StyleSheet.create({
   renameLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginBottom: 8,
   },
   renameInput: {
     height: 42,
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     borderRadius: radii.sm,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 12,
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 13,
     marginBottom: 12,
   },
@@ -350,17 +350,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   renameCancelText: {
     fontSize: 12,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
   },
   renameSaveBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
   },
   renameSaveText: {
     fontSize: 12,

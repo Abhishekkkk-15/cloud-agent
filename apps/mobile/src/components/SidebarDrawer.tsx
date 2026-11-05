@@ -281,7 +281,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           <View style={styles.profileInfo}>
             <View style={styles.avatarBox}>
               <Text style={styles.avatarText}>{operatorInitial}</Text>
-              <View style={styles.avatarOnlineDot} />
+              
             </View>
             <View style={styles.profileTextCol}>
               <View style={styles.profileNameRow}>
@@ -364,7 +364,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.activeMachineCard}>
               <View style={styles.machineCardTopRow}>
                 <View style={styles.machineTitleRow}>
-                  <View style={styles.livePulseDot} />
+                  
                   <Text style={styles.machineHostname} numberOfLines={1}>
                     {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
                   </Text>
@@ -393,12 +393,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                   activeOpacity={0.7}
                 >
                   <View style={styles.standbyTopRow}>
-                    <View
-                      style={[
-                        styles.standbyDot,
-                        { backgroundColor: m.isOnline ? colors.statusLive : colors.textDisabled },
-                      ]}
-                    />
+
                     <Text style={styles.standbyName} numberOfLines={1}>
                       {m.name}
                     </Text>
@@ -627,7 +622,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         {/* 7. Drawer Footer: VPS Status & Sign Out */}
         <View style={styles.footer}>
           <View style={styles.footerStatus}>
-            <View style={styles.pingDot} />
+            
             <Text style={styles.footerText}>
               VPS Connected • {pingRtt || '18ms'}
             </Text>
@@ -866,13 +861,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  livePulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: colors.statusLive,
-    marginRight: 8,
-  },
   machineHostname: {
     fontSize: 13,
     fontWeight: '700',
@@ -1095,6 +1083,7 @@ const styles = StyleSheet.create({
     maxWidth: 110,
   },
   metaDot: {
+    display: "none",
     fontSize: 9,
     color: colors.textDisabled,
   },
@@ -1155,12 +1144,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  pingDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.statusLive,
   },
   footerText: {
     fontSize: 11,

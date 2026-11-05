@@ -130,7 +130,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                 <View style={styles.headerLeft}>
                   <View style={styles.headerIconBox}>
                     {isPrReviewMode ? (
-                      <GitPullRequest size={18} color="#0077b6" />
+                      <GitPullRequest size={18} color="#fafafa" />
                     ) : (
                       <Bug size={18} color="#f85149" />
                     )}
@@ -158,14 +158,14 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                     onPress={handleShare}
                     activeOpacity={0.7}
                   >
-                    <Share2 size={16} color="#8b949e" />
+                    <Share2 size={16} color="#a3a3a3" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.headerActionBtn}
                     onPress={onClose}
                     activeOpacity={0.7}
                   >
-                    <X size={18} color="#8b949e" />
+                    <X size={18} color="#a3a3a3" />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -196,7 +196,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
               {/* 2. Mode Specific Banners */}
               {!isPrReviewMode && activeProposal && (
                 <View style={styles.verificationBanner}>
-                  <ShieldCheck size={16} color="#3fb950" />
+                  <ShieldCheck size={16} color="#fafafa" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.verificationTitle}>
                       {activeProposal.testsPassed ? 'Fix Verified: Test Suite Passing' : 'Fix Applied: Manual Review Advised'}
@@ -217,7 +217,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                 <View style={styles.verdictBanner}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {activePrReview.verdict === 'APPROVE' ? (
-                      <CheckCircle2 size={18} color="#3fb950" />
+                      <CheckCircle2 size={18} color="#fafafa" />
                     ) : (
                       <AlertCircle size={18} color="#f85149" />
                     )}
@@ -259,7 +259,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                       onPress={() => setActiveTab('diff')}
                       activeOpacity={0.7}
                     >
-                      <FileCode size={13} color={activeTab === 'diff' ? '#0077b6' : '#8b949e'} />
+                      <FileCode size={13} color={activeTab === 'diff' ? '#fafafa' : '#a3a3a3'} />
                       <Text style={[styles.tabText, activeTab === 'diff' && styles.tabTextActive]}>
                         Changes Diff
                       </Text>
@@ -270,7 +270,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                       onPress={() => setActiveTab('tests')}
                       activeOpacity={0.7}
                     >
-                      <Terminal size={13} color={activeTab === 'tests' ? '#0077b6' : '#8b949e'} />
+                      <Terminal size={13} color={activeTab === 'tests' ? '#fafafa' : '#a3a3a3'} />
                       <Text style={[styles.tabText, activeTab === 'tests' && styles.tabTextActive]}>
                         Test Runner
                       </Text>
@@ -281,7 +281,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                       onPress={() => setActiveTab('details')}
                       activeOpacity={0.7}
                     >
-                      <Bug size={13} color={activeTab === 'details' ? '#0077b6' : '#8b949e'} />
+                      <Bug size={13} color={activeTab === 'details' ? '#fafafa' : '#a3a3a3'} />
                       <Text style={[styles.tabText, activeTab === 'details' && styles.tabTextActive]}>
                         Incident Details
                       </Text>
@@ -294,7 +294,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                       onPress={() => setActiveTab('review')}
                       activeOpacity={0.7}
                     >
-                      <Sparkles size={13} color={activeTab === 'review' ? '#0077b6' : '#8b949e'} />
+                      <Sparkles size={13} color={activeTab === 'review' ? '#fafafa' : '#a3a3a3'} />
                       <Text style={[styles.tabText, activeTab === 'review' && styles.tabTextActive]}>
                         Review Report
                       </Text>
@@ -317,7 +317,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                 {!isPrReviewMode && activeTab === 'tests' && activeProposal && (
                   <View style={styles.terminalBox}>
                     <View style={styles.terminalHeader}>
-                      <Terminal size={13} color="#8b949e" />
+                      <Terminal size={13} color="#a3a3a3" />
                       <Text style={styles.terminalTitle}>Command: {activeProposal.testCommand}</Text>
                     </View>
                     <ScrollView horizontal>
@@ -359,7 +359,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                           </Text>
                         </View>
                         {activePrReview.securityRisks.map((risk, idx) => (
-                          <Text key={idx} style={{ color: '#c9d1d9', fontSize: 12, lineHeight: 18 }}>
+                          <Text key={idx} style={{ color: '#d4d4d4', fontSize: 12, lineHeight: 18 }}>
                             • {risk}
                           </Text>
                         ))}
@@ -415,7 +415,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                       disabled={isSubmitting}
                       activeOpacity={0.7}
                     >
-                      <GitMerge size={13} color="#c9d1d9" />
+                      <GitMerge size={13} color="#d4d4d4" />
                       <Text style={styles.mergeBtnText}>Merge Locally</Text>
                     </TouchableOpacity>
 
@@ -484,10 +484,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 580,
     maxHeight: '88%',
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
   },
   header: {
@@ -497,8 +497,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderBottomColor: '#262626',
+    backgroundColor: '#161616',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -510,13 +510,13 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerBadge: {
     fontSize: 10,
-    color: '#0077b6',
+    color: '#fafafa',
     fontWeight: '700',
     letterSpacing: 0.5,
   },
@@ -524,17 +524,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 4,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   sourcePillText: {
     fontSize: 9,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontWeight: '600',
   },
   headerTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
     marginTop: 1,
   },
   headerRight: {
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   statusAlertTextSuccess: {
-    color: '#3fb950',
+    color: '#fafafa',
   },
   statusAlertTextError: {
     color: '#f85149',
@@ -582,11 +582,11 @@ const styles = StyleSheet.create({
   verificationTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#3fb950',
+    color: '#fafafa',
   },
   verificationSubtitle: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   testBadge: {
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   testBadgeTextPass: {
-    color: '#3fb950',
+    color: '#fafafa',
   },
   testBadgeTextFail: {
     color: '#f85149',
@@ -614,20 +614,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 119, 182, 0.25)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   verdictTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   verdictSubtitle: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   verdictPill: {
@@ -649,7 +649,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   verdictPillTextApprove: {
-    color: '#3fb950',
+    color: '#fafafa',
   },
   verdictPillTextChanges: {
     color: '#f85149',
@@ -657,8 +657,8 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderBottomColor: '#262626',
+    backgroundColor: '#161616',
   },
   tabItem: {
     flexDirection: 'row',
@@ -670,15 +670,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabItemActive: {
-    borderBottomColor: '#0077b6',
+    borderBottomColor: '#fafafa',
   },
   tabText: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontWeight: '500',
   },
   tabTextActive: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontWeight: '600',
   },
   scrollContent: {
@@ -687,14 +687,14 @@ const styles = StyleSheet.create({
   diffHeader: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#8b949e',
+    color: '#a3a3a3',
     letterSpacing: 0.5,
   },
   terminalBox: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     padding: 10,
   },
   terminalHeader: {
@@ -703,44 +703,44 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingBottom: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
     marginBottom: 8,
   },
   terminalTitle: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontFamily: typography.mono,
   },
   terminalOutput: {
     fontFamily: typography.mono,
     fontSize: 11,
-    color: '#3fb950',
+    color: '#fafafa',
     lineHeight: 16,
   },
   detailsCard: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     borderRadius: 8,
     padding: 12,
   },
   detailsSectionTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#8b949e',
+    color: '#a3a3a3',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   detailsBodyText: {
     fontSize: 12,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     lineHeight: 18,
   },
   lineCommentCard: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 8,
     padding: 10,
     gap: 4,
@@ -753,20 +753,20 @@ const styles = StyleSheet.create({
   },
   lineCommentText: {
     fontSize: 12,
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   suggestionBox: {
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     padding: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     marginTop: 4,
   },
   suggestionCode: {
     fontFamily: typography.mono,
     fontSize: 11,
-    color: '#48cae4',
+    color: '#fafafa',
   },
   footer: {
     flexDirection: 'row',
@@ -775,8 +775,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderTopColor: '#262626',
+    backgroundColor: '#161616',
   },
   discardBtn: {
     flexDirection: 'row',
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   discardBtnText: {
     fontSize: 12,
@@ -799,12 +799,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   mergeBtnText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#c9d1d9',
+    color: '#d4d4d4',
   },
   primaryActionBtn: {
     flex: 1,
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 8,

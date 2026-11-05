@@ -54,13 +54,13 @@ export const NotificationBanner: React.FC = () => {
   const renderIcon = () => {
     switch (currentNotif.type) {
       case 'turn_complete':
-        return <Sparkles size={16} color="#3fb950" />;
+        return <Sparkles size={16} color="#fafafa" />;
       case 'approval_required':
         return <ShieldAlert size={16} color="#f85149" />;
       case 'error':
         return <AlertTriangle size={16} color="#f85149" />;
       default:
-        return <Sparkles size={16} color="#0077b6" />;
+        return <Sparkles size={16} color="#fafafa" />;
     }
   };
 
@@ -100,7 +100,7 @@ export const NotificationBanner: React.FC = () => {
           onPress={handleDismiss}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <X size={14} color="#8b949e" />
+          <X size={14} color="#a3a3a3" />
         </TouchableOpacity>
       </TouchableOpacity>
     </Animated.View>
@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderRadius: radii.md,
     borderWidth: 1,
     padding: 12,
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   bannerDefault: {
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   bannerApproval: {
     borderColor: 'rgba(248, 81, 73, 0.45)',
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -157,11 +157,11 @@ const styles = StyleSheet.create({
   titleText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   bodyText: {
     fontSize: 12,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     marginTop: 2,
     lineHeight: 16,
   },

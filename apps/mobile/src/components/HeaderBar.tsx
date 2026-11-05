@@ -10,8 +10,6 @@ export interface HeaderBarProps {
   onMore?: () => void;
   onSearch?: () => void;
   rightElement?: React.ReactNode;
-  showLiveDot?: boolean;
-  liveColor?: string;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -21,8 +19,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onMore,
   onSearch,
   rightElement,
-  showLiveDot = false,
-  liveColor = colors.statusLive,
 }) => {
   return (
     <View style={styles.container}>
@@ -34,18 +30,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ChevronLeft size={18} color={colors.textPrimary} />
+            <ChevronLeft size={18} color="#fafafa" />
           </TouchableOpacity>
         )}
         <View style={styles.titleColumn}>
-          <View style={styles.titleRow}>
-            {showLiveDot && (
-              <View style={[styles.liveDot, { backgroundColor: liveColor }]} />
-            )}
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
-          </View>
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
           {subtitle ? (
             <Text style={styles.subtitle} numberOfLines={1}>
               {subtitle}
@@ -61,7 +52,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Search size={16} color={colors.textSecondary} />
+            <Search size={16} color="#a3a3a3" />
           </TouchableOpacity>
         )}
         {rightElement}
@@ -72,7 +63,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <MoreVertical size={18} color={colors.textSecondary} />
+            <MoreVertical size={18} color="#a3a3a3" />
           </TouchableOpacity>
         )}
       </View>
@@ -83,9 +74,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     height: 56,
-    backgroundColor: colors.bgPrimary,
+    backgroundColor: '#0a0a0a',
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderMuted,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -103,9 +94,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -114,9 +105,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginLeft: 6,
@@ -126,27 +117,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 7,
-  },
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: '#fafafa',
     letterSpacing: -0.2,
     lineHeight: 20,
     flexShrink: 1,
   },
   subtitle: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: '#737373',
     marginTop: 1,
     lineHeight: 14,
   },

@@ -109,9 +109,9 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
 const styles = StyleSheet.create({
   container: {
     height: 62,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
+    borderTopColor: '#262626',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   activeTabLabel: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontWeight: '700',
   },
   badge: {

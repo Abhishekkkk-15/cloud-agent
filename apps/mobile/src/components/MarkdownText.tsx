@@ -383,7 +383,7 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
         {files.map((item, idx) => (
           <View key={`file_${idx}`} style={styles.dirRow}>
             <View style={styles.dirRowLeft}>
-              <FileText size={13} color="#8b949e" />
+              <FileText size={13} color="#a3a3a3" />
               <Text style={styles.dirFileName}>{item.name}</Text>
             </View>
             {item.sizeBytes ? (
@@ -1355,7 +1355,7 @@ const styles = StyleSheet.create({
   jsonString: {
     fontFamily: typography.mono,
     fontSize: 11.5,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
   },
   jsonNumber: {
     fontFamily: typography.mono,

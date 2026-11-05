@@ -178,7 +178,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   onPress={onClose}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <X size={16} color="#8b949e" />
+                  <X size={16} color="#a3a3a3" />
                 </TouchableOpacity>
               </View>
 
@@ -189,7 +189,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
               >
                 {/* Architecture Info Banner */}
                 <View style={styles.infoBanner}>
-                  <Radio size={14} color="#0096c7" style={{ marginTop: 2 }} />
+                  <Radio size={14} color="#fafafa" style={{ marginTop: 2 }} />
                   <Text style={styles.infoBannerText}>
                     All mobile operations (Google OAuth, developer login, machine discovery, and WebRTC streaming) connect exclusively through this Gateway Hub.
                   </Text>
@@ -234,7 +234,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                 {/* Gateway URL Field */}
                 <View style={styles.fieldGroup}>
                   <View style={styles.fieldLabelRow}>
-                    <Database size={13} color="#0077b6" />
+                    <Database size={13} color="#fafafa" />
                     <Text style={styles.fieldLabel}>Gateway Server URL</Text>
                   </View>
                   <View style={styles.inputContainer}>
@@ -246,7 +246,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                         setTestResult(null);
                       }}
                       placeholder="e.g. https://unushered-chantal-unpsychotic.ngrok-free.dev"
-                      placeholderTextColor="#6e7681"
+                      placeholderTextColor="#737373"
                       autoCapitalize="none"
                       autoCorrect={false}
                     />
@@ -254,7 +254,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                       <View style={styles.testBadge}>
                         {testResult.gatewayOk ? (
                           <View style={styles.badgeSuccess}>
-                            <CheckCircle2 size={12} color="#0077b6" />
+                            <CheckCircle2 size={12} color="#fafafa" />
                             <Text style={styles.badgeSuccessText}>
                               {testResult.gatewayLatencyMs}ms • {testResult.connectedDaemons ?? 0} daemon(s)
                             </Text>
@@ -279,7 +279,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                     ]}
                   >
                     {statusMessage.type === 'success' ? (
-                      <CheckCircle2 size={14} color="#0077b6" />
+                      <CheckCircle2 size={14} color="#fafafa" />
                     ) : (
                       <XCircle size={14} color={colors.red} />
                     )}
@@ -302,10 +302,10 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   activeOpacity={0.7}
                 >
                   {isTesting ? (
-                    <ActivityIndicator size="small" color="#0077b6" />
+                    <ActivityIndicator size="small" color="#fafafa" />
                   ) : (
                     <>
-                      <Zap size={14} color="#0077b6" />
+                      <Zap size={14} color="#fafafa" />
                       <Text style={styles.testButtonText}>Test Connection</Text>
                     </>
                   )}
@@ -315,7 +315,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                 <View style={styles.pushCard}>
                   <View style={styles.pushHeader}>
                     <View style={styles.pushTitleRow}>
-                      <Bell size={14} color="#0077b6" />
+                      <Bell size={14} color="#fafafa" />
                       <Text style={styles.pushTitle}>Native Push Notifications</Text>
                     </View>
                     <View style={[styles.statusPill, isPushRegistered ? styles.statusPillActive : styles.statusPillInactive]}>
@@ -334,10 +334,10 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                     activeOpacity={0.7}
                   >
                     {isSendingTestPush ? (
-                      <ActivityIndicator size="small" color="#0077b6" />
+                      <ActivityIndicator size="small" color="#fafafa" />
                     ) : (
                       <>
-                        <Bell size={13} color="#0077b6" />
+                        <Bell size={13} color="#fafafa" />
                         <Text style={styles.testPushButtonText}>Send Test Push Notification</Text>
                       </>
                     )}
@@ -349,7 +349,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   <View style={styles.activeMachineCard}>
                     <View style={styles.machineDot} />
                     <Text style={styles.activeMachineText}>
-                      Linked Host: <Text style={{ color: '#f0f6fc', fontWeight: '600' }}>{activeMachine.name}</Text> ({activeMachine.platform})
+                      Linked Host: <Text style={{ color: '#fafafa', fontWeight: '600' }}>{activeMachine.name}</Text> ({activeMachine.platform})
                     </Text>
                   </View>
                 )}
@@ -363,7 +363,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   disabled={isSaving}
                   activeOpacity={0.7}
                 >
-                  <RefreshCw size={13} color="#8b949e" />
+                  <RefreshCw size={13} color="#a3a3a3" />
                   <Text style={styles.resetBtnText}>Defaults</Text>
                 </TouchableOpacity>
 
@@ -410,10 +410,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 480,
     maxHeight: '90%',
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
   },
   header: {
@@ -423,34 +423,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderBottomColor: '#262626',
+    backgroundColor: '#161616',
   },
   headerIconBox: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   title: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   subtitle: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -464,22 +464,22 @@ const styles = StyleSheet.create({
   infoBanner: {
     flexDirection: 'row',
     gap: 10,
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.25)',
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: 10,
     padding: 12,
   },
   infoBannerText: {
     flex: 1,
     fontSize: 12,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     lineHeight: 17,
   },
   inputLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#8b949e',
+    color: '#a3a3a3',
     letterSpacing: 0.5,
     marginBottom: -8,
   },
@@ -492,13 +492,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   presetChipText: {
     fontSize: 12,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     fontWeight: '500',
   },
   fieldGroup: {
@@ -512,21 +512,21 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#c9d1d9',
+    color: '#d4d4d4',
   },
   inputContainer: {
     position: 'relative',
     justifyContent: 'center',
   },
   textInput: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 11,
     paddingRight: 110,
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 13,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
@@ -539,16 +539,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 3,
   },
   badgeSuccessText: {
     fontSize: 10,
-    color: '#48cae4',
+    color: '#fafafa',
     fontWeight: '600',
   },
   badgeError: {
@@ -577,8 +577,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   feedbackSuccess: {
-    backgroundColor: 'rgba(0, 119, 182, 0.1)',
-    borderColor: 'rgba(0, 119, 182, 0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.18)',
   },
   feedbackError: {
     backgroundColor: 'rgba(248, 81, 73, 0.1)',
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   feedbackSuccessText: {
-    color: '#48cae4',
+    color: '#fafafa',
   },
   feedbackErrorText: {
     color: colors.red,
@@ -600,15 +600,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 10,
     paddingVertical: 11,
     marginTop: 4,
   },
   testButtonText: {
-    color: '#0096c7',
+    color: '#fafafa',
     fontSize: 13,
     fontWeight: '600',
   },
@@ -616,9 +616,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -627,16 +627,16 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
   },
   activeMachineText: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   pushCard: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 10,
     padding: 12,
     gap: 8,
@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
   pushTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   statusPill: {
     paddingHorizontal: 8,
@@ -663,26 +663,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusPillActive: {
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
-    borderColor: 'rgba(0, 119, 182, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   statusPillInactive: {
-    backgroundColor: '#21262d',
-    borderColor: '#30363d',
+    backgroundColor: '#262626',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   statusPillText: {
     fontSize: 11,
     fontWeight: '600',
   },
   statusPillTextActive: {
-    color: '#48cae4',
+    color: '#fafafa',
   },
   statusPillTextInactive: {
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   pushStatusText: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     lineHeight: 16,
   },
   testPushButton: {
@@ -690,15 +690,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     borderRadius: 8,
     paddingVertical: 8,
     marginTop: 2,
   },
   testPushButtonText: {
-    color: '#0096c7',
+    color: '#fafafa',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -709,8 +709,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    backgroundColor: '#161b22',
+    borderTopColor: '#262626',
+    backgroundColor: '#161616',
   },
   resetBtn: {
     flexDirection: 'row',
@@ -719,13 +719,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 6,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   resetBtnText: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontWeight: '500',
   },
   cancelBtn: {
@@ -735,11 +735,11 @@ const styles = StyleSheet.create({
   },
   cancelBtnText: {
     fontSize: 13,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontWeight: '500',
   },
   saveBtn: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
     paddingVertical: 9,
     paddingHorizontal: 18,
     borderRadius: 8,

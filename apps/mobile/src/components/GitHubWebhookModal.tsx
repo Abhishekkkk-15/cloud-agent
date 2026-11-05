@@ -119,11 +119,11 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
               {/* Header */}
               <View style={styles.header}>
                 <View style={styles.headerTitleRow}>
-                  <Key size={18} color="#0077b6" />
+                  <Key size={18} color="#fafafa" />
                   <Text style={styles.headerTitle}>GitHub Credentials & Webhooks</Text>
                 </View>
                 <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-                  <X size={18} color="#8b949e" />
+                  <X size={18} color="#a3a3a3" />
                 </TouchableOpacity>
               </View>
 
@@ -134,7 +134,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                   onPress={() => setActiveTab('pat')}
                   activeOpacity={0.7}
                 >
-                  <Key size={13} color={activeTab === 'pat' ? '#0077b6' : '#8b949e'} />
+                  <Key size={13} color={activeTab === 'pat' ? '#fafafa' : '#a3a3a3'} />
                   <Text style={[styles.tabButtonText, activeTab === 'pat' && styles.tabButtonTextActive]}>
                     GitHub PAT (Option B)
                   </Text>
@@ -145,7 +145,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                   onPress={() => setActiveTab('webhooks')}
                   activeOpacity={0.7}
                 >
-                  <GitPullRequest size={13} color={activeTab === 'webhooks' ? '#0077b6' : '#8b949e'} />
+                  <GitPullRequest size={13} color={activeTab === 'webhooks' ? '#fafafa' : '#a3a3a3'} />
                   <Text style={[styles.tabButtonText, activeTab === 'webhooks' && styles.tabButtonTextActive]}>
                     Webhook URLs
                   </Text>
@@ -168,7 +168,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         >
                           <RefreshCw
                             size={12}
-                            color="#8b949e"
+                            color="#a3a3a3"
                             style={isCheckingGithub ? { transform: [{ rotate: '45deg' }] } : undefined}
                           />
                         </TouchableOpacity>
@@ -176,13 +176,13 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
 
                       {isCheckingGithub ? (
                         <View style={styles.loadingRow}>
-                          <ActivityIndicator size="small" color="#0077b6" />
+                          <ActivityIndicator size="small" color="#fafafa" />
                           <Text style={styles.loadingText}>Checking GitHub credentials on host...</Text>
                         </View>
                       ) : githubStatus?.authenticated ? (
                         <View style={styles.authSuccessBox}>
                           <View style={styles.authSuccessLeft}>
-                            <CheckCircle2 size={16} color="#3fb950" />
+                            <CheckCircle2 size={16} color="#fafafa" />
                             <View>
                               <Text style={styles.authUsername}>
                                 @{githubStatus.username || 'Authenticated'}
@@ -205,7 +205,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         </View>
                       ) : (
                         <View style={styles.authStandbyBox}>
-                          <ShieldAlert size={16} color="#8b949e" />
+                          <ShieldAlert size={16} color="#a3a3a3" />
                           <View style={{ flex: 1 }}>
                             <Text style={styles.authStandbyTitle}>No GitHub Token Configured</Text>
                             <Text style={styles.authStandbySub}>
@@ -220,14 +220,14 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                     <View style={[styles.card, { marginTop: 12 }]}>
                       <Text style={styles.cardSectionLabel}>CONFIGURE PERSONAL ACCESS TOKEN</Text>
                       <Text style={styles.tokenHint}>
-                        Create a classic PAT with <Text style={{ color: '#0096c7', fontWeight: '700' }}>repo</Text> scope at GitHub → Settings → Developer Settings → Personal access tokens.
+                        Create a classic PAT with <Text style={{ color: '#fafafa', fontWeight: '700' }}>repo</Text> scope at GitHub → Settings → Developer Settings → Personal access tokens.
                       </Text>
 
                       <View style={styles.inputContainer}>
                         <TextInput
                           style={styles.textInput}
                           placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                          placeholderTextColor="#6e7681"
+                          placeholderTextColor="#737373"
                           value={tokenInput}
                           onChangeText={setTokenInput}
                           secureTextEntry
@@ -244,7 +244,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           ]}
                         >
                           {saveFeedback.type === 'success' ? (
-                            <CheckCircle2 size={13} color="#3fb950" />
+                            <CheckCircle2 size={13} color="#fafafa" />
                           ) : (
                             <XCircle size={13} color="#f85149" />
                           )}
@@ -277,8 +277,8 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                     </View>
 
                     {/* Terminal Alternative Instructions */}
-                    <View style={[styles.card, { marginTop: 12, backgroundColor: '#010409' }]}>
-                      <Text style={[styles.cardSectionLabel, { color: '#6e7681' }]}>
+                    <View style={[styles.card, { marginTop: 12, backgroundColor: '#121212' }]}>
+                      <Text style={[styles.cardSectionLabel, { color: '#737373' }]}>
                         OR EXPORT IN TERMINAL
                       </Text>
                       <Text style={styles.codeText}>
@@ -313,12 +313,12 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         >
                           {copiedGithub ? (
                             <>
-                              <Check size={12} color="#3fb950" />
-                              <Text style={[styles.copyBtnText, { color: '#3fb950' }]}>Copied</Text>
+                              <Check size={12} color="#fafafa" />
+                              <Text style={[styles.copyBtnText, { color: '#fafafa' }]}>Copied</Text>
                             </>
                           ) : (
                             <>
-                              <Copy size={12} color="#0077b6" />
+                              <Copy size={12} color="#fafafa" />
                               <Text style={styles.copyBtnText}>Copy URL</Text>
                             </>
                           )}
@@ -328,10 +328,10 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                       {/* GitHub Setup Instructions Checklist */}
                       <View style={styles.checklist}>
                         <Text style={styles.checkTitle}>Setup in GitHub Repository:</Text>
-                        <Text style={styles.checkItem}>1. Go to repo <Text style={{ color: '#f0f6fc', fontWeight: '600' }}>Settings → Webhooks → Add webhook</Text></Text>
-                        <Text style={styles.checkItem}>2. Payload URL: <Text style={{ color: '#48cae4' }}>Paste URL above</Text></Text>
-                        <Text style={styles.checkItem}>3. Content type: <Text style={{ color: '#3fb950', fontWeight: '700' }}>application/json</Text></Text>
-                        <Text style={styles.checkItem}>4. Events: Check <Text style={{ color: '#f0f6fc', fontWeight: '600' }}>Pull requests</Text> and <Text style={{ color: '#f0f6fc', fontWeight: '600' }}>Issues</Text></Text>
+                        <Text style={styles.checkItem}>1. Go to repo <Text style={{ color: '#fafafa', fontWeight: '600' }}>Settings → Webhooks → Add webhook</Text></Text>
+                        <Text style={styles.checkItem}>2. Payload URL: <Text style={{ color: '#fafafa' }}>Paste URL above</Text></Text>
+                        <Text style={styles.checkItem}>3. Content type: <Text style={{ color: '#fafafa', fontWeight: '700' }}>application/json</Text></Text>
+                        <Text style={styles.checkItem}>4. Events: Check <Text style={{ color: '#fafafa', fontWeight: '600' }}>Pull requests</Text> and <Text style={{ color: '#fafafa', fontWeight: '600' }}>Issues</Text></Text>
                       </View>
                     </View>
 
@@ -355,12 +355,12 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         >
                           {copiedSentry ? (
                             <>
-                              <Check size={12} color="#3fb950" />
-                              <Text style={[styles.copyBtnText, { color: '#3fb950' }]}>Copied</Text>
+                              <Check size={12} color="#fafafa" />
+                              <Text style={[styles.copyBtnText, { color: '#fafafa' }]}>Copied</Text>
                             </>
                           ) : (
                             <>
-                              <Copy size={12} color="#0077b6" />
+                              <Copy size={12} color="#fafafa" />
                               <Text style={styles.copyBtnText}>Copy URL</Text>
                             </>
                           )}
@@ -390,10 +390,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 520,
     maxHeight: '85%',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     overflow: 'hidden',
   },
   header: {
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -411,20 +411,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 15,
     fontWeight: '700',
   },
   closeBtn: {
     padding: 6,
     borderRadius: 8,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   tabRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#0d1117',
+    borderBottomColor: '#262626',
+    backgroundColor: '#0a0a0a',
   },
   tabButton: {
     flex: 1,
@@ -437,15 +437,15 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   tabButtonActive: {
-    borderBottomColor: '#0077b6',
+    borderBottomColor: '#fafafa',
   },
   tabButtonText: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 12,
     fontWeight: '600',
   },
   tabButtonTextActive: {
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   scroll: {
     maxHeight: 520,
@@ -457,14 +457,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   card: {
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     padding: 14,
   },
   cardSectionLabel: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.6,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   loadingText: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 12,
   },
   authSuccessBox: {
@@ -504,12 +504,12 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   authUsername: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 13,
     fontWeight: '700',
   },
   authSource: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 11,
     marginTop: 1,
   },
@@ -517,12 +517,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   disconnectBtnText: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -532,38 +532,38 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: 'rgba(139, 148, 158, 0.08)',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     borderRadius: 8,
     padding: 10,
   },
   authStandbyTitle: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 12,
     fontWeight: '600',
   },
   authStandbySub: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 11,
     lineHeight: 15,
     marginTop: 2,
   },
   tokenHint: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 11,
     lineHeight: 16,
     marginTop: 6,
     marginBottom: 10,
   },
   inputContainer: {
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   textInput: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 13,
     padding: 0,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
     borderRadius: 8,
     paddingVertical: 10,
     marginTop: 12,
@@ -605,19 +605,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   feedbackSuccessText: {
-    color: '#3fb950',
+    color: '#fafafa',
   },
   feedbackErrorText: {
     color: '#f85149',
   },
   codeText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     fontSize: 11,
     marginTop: 6,
   },
   webhookIntro: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 12,
     lineHeight: 17,
     marginTop: 4,
@@ -627,16 +627,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: 8,
     padding: 10,
     gap: 8,
   },
   urlText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#48cae4',
+    color: '#fafafa',
     fontSize: 11,
     flex: 1,
   },
@@ -647,16 +647,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 6,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
   },
   copyBtnDone: {
     backgroundColor: 'rgba(63, 185, 80, 0.15)',
     borderColor: 'rgba(63, 185, 80, 0.35)',
   },
   copyBtnText: {
-    color: '#0077b6',
+    color: '#fafafa',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -664,17 +664,17 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
+    borderTopColor: '#262626',
     gap: 4,
   },
   checkTitle: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 4,
   },
   checkItem: {
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontSize: 11,
     lineHeight: 16,
   },

@@ -147,7 +147,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={18} color="#8b949e" />
+              <X size={18} color="#a3a3a3" />
             </TouchableOpacity>
           </View>
 
@@ -160,7 +160,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                 disabled={!parentPath || isLoading}
                 activeOpacity={0.7}
               >
-                <ArrowUp size={15} color={parentPath ? '#f0f6fc' : '#484f58'} />
+                <ArrowUp size={15} color={parentPath ? '#fafafa' : '#484f58'} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.navActionBtn}
@@ -168,7 +168,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                 disabled={isLoading}
                 activeOpacity={0.7}
               >
-                <Home size={15} color="#f0f6fc" />
+                <Home size={15} color="#fafafa" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.navActionBtn}
@@ -176,7 +176,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                 disabled={isLoading}
                 activeOpacity={0.7}
               >
-                <RefreshCw size={14} color="#f0f6fc" />
+                <RefreshCw size={14} color="#fafafa" />
               </TouchableOpacity>
             </View>
 
@@ -212,17 +212,17 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
 
           {/* Quick Search in Current Folder */}
           <View style={styles.searchContainer}>
-            <Search size={14} color="#8b949e" />
+            <Search size={14} color="#a3a3a3" />
             <TextInput
               style={styles.searchInput}
               value={searchFilter}
               onChangeText={setSearchFilter}
               placeholder="Filter folders in this directory..."
-              placeholderTextColor="#6e7681"
+              placeholderTextColor="#737373"
             />
             {searchFilter.length > 0 && (
               <TouchableOpacity onPress={() => setSearchFilter('')}>
-                <X size={14} color="#8b949e" />
+                <X size={14} color="#a3a3a3" />
               </TouchableOpacity>
             )}
           </View>
@@ -240,7 +240,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
               </View>
             ) : filteredDirs.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Folder size={32} color="#30363d" />
+                <Folder size={32} color="rgba(255, 255, 255, 0.10)" />
                 <Text style={styles.emptyTitle}>No subdirectories</Text>
                 <Text style={styles.emptySubtitle}>
                   You can choose this current folder as your workspace.
@@ -260,7 +260,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                   <Text style={styles.folderName} numberOfLines={1}>
                     {dir.name}
                   </Text>
-                  <ChevronRight size={15} color="#6e7681" />
+                  <ChevronRight size={15} color="#737373" />
                 </TouchableOpacity>
               ))
             )}
@@ -301,11 +301,11 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
   },
   modalCard: {
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     maxHeight: '88%',
     minHeight: 480,
   },
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -335,27 +335,27 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   subtitle: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   closeBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     alignItems: 'center',
     justifyContent: 'center',
   },
   navBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
     paddingHorizontal: 12,
     paddingVertical: 8,
     gap: 10,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 6,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -387,13 +387,13 @@ const styles = StyleSheet.create({
   },
   breadcrumbText: {
     fontSize: 12.5,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontFamily: typography.mono,
     paddingVertical: 2,
     paddingHorizontal: 4,
   },
   breadcrumbTextActive: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontWeight: '700',
   },
   breadcrumbSep: {
@@ -403,9 +403,9 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#010409',
+    backgroundColor: '#121212',
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
     paddingHorizontal: 14,
     paddingVertical: 8,
     gap: 8,
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 13,
-    color: '#f0f6fc',
+    color: '#fafafa',
     padding: 0,
   },
   folderList: {
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   folderName: {
     flex: 1,
     fontSize: 13.5,
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontWeight: '500',
   },
   loadingBox: {
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   emptyBox: {
     paddingVertical: 48,
@@ -460,11 +460,11 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#8b949e',
+    color: '#a3a3a3',
   },
   emptySubtitle: {
     fontSize: 12,
-    color: '#6e7681',
+    color: '#737373',
     textAlign: 'center',
     maxWidth: 240,
   },
@@ -472,8 +472,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    backgroundColor: '#010409',
+    borderTopColor: '#262626',
+    backgroundColor: '#121212',
     gap: 10,
   },
   selectedRow: {
@@ -483,13 +483,13 @@ const styles = StyleSheet.create({
   },
   selectedLabel: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontWeight: '600',
   },
   selectedPath: {
     flex: 1,
     fontSize: 12,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     fontFamily: typography.mono,
   },
   selectBtn: {
@@ -502,7 +502,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   selectBtnDisabled: {
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
     opacity: 0.6,
   },
   selectBtnText: {

@@ -137,7 +137,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={18} color="#8b949e" />
+              <X size={18} color="#a3a3a3" />
             </TouchableOpacity>
           </View>
 
@@ -166,7 +166,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
                       >
                         <FolderGit2
                           size={13}
-                          color={isSelected ? colors.primary : '#8b949e'}
+                          color={isSelected ? colors.primary : '#a3a3a3'}
                         />
                         <Text
                           style={[
@@ -349,11 +349,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   sheetContainer: {
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     maxHeight: '85%',
   },
   sheetHeader: {
@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
+    borderBottomColor: '#262626',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -382,12 +382,12 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
     letterSpacing: -0.2,
   },
   sheetSubtitle: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     marginTop: 1,
   },
   machineHighlight: {
@@ -398,7 +398,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#8b949e',
+    color: '#a3a3a3',
     letterSpacing: 0.8,
   },
   chipsScroll: {
@@ -430,9 +430,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: radii.full,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
   },
   wsChipActive: {
     backgroundColor: colors.primarySubtle,
@@ -440,11 +440,11 @@ const styles = StyleSheet.create({
   },
   wsChipText: {
     fontSize: 12.5,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontWeight: '500',
   },
   wsChipTextActive: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontWeight: '600',
   },
   sectionHeaderRow: {
@@ -472,9 +472,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     borderRadius: radii.md,
     padding: 12,
   },
@@ -499,11 +499,11 @@ const styles = StyleSheet.create({
   folderCardName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   folderCardPath: {
     fontSize: 11.5,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontFamily: typography.mono,
     marginTop: 2,
   },
@@ -511,16 +511,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radii.sm,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   changeBadgeText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#c9d1d9',
+    color: '#d4d4d4',
   },
   suggestionsHeader: {
     fontSize: 11,
-    color: '#6e7681',
+    color: '#737373',
   },
   suggestionsScroll: {
     gap: 6,
@@ -532,13 +532,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: radii.sm,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
   },
   suggestionText: {
     fontSize: 11.5,
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     fontFamily: typography.mono,
   },
   optionRow: {
@@ -550,9 +550,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: radii.md,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
   },
   paramPillActive: {
     backgroundColor: colors.primarySubtle,
@@ -560,19 +560,19 @@ const styles = StyleSheet.create({
   },
   paramPillText: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontWeight: '500',
   },
   paramPillTextActive: {
-    color: '#f0f6fc',
+    color: '#fafafa',
     fontWeight: '600',
   },
   sheetFooter: {
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    backgroundColor: '#010409',
+    borderTopColor: '#262626',
+    backgroundColor: '#121212',
   },
   startBtn: {
     flexDirection: 'row',

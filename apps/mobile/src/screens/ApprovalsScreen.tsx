@@ -67,8 +67,6 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
       <HeaderBar
         title="Diff Reviewer & Security Gate"
         subtitle={`${targetNode} • HITL Gate`}
-        showLiveDot={true}
-        liveColor={pendingApproval ? colors.red : colors.statusLive}
         onBack={onBack}
         onMore={() => {}}
       />
@@ -87,12 +85,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                 pendingApproval ? styles.statusBadgeOpen : styles.statusBadgePassed,
               ]}
             >
-              <View
-                style={[
-                  styles.statusBadgeDot,
-                  { backgroundColor: pendingApproval ? colors.primaryLight : colors.statusLive },
-                ]}
-              />
+
               <Text
                 style={[
                   styles.statusBadgeText,

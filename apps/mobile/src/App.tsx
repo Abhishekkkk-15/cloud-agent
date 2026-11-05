@@ -51,9 +51,9 @@ export default function App() {
   // While restoring persisted auth session from storage, prevent flash of AuthScreen
   if (isInitializingAuth) {
     return (
-      <View style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#0d1117' }]}>
+      <View style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0a' }]}>
         <ExpoStatusBar style="light" />
-        <ActivityIndicator size="small" color="#0077b6" />
+        <ActivityIndicator size="small" color="#fafafa" />
       </View>
     );
   }

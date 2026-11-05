@@ -219,7 +219,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
               <>
                 <Zap size={16} color={colors.primary} />
                 <Text style={styles.devBtnText}>Developer Quick Connect</Text>
-                <ArrowRight size={14} color="#8b949e" style={{ marginLeft: 'auto' }} />
+                <ArrowRight size={14} color="#a3a3a3" style={{ marginLeft: 'auto' }} />
               </>
             )}
           </TouchableOpacity>
@@ -232,7 +232,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
             onPress={() => setShowServerSettings(true)}
             activeOpacity={0.7}
           >
-            <Globe size={12} color="#0077b6" />
+            <Globe size={12} color="#fafafa" />
             <Text style={styles.serverText}>
               Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
             </Text>
@@ -252,7 +252,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -263,7 +263,7 @@ const styles = StyleSheet.create({
     width: 240,
     height: 240,
     borderRadius: 120,
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     filter: Platform.OS === 'web' ? 'blur(80px)' : undefined,
   },
   content: {
@@ -280,12 +280,12 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0077b6',
+    shadowColor: '#fafafa',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
@@ -294,22 +294,22 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#f0f6fc',
+    color: '#fafafa',
     letterSpacing: -0.5,
   },
   tagline: {
     fontSize: 13,
-    color: '#8b949e',
+    color: '#a3a3a3',
     textAlign: 'center',
     lineHeight: 18,
     maxWidth: 280,
   },
   card: {
     width: '100%',
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     padding: 20,
     gap: 16,
   },
@@ -321,11 +321,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   cardSubtitle: {
     fontSize: 12,
-    color: '#8b949e',
+    color: '#a3a3a3',
     lineHeight: 17,
   },
   googleBtn: {
@@ -333,14 +333,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 4,
   },
   googleBtnText: {
-    color: '#1f2328',
+    color: '#fafafa',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -352,26 +354,26 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#21262d',
+    backgroundColor: '#262626',
   },
   dividerText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6e7681',
+    color: '#737373',
   },
   devBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     paddingVertical: 12,
     paddingHorizontal: 16,
   },
   devBtnText: {
-    color: '#c9d1d9',
+    color: '#d4d4d4',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -385,16 +387,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: '#262626',
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
   serverText: {
     fontSize: 11,
-    color: '#8b949e',
+    color: '#a3a3a3',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 });

@@ -19,7 +19,7 @@ import {
   Terminal,
   Link,
   FileText,
-  Send,
+  FileCode,
   FolderGit2,
   GitFork,
   ArrowDown,
@@ -33,6 +33,8 @@ import {
   Mic,
   Layers,
   Square,
+  Copy,
+  X,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -106,6 +108,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
   const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
+  const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
   const scrollViewRef = useRef<any>(null);
 
   const isTurnOpen = (turnId: string) => openTurnAccordions[turnId] ?? true;
@@ -124,6 +127,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       ...prev,
       [turnId]: !isReasoningOpen(turnId),
     }));
+  };
+
+  const handleCopyTurnText = (turnId: string, text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedTurnId(turnId);
+    setTimeout(() => {
+      setCopiedTurnId(null);
+    }, 1500);
   };
 
   const handleInputChange = (text: string) => {
@@ -205,9 +218,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const titleStr = activeSession?.title || 'New Session';
   const modelStr = activeSession?.model || sessionConfig.model.split('-')[0] || 'antigravity';
   const subtitleStr = `${repoName} • ${modelStr}`;
-  const timeAgoStr = formatTimeAgo(activeSession?.createdAt);
 
-  // Group linear chronological messages into sequential chat turns matching Antigravity CLI flow
+  // Group linear chronological messages into sequential chat turns matching Antigravity flow
   const chatTurns = useMemo<ChatTurn[]>(() => {
     if (!sessionMessages || sessionMessages.length === 0) {
       return [];
@@ -220,7 +232,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       const msg = sessionMessages[i];
 
       if (msg.role === 'user') {
-        // Start a new turn for this user prompt
         currentTurn = {
           id: msg.id || `turn_${i}`,
           userMessage: {
@@ -232,7 +243,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         turns.push(currentTurn);
       } else if (msg.role === 'assistant') {
         if (!currentTurn) {
-          // Assistant response before any user prompt (welcome or truncated page)
           currentTurn = {
             id: msg.id || `turn_${i}`,
           };
@@ -289,7 +299,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               category = 'search';
             }
 
-            // Correlate with tool output in tc.result or subsequent role === 'tool' message
+            // Correlate with tool output
             let toolOutput: string | undefined =
               typeof tc.result === 'string'
                 ? tc.result
@@ -370,29 +380,27 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const renderActionIcon = (category: ActionStep['category']) => {
     switch (category) {
       case 'repo':
-        return <FolderGit2 size={16} color="#ffffff" />;
+        return <FolderGit2 size={15} color="#ffffff" />;
       case 'mcp':
-        return <Link size={16} color="#ffffff" />;
+        return <Link size={15} color="#ffffff" />;
       case 'skill':
-        return <GitFork size={16} color="#ffffff" />;
+        return <GitFork size={15} color="#ffffff" />;
       case 'file':
-        return <FileText size={16} color="#ffffff" />;
+        return <FileText size={15} color="#ffffff" />;
       case 'search':
-        return <Search size={16} color="#ffffff" />;
+        return <Search size={15} color="#ffffff" />;
       case 'terminal':
       default:
-        return <Terminal size={16} color="#ffffff" />;
+        return <Terminal size={15} color="#ffffff" />;
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* 1. Top Navigation Bar */}
+      {/* 1. Top Header Bar */}
       <HeaderBar
         title={titleStr}
         subtitle={subtitleStr}
-        showLiveDot={true}
-        liveColor={isSendingPrompt ? colors.statusLive : colors.primaryLight}
         onBack={onOpenDrawer || onBack}
         rightElement={
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -407,7 +415,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="View Session Artifacts"
             >
-              <Layers size={16} color="#f0f6fc" />
+              <Layers size={16} color="#fafafa" />
               {sessionArtifacts.length > 0 ? (
                 <View style={styles.headerBadge}>
                   <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
@@ -422,7 +430,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Open Terminal"
             >
-              <Terminal size={16} color="#f0f6fc" />
+              <Terminal size={16} color="#fafafa" />
             </TouchableOpacity>
           </View>
         }
@@ -441,19 +449,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Top Session Meta Pill Row (Stitch Screen 2) */}
+        {/* 2. Top Meta Pill Row (Paradev Model & Context Info) */}
         <View style={styles.sessionMetaPillRow}>
           <TouchableOpacity
             style={styles.modelStatusPill}
             onPress={() => setShowConfigSheet(true)}
             activeOpacity={0.75}
           >
-            <View
-              style={[
-                styles.modelStatusDot,
-                { backgroundColor: isSendingPrompt ? colors.statusLive : colors.primaryLight },
-              ]}
-            />
+
             <Text style={styles.modelStatusText} numberOfLines={1}>
               {isSendingPrompt ? 'agent.active' : 'agent.ready'} •{' '}
               {sessionConfig.model.includes('flash')
@@ -487,10 +490,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               activeOpacity={0.7}
             >
               {isLoadingOlderMessages ? (
-                <ActivityIndicator size="small" color={colors.green} />
+                <ActivityIndicator size="small" color={colors.primaryLight} />
               ) : (
                 <>
-                  <ArrowUp size={13} color={colors.green} />
+                  <ArrowUp size={13} color={colors.primaryLight} />
                   <Text style={styles.loadOlderText}>Load older messages</Text>
                 </>
               )}
@@ -498,11 +501,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           </View>
         )}
 
-        {/* 4. Sequential Turn-by-Turn Timeline */}
+        {/* 4. Turn-by-Turn Timeline (Paradev OutgoingBubble & AgentMessage) */}
         {displayedTurns.length === 0 ? (
           <View style={styles.emptyChatBox}>
             <View style={styles.emptyChatIconBox}>
-              <Terminal size={22} color="#ffffff" />
+              <Terminal size={22} color="#fafafa" />
             </View>
             <Text style={styles.emptyChatTitle}>No messages in this session yet</Text>
             <Text style={styles.emptyChatSubtitle}>
@@ -512,30 +515,26 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         ) : (
           displayedTurns.map((turn, turnIdx) => (
             <View key={turn.id || turnIdx} style={styles.turnCardContainer}>
-              {/* User Prompt (Stitch Screen 2 Elevated Container) */}
+              {/* User Prompt: Paradev OutgoingBubble (bg-[#2F2F2F], rounded-[22px], self-end) */}
               {turn.userMessage?.content ? (
-                <View style={styles.userCommentCard}>
-                  <View style={styles.userHeaderRow}>
-                    <View style={styles.userHeaderLeft}>
-                      <Text style={styles.userPromptPrefix}>&gt;</Text>
-                      <Text style={styles.userCommentHeader}>
-                        user prompt • turn #{turnIdx + 1}
-                      </Text>
-                    </View>
-                    {turn.userMessage.timestamp ? (
-                      <Text style={styles.userTimestamp}>
-                        {formatTimeAgo(turn.userMessage.timestamp)}
-                      </Text>
-                    ) : null}
+                <View style={styles.userBubbleWrapper}>
+                  <View style={styles.userOutgoingBubble}>
+                    <Text style={styles.userBubbleText}>{turn.userMessage.content}</Text>
                   </View>
-                  <Text style={styles.userCommentBody}>{turn.userMessage.content}</Text>
+                  <View style={styles.userBubbleMeta}>
+                    <Text style={styles.userBubbleMetaText}>
+                      {turn.userMessage.timestamp
+                        ? formatTimeAgo(turn.userMessage.timestamp)
+                        : `turn #${turnIdx + 1}`}
+                    </Text>
+                  </View>
                 </View>
               ) : null}
 
-              {/* Assistant Turn Body (Stitch Screen 2 Cascade) */}
+              {/* Assistant Turn: Natural Unboxed Flow matching Paradev AgentMessage */}
               {turn.assistant ? (
                 <View style={styles.assistantTurnWrapper}>
-                  {/* Reasoning Process (Collapsible Thought Accordion) */}
+                  {/* Reasoning Process: Paradev Reasoning Component */}
                   {turn.assistant.reasoning ? (
                     <View style={styles.reasoningContainer}>
                       <TouchableOpacity
@@ -544,14 +543,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         activeOpacity={0.7}
                       >
                         <View style={styles.reasoningToggleLeft}>
-                          <Brain size={13} color={colors.primaryLight} />
-                          <Text style={styles.reasoningToggleText}>Reasoning synthesis</Text>
+                          <Brain size={14} color="#a3a3a3" />
+                          <Text style={styles.reasoningToggleText}>
+                            {isSendingPrompt && turnIdx === displayedTurns.length - 1
+                              ? 'Thinking...'
+                              : 'Thought for a few seconds'}
+                          </Text>
                         </View>
                         <View style={styles.reasoningToggleRight}>
                           {isReasoningOpen(turn.id) ? (
-                            <ChevronUp size={14} color={colors.textMuted} />
+                            <ChevronUp size={14} color="#a3a3a3" />
                           ) : (
-                            <ChevronDown size={14} color={colors.textMuted} />
+                            <ChevronDown size={14} color="#a3a3a3" />
                           )}
                         </View>
                       </TouchableOpacity>
@@ -566,80 +569,73 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     </View>
                   ) : null}
 
-                  {/* Inline Actions executed for THIS turn */}
+                  {/* Inline Tool Execution Steps: Paradev ToolCallRow */}
                   {turn.assistant.actions && turn.assistant.actions.length > 0 ? (
-                    <View style={styles.accordionSection}>
+                    <View style={styles.toolCallsSection}>
                       <TouchableOpacity
-                        style={styles.accordionHeader}
+                        style={styles.toolCallsSummaryRow}
                         onPress={() => toggleTurnAccordion(turn.id)}
                         activeOpacity={0.7}
                       >
-                        <View style={styles.accordionHeaderLeft}>
-                          {turn.assistant.actions.some((a) => a.status === 'running') ? (
-                            <View style={[styles.greenCheckCircle, { backgroundColor: 'transparent' }]}>
-                              <ActivityIndicator size="small" color={colors.green} />
-                            </View>
-                          ) : (
-                            <View style={styles.greenCheckCircle}>
-                              <Check size={12} color="#ffffff" />
-                            </View>
+                        <View style={styles.toolCallsSummaryLeft}>
+                          {turn.assistant.actions.some((a) => a.status === 'running') && (
+                            <ActivityIndicator
+                              size="small"
+                              color="#a3a3a3"
+                              style={{ transform: [{ scale: 0.7 }], marginRight: 6 }}
+                            />
                           )}
-                          <View style={styles.accordionTitleCol}>
-                            <Text style={styles.accordionTitle} numberOfLines={1}>
-                              {turn.assistant.actions[0]?.title || 'Executed turn actions'}
-                            </Text>
-                            <Text style={styles.accordionSubtitle}>
-                              {turn.assistant.actions.length} action
-                              {turn.assistant.actions.length > 1 ? 's' : ''}
-                              {turn.assistant.actions.some((a) => a.status === 'running') ? ' • Running...' : ''}
-                            </Text>
-                          </View>
+                          <Text style={styles.toolCallsSummaryText}>
+                            {turn.assistant.actions.length} tool call
+                            {turn.assistant.actions.length > 1 ? 's' : ''} executed
+                          </Text>
                         </View>
-
-                        <View style={styles.accordionHeaderRight}>
+                        <View style={styles.toolCallsSummaryRight}>
                           {isTurnOpen(turn.id) ? (
-                            <ChevronUp size={16} color="#8b949e" />
+                            <ChevronUp size={14} color="#737373" />
                           ) : (
-                            <ChevronDown size={16} color="#8b949e" />
+                            <ChevronDown size={14} color="#737373" />
                           )}
                         </View>
                       </TouchableOpacity>
 
-                      {/* Action Step Rows */}
                       {isTurnOpen(turn.id) && (
-                        <View style={styles.actionStepsList}>
+                        <View style={styles.toolActionRowsList}>
                           {turn.assistant.actions.map((action) => (
                             <TouchableOpacity
                               key={action.id}
-                              style={styles.actionStepRow}
+                              style={styles.toolCallRow}
                               activeOpacity={0.7}
                               onPress={() => setSelectedActionForTray(action)}
                             >
-                              <View style={styles.actionStepLeft}>
-                                <View style={styles.actionStepIconBox}>
+                              <View style={styles.toolCallLeft}>
+                                <View style={styles.toolCallIconBox}>
                                   {renderActionIcon(action.category)}
                                 </View>
-                                <Text style={styles.actionStepText} numberOfLines={1}>
+                                <Text style={styles.toolCallTitle} numberOfLines={1}>
                                   {action.title}
                                 </Text>
                               </View>
 
-                              <View style={styles.actionStepRightCol}>
+                              <View style={styles.toolCallRight}>
                                 {action.status === 'running' ? (
-                                  <View style={styles.actionRunningPill}>
-                                    <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.7 }] }} />
-                                    <Text style={styles.actionRunningText}>Running</Text>
+                                  <View style={styles.actionRunningBadge}>
+                                    <ActivityIndicator
+                                      size="small"
+                                      color="#a3a3a3"
+                                      style={{ transform: [{ scale: 0.65 }] }}
+                                    />
+                                    <Text style={styles.actionRunningBadgeText}>Running</Text>
                                   </View>
-                                ) : action.duration ? (
-                                  <Text style={styles.actionStepDuration}>{action.duration}</Text>
-                                ) : null}
-                                <TouchableOpacity
-                                  style={styles.actionStepChevronBox}
-                                  activeOpacity={0.7}
-                                  onPress={() => setSelectedActionForTray(action)}
-                                >
-                                  <ChevronRight size={16} color="#8b949e" />
-                                </TouchableOpacity>
+                                ) : action.status === 'error' ? (
+                                  <View style={styles.actionErrorBadge}>
+                                    <X size={12} color="#ef4444" />
+                                    <Text style={styles.actionErrorBadgeText}>Failed</Text>
+                                  </View>
+                                ) : (
+                                  <Check size={13} color="#fafafa" />
+                                )}
+                                <ChevronRight size={14} color="#737373" />
                               </View>
                             </TouchableOpacity>
                           ))}
@@ -648,10 +644,43 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     </View>
                   ) : null}
 
-                  {/* Assistant Resolution / Markdown Response */}
+                  {/* Assistant Markdown Resolution */}
                   {turn.assistant.content ? (
                     <View style={styles.resolutionContainer}>
                       <MarkdownText content={turn.assistant.content} isUser={false} />
+
+                      {/* Paradev Action Row (Copy Message & Branch Icon Buttons) */}
+                      <View style={styles.agentActionRow}>
+                        <TouchableOpacity
+                          style={styles.agentActionBtn}
+                          onPress={() =>
+                            handleCopyTurnText(turn.id, turn.assistant?.content || '')
+                          }
+                          activeOpacity={0.7}
+                          accessibilityLabel="Copy message"
+                        >
+                          {copiedTurnId === turn.id ? (
+                            <Check size={14} color="#fafafa" />
+                          ) : (
+                            <Copy size={14} color="#737373" />
+                          )}
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.agentActionBtn}
+                          onPress={() => {
+                            setPromptInput(`Regarding turn #${turnIdx + 1}: `);
+                          }}
+                          activeOpacity={0.7}
+                          accessibilityLabel="Branch from here"
+                        >
+                          <GitFork size={14} color="#737373" />
+                        </TouchableOpacity>
+
+                        <View style={styles.agentMetaPill}>
+                          <Text style={styles.agentMetaPillText}>{modelStr}</Text>
+                        </View>
+                      </View>
                     </View>
                   ) : null}
                 </View>
@@ -663,7 +692,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {/* 5. Streaming Live Indicator */}
         {isSendingPrompt && (
           <View style={styles.streamingIndicatorRow}>
-            <ActivityIndicator size="small" color={colors.green} />
+            <ActivityIndicator size="small" color="#a3a3a3" />
             <Text style={styles.streamingText}>Agent is thinking and executing...</Text>
           </View>
         )}
@@ -676,15 +705,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           activeOpacity={0.7}
           onPress={handleScrollToBottom}
         >
-          <ArrowDown size={14} color="#8b949e" />
+          <ArrowDown size={14} color="#a3a3a3" />
         </TouchableOpacity>
       </View>
 
-      {/* 7. Chat Input Bar (Image 1 Capsule Shape) */}
+      {/* 7. Chat Input Bar: Floating Capsule */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
         style={styles.chatInputWrapper}
+        pointerEvents="box-none"
       >
         {/* Autocomplete Slash Command Picker Overlay */}
         <SlashCommandPicker
@@ -694,7 +724,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           onClose={() => setShowCommandPicker(false)}
         />
 
-        {/* Interactive Live Tool Approval Card */}
+        {/* Interactive Live Tool Approval Card (Paradev ApprovalCard) */}
         {pendingApproval && (
           <LiveApprovalCard
             approval={pendingApproval}
@@ -712,22 +742,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           />
         )}
 
-        <View style={styles.chatCapsuleContainer}>
+        {/* Paradev Inset Composer Card */}
+        <View style={styles.composerCard}>
           {/* Circular '+' Button on Left */}
           <TouchableOpacity
-            style={[styles.capsulePlusBtn, showCommandPicker && styles.capsulePlusBtnActive]}
+            style={[styles.composerPlusBtn, showCommandPicker && styles.composerPlusBtnActive]}
             activeOpacity={0.7}
             onPress={() => setShowCommandPicker((prev) => !prev)}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Plus size={16} color={showCommandPicker ? colors.primary : '#c9d1d9'} />
+            <Plus size={16} color={showCommandPicker ? '#fafafa' : '#a3a3a3'} />
           </TouchableOpacity>
 
-          {/* Capsule Text Field */}
+          {/* Clean Text Input */}
           <TextInput
-            style={styles.capsuleTextInput}
+            style={styles.composerTextInput}
             placeholder="Type a message..."
-            placeholderTextColor="#6e7681"
+            placeholderTextColor="#737373"
             value={promptInput}
             onChangeText={handleInputChange}
             onSubmitEditing={handleSendPrompt}
@@ -736,10 +767,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             editable={!isSendingPrompt}
           />
 
-          {/* Action on Right: Stop, Send, or Mic */}
+          {/* Right Action: Stop, ArrowUp Send, or Mic */}
           {isSendingPrompt ? (
             <TouchableOpacity
-              style={styles.capsuleStopBtn}
+              style={styles.composerStopBtn}
               onPress={cancelPrompt}
               activeOpacity={0.8}
               accessibilityLabel="Stop agent turn"
@@ -748,20 +779,20 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               {isCancellingPrompt ? (
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
-                <Square size={14} color="#ffffff" />
+                <Square size={13} color="#ffffff" />
               )}
             </TouchableOpacity>
           ) : promptInput.trim().length > 0 ? (
             <TouchableOpacity
-              style={styles.capsuleSendBtn}
+              style={styles.composerSendBtn}
               onPress={handleSendPrompt}
               activeOpacity={0.85}
             >
-              <Send size={15} color="#ffffff" />
+              <ArrowUp size={16} color="#0a0a0a" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.capsuleMicBtn}
+              style={styles.composerMicBtn}
               activeOpacity={0.7}
               onPress={() => {
                 Alert.alert(
@@ -770,7 +801,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 );
               }}
             >
-              <Mic size={18} color="#8b949e" />
+              <Mic size={17} color="#737373" />
             </TouchableOpacity>
           )}
         </View>
@@ -830,15 +861,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#0a0a0a', // Paradev root dark theme
   },
   headerTerminalBtn: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    backgroundColor: '#161b22',
+    borderRadius: radii.btn,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
@@ -848,7 +879,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -4,
-    backgroundColor: '#0077b6',
+    backgroundColor: '#fafafa',
     borderRadius: 7,
     minWidth: 14,
     height: 14,
@@ -859,7 +890,7 @@ const styles = StyleSheet.create({
   headerBadgeText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
   scroll: {
     flex: 1,
@@ -883,37 +914,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.full,
     flexShrink: 1,
   },
-  modelStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
   modelStatusText: {
     fontSize: 11,
-    color: colors.textSecondary,
-    fontFamily: typography.mono,
+    color: '#a3a3a3',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontWeight: '600',
   },
   contextPill: {
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: radii.full,
   },
   contextPillText: {
     fontSize: 10,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
+    color: '#737373',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
   // Pagination header
@@ -929,211 +955,73 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: radii.full,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   loadOlderText: {
     fontSize: 11.5,
     fontWeight: '600',
-    color: colors.primaryLight,
-    fontFamily: typography.mono,
+    color: '#fafafa',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
   // Sequential Turn Card
   turnCardContainer: {
     marginBottom: 14,
   },
-  userCommentCard: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.xl,
-    padding: 14,
-    marginBottom: 10,
-  },
-  userHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  userHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  userPromptPrefix: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryLight,
-    fontFamily: typography.mono,
-  },
-  userCommentHeader: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-    fontWeight: '600',
-  },
-  userTimestamp: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  userCommentBody: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: colors.textPrimary,
-  },
 
-  // Assistant turn wrapper (Stitch Screen 2 Cascade)
-  assistantTurnWrapper: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radii.xl,
-    padding: 12,
+  // User Message: Paradev OutgoingBubble (bg-[#2F2F2F], rounded-[22px], max-w-[82%])
+  userBubbleWrapper: {
+    alignItems: 'flex-end',
+    marginBottom: 16,
     marginTop: 4,
-    marginBottom: 10,
+  },
+  userOutgoingBubble: {
+    maxWidth: '82%',
+    backgroundColor: '#2F2F2F', // Paradev OutgoingBubble
+    borderRadius: radii.bubble,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  userBubbleText: {
+    fontSize: 15.5,
+    lineHeight: 22,
+    color: '#fafafa',
+  },
+  userBubbleMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginRight: 6,
+  },
+  userBubbleMetaText: {
+    fontSize: 10.5,
+    color: '#737373',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
-  // Copilot Action Summary Accordion
-  accordionSection: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    paddingBottom: 8,
-    paddingTop: 4,
-    marginBottom: 10,
-  },
-  accordionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  accordionHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    overflow: 'hidden',
-  },
-  greenCheckCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    flexShrink: 0,
-  },
-  accordionTitleCol: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  accordionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#f0f6fc',
-    lineHeight: 18,
-  },
-  accordionSubtitle: {
-    fontSize: 12,
-    color: '#8b949e',
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  accordionHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexShrink: 0,
+  // Assistant Turn: Natural Unboxed Flow
+  assistantTurnWrapper: {
+    width: '100%',
+    marginBottom: 16,
   },
 
-  // Action Steps List
-  actionStepsList: {
-    marginTop: 8,
-  },
-  actionStepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 9,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(33, 38, 45, 0.5)',
-  },
-  actionStepLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    overflow: 'hidden',
-  },
-  actionStepIconBox: {
-    width: 20,
-    marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionStepText: {
-    fontSize: 12,
-    color: '#c9d1d9',
-    flex: 1,
-  },
-  actionStepRightCol: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  actionRunningPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(35, 134, 54, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radii.sm,
-  },
-  actionRunningText: {
-    color: colors.green,
-    fontSize: 11,
-    fontWeight: '500',
-    fontFamily: typography.mono,
-  },
-  actionStepDuration: {
-    fontSize: 11,
-    color: '#8b949e',
-    fontFamily: typography.mono,
-    marginLeft: 8,
-  },
-  actionStepChevronBox: {
-    width: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Resolution summary container
-  resolutionContainer: {
-    paddingTop: 2,
-  },
-
-  // Reasoning Collapsible Block
+  // Paradev Reasoning Component
   reasoningContainer: {
     marginVertical: 4,
-    borderRadius: radii.md,
-    backgroundColor: '#010409',
+    borderRadius: radii.lg,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#21262d',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
   reasoningToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 7,
-    backgroundColor: 'rgba(22, 27, 34, 0.4)',
   },
   reasoningToggleLeft: {
     flexDirection: 'row',
@@ -1143,8 +1031,7 @@ const styles = StyleSheet.create({
   reasoningToggleText: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#8b949e',
-    fontFamily: typography.mono,
+    color: '#a3a3a3',
   },
   reasoningToggleRight: {
     alignItems: 'center',
@@ -1152,17 +1039,147 @@ const styles = StyleSheet.create({
   },
   reasoningBody: {
     paddingHorizontal: 12,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#21262d',
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
     borderLeftWidth: 2,
-    borderLeftColor: '#30363d',
+    borderLeftColor: 'rgba(255, 255, 255, 0.2)',
   },
   reasoningText: {
-    fontSize: 11.5,
+    fontSize: 12,
     lineHeight: 18,
-    color: '#8b949e',
-    fontFamily: typography.mono,
+    color: '#a3a3a3',
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+
+  // Paradev ToolCallRow Section
+  toolCallsSection: {
+    marginVertical: 6,
+    borderRadius: radii.lg,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
+  },
+  toolCallsSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  toolCallsSummaryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toolCallsSummaryText: {
+    fontSize: 12,
+    color: '#a3a3a3',
+    fontWeight: '500',
+  },
+  toolCallsSummaryRight: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolActionRowsList: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  toolCallRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+  },
+  toolCallLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+    overflow: 'hidden',
+  },
+  toolCallIconBox: {
+    width: 20,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toolCallTitle: {
+    fontSize: 12,
+    color: '#fafafa',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    flex: 1,
+  },
+  toolCallRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  actionRunningBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  actionRunningBadgeText: {
+    fontSize: 10,
+    color: '#fafafa',
+    fontWeight: '600',
+  },
+  actionErrorBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  actionErrorBadgeText: {
+    fontSize: 10,
+    color: '#ef4444',
+    fontWeight: '600',
+  },
+
+  // Resolution summary container
+  resolutionContainer: {
+    paddingTop: 2,
+  },
+
+  // Paradev AgentMessage Footer Action Row
+  agentActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 6,
+    paddingLeft: 2,
+  },
+  agentActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.btn,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  agentMetaPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 'auto',
+  },
+  agentMetaPillText: {
+    fontSize: 10,
+    color: '#737373',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
   // Streaming indicator
@@ -1174,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   streamingText: {
     fontSize: 13,
-    color: colors.green,
+    color: '#fafafa',
     fontStyle: 'italic',
   },
 
@@ -1189,9 +1206,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.bgCard,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderDefault,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
@@ -1199,13 +1216,13 @@ const styles = StyleSheet.create({
   emptyChatTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: '#fafafa',
     marginBottom: 6,
     textAlign: 'center',
   },
   emptyChatSubtitle: {
     fontSize: 13,
-    color: colors.textMuted,
+    color: '#737373',
     textAlign: 'center',
     lineHeight: 18,
     maxWidth: 280,
@@ -1214,88 +1231,93 @@ const styles = StyleSheet.create({
   // Floating Action Buttons
   scrollFabContainer: {
     position: 'absolute',
-    bottom: 74,
+    bottom: 82,
     right: 16,
-    zIndex: 20,
+    zIndex: 25,
   },
   scrollFab: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#21262d',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
     elevation: 4,
   },
 
-  // Chat Input Bar (Capsule Style)
+  // Chat Input Bar: Paradev Floating Capsule
   chatInputWrapper: {
-    backgroundColor: colors.surfaceContainerLowest,
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'transparent',
     paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+    zIndex: 30,
   },
-  chatCapsuleContainer: {
+  composerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: 28,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderRadius: 26,
     minHeight: 52,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  capsulePlusBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceContainerHigh,
+  composerPlusBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  capsulePlusBtnActive: {
-    backgroundColor: colors.primarySubtle,
-    borderColor: colors.primaryBorder,
+  composerPlusBtnActive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.20)',
     borderWidth: 1,
   },
-  capsuleTextInput: {
+  composerTextInput: {
     flex: 1,
     fontSize: 15,
-    color: '#f0f6fc',
+    color: '#fafafa',
     paddingHorizontal: 12,
     paddingVertical: Platform.OS === 'ios' ? 10 : 6,
   },
-  capsuleSendBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
+  composerSendBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#fafafa',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  capsuleStopBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#da3633',
+  composerStopBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#dc2626',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  capsuleSendBtnDisabled: {
-    backgroundColor: '#21262d',
-    opacity: 0.6,
-  },
-  capsuleMicBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  composerMicBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },

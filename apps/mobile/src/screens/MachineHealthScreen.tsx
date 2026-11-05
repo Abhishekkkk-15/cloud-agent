@@ -130,8 +130,6 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
       <HeaderBar
         title="Machine & CLI Health"
         subtitle={`${hostName} • ${platformStr}`}
-        showLiveDot={true}
-        liveColor={activeMachine?.isOnline ? colors.statusLive : colors.primaryLight}
         onBack={onBack}
         onMore={refreshStatus}
         rightElement={
@@ -140,7 +138,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             onPress={() => setShowMachineSwitcher(true)}
             activeOpacity={0.7}
           >
-            <Server size={14} color="#f0f6fc" />
+            <Server size={14} color="#fafafa" />
             <Text style={styles.switchMachineBtnText}>Switch</Text>
           </TouchableOpacity>
         }
@@ -148,12 +146,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
 
       {/* Sub-bar */}
       <View style={styles.subBar}>
-        <View
-          style={[
-            styles.pulseDot,
-            !isConnected && { backgroundColor: connectionState === 'connecting' ? '#e3b341' : colors.red },
-          ]}
-        />
+
         <Text style={styles.subBarText}>
           {isConnected ? 'GATEWAY CONNECTED' : connectionState.toUpperCase()} • 0 open ports • PID: {pidStr} • Uptime: {uptimeStr}
         </Text>
@@ -169,7 +162,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
           <View style={styles.cardHeaderRow}>
             <View style={styles.hostInfo}>
               <View style={styles.iconBox}>
-                <Server size={20} color={colors.green} />
+                <Server size={20} color="#fafafa" />
               </View>
               <View style={styles.hostTexts}>
                 <Text style={styles.hostName}>{hostName}</Text>
@@ -186,12 +179,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.pulseDotSmall,
-                  !isConnected && { backgroundColor: colors.red },
-                ]}
-              />
+
               <Text
                 style={[
                   styles.connectedText,
@@ -391,7 +379,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                   <View style={styles.adapterRight}>
                     {idx === 0 || adapter.status === 'active' ? (
                       <View style={styles.primaryBadge}>
-                        <View style={styles.pulseDotTiny} />
+                        
                         <Text style={styles.primaryBadgeText}>Active</Text>
                       </View>
                     ) : (
@@ -429,12 +417,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               paddingHorizontal: 8,
               paddingVertical: 2,
               borderRadius: 12,
-              backgroundColor: isPushRegistered ? 'rgba(0, 119, 182, 0.15)' : '#21262d',
+              backgroundColor: isPushRegistered ? 'rgba(255, 255, 255, 0.08)' : '#262626',
               borderWidth: 1,
-              borderColor: isPushRegistered ? 'rgba(0, 119, 182, 0.4)' : '#30363d',
+              borderColor: isPushRegistered ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.10)',
             }}>
               <Text style={{
-                color: isPushRegistered ? '#48cae4' : '#8b949e',
+                color: isPushRegistered ? '#fafafa' : '#a3a3a3',
                 fontSize: 11,
                 fontWeight: '600',
               }}>
@@ -445,8 +433,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
           <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 16 }} numberOfLines={2}>
             {pushStatus}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#21262d' }}>
-            <Text style={{ color: '#6e7681', fontSize: 11 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#262626' }}>
+            <Text style={{ color: '#737373', fontSize: 11 }}>
               Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
             </Text>
             <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
@@ -482,23 +470,23 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             >
               <View style={{ flex: 1, marginRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <Bug size={14} color="#3fb950" />
-                  <Text style={{ color: '#3fb950', fontSize: 12, fontWeight: '700' }}>Fix Proposal Ready</Text>
+                  <Bug size={14} color="#fafafa" />
+                  <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '700' }}>Fix Proposal Ready</Text>
                 </View>
-                <Text style={{ color: '#f0f6fc', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+                <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
                   {activeProposal.title}
                 </Text>
               </View>
-              <Text style={{ color: '#3fb950', fontSize: 12, fontWeight: '600' }}>Review →</Text>
+              <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
             </TouchableOpacity>
           )}
 
           {activePrReview && (
             <TouchableOpacity
               style={{
-                backgroundColor: 'rgba(0, 119, 182, 0.1)',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 borderWidth: 1,
-                borderColor: 'rgba(0, 119, 182, 0.3)',
+                borderColor: 'rgba(255, 255, 255, 0.18)',
                 borderRadius: 8,
                 padding: 10,
                 flexDirection: 'row',
@@ -510,18 +498,18 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             >
               <View style={{ flex: 1, marginRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <GitPullRequest size={14} color="#0077b6" />
-                  <Text style={{ color: '#48cae4', fontSize: 12, fontWeight: '700' }}>PR Review Ready ({activePrReview.verdict})</Text>
+                  <GitPullRequest size={14} color="#fafafa" />
+                  <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '700' }}>PR Review Ready ({activePrReview.verdict})</Text>
                 </View>
-                <Text style={{ color: '#f0f6fc', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+                <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
                   PR #{activePrReview.prNumber}: {activePrReview.prTitle}
                 </Text>
               </View>
-              <Text style={{ color: '#0096c7', fontSize: 12, fontWeight: '600' }}>Review →</Text>
+              <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
             </TouchableOpacity>
           )}
 
-          <Text style={{ color: '#8b949e', fontSize: 12, lineHeight: 17 }}>
+          <Text style={{ color: '#a3a3a3', fontSize: 12, lineHeight: 17 }}>
             24/7 on-call agent listens to GitHub & Sentry webhooks, investigates bugs, writes tests, applies fixes, and conducts PR reviews autonomously.
           </Text>
 
@@ -561,9 +549,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
-                backgroundColor: 'rgba(0, 119, 182, 0.12)',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 borderWidth: 1,
-                borderColor: 'rgba(0, 119, 182, 0.35)',
+                borderColor: 'rgba(255, 255, 255, 0.20)',
                 borderRadius: 8,
                 paddingVertical: 9,
                 opacity: isSimulatingIncident ? 0.6 : 1,
@@ -573,11 +561,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               activeOpacity={0.7}
             >
               {isSimulatingIncident ? (
-                <ActivityIndicator size="small" color="#0077b6" />
+                <ActivityIndicator size="small" color="#fafafa" />
               ) : (
                 <>
-                  <GitPullRequest size={14} color="#0077b6" />
-                  <Text style={{ color: '#0096c7', fontSize: 12, fontWeight: '600' }}>Simulate PR</Text>
+                  <GitPullRequest size={14} color="#fafafa" />
+                  <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>Simulate PR</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -589,9 +577,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: '#0d1117',
+              backgroundColor: '#0a0a0a',
               borderWidth: 1,
-              borderColor: '#21262d',
+              borderColor: '#262626',
               borderRadius: 8,
               padding: 10,
               marginTop: 4,
@@ -600,16 +588,16 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             activeOpacity={0.7}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Key size={14} color="#0077b6" />
-              <Text style={{ color: '#f0f6fc', fontSize: 12, fontWeight: '600' }}>
+              <Key size={14} color="#fafafa" />
+              <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>
                 GitHub PAT & Webhooks
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ color: githubStatus?.authenticated ? '#3fb950' : '#8b949e', fontSize: 11, fontWeight: '600' }}>
+              <Text style={{ color: githubStatus?.authenticated ? '#fafafa' : '#737373', fontSize: 11, fontWeight: '600' }}>
                 {githubStatus?.authenticated ? `@${githubStatus.username}` : 'Configure (Option B)'}
               </Text>
-              <ChevronRight size={14} color="#8b949e" />
+              <ChevronRight size={14} color="#a3a3a3" />
             </View>
           </TouchableOpacity>
         </View>
@@ -704,9 +692,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#161b22',
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 8,
@@ -715,7 +703,7 @@ const styles = StyleSheet.create({
   switchMachineBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#f0f6fc',
+    color: '#fafafa',
   },
   subBar: {
     paddingHorizontal: 16,

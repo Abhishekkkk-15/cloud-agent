@@ -161,7 +161,7 @@ export async function registerForPushNotificationsAsync(options?: {
         name: 'Cloud Agent Alerts',
         importance: notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#0077b6',
+        lightColor: '#fafafa',
         sound: 'default',
         enableVibrate: true,
         showBadge: true,
