@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   PanResponder,
@@ -10,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from './theme/tokens';
 import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
 import { NotificationBanner } from './components/NotificationBanner';
@@ -21,7 +21,7 @@ import { AuthScreen } from './screens/AuthScreen';
 import { useDaemonStore } from './stores/useDaemonStore';
 import { mobileP2P } from './lib/p2p-client';
 
-export default function App() {
+function MainApp() {
   // Default screen is Chat with the last opened session
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('agent');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -33,6 +33,10 @@ export default function App() {
 
   useEffect(() => {
     init();
+    if (Platform.OS === 'android') {
+      (StatusBar as any).setTranslucent?.(true);
+      (StatusBar as any).setBackgroundColor?.('transparent');
+    }
   }, [init]);
 
   // Auto-reconnect and session reconciliation when app returns to foreground
@@ -58,25 +62,23 @@ export default function App() {
       onStartShouldSetPanResponder: () => false,
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
-        const startX = evt.nativeEvent.pageX - gestureState.dx;
         return (
-          !isDrawerOpen &&
-          startX <= 50 &&
-          gestureState.dx > 12 &&
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.3
+          gestureState.dx > 15 &&
+          Math.abs(gestureState.dy) < 35 &&
+          gestureState.moveX < 45
         );
       },
       onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
-        const startX = evt.nativeEvent.pageX - gestureState.dx;
         return (
-          !isDrawerOpen &&
-          startX <= 50 &&
-          gestureState.dx > 12 &&
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.3
+          gestureState.dx > 15 &&
+          Math.abs(gestureState.dy) < 35 &&
+          gestureState.moveX < 45
         );
       },
-      onPanResponderGrant: () => {
-        setIsDrawerOpen(true);
+      onPanResponderMove: (evt, gestureState) => {
+        if (gestureState.dx > 25) {
+          setIsDrawerOpen(true);
+        }
       },
       onPanResponderRelease: (_, gestureState) => {
         if (gestureState.dx > 15 || gestureState.vx > 0.2) {
@@ -90,7 +92,7 @@ export default function App() {
   // While restoring persisted auth session from storage, prevent flash of AuthScreen
   if (isInitializingAuth) {
     return (
-      <View style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0a' }]}>
+      <View style={[styles.rootContainer, { alignItems: 'center', justifyContent: 'center' }]}>
         <ExpoStatusBar style="light" />
         <ActivityIndicator size="small" color="#fafafa" />
       </View>
@@ -100,15 +102,15 @@ export default function App() {
   // If not authenticated, present the clean AuthScreen
   if (!isAuthenticated && !token) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={styles.rootContainer}>
         <ExpoStatusBar style="light" />
         <AuthScreen />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.rootContainer}>
       <ExpoStatusBar style="light" />
 
       {/* Main Screens with edge swipe gesture support */}
@@ -150,18 +152,25 @@ export default function App() {
 
       {/* Global In-App Notification Toast */}
       <NotificationBanner onNavigate={(screen) => setCurrentScreen(screen)} />
-    </SafeAreaView>
+    </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <MainApp />
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  rootContainer: {
     flex: 1,
-    backgroundColor: colors.bgPrimary,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    backgroundColor: '#0a0a0a',
   },
   screenContainer: {
     flex: 1,
-    backgroundColor: colors.bgPrimary,
-  }
+    backgroundColor: '#0a0a0a',
+  },
 });

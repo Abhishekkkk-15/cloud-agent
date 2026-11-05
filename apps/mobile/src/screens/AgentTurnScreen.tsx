@@ -10,7 +10,9 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Check,
   ChevronDown,
@@ -108,6 +110,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
   const [showSessionActionModal, setShowSessionActionModal] = useState(false);
   const [isRespondingApproval, setIsRespondingApproval] = useState(false);
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
   const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
@@ -410,7 +415,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   return (
     <View style={styles.container}>
       {/* 1. Floating Capsule Header (Option 3: No borders, floating pill islands) */}
-      <View style={styles.floatingHeaderContainer} pointerEvents="box-none">
+      <View
+        style={[
+          styles.floatingHeaderContainer,
+          { paddingTop: topInset + (Platform.OS === 'ios' ? 4 : 6) },
+        ]}
+        pointerEvents="box-none"
+      >
         {/* Left: Floating Menu Pill */}
         <TouchableOpacity
           style={styles.floatingCircleBtn}
@@ -492,7 +503,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <ScrollView
         ref={scrollViewRef}
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: topInset + (Platform.OS === 'ios' ? 54 : 50),
+            paddingBottom: 100 + insets.bottom,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -736,7 +753,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       {/* 6. Floating Scroll FAB (Only visible when user scrolled up into history) */}
       {showScrollToBottom && (
-        <View style={[styles.scrollFabContainer, { pointerEvents: 'box-none' }]}>
+        <View
+          style={[
+            styles.scrollFabContainer,
+            { bottom: 76 + Math.max(insets.bottom, 12), pointerEvents: 'box-none' },
+          ]}
+        >
           <TouchableOpacity
             style={styles.scrollFab}
             activeOpacity={0.7}
@@ -751,7 +773,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
-        style={styles.chatInputWrapper}
+        style={[
+          styles.chatInputWrapper,
+          { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12) },
+        ]}
         pointerEvents="box-none"
       >
         {/* Autocomplete Slash Command Picker Overlay */}

@@ -27,6 +27,11 @@
       "androidNavigationBar": {
         "backgroundColor": "#0a0a0a",
         "barStyle": "light-content"
+      },
+      "androidStatusBar": {
+        "backgroundColor": "#00000000",
+        "translucent": true,
+        "barStyle": "light-content"
       }
     },
     "web": {

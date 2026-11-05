@@ -6,7 +6,9 @@ import {
   Animated,
   TouchableOpacity,
   Platform,
+  StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sparkles, ShieldAlert, AlertTriangle, Check, X } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { onInAppNotification, type NotificationPayload } from '../lib/notifications';
@@ -16,8 +18,10 @@ interface NotificationBannerProps {
 }
 
 export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNavigate }) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [currentNotif, setCurrentNotif] = useState<NotificationPayload | null>(null);
-  const translateY = useRef(new Animated.Value(-120)).current;
+  const translateY = useRef(new Animated.Value(-160)).current;
   const hideTimerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -54,7 +58,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
 
   const handleDismiss = () => {
     Animated.timing(translateY, {
-      toValue: -120,
+      toValue: -160,
       duration: 200,
       useNativeDriver: true,
     }).start(() => {
@@ -82,6 +86,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
       style={[
         styles.container,
         {
+          top: topInset + (Platform.OS === 'ios' ? 8 : 10),
           transform: [{ translateY }],
         },
       ]}

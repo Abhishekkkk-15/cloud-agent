@@ -11,9 +11,9 @@ import {
   Platform,
   TouchableWithoutFeedback,
   TextInput,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Plus,
   ChevronRight,
@@ -58,6 +58,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   currentScreen,
   onNavigateScreen,
 }) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const machines = useDaemonStore((s) => s.machines);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
@@ -352,7 +354,15 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         ]}
         {...panResponder.panHandlers}
       >
-        <SafeAreaView style={styles.drawerSafeArea}>
+        <View
+          style={[
+            styles.drawerSafeArea,
+            {
+              paddingTop: topInset + (Platform.OS === 'ios' ? 8 : 4),
+              paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 4),
+            },
+          ]}
+        >
           {/* Floating Search Bar (No borders, no < icon, floating pill) */}
         <View style={styles.floatingSearchContainer}>
           <View style={styles.floatingSearchBox}>
@@ -684,7 +694,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             </Text>
           </View>
         </View>
-        </SafeAreaView>
+        </View>
       </Animated.View>
 
       {/* Interactive New Chat Workspace Sheet */}
@@ -759,7 +769,6 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'column',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, 36) + 4 : (Platform.OS === 'web' ? 8 : 0),
   },
   floatingSearchContainer: {
     paddingHorizontal: 12,

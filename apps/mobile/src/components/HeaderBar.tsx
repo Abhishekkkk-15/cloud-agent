@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronLeft, Menu, MoreVertical, Search } from './Icons';
 import { colors, radii } from '../theme/tokens';
 
@@ -22,8 +23,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onSearch,
   rightElement,
 }) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: topInset, height: 50 + topInset }]}>
       <View style={styles.leftRow}>
         {onBack && (
           <TouchableOpacity
