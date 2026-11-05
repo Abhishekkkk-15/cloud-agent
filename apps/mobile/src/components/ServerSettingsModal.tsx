@@ -200,10 +200,10 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                 <View style={styles.presetRow}>
                   <TouchableOpacity
                     style={styles.presetChip}
-                    onPress={() => handleApplyPreset('https://cloud-agent-3q6w.onrender.com')}
+                    onPress={() => handleApplyPreset('https://gateway.cloud-agent.abhishekkkk.in')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.presetChipText}>Render (Cloud)</Text>
+                    <Text style={styles.presetChipText}>Cloud Gateway</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity

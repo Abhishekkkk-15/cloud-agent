@@ -92,7 +92,7 @@ export function resolveInitialApiUrl(): string {
   return `http://${defaultHost}:8000`;
 }
 
-export const DEFAULT_DEPLOYED_GATEWAY_URL = 'https://cloud-agent-3q6w.onrender.com';
+export const DEFAULT_DEPLOYED_GATEWAY_URL = 'https://gateway.cloud-agent.abhishekkkk.in';
 
 export function resolveInitialGatewayUrl(): string {
   const stored = getStoredUrlSync(STORAGE_KEY_GATEWAY);

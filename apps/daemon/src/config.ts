@@ -40,7 +40,7 @@ export function saveConfig(config: DaemonConfig): void {
   fs.writeFileSync(filePath, JSON.stringify(config, null, 2), "utf8");
 }
 
-export const DEFAULT_GATEWAY_WS_URL = "wss://cloud-agent-3q6w.onrender.com/daemon/ws";
+export const DEFAULT_GATEWAY_WS_URL = "wss://gateway.cloud-agent.abhishekkkk.in/daemon/ws";
 
 export function ensureDefaultConfig(): DaemonConfig {
   const filePath = getConfigPath();

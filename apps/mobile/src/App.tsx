@@ -33,18 +33,38 @@ export default function App() {
     init();
   }, [init]);
 
-  // Left-edge swipe responder to smoothly slide open the sidebar drawer (called unconditionally)
-  const edgePanResponder = useRef(
+  // Left-edge swipe responder to smoothly slide open the sidebar drawer
+  const edgeSwipePanResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dx > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2;
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        const startX = evt.nativeEvent.pageX - gestureState.dx;
+        return (
+          !isDrawerOpen &&
+          startX <= 50 &&
+          gestureState.dx > 12 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.3
+        );
+      },
+      onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
+        const startX = evt.nativeEvent.pageX - gestureState.dx;
+        return (
+          !isDrawerOpen &&
+          startX <= 50 &&
+          gestureState.dx > 12 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.3
+        );
+      },
+      onPanResponderGrant: () => {
+        setIsDrawerOpen(true);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx > 18 || gestureState.vx > 0.22) {
+        if (gestureState.dx > 15 || gestureState.vx > 0.2) {
           setIsDrawerOpen(true);
         }
       },
+      onPanResponderTerminationRequest: () => true,
     })
   ).current;
 
@@ -72,17 +92,8 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <ExpoStatusBar style="light" />
 
-      {/* Edge Swipe Detection Zone for opening drawer */}
-      {!isDrawerOpen && (
-        <View
-          style={styles.edgeGestureStrip}
-          {...edgePanResponder.panHandlers}
-          pointerEvents="box-only"
-        />
-      )}
-
-      {/* Main Screens */}
-      <View style={styles.screenContainer}>
+      {/* Main Screens with edge swipe gesture support */}
+      <View style={styles.screenContainer} {...edgeSwipePanResponder.panHandlers}>
         {currentScreen === 'agent' && (
           <AgentTurnScreen
             onBack={() => setIsDrawerOpen(true)}
@@ -133,14 +144,5 @@ const styles = StyleSheet.create({
   screenContainer: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
-  },
-  edgeGestureStrip: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: 44,
-    zIndex: 100,
-    backgroundColor: 'transparent',
-  },
+  }
 });

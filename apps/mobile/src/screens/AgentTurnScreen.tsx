@@ -16,6 +16,8 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  MoreVertical,
+  Menu,
   Terminal,
   Link,
   FileText,
@@ -38,7 +40,6 @@ import {
   X,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
-import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from '../components/MarkdownText';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
@@ -110,6 +111,22 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState<boolean>(false);
+
+  const modelShortName = useMemo(() => {
+    const m = (activeSession?.model || sessionConfig.model).toLowerCase();
+    if (m.includes('flash')) return 'gemini-flash';
+    if (m.includes('sonnet')) return 'claude-sonnet';
+    if (m.includes('opus')) return 'claude-opus';
+    return activeSession?.model || sessionConfig.model;
+  }, [activeSession?.model, sessionConfig.model]);
+
+  const handleScroll = (event: any) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
+    const isScrolledUp = distanceFromBottom > 140 && contentOffset.y > 60;
+    setShowScrollToBottom(isScrolledUp);
+  };
   const scrollViewRef = useRef<any>(null);
 
   const isTurnOpen = (turnId: string) => openTurnAccordions[turnId] ?? true;
@@ -398,89 +415,96 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* 1. Top Header Bar */}
-      <HeaderBar
-        title={titleStr}
-        subtitle={subtitleStr}
-        leftIcon="menu"
-        onBack={onOpenDrawer || onBack}
-        rightElement={
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity
-              style={styles.headerTerminalBtn}
-              onPress={() => {
-                setArtifactFilterQuery('');
-                setShowArtifactsSheet(true);
-                fetchSessionArtifacts().catch(() => {});
-              }}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="View Session Artifacts"
-            >
-              <Layers size={16} color="#fafafa" />
-              {sessionArtifacts.length > 0 ? (
-                <View style={styles.headerBadge}>
-                  <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
+      {/* 1. Floating Capsule Header (Option 3: No borders, floating pill islands) */}
+      <View style={styles.floatingHeaderContainer} pointerEvents="box-none">
+        {/* Left: Floating Menu Pill */}
+        <TouchableOpacity
+          style={styles.floatingCircleBtn}
+          onPress={() => {
+            if (onOpenDrawer) {
+              onOpenDrawer();
+            } else if (onBack) {
+              onBack();
+            }
+          }}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Open Menu Drawer"
+        >
+          <Menu size={17} color="#fafafa" />
+        </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.headerTerminalBtn}
-              onPress={() => setShowTerminal(true)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Open Terminal"
-            >
-              <Terminal size={16} color="#fafafa" />
-            </TouchableOpacity>
-          </View>
-        }
-        onMore={() => {
-          if (activeSession) {
-            setShowSessionActionModal(true);
-          } else if (onNavigateTab) {
-            onNavigateTab('sessions');
-          }
-        }}
-      />
+        {/* Center: Floating Session Pill (Title & Model) */}
+        <TouchableOpacity
+          style={styles.floatingCenterPill}
+          onPress={() => setShowConfigSheet(true)}
+          activeOpacity={0.75}
+        >
+          <Text style={styles.floatingPillTitle} numberOfLines={1}>
+            {titleStr}
+          </Text>
+          <Text style={styles.floatingPillMeta} numberOfLines={1}>
+            • {modelShortName}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Right: Floating Actions (Artifacts, Terminal, More) */}
+        <View style={styles.floatingRightCluster}>
+          <TouchableOpacity
+            style={styles.floatingCircleBtn}
+            onPress={() => {
+              setArtifactFilterQuery('');
+              setShowArtifactsSheet(true);
+              fetchSessionArtifacts().catch(() => {});
+            }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="View Session Artifacts"
+          >
+            <Layers size={15} color="#fafafa" />
+            {sessionArtifacts.length > 0 ? (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.floatingCircleBtn}
+            onPress={() => setShowTerminal(true)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Open Terminal"
+          >
+            <Terminal size={15} color="#fafafa" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.floatingCircleBtn}
+            onPress={() => {
+              if (activeSession) {
+                setShowSessionActionModal(true);
+              } else if (onNavigateTab) {
+                onNavigateTab('sessions');
+              }
+            }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Session Actions"
+          >
+            <MoreVertical size={16} color="#a3a3a3" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <ScrollView
         ref={scrollViewRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
       >
-        {/* 2. Top Meta Pill Row (Paradev Model & Context Info) */}
-        <View style={styles.sessionMetaPillRow}>
-          <TouchableOpacity
-            style={styles.modelStatusPill}
-            onPress={() => setShowConfigSheet(true)}
-            activeOpacity={0.75}
-          >
-
-            <Text style={styles.modelStatusText} numberOfLines={1}>
-              {isSendingPrompt ? 'agent.active' : 'agent.ready'} •{' '}
-              {sessionConfig.model.includes('flash')
-                ? 'gemini-flash'
-                : sessionConfig.model.includes('sonnet')
-                ? 'claude-3-5-sonnet'
-                : sessionConfig.model.includes('opus')
-                ? 'claude-3-opus'
-                : sessionConfig.model}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.contextPill}
-            onPress={() => setShowConfigSheet(true)}
-            activeOpacity={0.75}
-          >
-            <Text style={styles.contextPillText}>
-              ctx: {sessionMessages.length > 0 ? `${sessionMessages.length} msgs` : '0 msgs'}
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         {/* 3. Pagination: Load Older History Button */}
         {hasMoreMessages && (
@@ -704,16 +728,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         )}
       </ScrollView>
 
-      {/* 6. Floating Scroll FAB */}
-      <View style={[styles.scrollFabContainer, { pointerEvents: 'box-none' }]}>
-        <TouchableOpacity
-          style={styles.scrollFab}
-          activeOpacity={0.7}
-          onPress={handleScrollToBottom}
-        >
-          <ArrowDown size={14} color="#a3a3a3" />
-        </TouchableOpacity>
-      </View>
+      {/* 6. Floating Scroll FAB (Only visible when user scrolled up into history) */}
+      {showScrollToBottom && (
+        <View style={[styles.scrollFabContainer, { pointerEvents: 'box-none' }]}>
+          <TouchableOpacity
+            style={styles.scrollFab}
+            activeOpacity={0.7}
+            onPress={handleScrollToBottom}
+          >
+            <ArrowDown size={14} color="#a3a3a3" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* 7. Chat Input Bar: Floating Capsule */}
       <KeyboardAvoidingView
@@ -901,10 +927,73 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  // Floating Option 3 Header Styles
+  floatingHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingTop: Platform.OS === 'ios' ? 8 : 10,
+    paddingBottom: 6,
+    backgroundColor: 'transparent',
+    zIndex: 40,
+  },
+  floatingCircleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 0,
+  },
+  floatingCenterPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 18,
+    height: 36,
+    paddingHorizontal: 12,
+    marginHorizontal: 8,
+    gap: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 0,
+  },
+  floatingPillTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fafafa',
+    letterSpacing: -0.2,
+    maxWidth: 130,
+  },
+  floatingPillMeta: {
+    fontSize: 11,
+    color: '#a3a3a3',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontWeight: '500',
+  },
+  floatingRightCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingTop: 8,
-    paddingBottom: 110,
+    paddingBottom: 130,
   },
 
   // Metadata summary row & session config
@@ -1273,17 +1362,17 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 26,
     minHeight: 52,
     maxHeight: 140,
     paddingHorizontal: 8,
     paddingVertical: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 0,
   },
   composerPlusBtn: {
     width: 34,

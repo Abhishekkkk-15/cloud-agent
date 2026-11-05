@@ -97,12 +97,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           damping: 24,
           mass: 0.8,
           stiffness: 220,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(backdropAnim, {
           toValue: 1,
           duration: 240,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start();
     } else {
@@ -110,12 +110,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         Animated.timing(slideAnim, {
           toValue: -DRAWER_WIDTH,
           duration: 220,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(backdropAnim, {
           toValue: 0,
           duration: 200,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start(({ finished }) => {
         if (finished) {
@@ -130,12 +130,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       Animated.timing(slideAnim, {
         toValue: -DRAWER_WIDTH,
         duration: 200,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(backdropAnim, {
         toValue: 0,
         duration: 180,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start(() => {
       setIsRendered(false);
@@ -163,12 +163,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             Animated.timing(slideAnim, {
               toValue: -DRAWER_WIDTH,
               duration: 180,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }),
             Animated.timing(backdropAnim, {
               toValue: 0,
               duration: 180,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }),
           ]).start(() => {
             setIsRendered(false);
@@ -181,12 +181,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               damping: 24,
               mass: 0.8,
               stiffness: 220,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }),
             Animated.timing(backdropAnim, {
               toValue: 1,
               duration: 160,
-              useNativeDriver: true,
+              useNativeDriver: false,
             }),
           ]).start();
         }
@@ -199,12 +199,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       Animated.timing(slideAnim, {
         toValue: -DRAWER_WIDTH,
         duration: 180,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(backdropAnim, {
         toValue: 0,
         duration: 180,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start(() => {
       setIsRendered(false);
@@ -321,7 +321,10 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const nodePlatform = activeMachine?.platform || daemonStatus?.platform || 'Host';
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 200 }]} pointerEvents="box-none">
+    <View
+      style={[StyleSheet.absoluteFill, { zIndex: 200 }]}
+      pointerEvents={isOpen || isRendered ? 'box-none' : 'none'}
+    >
       {/* Dimmed Backdrop */}
       <TouchableWithoutFeedback onPress={handleBackdropPress}>
         <Animated.View
@@ -334,6 +337,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               }),
             },
           ]}
+          pointerEvents={isOpen ? 'auto' : 'none'}
         />
       </TouchableWithoutFeedback>
 
