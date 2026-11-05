@@ -85,24 +85,43 @@ function getStoredUrlSync(key: string): string | null {
 const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
 const envGatewayUrl = process.env.EXPO_PUBLIC_GATEWAY_URL;
 
-export function resolveInitialApiUrl(): string {
-  const stored = getStoredUrlSync(STORAGE_KEY_API);
-  if (stored && stored.trim()) return stored.trim();
-  if (envApiUrl && envApiUrl.trim()) return envApiUrl.trim();
-  return `http://${defaultHost}:8000`;
+export const DEFAULT_DEPLOYED_GATEWAY_URL = 'https://gateway.cloud-agent.abhishekkkk.in';
+
+export function isLocalhostOrLegacy(url: string | null | undefined): boolean {
+  if (!url || !url.trim()) return true;
+  const clean = url.trim().toLowerCase();
+  return (
+    clean.includes('localhost') ||
+    clean.includes('127.0.0.1') ||
+    clean.includes('10.0.2.2') ||
+    clean.includes('192.168.') ||
+    clean.includes('10.0.') ||
+    clean.includes(':8080') ||
+    clean.includes(':8000') ||
+    clean.includes('onrender.com') ||
+    clean.includes('ngrok-free.dev')
+  );
 }
 
-export const DEFAULT_DEPLOYED_GATEWAY_URL = 'https://gateway.cloud-agent.abhishekkkk.in';
+export function resolveInitialApiUrl(): string {
+  const stored = getStoredUrlSync(STORAGE_KEY_API);
+  if (stored && stored.trim() && !isLocalhostOrLegacy(stored)) {
+    return stored.trim();
+  }
+  if (envApiUrl && envApiUrl.trim() && !isLocalhostOrLegacy(envApiUrl)) {
+    return envApiUrl.trim();
+  }
+  return DEFAULT_DEPLOYED_GATEWAY_URL;
+}
 
 export function resolveInitialGatewayUrl(): string {
   const stored = getStoredUrlSync(STORAGE_KEY_GATEWAY);
-  if (stored && stored.trim()) {
-    if (stored.includes('onrender.com')) {
-      return DEFAULT_DEPLOYED_GATEWAY_URL;
-    }
+  if (stored && stored.trim() && !isLocalhostOrLegacy(stored)) {
     return stored.trim();
   }
-  if (envGatewayUrl && envGatewayUrl.trim()) return envGatewayUrl.trim();
+  if (envGatewayUrl && envGatewayUrl.trim() && !isLocalhostOrLegacy(envGatewayUrl)) {
+    return envGatewayUrl.trim();
+  }
   return DEFAULT_DEPLOYED_GATEWAY_URL;
 }
 
@@ -896,9 +915,14 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         }
       }
 
-      const effectiveApi = storedApi || get().apiUrl;
+      let effectiveApi = storedApi || get().apiUrl;
+      if (isLocalhostOrLegacy(effectiveApi)) {
+        effectiveApi = DEFAULT_DEPLOYED_GATEWAY_URL;
+        setStorageItem(STORAGE_KEY_API, DEFAULT_DEPLOYED_GATEWAY_URL).catch(() => {});
+      }
+
       let effectiveGateway = storedGateway || get().gatewayUrl;
-      if (effectiveGateway.includes('onrender.com')) {
+      if (isLocalhostOrLegacy(effectiveGateway)) {
         effectiveGateway = DEFAULT_DEPLOYED_GATEWAY_URL;
         setStorageItem(STORAGE_KEY_GATEWAY, DEFAULT_DEPLOYED_GATEWAY_URL).catch(() => {});
       }
@@ -938,6 +962,18 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       });
 
       if (!machRes.ok) {
+        if (machRes.status === 401) {
+          console.warn('[DaemonStore] Stored token rejected with 401 Unauthorized. Clearing stale auth session.');
+          await removeStorageItem(STORAGE_KEY_TOKEN);
+          await removeStorageItem(STORAGE_KEY_USER);
+          set({
+            token: null,
+            isAuthenticated: false,
+            currentUser: null,
+            isLoadingMachines: false,
+          });
+          return [];
+        }
         set({ isLoadingMachines: false });
         return get().machines;
       }
@@ -1062,9 +1098,12 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       if (!loginRes || !loginRes.ok) {
         loginRes = await fetch(`${apiUrl}/auth/dev-login`, { method: 'POST' });
       }
+      if (!loginRes || !loginRes.ok) {
+        throw new Error(`Dev login failed (status: ${loginRes?.status || 'unreachable'})`);
+      }
       const login = await loginRes.json();
       const token = login.access_token;
-      const devUser = {
+      const devUser = login.user || {
         id: 'dev_user_1',
         name: 'Developer',
         email: 'developer@cloud-agent.internal',
@@ -1916,8 +1955,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   resetServerEndpoints: async () => {
     await removeStorageItem(STORAGE_KEY_API);
     await removeStorageItem(STORAGE_KEY_GATEWAY);
-    const defApi = envApiUrl || `http://${defaultHost}:8000`;
-    const defGateway = envGatewayUrl || DEFAULT_DEPLOYED_GATEWAY_URL;
+    const defApi = envApiUrl && !isLocalhostOrLegacy(envApiUrl) ? envApiUrl.trim() : DEFAULT_DEPLOYED_GATEWAY_URL;
+    const defGateway = envGatewayUrl && !isLocalhostOrLegacy(envGatewayUrl) ? envGatewayUrl.trim() : DEFAULT_DEPLOYED_GATEWAY_URL;
     set({ apiUrl: defApi, gatewayUrl: defGateway });
     try {
       mobileP2P.disconnect();
