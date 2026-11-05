@@ -23,7 +23,9 @@
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
-        "VIBRATE"
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "RECEIVE_BOOT_COMPLETED"
       ],
       "androidNavigationBar": {
         "backgroundColor": "#0a0a0a",
