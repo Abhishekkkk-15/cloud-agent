@@ -11,10 +11,11 @@ import {
   Platform,
   TouchableWithoutFeedback,
   TextInput,
+  SafeAreaView,
+  StatusBar,
 } from 'react-native';
 import {
   Plus,
-  ChevronLeft,
   ChevronRight,
   ShieldAlert,
   Activity,
@@ -29,7 +30,6 @@ import {
   X,
   Bell,
   ChevronsUpDown,
-  CheckCircle2,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore, RealSessionItem, MachineInfo } from '../stores/useDaemonStore';
@@ -78,7 +78,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
   const [activeFilterWs, setActiveFilterWs] = useState<string>('all');
   const [drawerSearch, setDrawerSearch] = useState<string>('');
-  const [showSearchInput, setShowSearchInput] = useState<boolean>(false);
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
@@ -276,71 +275,30 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         ]}
         {...panResponder.panHandlers}
       >
-        {/* 1. Profile Bar (Stitch Screen 1 Style) */}
-        <View style={styles.profileHeader}>
-          <View style={styles.profileInfo}>
-            <View style={styles.avatarBox}>
-              <Text style={styles.avatarText}>{operatorInitial}</Text>
-              
-            </View>
-            <View style={styles.profileTextCol}>
-              <View style={styles.profileNameRow}>
-                <Text style={styles.profileName} numberOfLines={1}>
-                  {operatorName}
-                </Text>
-                <CheckCircle2 size={13} color={colors.primary} />
-              </View>
-              <Text style={styles.profileEmail} numberOfLines={1}>
-                {operatorEmail}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.headerRightActions}>
-            <TouchableOpacity
-              style={styles.circleActionBtn}
-              onPress={() => setShowSearchInput((prev) => !prev)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Search size={15} color={showSearchInput ? colors.primary : colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.circleActionBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <ChevronLeft size={17} color={colors.textPrimary} />
-            </TouchableOpacity>
+        <SafeAreaView style={styles.drawerSafeArea}>
+          {/* Floating Search Bar (No borders, no < icon, floating pill) */}
+        <View style={styles.floatingSearchContainer}>
+          <View style={styles.floatingSearchBox}>
+            <Search size={15} color={colors.textMuted} />
+            <TextInput
+              style={styles.floatingSearchInput}
+              value={drawerSearch}
+              onChangeText={setDrawerSearch}
+              placeholder="Search sessions or workspaces..."
+              placeholderTextColor={colors.textDisabled}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            {drawerSearch.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setDrawerSearch('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={14} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
-
-        {/* Search Input Box (Collapsible / Toggleable) */}
-        {showSearchInput && (
-          <View style={styles.searchRow}>
-            <View style={styles.searchBox}>
-              <Search size={13} color={colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                value={drawerSearch}
-                onChangeText={setDrawerSearch}
-                placeholder="Search sessions or workspaces..."
-                placeholderTextColor={colors.textDisabled}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-              />
-              {drawerSearch.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setDrawerSearch('')}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                >
-                  <X size={13} color={colors.textMuted} />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        )}
 
         {/* Scrollable Content */}
         <ScrollView
@@ -423,7 +381,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             activeOpacity={0.8}
           >
             <View style={styles.newSessionIconCircle}>
-              <Plus size={14} color="#ffffff" />
+              <Plus size={14} color="#0a0a0a" />
             </View>
             <Text style={styles.newSessionBtnText}>New Session</Text>
           </TouchableOpacity>
@@ -619,23 +577,37 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           </TouchableOpacity>
         </ScrollView>
 
-        {/* 7. Drawer Footer: VPS Status & Sign Out */}
-        <View style={styles.footer}>
-          <View style={styles.footerStatus}>
-            
-            <Text style={styles.footerText}>
+        {/* 7. Drawer Footer: User Profile & Status at Bottom (No tick mark) */}
+        <View style={styles.drawerBottomFooter}>
+          <View style={styles.bottomProfileCard}>
+            <View style={styles.avatarBox}>
+              <Text style={styles.avatarText}>{operatorInitial}</Text>
+            </View>
+            <View style={styles.bottomProfileTextCol}>
+              <Text style={styles.bottomProfileName} numberOfLines={1}>
+                {operatorName}
+              </Text>
+              <Text style={styles.bottomProfileEmail} numberOfLines={1}>
+                {operatorEmail}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.bottomLogoutBtn}
+              onPress={logout}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Sign Out"
+            >
+              <LogOut size={15} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.bottomVpsRow}>
+            <Text style={styles.bottomVpsText}>
               VPS Connected • {pingRtt || '18ms'}
             </Text>
           </View>
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={logout}
-            activeOpacity={0.7}
-          >
-            <LogOut size={13} color={colors.textMuted} />
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </TouchableOpacity>
         </View>
+        </SafeAreaView>
       </Animated.View>
 
       {/* Interactive New Chat Workspace Sheet */}
@@ -703,110 +675,108 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceContainerLowest,
     borderRightWidth: 1,
     borderRightColor: colors.borderMuted,
+    zIndex: 210,
+    overflow: 'hidden',
+  },
+  drawerSafeArea: {
+    flex: 1,
     flexDirection: 'column',
     justifyContent: 'space-between',
-    zIndex: 210,
-    paddingTop: Platform.OS === 'ios' ? 44 : 12,
+    paddingTop: Platform.OS === 'android' ? Math.max(StatusBar.currentHeight || 0, 36) + 4 : (Platform.OS === 'web' ? 8 : 0),
   },
-  profileHeader: {
+  floatingSearchContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+    backgroundColor: 'transparent',
+  },
+  floatingSearchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: '#161616',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    paddingHorizontal: 12,
+    height: 40,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  floatingSearchInput: {
+    flex: 1,
+    height: 40,
+    color: '#fafafa',
+    fontSize: 13,
+  },
+  avatarBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1c1c1c',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fafafa',
+  },
+  drawerBottomFooter: {
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderMuted,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.surfaceContainerLowest,
   },
-  profileInfo: {
+  bottomProfileCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingBottom: 8,
+  },
+  bottomProfileTextCol: {
+    marginLeft: 10,
     flex: 1,
     marginRight: 8,
   },
-  avatarBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surfaceContainerHigh,
-    borderWidth: 1.5,
-    borderColor: colors.borderDefault,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  avatarText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  avatarOnlineDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.statusLive,
-    borderWidth: 1.5,
-    borderColor: colors.surfaceContainerLowest,
-  },
-  profileTextCol: {
-    marginLeft: 10,
-    flex: 1,
-  },
-  profileNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  profileName: {
+  bottomProfileName: {
     fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.1,
+    fontWeight: '600',
+    color: '#fafafa',
   },
-  profileEmail: {
+  bottomProfileEmail: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: '#737373',
     marginTop: 1,
   },
-  headerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  circleActionBtn: {
+  bottomLogoutBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.surfaceContainer,
+    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchRow: {
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 4,
-    backgroundColor: colors.surfaceContainerLowest,
-  },
-  searchBox: {
+  bottomVpsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    paddingHorizontal: 10,
-    height: 36,
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.04)',
   },
-  searchInput: {
-    flex: 1,
-    height: 36,
-    color: colors.textPrimary,
-    fontSize: 12,
+  bottomVpsText: {
+    fontSize: 10,
+    color: '#525252',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   drawerScroll: {
     flex: 1,
@@ -1129,42 +1099,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.red,
     fontWeight: '700',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderMuted,
-    backgroundColor: colors.bgCanvasInset,
-  },
-  footerStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  footerText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-    fontFamily: typography.mono,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  logoutText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
   },
 });

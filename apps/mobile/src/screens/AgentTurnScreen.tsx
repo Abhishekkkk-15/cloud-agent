@@ -402,6 +402,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <HeaderBar
         title={titleStr}
         subtitle={subtitleStr}
+        leftIcon="menu"
         onBack={onOpenDrawer || onBack}
         rightElement={
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
