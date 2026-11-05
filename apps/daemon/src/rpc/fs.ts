@@ -94,17 +94,77 @@ export interface ListDirectoriesResult {
   parentPath: string | null;
   homePath: string;
   dirs: Array<{ name: string; fullPath: string }>;
+  drives: string[];
+}
+
+export function getAvailableDrives(): string[] {
+  if (process.platform === "win32") {
+    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((l) => `${l}:\\`);
+    return letters.filter((d) => {
+      try {
+        return fs.existsSync(d);
+      } catch {
+        return false;
+      }
+    });
+  } else if (process.platform === "darwin") {
+    const volumes = "/Volumes";
+    const drives = ["/"];
+    try {
+      if (fs.existsSync(volumes)) {
+        const entries = fs.readdirSync(volumes);
+        for (const e of entries) {
+          drives.push(path.join(volumes, e));
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return drives;
+  } else {
+    // Linux
+    const drives = ["/"];
+    try {
+      for (const dir of ["/media", "/mnt"]) {
+        if (fs.existsSync(dir)) {
+          const entries = fs.readdirSync(dir);
+          for (const e of entries) {
+            drives.push(path.join(dir, e));
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return drives;
+  }
 }
 
 export function listDirectories(parentPath?: string): ListDirectoriesResult {
   const home = os.homedir();
-  const target = parentPath && parentPath.trim() !== "" ? path.resolve(parentPath) : home;
+  const drives = getAvailableDrives();
+
+  let target: string;
+  if (!parentPath || parentPath.trim() === "") {
+    // Prefer process.cwd() if valid, otherwise home directory
+    target = fs.existsSync(process.cwd()) ? process.cwd() : home;
+  } else {
+    const clean = parentPath.trim();
+    // Normalize Windows drive letters (e.g. "D:" or "D:\" -> "D:\")
+    if (process.platform === "win32" && /^[a-zA-Z]:?\\?$/.test(clean)) {
+      target = clean.slice(0, 1).toUpperCase() + ":\\";
+    } else {
+      target = path.resolve(clean);
+    }
+  }
+
   if (!fs.existsSync(target)) {
     return {
       currentPath: target,
       parentPath: null,
       homePath: home,
       dirs: [],
+      drives,
     };
   }
 
@@ -127,6 +187,7 @@ export function listDirectories(parentPath?: string): ListDirectoriesResult {
       parentPath: hasParent ? parent : null,
       homePath: home,
       dirs,
+      drives,
     };
   } catch {
     return {
@@ -134,6 +195,7 @@ export function listDirectories(parentPath?: string): ListDirectoriesResult {
       parentPath: hasParent ? parent : null,
       homePath: home,
       dirs: [],
+      drives,
     };
   }
 }

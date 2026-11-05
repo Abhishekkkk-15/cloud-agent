@@ -21,6 +21,7 @@ import {
   Search,
   Check,
   FolderGit2,
+  HardDrive,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore, DirectoryBrowseResult } from '../stores/useDaemonStore';
@@ -44,6 +45,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   const [currentPath, setCurrentPath] = useState<string>('');
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [homePath, setHomePath] = useState<string>('');
+  const [availableDrives, setAvailableDrives] = useState<string[]>([]);
   const [subdirs, setSubdirs] = useState<Array<{ name: string; fullPath: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
@@ -65,6 +67,9 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
       setParentPath(res.parentPath);
       setHomePath(res.homePath);
       setSubdirs(res.dirs || []);
+      if (res.drives && res.drives.length > 0) {
+        setAvailableDrives(res.drives);
+      }
     }
     setIsLoading(false);
   };
@@ -94,10 +99,11 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
         segments.push({ name: p, fullPath: accumulated });
       }
     } else {
-      let accumulated = parts[0];
-      segments.push({ name: parts[0], fullPath: parts[0] + '/' });
+      const driveLetter = parts[0].toUpperCase();
+      segments.push({ name: driveLetter + '\\', fullPath: driveLetter + '\\' });
+      let accumulated = driveLetter + '\\';
       for (let i = 1; i < parts.length; i++) {
-        accumulated += `/${parts[i]}`;
+        accumulated = accumulated.endsWith('\\') ? accumulated + parts[i] : accumulated + '\\' + parts[i];
         segments.push({ name: parts[i], fullPath: accumulated });
       }
     }
@@ -209,6 +215,39 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
               ))}
             </ScrollView>
           </View>
+
+          {/* Drives / Partitions Selector Bar */}
+          {availableDrives.length > 0 && (
+            <View style={styles.drivesBar}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.drivesScroll}
+              >
+                {availableDrives.map((drive) => {
+                  const normCurr = currentPath.toLowerCase().replace(/\\/g, '/');
+                  const normDrive = drive.toLowerCase().replace(/\\/g, '/').replace(/\/$/, '');
+                  const isCurrent =
+                    normCurr.startsWith(normDrive + '/') ||
+                    normCurr === normDrive ||
+                    normCurr.startsWith(normDrive);
+                  return (
+                    <TouchableOpacity
+                      key={drive}
+                      style={[styles.driveChip, isCurrent && styles.driveChipActive]}
+                      onPress={() => loadDirectory(drive)}
+                      activeOpacity={0.7}
+                    >
+                      <HardDrive size={12} color={isCurrent ? '#fafafa' : '#a3a3a3'} />
+                      <Text style={[styles.driveChipText, isCurrent && styles.driveChipTextActive]}>
+                        {drive}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Quick Search in Current Folder */}
           <View style={styles.searchContainer}>
@@ -399,6 +438,42 @@ const styles = StyleSheet.create({
   breadcrumbSep: {
     color: '#484f58',
     fontSize: 12,
+  },
+  drivesBar: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: '#262626',
+    backgroundColor: '#121212',
+  },
+  drivesScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  driveChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.sm,
+    backgroundColor: '#1c1c1c',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+  },
+  driveChipActive: {
+    backgroundColor: 'rgba(0, 119, 182, 0.22)',
+    borderColor: '#0077b6',
+  },
+  driveChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#a3a3a3',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  driveChipTextActive: {
+    color: '#fafafa',
   },
   searchContainer: {
     flexDirection: 'row',

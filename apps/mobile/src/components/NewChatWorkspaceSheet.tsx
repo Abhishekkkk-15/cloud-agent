@@ -59,7 +59,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
       fetchKnownWorkspaces();
       const defaultPath =
         targetWorkspacePath ||
-        (knownWorkspaces.length > 0 ? knownWorkspaces[0].path : process.cwd?.() || '/');
+        (knownWorkspaces.length > 0 ? knownWorkspaces[0].path : '/');
       setPathInput(defaultPath);
       loadSuggestions(defaultPath);
     }

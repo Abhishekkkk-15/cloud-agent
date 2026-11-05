@@ -67,6 +67,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const pingRtt = useDaemonStore((s) => s.pingRtt);
   const sessions = useDaemonStore((s) => s.sessions);
   const activeSession = useDaemonStore((s) => s.activeSession);
+  const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const workspaces = useDaemonStore((s) => s.workspaces);
   const selectSession = useDaemonStore((s) => s.selectSession);
   const selectMachine = useDaemonStore((s) => s.selectMachine);
@@ -720,6 +721,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       {/* Direct Remote Folder Browser Modal */}
       <FolderPickerModal
         visible={showDirectFolderPicker}
+        initialPath={targetWorkspacePath || activeSession?.workspacePath || undefined}
         onClose={() => setShowDirectFolderPicker(false)}
         onSelectFolder={handleStartSessionInWorkspace}
       />

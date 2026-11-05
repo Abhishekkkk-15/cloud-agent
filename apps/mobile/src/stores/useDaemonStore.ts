@@ -192,6 +192,7 @@ export interface DirectoryBrowseResult {
   parentPath: string | null;
   homePath: string;
   dirs: Array<{ name: string; fullPath: string }>;
+  drives?: string[];
 }
 
 export interface TerminalOutputLine {
@@ -1554,9 +1555,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   createNewSession: () => {
+    const previousWs = get().targetWorkspacePath || get().activeSession?.workspacePath || null;
     set({
       activeSession: null,
-      targetWorkspacePath: null,
+      targetWorkspacePath: previousWs,
       sessionMessages: [],
       sessionArtifacts: [],
       messagesOffset: 0,

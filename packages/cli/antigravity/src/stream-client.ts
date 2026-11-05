@@ -201,6 +201,9 @@ class PersistentWorker {
     if (this.activeDangerouslySkipPermissions) {
       args.push("--dangerously-skip-permissions");
     }
+    if (options.cwd && fs.existsSync(options.cwd)) {
+      args.push("--add-dir", options.cwd);
+    }
 
     const env = {
       ...process.env,
