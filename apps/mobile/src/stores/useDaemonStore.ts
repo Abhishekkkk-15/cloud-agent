@@ -96,7 +96,12 @@ export const DEFAULT_DEPLOYED_GATEWAY_URL = 'https://gateway.cloud-agent.abhishe
 
 export function resolveInitialGatewayUrl(): string {
   const stored = getStoredUrlSync(STORAGE_KEY_GATEWAY);
-  if (stored && stored.trim()) return stored.trim();
+  if (stored && stored.trim()) {
+    if (stored.includes('onrender.com')) {
+      return DEFAULT_DEPLOYED_GATEWAY_URL;
+    }
+    return stored.trim();
+  }
   if (envGatewayUrl && envGatewayUrl.trim()) return envGatewayUrl.trim();
   return DEFAULT_DEPLOYED_GATEWAY_URL;
 }
@@ -892,7 +897,11 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
 
       const effectiveApi = storedApi || get().apiUrl;
-      const effectiveGateway = storedGateway || get().gatewayUrl;
+      let effectiveGateway = storedGateway || get().gatewayUrl;
+      if (effectiveGateway.includes('onrender.com')) {
+        effectiveGateway = DEFAULT_DEPLOYED_GATEWAY_URL;
+        setStorageItem(STORAGE_KEY_GATEWAY, DEFAULT_DEPLOYED_GATEWAY_URL).catch(() => {});
+      }
 
       if (storedToken) {
         set({

@@ -293,11 +293,13 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
                       activeOpacity={0.7}
                     >
                       {isCollapsed ? (
-                        <ChevronRight size={15} color={colors.textMuted} />
+                        <ChevronRight size={16} color={colors.textMuted} />
                       ) : (
-                        <ChevronDown size={15} color={colors.textMuted} />
+                        <ChevronDown size={16} color={colors.textMuted} />
                       )}
-                      <FolderGit2 size={16} color={colors.primaryLight} style={{ marginLeft: 6 }} />
+                      <View style={styles.groupIconBox}>
+                        <FolderGit2 size={20} color="#fafafa" />
+                      </View>
                       <Text style={styles.groupName} numberOfLines={1}>
                         {group.name}
                       </Text>
@@ -560,7 +562,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     backgroundColor: colors.surfaceContainerHigh,
   },
   groupHeaderLeft: {
@@ -569,28 +571,36 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  groupIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 7,
+    marginRight: 9,
+  },
   groupName: {
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.textPrimary,
-    fontFamily: typography.mono,
-    marginLeft: 6,
     flexShrink: 1,
+    letterSpacing: -0.3,
   },
   groupBadge: {
-    backgroundColor: colors.surfaceContainerLowest,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: radii.full,
     marginLeft: 8,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
   },
   groupBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.textMuted,
-    fontFamily: typography.mono,
   },
   newChatInGroupBtn: {
     width: 26,

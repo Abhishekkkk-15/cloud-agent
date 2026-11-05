@@ -632,11 +632,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                   >
                     <View style={styles.workspaceFolderToggle}>
                       {isCollapsed ? (
-                        <ChevronRight size={14} color={colors.textMuted} />
+                        <ChevronRight size={15} color={colors.textMuted} />
                       ) : (
-                        <ChevronDown size={14} color={colors.textMuted} />
+                        <ChevronDown size={15} color={colors.textMuted} />
                       )}
-                      <FolderGit2 size={16} color="#f0f6fc" style={{ marginLeft: 7, marginRight: 7 }} />
+                      <View style={styles.workspaceFolderIconBox}>
+                        <FolderGit2 size={20} color="#fafafa" />
+                      </View>
                       <Text style={styles.workspaceFolderName} numberOfLines={1}>
                         {group.name}
                       </Text>
@@ -1147,42 +1149,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
     borderRadius: radii.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    marginBottom: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 4,
   },
   workspaceFolderToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  workspaceFolderIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 7,
+    marginRight: 9,
+  },
   workspaceFolderName: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#fafafa',
+    letterSpacing: -0.3,
     flexShrink: 1,
   },
   workspaceCountBadge: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: radii.full,
     marginLeft: 8,
   },
   workspaceCountBadgeText: {
     fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
+    fontWeight: '700',
+    color: '#a3a3a3',
   },
   workspaceChildrenContainer: {
-    marginLeft: 10,
-    paddingLeft: 8,
-    borderLeftWidth: 1,
+    marginLeft: 16,
+    paddingLeft: 10,
+    borderLeftWidth: 1.5,
     borderLeftColor: 'rgba(255, 255, 255, 0.08)',
-    paddingTop: 2,
-    paddingBottom: 4,
+    paddingTop: 3,
+    paddingBottom: 6,
   },
   workspaceNewSessionItem: {
     flexDirection: 'row',

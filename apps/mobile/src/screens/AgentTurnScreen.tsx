@@ -5,12 +5,14 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   ActivityIndicator,
   Alert,
   Platform,
   KeyboardAvoidingView,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -40,6 +42,9 @@ import {
   Wrench,
   Copy,
   X,
+  Pin,
+  Pencil,
+  Trash2,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
@@ -49,7 +54,6 @@ import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCo
 import { SessionConfigSheet } from '../components/SessionConfigSheet';
 import { TerminalSheet } from '../components/TerminalSheet';
 import { LiveApprovalCard } from '../components/LiveApprovalCard';
-import { SessionActionModal } from '../components/SessionActionModal';
 import { ArtifactsSheet } from '../components/ArtifactsSheet';
 import { AutoHealerModal } from '../components/AutoHealerModal';
 import { AskQuestionCard } from '../components/AskQuestionCard';
@@ -110,10 +114,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [showTerminal, setShowTerminal] = useState(false);
   const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
   const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
-  const [showSessionActionModal, setShowSessionActionModal] = useState(false);
+  const [showSessionMenu, setShowSessionMenu] = useState(false);
+  const [isRenamingSession, setIsRenamingSession] = useState(false);
+  const [renameTitle, setRenameTitle] = useState('');
+  const [isSavingRename, setIsSavingRename] = useState(false);
   const [isRespondingApproval, setIsRespondingApproval] = useState(false);
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+
+  const handleSaveRename = async () => {
+    if (!activeSession || !renameTitle.trim() || isSavingRename) return;
+    setIsSavingRename(true);
+    try {
+      await renameSession(activeSession.id, renameTitle.trim());
+      setIsRenamingSession(false);
+    } finally {
+      setIsSavingRename(false);
+    }
+  };
 
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
   const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
@@ -438,7 +456,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityLabel="Open Menu Drawer"
         >
-          <Menu size={17} color="#fafafa" />
+          <Menu size={20} color="#fafafa" />
         </TouchableOpacity>
 
         {/* Center: Floating Workspace Pill */}
@@ -452,7 +470,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             <ActivityIndicator
               size="small"
               color="#a3a3a3"
-              style={{ transform: [{ scale: 0.65 }], marginRight: 5 }}
+              style={{ transform: [{ scale: 0.75 }], marginRight: 6 }}
             />
           )}
           <Text style={styles.floatingPillTitle} numberOfLines={1} ellipsizeMode="tail">
@@ -460,7 +478,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           </Text>
         </TouchableOpacity>
 
-        {/* Right: Floating Actions (Artifacts, Terminal, More) */}
+        {/* Right: Floating Actions (Artifacts, Session Actions with Dropdown) */}
         <View style={styles.floatingRightCluster}>
           <TouchableOpacity
             style={styles.floatingCircleBtn}
@@ -473,7 +491,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="View Session Artifacts"
           >
-            <Layers size={15} color="#fafafa" />
+            <Layers size={19} color="#fafafa" />
             {sessionArtifacts.length > 0 ? (
               <View style={styles.headerBadge}>
                 <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
@@ -482,32 +500,149 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.floatingCircleBtn}
-            onPress={() => setShowTerminal(true)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Open Terminal"
-          >
-            <Terminal size={15} color="#fafafa" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.floatingCircleBtn}
-            onPress={() => {
-              if (activeSession) {
-                setShowSessionActionModal(true);
-              } else if (onNavigateTab) {
-                onNavigateTab('sessions');
-              }
-            }}
+            style={[styles.floatingCircleBtn, showSessionMenu && styles.floatingCircleBtnActive]}
+            onPress={() => setShowSessionMenu((prev) => !prev)}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Session Actions"
           >
-            <MoreVertical size={16} color="#a3a3a3" />
+            <MoreVertical size={20} color={showSessionMenu ? '#fafafa' : '#a3a3a3'} />
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* 2. Sleek Anchored Dropdown Menu (Underneath Three-Dot Button) */}
+      {showSessionMenu && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 250 }]} pointerEvents="box-none">
+          <TouchableWithoutFeedback onPress={() => setShowSessionMenu(false)}>
+            <View style={styles.dropdownBackdrop} />
+          </TouchableWithoutFeedback>
+
+          <View
+            style={[
+              styles.dropdownMenu,
+              {
+                top: topInset + (Platform.OS === 'ios' ? 52 : 54),
+              },
+            ]}
+          >
+            {/* PTY / Terminal Option */}
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => {
+                setShowSessionMenu(false);
+                setShowTerminal(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownItemIcon}>
+                <Terminal size={15} color="#fafafa" />
+              </View>
+              <View style={styles.dropdownItemContent}>
+                <Text style={styles.dropdownItemTitle}>Terminal / PTY</Text>
+                <Text style={styles.dropdownItemSub}>Live interactive shell</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Model & Config Parameters */}
+            <TouchableOpacity
+              style={styles.dropdownItem}
+              onPress={() => {
+                setShowSessionMenu(false);
+                setShowConfigSheet(true);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.dropdownItemIcon}>
+                <SlidersHorizontal size={15} color="#a3a3a3" />
+              </View>
+              <View style={styles.dropdownItemContent}>
+                <Text style={styles.dropdownItemTitle}>Parameters</Text>
+                <Text style={styles.dropdownItemSub}>Model, thinking, temperature</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.dropdownDivider} />
+
+            {/* Pin / Unpin */}
+            {activeSession && (
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={async () => {
+                  setShowSessionMenu(false);
+                  await togglePinSession(activeSession.id);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownItemIcon}>
+                  <Pin size={15} color={activeSession.pinned ? '#48cae4' : '#a3a3a3'} />
+                </View>
+                <View style={styles.dropdownItemContent}>
+                  <Text style={styles.dropdownItemTitle}>
+                    {activeSession.pinned ? 'Unpin Session' : 'Pin Session'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {/* Rename Session */}
+            {activeSession && (
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setShowSessionMenu(false);
+                  setRenameTitle(activeSession.title);
+                  setIsRenamingSession(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.dropdownItemIcon}>
+                  <Pencil size={15} color="#a3a3a3" />
+                </View>
+                <View style={styles.dropdownItemContent}>
+                  <Text style={styles.dropdownItemTitle}>Rename Session</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.dropdownDivider} />
+
+            {/* Delete Session */}
+            {activeSession && (
+              <TouchableOpacity
+                style={styles.dropdownItem}
+                onPress={() => {
+                  setShowSessionMenu(false);
+                  Alert.alert(
+                    'Delete Session',
+                    `Are you sure you want to delete "${activeSession.title}"? This will permanently remove its transcript from the host machine.`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: async () => {
+                          await deleteSession(activeSession.id);
+                        },
+                      },
+                    ]
+                  );
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.dropdownItemIcon, styles.dropdownItemIconDanger]}>
+                  <Trash2 size={15} color="#f85149" />
+                </View>
+                <View style={styles.dropdownItemContent}>
+                  <Text style={[styles.dropdownItemTitle, { color: '#f85149' }]}>
+                    Delete Session
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      )}
 
       <ScrollView
         ref={scrollViewRef}
@@ -515,7 +650,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: topInset + (Platform.OS === 'ios' ? 54 : 50),
+            paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
             paddingBottom: 100 + insets.bottom,
           },
         ]}
@@ -905,21 +1040,72 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         onClose={() => setShowTerminal(false)}
       />
 
-      {/* 11. Session Action Modal (Rename, Pin, Delete) */}
-      <SessionActionModal
-        visible={showSessionActionModal}
-        session={activeSession}
-        onClose={() => setShowSessionActionModal(false)}
-        onRename={async (sess, title) => {
-          await renameSession(sess.id, title);
-        }}
-        onTogglePin={async (sess) => {
-          await togglePinSession(sess.id);
-        }}
-        onDelete={async (sess) => {
-          await deleteSession(sess.id);
-        }}
-      />
+      {/* 11. Compact Rename Dialog */}
+      <Modal
+        visible={isRenamingSession}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsRenamingSession(false)}
+      >
+        <View style={styles.renameOverlay}>
+          <TouchableWithoutFeedback onPress={() => setIsRenamingSession(false)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={styles.renameCardWrapper}
+          >
+            <View style={styles.renameCard}>
+              <View style={styles.renameHeader}>
+                <Text style={styles.renameTitle}>Rename Session</Text>
+                <TouchableOpacity
+                  onPress={() => setIsRenamingSession(false)}
+                  style={styles.renameCloseBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <X size={16} color="#a3a3a3" />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={styles.renameInput}
+                value={renameTitle}
+                onChangeText={setRenameTitle}
+                placeholder="Session title..."
+                placeholderTextColor="#737373"
+                autoFocus
+                selectTextOnFocus
+                returnKeyType="done"
+                onSubmitEditing={handleSaveRename}
+              />
+
+              <View style={styles.renameActionsRow}>
+                <TouchableOpacity
+                  style={styles.renameCancelBtn}
+                  onPress={() => setIsRenamingSession(false)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.renameCancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.renameSaveBtn, isSavingRename && { opacity: 0.6 }]}
+                  onPress={handleSaveRename}
+                  disabled={isSavingRename || !renameTitle.trim()}
+                  activeOpacity={0.7}
+                >
+                  {isSavingRename ? (
+                    <ActivityIndicator size="small" color="#0a0a0a" />
+                  ) : (
+                    <Text style={styles.renameSaveText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       {/* 12. Session Artifacts Bottom Sheet */}
       <ArtifactsSheet
@@ -956,18 +1142,18 @@ const styles = StyleSheet.create({
   },
   headerBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
+    top: -3,
+    right: -3,
     backgroundColor: '#fafafa',
-    borderRadius: 7,
-    minWidth: 14,
-    height: 14,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     paddingHorizontal: 3,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
     color: '#0a0a0a',
   },
@@ -990,19 +1176,23 @@ const styles = StyleSheet.create({
     zIndex: 40,
   },
   floatingCircleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 0,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  floatingCircleBtnActive: {
+    backgroundColor: '#262626',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
   },
   floatingCenterPill: {
     flex: 1,
@@ -1011,20 +1201,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 18,
-    height: 36,
-    paddingHorizontal: 12,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderRadius: 21,
+    height: 42,
+    paddingHorizontal: 14,
     marginHorizontal: 8,
-    gap: 4,
+    gap: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 0,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
   floatingPillTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#fafafa',
     letterSpacing: -0.2,
@@ -1033,7 +1223,150 @@ const styles = StyleSheet.create({
   floatingRightCluster: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  // Sleek Anchored Dropdown Menu
+  dropdownBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    right: 12,
+    width: 220,
+    backgroundColor: 'rgba(22, 22, 22, 0.98)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 18,
+    elevation: 14,
+    zIndex: 260,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 10,
+  },
+  dropdownItemIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownItemIconDanger: {
+    backgroundColor: 'rgba(248, 81, 73, 0.12)',
+  },
+  dropdownItemContent: {
+    flex: 1,
+  },
+  dropdownItemTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fafafa',
+  },
+  dropdownItemSub: {
+    fontSize: 11,
+    color: '#737373',
+    marginTop: 1,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginVertical: 4,
+    marginHorizontal: 6,
+  },
+  // Compact Rename Modal Styles
+  renameOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  renameCardWrapper: {
+    width: '100%',
+    maxWidth: 340,
+  },
+  renameCard: {
+    width: '100%',
+    backgroundColor: '#161616',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 20,
+    elevation: 16,
+  },
+  renameHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  renameTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fafafa',
+  },
+  renameCloseBtn: {
+    padding: 4,
+  },
+  renameInput: {
+    height: 42,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 12,
+    color: '#fafafa',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  renameActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  renameCancelBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  renameCancelText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#a3a3a3',
+  },
+  renameSaveBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+    backgroundColor: '#fafafa',
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  renameSaveText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0a0a0a',
   },
   scrollContent: {
     paddingHorizontal: 14,
