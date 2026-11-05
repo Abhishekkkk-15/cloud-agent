@@ -257,6 +257,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
               style={styles.consoleScroll}
               contentContainerStyle={styles.consoleContent}
               indicatorStyle="white"
+              onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
             >
               {terminalLines.length === 0 ? (
                 <View style={styles.emptyState}>

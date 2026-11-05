@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { ChevronLeft, MoreVertical, Search } from './Icons';
+import { ChevronLeft, Menu, MoreVertical, Search } from './Icons';
 import { colors, radii } from '../theme/tokens';
 
 export interface HeaderBarProps {
   title: string;
   subtitle?: string;
   onBack?: () => void;
+  leftIcon?: 'back' | 'menu';
   onMore?: () => void;
   onSearch?: () => void;
   rightElement?: React.ReactNode;
@@ -16,6 +17,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   title,
   subtitle,
   onBack,
+  leftIcon = 'back',
   onMore,
   onSearch,
   rightElement,
@@ -30,7 +32,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <ChevronLeft size={18} color="#fafafa" />
+            {leftIcon === 'menu' ? (
+              <Menu size={18} color="#fafafa" />
+            ) : (
+              <ChevronLeft size={18} color="#fafafa" />
+            )}
           </TouchableOpacity>
         )}
         <View style={styles.titleColumn}>

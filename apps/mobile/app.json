@@ -10,14 +10,14 @@
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0d1117"
+      "backgroundColor": "#0a0a0a"
     },
     "android": {
       "package": "com.cloudagent.mobile",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#0d1117"
+        "backgroundColor": "#0a0a0a"
       },
       "permissions": [
         "INTERNET",
@@ -35,7 +35,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#0077b6",
+          "color": "#fafafa",
           "defaultChannel": "agent-alerts"
         }
       ]

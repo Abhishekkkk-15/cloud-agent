@@ -33,6 +33,7 @@ import {
   Mic,
   Layers,
   Square,
+  Wrench,
   Copy,
   X,
 } from '../components/Icons';
@@ -561,9 +562,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
                       {isReasoningOpen(turn.id) && (
                         <View style={styles.reasoningBody}>
-                          <Text style={styles.reasoningText} selectable>
-                            {turn.assistant.reasoning.trim()}
-                          </Text>
+                          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true} style={{ maxHeight: 220 }}>
+                            <Text style={styles.reasoningText} selectable>
+                              {turn.assistant.reasoning.trim()}
+                            </Text>
+                          </ScrollView>
                         </View>
                       )}
                     </View>
@@ -578,12 +581,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         activeOpacity={0.7}
                       >
                         <View style={styles.toolCallsSummaryLeft}>
-                          {turn.assistant.actions.some((a) => a.status === 'running') && (
+                          {turn.assistant.actions.some((a) => a.status === 'running') ? (
                             <ActivityIndicator
                               size="small"
                               color="#a3a3a3"
                               style={{ transform: [{ scale: 0.7 }], marginRight: 6 }}
                             />
+                          ) : (
+                            <Wrench size={13} color="#737373" style={{ marginRight: 6 }} />
                           )}
                           <Text style={styles.toolCallsSummaryText}>
                             {turn.assistant.actions.length} tool call
@@ -754,16 +759,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             <Plus size={16} color={showCommandPicker ? '#fafafa' : '#a3a3a3'} />
           </TouchableOpacity>
 
-          {/* Clean Text Input */}
+          {/* Clean Text Input with Dynamic Multiline Expansion */}
           <TextInput
             style={styles.composerTextInput}
             placeholder="Type a message..."
             placeholderTextColor="#737373"
             value={promptInput}
             onChangeText={handleInputChange}
-            onSubmitEditing={handleSendPrompt}
-            returnKeyType="send"
-            multiline={false}
+            onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
+            multiline={true}
+            blurOnSubmit={false}
             editable={!isSendingPrompt}
           />
 
@@ -1264,14 +1269,15 @@ const styles = StyleSheet.create({
   },
   composerCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     backgroundColor: '#161616',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.14)',
     borderRadius: 26,
     minHeight: 52,
+    maxHeight: 140,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45,
@@ -1285,6 +1291,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: Platform.OS === 'ios' ? 2 : 1,
   },
   composerPlusBtnActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -1296,7 +1303,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#fafafa',
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
+    paddingTop: Platform.OS === 'ios' ? 8 : 4,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 6,
+    maxHeight: 120,
   },
   composerSendBtn: {
     width: 34,
@@ -1305,6 +1314,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: Platform.OS === 'ios' ? 2 : 1,
   },
   composerStopBtn: {
     width: 34,
@@ -1320,5 +1330,6 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: Platform.OS === 'ios' ? 2 : 1,
   },
 });
