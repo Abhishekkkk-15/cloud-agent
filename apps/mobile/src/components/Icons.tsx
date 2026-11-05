@@ -91,3 +91,5 @@ export const ExternalLink = wrapIcon(Lucide.ExternalLink);
 export const ChevronsUpDown = wrapIcon(Lucide.ChevronsUpDown);
 export const CheckCheck = wrapIcon(Lucide.CheckCheck);
 export const Circle = wrapIcon(Lucide.Circle);
+export const HelpCircle = wrapIcon(Lucide.HelpCircle);
+export const CheckSquare = wrapIcon(Lucide.CheckSquare);

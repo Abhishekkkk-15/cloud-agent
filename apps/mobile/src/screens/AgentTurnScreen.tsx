@@ -50,6 +50,7 @@ import { LiveApprovalCard } from '../components/LiveApprovalCard';
 import { SessionActionModal } from '../components/SessionActionModal';
 import { ArtifactsSheet } from '../components/ArtifactsSheet';
 import { AutoHealerModal } from '../components/AutoHealerModal';
+import { AskQuestionCard } from '../components/AskQuestionCard';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -664,6 +665,20 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       )}
                     </View>
                   ) : null}
+
+                  {/* Interactive Clarification & Choice Cards (ask_question) */}
+                  {turn.assistant.actions
+                    ?.filter((a) => a.toolName === 'ask_question')
+                    .map((qAction) => (
+                      <AskQuestionCard
+                        key={qAction.id}
+                        action={qAction}
+                        onSubmitAnswer={async (answerText) => {
+                          await sendPrompt(answerText);
+                        }}
+                        isSubmitting={isSendingPrompt}
+                      />
+                    ))}
 
                   {/* Assistant Markdown Resolution */}
                   {turn.assistant.content ? (

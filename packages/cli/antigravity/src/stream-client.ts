@@ -437,8 +437,132 @@ class PersistentWorker {
   }
 }
 
+interface DetectedCommand {
+  isElevated: boolean;
+  command?: string;
+  tool?: string;
+  description?: string;
+}
+
+const COMMON_TERMINAL_COMMANDS = new Set([
+  "ls",
+  "dir",
+  "pwd",
+  "cat",
+  "type",
+  "rm",
+  "del",
+  "erase",
+  "mkdir",
+  "md",
+  "rmdir",
+  "rd",
+  "touch",
+  "cp",
+  "copy",
+  "mv",
+  "move",
+  "git",
+  "npm",
+  "pnpm",
+  "yarn",
+  "bun",
+  "npx",
+  "python",
+  "python3",
+  "py",
+  "node",
+  "pip",
+  "pip3",
+  "uv",
+  "cargo",
+  "rustc",
+  "go",
+  "docker",
+  "docker-compose",
+  "kubectl",
+  "ssh",
+  "scp",
+  "curl",
+  "wget",
+  "bash",
+  "sh",
+  "zsh",
+  "powershell",
+  "pwsh",
+  "cmd",
+  "ps",
+  "kill",
+  "taskkill",
+  "chmod",
+  "chown",
+  "sudo",
+  "grep",
+  "find",
+  "head",
+  "tail",
+  "echo",
+  "get-childitem",
+  "set-content",
+  "remove-item",
+]);
+
+function detectElevatedCommand(prompt: string): DetectedCommand {
+  const trimmed = prompt.trim();
+  if (!trimmed) return { isElevated: false };
+
+  // 1. Direct single-command check (e.g., "ls", "dir", "git status", "npm test")
+  const firstWord = trimmed.split(/\s+/)[0]?.toLowerCase();
+  if (firstWord && COMMON_TERMINAL_COMMANDS.has(firstWord)) {
+    return {
+      isElevated: true,
+      command: trimmed,
+      tool: "run_command",
+      description: `Terminal command requested: ${trimmed}`,
+    };
+  }
+
+  // 2. Natural language command execution prefixes (e.g. "run ls", "execute bash script", "rus ls")
+  const runPrefixMatch = trimmed.match(
+    /^(?:please\s+|can\s+you\s+|could\s+you\s+)?(?:run|rus|execute|exec|eval|perform|launch|start)\s+(?:the\s+)?(?:command\s+|script\s+)?(.*)$/i
+  );
+  if (runPrefixMatch && runPrefixMatch[1]) {
+    const rawCmd = runPrefixMatch[1].trim();
+    if (rawCmd.length > 0) {
+      return {
+        isElevated: true,
+        command: rawCmd,
+        tool: "run_command",
+        description: `Command execution requested: ${rawCmd}`,
+      };
+    }
+  }
+
+  // 3. Sensitive / modifying actions (git commit, git push, delete, remove, drop)
+  const sensitiveActionMatch = trimmed.match(
+    /^(?:please\s+|can\s+you\s+)?(git\s+(?:commit|push|rebase|merge|reset)|(?:delete|remove|rm|drop|format)\s+.*)$/i
+  );
+  if (sensitiveActionMatch && sensitiveActionMatch[1]) {
+    return {
+      isElevated: true,
+      command: sensitiveActionMatch[1].trim(),
+      tool: "run_command",
+      description: `Elevated system action requested: ${sensitiveActionMatch[1].trim()}`,
+    };
+  }
+
+  return { isElevated: false };
+}
+
+interface PendingApproval {
+  approvalId: string;
+  command: string;
+  resolve: (allowed: boolean) => void;
+}
+
 export class AntigravityStreamClient {
   private workers = new Map<string, PersistentWorker>();
+  private pendingApprovals = new Map<string, PendingApproval>();
 
   /**
    * Runs an agent turn using a persistent session worker.
@@ -517,6 +641,73 @@ export class AntigravityStreamClient {
 
     // 2. Standard prompt / workflow execution via persistent worker
     let effectiveCwd = options.cwd;
+
+    // 2a. HITL Security Gate: Intercept elevated commands if confirmation is enabled
+    if (options.dangerouslySkipPermissions === false) {
+      const detected = detectElevatedCommand(options.prompt);
+      if (detected.isElevated) {
+        const approvalId = `appr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+        yield {
+          type: "permission_request",
+          sessionId,
+          timestamp: new Date().toISOString(),
+          data: {
+            id: approvalId,
+            toolName: detected.tool || "run_command",
+            command: detected.command || options.prompt,
+            description: detected.description || "Elevated command execution requires operator approval",
+            details: {
+              command: detected.command || options.prompt,
+              cwd: effectiveCwd,
+            },
+            defaultBehavior: "deny",
+          },
+        };
+
+        const allowed = await new Promise<boolean>((resolve) => {
+          this.pendingApprovals.set(sessionId, {
+            approvalId,
+            command: detected.command || options.prompt,
+            resolve,
+          });
+        });
+
+        this.pendingApprovals.delete(sessionId);
+
+        if (!allowed) {
+          yield {
+            type: "text_chunk",
+            sessionId,
+            timestamp: new Date().toISOString(),
+            data: {
+              text: `🚫 **Action Denied**: Execution of \`${detected.command || options.prompt}\` was aborted by operator.\n`,
+              delta: false,
+            },
+          };
+          yield {
+            type: "status",
+            sessionId,
+            timestamp: new Date().toISOString(),
+            data: {
+              status: "done",
+              message: "Action denied by operator",
+            },
+          };
+          return;
+        }
+
+        yield {
+          type: "text_chunk",
+          sessionId,
+          timestamp: new Date().toISOString(),
+          data: {
+            text: `✅ **Action Authorized**: Operator approved execution of \`${detected.command || options.prompt}\`.\n\n`,
+            delta: false,
+          },
+        };
+      }
+    }
     if (options.sessionId) {
       const isDaemonCwd =
         effectiveCwd &&
@@ -536,6 +727,8 @@ export class AntigravityStreamClient {
     const effectiveOptions: CliRunOptions = {
       ...options,
       cwd: effectiveCwd || options.cwd || process.cwd(),
+      // Auto-approve in headless agy worker because operator permission was already resolved above
+      dangerouslySkipPermissions: true,
     };
 
     let worker = this.workers.get(sessionId);
@@ -571,19 +764,42 @@ export class AntigravityStreamClient {
    * Interrupts or kills a running CLI worker by sessionId.
    */
   cancel(sessionId: string): boolean {
+    const pending = this.pendingApprovals.get(sessionId);
+    if (pending) {
+      pending.resolve(false);
+      this.pendingApprovals.delete(sessionId);
+    }
     const worker = this.workers.get(sessionId);
     if (worker) {
       worker.destroy();
       this.workers.delete(sessionId);
       return true;
     }
-    return false;
+    return Boolean(pending);
   }
 
   /**
    * Dispatches permission decision to an active worker by sessionId.
    */
   respondPermission(sessionId: string, requestId: string, allow: boolean): boolean {
+    let pending = this.pendingApprovals.get(sessionId);
+    if (!pending && requestId) {
+      for (const [sId, p] of this.pendingApprovals.entries()) {
+        if (p.approvalId === requestId) {
+          pending = p;
+          this.pendingApprovals.delete(sId);
+          break;
+        }
+      }
+    } else if (pending) {
+      this.pendingApprovals.delete(sessionId);
+    }
+
+    if (pending) {
+      pending.resolve(allow);
+      return true;
+    }
+
     const worker = this.workers.get(sessionId);
     if (worker) {
       return worker.respondPermission(requestId, allow);

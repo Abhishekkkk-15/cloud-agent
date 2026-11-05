@@ -149,7 +149,7 @@ export default function App() {
       />
 
       {/* Global In-App Notification Toast */}
-      <NotificationBanner />
+      <NotificationBanner onNavigate={(screen) => setCurrentScreen(screen)} />
     </SafeAreaView>
   );
 }

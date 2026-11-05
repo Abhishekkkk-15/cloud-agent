@@ -11,7 +11,11 @@ import { Sparkles, ShieldAlert, AlertTriangle, Check, X } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { onInAppNotification, type NotificationPayload } from '../lib/notifications';
 
-export const NotificationBanner: React.FC = () => {
+interface NotificationBannerProps {
+  onNavigate?: (screen: 'agent' | 'health' | 'approvals' | 'sessions') => void;
+}
+
+export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNavigate }) => {
   const [currentNotif, setCurrentNotif] = useState<NotificationPayload | null>(null);
   const translateY = useRef(new Animated.Value(-120)).current;
   const hideTimerRef = useRef<any>(null);
@@ -38,6 +42,15 @@ export const NotificationBanner: React.FC = () => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
   }, [translateY]);
+
+  const handleBannerPress = () => {
+    if (currentNotif?.type === 'approval_required') {
+      onNavigate?.('approvals');
+    } else if (currentNotif?.type === 'turn_complete') {
+      onNavigate?.('agent');
+    }
+    handleDismiss();
+  };
 
   const handleDismiss = () => {
     Animated.timing(translateY, {
@@ -84,7 +97,7 @@ export const NotificationBanner: React.FC = () => {
             : styles.bannerDefault,
         ]}
         activeOpacity={0.85}
-        onPress={handleDismiss}
+        onPress={handleBannerPress}
       >
         <View style={styles.iconCircle}>{renderIcon()}</View>
         <View style={styles.textCol}>
