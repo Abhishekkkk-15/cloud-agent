@@ -113,13 +113,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState<boolean>(false);
 
-  const modelShortName = useMemo(() => {
-    const m = (activeSession?.model || sessionConfig.model).toLowerCase();
-    if (m.includes('flash')) return 'gemini-flash';
-    if (m.includes('sonnet')) return 'claude-sonnet';
-    if (m.includes('opus')) return 'claude-opus';
-    return activeSession?.model || sessionConfig.model;
-  }, [activeSession?.model, sessionConfig.model]);
 
   const handleScroll = (event: any) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
@@ -230,12 +223,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     return 'Just now';
   };
 
-  const repoName =
+  const workspaceTitle =
     activeSession?.workspaceName ||
-    (targetWorkspacePath ? targetWorkspacePath.split(/[\\/]/).pop() || 'Workspace' : 'Workspace');
-  const titleStr = activeSession?.title || 'New Session';
+    (targetWorkspacePath ? targetWorkspacePath.split(/[\\/]/).pop() || null : null) ||
+    activeSession?.title ||
+    'Workspace';
   const modelStr = activeSession?.model || sessionConfig.model.split('-')[0] || 'antigravity';
-  const subtitleStr = `${repoName} • ${modelStr}`;
 
   // Group linear chronological messages into sequential chat turns matching Antigravity flow
   const chatTurns = useMemo<ChatTurn[]>(() => {
@@ -434,17 +427,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           <Menu size={17} color="#fafafa" />
         </TouchableOpacity>
 
-        {/* Center: Floating Session Pill (Title & Model) */}
+        {/* Center: Floating Workspace Pill */}
         <TouchableOpacity
           style={styles.floatingCenterPill}
           onPress={() => setShowConfigSheet(true)}
           activeOpacity={0.75}
+          accessibilityLabel="Open Session Parameters"
         >
-          <Text style={styles.floatingPillTitle} numberOfLines={1}>
-            {titleStr}
-          </Text>
-          <Text style={styles.floatingPillMeta} numberOfLines={1}>
-            • {modelShortName}
+          <Text style={styles.floatingPillTitle} numberOfLines={1} ellipsizeMode="tail">
+            {workspaceTitle}
           </Text>
         </TouchableOpacity>
 
@@ -929,6 +920,10 @@ const styles = StyleSheet.create({
   },
   // Floating Option 3 Header Styles
   floatingHeaderContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -977,13 +972,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fafafa',
     letterSpacing: -0.2,
-    maxWidth: 130,
-  },
-  floatingPillMeta: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontWeight: '500',
+    textAlign: 'center',
   },
   floatingRightCluster: {
     flexDirection: 'row',
@@ -992,7 +981,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 14,
-    paddingTop: 8,
+    paddingTop: Platform.OS === 'ios' ? 58 : 54,
     paddingBottom: 130,
   },
 
