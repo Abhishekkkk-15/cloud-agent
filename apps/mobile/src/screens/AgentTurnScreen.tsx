@@ -91,6 +91,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const cancelPrompt = useDaemonStore((s) => s.cancelPrompt);
   const hasMoreMessages = useDaemonStore((s) => s.hasMoreMessages);
   const isLoadingOlderMessages = useDaemonStore((s) => s.isLoadingOlderMessages);
+  const isLoadingMessages = useDaemonStore((s) => s.isLoadingMessages);
+  const connectionState = useDaemonStore((s) => s.connectionState);
   const loadOlderMessages = useDaemonStore((s) => s.loadOlderMessages);
   const pendingApproval = useDaemonStore((s) => s.pendingApproval);
   const respondApproval = useDaemonStore((s) => s.respondApproval);
@@ -446,6 +448,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           activeOpacity={0.75}
           accessibilityLabel="Open Session Parameters"
         >
+          {connectionState !== 'connected' && (
+            <ActivityIndicator
+              size="small"
+              color="#a3a3a3"
+              style={{ transform: [{ scale: 0.65 }], marginRight: 5 }}
+            />
+          )}
           <Text style={styles.floatingPillTitle} numberOfLines={1} ellipsizeMode="tail">
             {workspaceTitle}
           </Text>
@@ -537,7 +546,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         )}
 
         {/* 4. Turn-by-Turn Timeline (Paradev OutgoingBubble & AgentMessage) */}
-        {displayedTurns.length === 0 ? (
+        {isLoadingMessages ? (
+          <View style={styles.sessionLoadingBox}>
+            <View style={styles.sessionLoadingCard}>
+              <ActivityIndicator size="small" color="#fafafa" />
+              <Text style={styles.sessionLoadingText}>Loading session transcript...</Text>
+            </View>
+          </View>
+        ) : displayedTurns.length === 0 ? (
           <View style={styles.emptyChatBox}>
             <View style={styles.emptyChatIconBox}>
               <Terminal size={22} color="#fafafa" />
@@ -1304,6 +1320,30 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#737373',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+
+  // Session loading
+  sessionLoadingBox: {
+    paddingVertical: 56,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sessionLoadingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  sessionLoadingText: {
+    fontSize: 13,
+    color: '#a3a3a3',
+    fontWeight: '500',
   },
 
   // Streaming indicator

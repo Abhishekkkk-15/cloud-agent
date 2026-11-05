@@ -68,6 +68,16 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   const fetchGithubStatus = useDaemonStore((s) => s.fetchGithubStatus);
 
   const [isPinging, setIsPinging] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshStatus();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
   const [showMachineSwitcher, setShowMachineSwitcher] = useState(false);
   const [showPairModal, setShowPairModal] = useState(false);
   const [showServerSettings, setShowServerSettings] = useState(false);
@@ -131,16 +141,21 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
         title="Machine & CLI Health"
         subtitle={`${hostName} • ${platformStr}`}
         onBack={onBack}
-        onMore={refreshStatus}
+        onMore={handleRefresh}
         rightElement={
-          <TouchableOpacity
-            style={styles.switchMachineBtn}
-            onPress={() => setShowMachineSwitcher(true)}
-            activeOpacity={0.7}
-          >
-            <Server size={14} color="#fafafa" />
-            <Text style={styles.switchMachineBtnText}>Switch</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {isRefreshing && (
+              <ActivityIndicator size="small" color="#fafafa" style={{ transform: [{ scale: 0.75 }] }} />
+            )}
+            <TouchableOpacity
+              style={styles.switchMachineBtn}
+              onPress={() => setShowMachineSwitcher(true)}
+              activeOpacity={0.7}
+            >
+              <Server size={14} color="#fafafa" />
+              <Text style={styles.switchMachineBtnText}>Switch</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
@@ -611,18 +626,24 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
           <TouchableOpacity
             style={[styles.operationBtn, isPinging && { borderColor: colors.green }]}
             onPress={handlePing}
+            disabled={isPinging}
             activeOpacity={0.7}
           >
-            <Radio size={16} color={colors.green} />
-            <Text style={styles.operationBtnText}>Ping Heartbeat</Text>
+            {isPinging ? (
+              <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.75 }] }} />
+            ) : (
+              <Radio size={16} color={colors.green} />
+            )}
+            <Text style={styles.operationBtnText}>{isPinging ? 'Pinging...' : 'Ping Heartbeat'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.operationBtn}
             onPress={async () => {
-              await refreshStatus();
+              await handleRefresh();
               Alert.alert('Refreshed', 'Machine state and adapters queried from Daemon.');
             }}
+            disabled={isRefreshing}
             activeOpacity={0.7}
           >
             <RefreshCw size={16} color={colors.green} />

@@ -12,6 +12,7 @@ import {
   TouchableWithoutFeedback,
   TextInput,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -66,6 +67,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const connectionState = useDaemonStore((s) => s.connectionState);
   const pingRtt = useDaemonStore((s) => s.pingRtt);
   const sessions = useDaemonStore((s) => s.sessions);
+  const isLoadingSessions = useDaemonStore((s) => s.isLoadingSessions);
   const activeSession = useDaemonStore((s) => s.activeSession);
   const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const workspaces = useDaemonStore((s) => s.workspaces);
@@ -540,10 +542,19 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
           <View style={[styles.sectionHeaderRow, pinnedSessions.length > 0 && { marginTop: 12 }]}>
             <Text style={styles.sectionTitle}>RECENT SESSIONS</Text>
-            <Text style={styles.sectionBadge}>{recentSessions.length}</Text>
+            {isLoadingSessions ? (
+              <ActivityIndicator size="small" color="#a3a3a3" style={{ transform: [{ scale: 0.65 }] }} />
+            ) : (
+              <Text style={styles.sectionBadge}>{recentSessions.length}</Text>
+            )}
           </View>
 
-          {recentSessions.length === 0 ? (
+          {isLoadingSessions && recentSessions.length === 0 ? (
+            <View style={styles.loadingSessionsBox}>
+              <ActivityIndicator size="small" color="#a3a3a3" style={{ transform: [{ scale: 0.8 }] }} />
+              <Text style={styles.loadingSessionsText}>Loading sessions...</Text>
+            </View>
+          ) : recentSessions.length === 0 ? (
             <View style={styles.emptySessionsBox}>
               <Text style={styles.emptySessionsText}>
                 {drawerSearch ? 'No matching sessions' : 'No active sessions'}
@@ -1084,6 +1095,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptySessionsText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  loadingSessionsBox: {
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  loadingSessionsText: {
     fontSize: 12,
     color: colors.textMuted,
   },

@@ -266,6 +266,7 @@ interface DaemonStoreState {
   messagesOffset: number;
   hasMoreMessages: boolean;
   isLoadingOlderMessages: boolean;
+  isLoadingMessages: boolean;
   isLoadingSessions: boolean;
   isSendingPrompt: boolean;
   isCancellingPrompt: boolean;
@@ -370,6 +371,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   messagesOffset: 0,
   hasMoreMessages: false,
   isLoadingOlderMessages: false,
+  isLoadingMessages: false,
   isLoadingSessions: false,
   isSendingPrompt: false,
   isCancellingPrompt: false,
@@ -1514,6 +1516,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       messagesOffset: 0,
       hasMoreMessages: false,
       isLoadingOlderMessages: false,
+      isLoadingMessages: true,
     });
     get().fetchSessionArtifacts(session.id);
     try {
@@ -1551,6 +1554,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
     } catch (err) {
       console.error('[DaemonStore] selectSession error:', err);
+    } finally {
+      set({ isLoadingMessages: false });
     }
   },
 

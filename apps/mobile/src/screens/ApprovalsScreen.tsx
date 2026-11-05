@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import {
   AlertTriangle,
@@ -44,6 +45,8 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
   const [rememberRule, setRememberRule] = useState(false);
   const [isTreeExpanded, setIsTreeExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isAuthorizing, setIsAuthorizing] = useState(false);
+  const [isDenying, setIsDenying] = useState(false);
 
   const handleCopy = () => {
     setCopied(true);
@@ -51,13 +54,23 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
   };
 
   const handleAuthorize = async () => {
-    await respondApproval(true);
-    Alert.alert('Action Authorized', 'Authorization token dispatched over WebRTC DataChannel to VPS Daemon.');
+    setIsAuthorizing(true);
+    try {
+      await respondApproval(true);
+      Alert.alert('Action Authorized', 'Authorization token dispatched over WebRTC DataChannel to VPS Daemon.');
+    } finally {
+      setIsAuthorizing(false);
+    }
   };
 
   const handleDeny = async () => {
-    await respondApproval(false);
-    Alert.alert('Action Denied', 'Intervention token dispatched. Command aborted.');
+    setIsDenying(true);
+    try {
+      await respondApproval(false);
+      Alert.alert('Action Denied', 'Intervention token dispatched. Command aborted.');
+    } finally {
+      setIsDenying(false);
+    }
   };
 
   const targetNode = pendingApproval?.targetNode || activeMachine?.name || 'Local Machine';
@@ -167,21 +180,35 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
           {pendingApproval && (
             <View style={styles.actionButtonsRow}>
               <TouchableOpacity
-                style={styles.denyActionBtn}
+                style={[styles.denyActionBtn, (isDenying || isAuthorizing) && { opacity: 0.7 }]}
                 onPress={handleDeny}
+                disabled={isDenying || isAuthorizing}
                 activeOpacity={0.8}
               >
-                <X size={15} color={colors.red} />
-                <Text style={styles.denyActionBtnText}>Deny / Abort</Text>
+                {isDenying ? (
+                  <ActivityIndicator size="small" color={colors.red} style={{ transform: [{ scale: 0.75 }] }} />
+                ) : (
+                  <X size={15} color={colors.red} />
+                )}
+                <Text style={styles.denyActionBtnText}>
+                  {isDenying ? 'Aborting...' : 'Deny / Abort'}
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.authorizeActionBtn}
+                style={[styles.authorizeActionBtn, (isDenying || isAuthorizing) && { opacity: 0.7 }]}
                 onPress={handleAuthorize}
+                disabled={isDenying || isAuthorizing}
                 activeOpacity={0.85}
               >
-                <Check size={15} color="#ffffff" />
-                <Text style={styles.authorizeActionBtnText}>Authorize Action</Text>
+                {isAuthorizing ? (
+                  <ActivityIndicator size="small" color="#ffffff" style={{ transform: [{ scale: 0.75 }] }} />
+                ) : (
+                  <Check size={15} color="#ffffff" />
+                )}
+                <Text style={styles.authorizeActionBtnText}>
+                  {isAuthorizing ? 'Authorizing...' : 'Authorize Action'}
+                </Text>
               </TouchableOpacity>
             </View>
           )}
