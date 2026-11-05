@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Plus,
   ChevronRight,
+  ChevronDown,
   ShieldAlert,
   Activity,
   Cpu,
@@ -26,8 +27,9 @@ import {
   Search,
   LogOut,
   Folder,
+  FolderGit2,
   Pin,
-  MoreHorizontal,
+  MoreVertical,
   X,
   Bell,
   ChevronsUpDown,
@@ -81,8 +83,32 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
 
-  const [activeFilterWs, setActiveFilterWs] = useState<string>('all');
+  const [userToggledGroups, setUserToggledGroups] = useState<Record<string, boolean>>({});
   const [drawerSearch, setDrawerSearch] = useState<string>('');
+
+  const toggleGroupCollapse = (groupName: string) => {
+    const isCurrentlyActive = Boolean(
+      activeSession && (
+        (activeSession.workspaceName || 'Default') === groupName
+      )
+    );
+    setUserToggledGroups((prev) => {
+      const wasOpen = prev[groupName] !== undefined ? prev[groupName] : isCurrentlyActive;
+      return {
+        ...prev,
+        [groupName]: !wasOpen,
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (activeSession?.workspaceName) {
+      setUserToggledGroups((prev) => ({
+        ...prev,
+        [activeSession.workspaceName || 'Default']: true,
+      }));
+    }
+  }, [activeSession?.id, activeSession?.workspaceName]);
   const [isRendered, setIsRendered] = useState<boolean>(isOpen);
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
@@ -238,19 +264,72 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     });
   };
 
-  const searchedSessions = sessions.filter((s) => {
-    const matchesWs = activeFilterWs === 'all' || s.workspaceName.toLowerCase() === activeFilterWs.toLowerCase();
+  const searchedSessions = useMemo(() => {
     const query = drawerSearch.trim().toLowerCase();
-    const matchesQuery =
-      !query ||
-      s.title.toLowerCase().includes(query) ||
-      s.workspaceName.toLowerCase().includes(query) ||
-      s.id.toLowerCase().includes(query);
-    return matchesWs && matchesQuery;
-  });
+    if (!query) return sessions;
+    return sessions.filter((s) => {
+      return (
+        s.title.toLowerCase().includes(query) ||
+        s.workspaceName.toLowerCase().includes(query) ||
+        s.id.toLowerCase().includes(query)
+      );
+    });
+  }, [sessions, drawerSearch]);
 
-  const pinnedSessions = searchedSessions.filter((s) => s.pinned);
-  const recentSessions = searchedSessions.filter((s) => !s.pinned);
+  const pinnedSessions = useMemo(() => {
+    return searchedSessions.filter((s) => s.pinned);
+  }, [searchedSessions]);
+
+  const workspaceGroups = useMemo(() => {
+    const groupedMap = new Map<string, { name: string; path: string; items: RealSessionItem[] }>();
+
+    // 1. Seed with registered workspaces from store
+    for (const ws of workspaces) {
+      if (ws) {
+        groupedMap.set(ws, { name: ws, path: '', items: [] });
+      }
+    }
+
+    // 2. Group sessions by workspaceName
+    for (const s of searchedSessions) {
+      const key = s.workspaceName || 'Default';
+      const existing = groupedMap.get(key);
+      if (existing) {
+        if (!existing.path && s.workspacePath) existing.path = s.workspacePath;
+        existing.items.push(s);
+      } else {
+        groupedMap.set(key, {
+          name: key,
+          path: s.workspacePath || '',
+          items: [s],
+        });
+      }
+    }
+
+    // 3. Filter and assemble groups
+    const query = drawerSearch.trim().toLowerCase();
+    const groups: Array<{ name: string; path: string; items: RealSessionItem[] }> = [];
+
+    for (const [name, val] of groupedMap.entries()) {
+      if (query) {
+        if (val.items.length > 0 || name.toLowerCase().includes(query)) {
+          groups.push(val);
+        }
+      } else {
+        // Show all groups with sessions, or registered workspaces
+        if (val.items.length > 0 || workspaces.includes(name)) {
+          groups.push(val);
+        }
+      }
+    }
+
+    // Sort so activeSession's workspace is on top, then alphabetical
+    return groups.sort((a, b) => {
+      if (activeSession?.workspaceName === a.name) return -1;
+      if (activeSession?.workspaceName === b.name) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [workspaces, searchedSessions, drawerSearch, activeSession?.workspaceName]);
 
   // Standby nodes (excluding active)
   const standbyMachines = machines.filter((m) => m.machineId !== activeMachine?.machineId);
@@ -266,12 +345,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     return 'Just now';
   };
 
-  const renderSessionRow = (item: RealSessionItem) => {
+  const renderSessionRow = (item: RealSessionItem, isChild = false) => {
     const isActive = activeSession?.id === item.id && currentScreen === 'agent';
     return (
       <View
         key={item.id}
-        style={[styles.sessionItem, isActive && styles.sessionItemActive]}
+        style={[
+          styles.sessionItem,
+          isChild && styles.sessionItemChild,
+          isActive && styles.sessionItemActive,
+        ]}
       >
         <TouchableOpacity
           style={styles.sessionItemContent}
@@ -293,10 +376,22 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             </Text>
           </View>
           <View style={styles.sessionMetaRow}>
-            <Text style={styles.sessionWorkspace} numberOfLines={1}>
-              {item.workspaceName}
-            </Text>
-            <Text style={styles.metaDot}>•</Text>
+            {!isChild && (
+              <>
+                <Text style={styles.sessionWorkspace} numberOfLines={1}>
+                  {item.workspaceName}
+                </Text>
+                <Text style={styles.sessionMetaDot}>•</Text>
+              </>
+            )}
+            {item.messageCount > 0 && (
+              <>
+                <Text style={styles.sessionMetaText}>
+                  {item.messageCount} msg{item.messageCount === 1 ? '' : 's'}
+                </Text>
+                <Text style={styles.sessionMetaDot}>•</Text>
+              </>
+            )}
             <Text style={styles.sessionTime}>
               {formatTimeAgo(item.updatedAt || item.createdAt)}
             </Text>
@@ -309,7 +404,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MoreHorizontal size={14} color={colors.textMuted} />
+          <MoreVertical size={14} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
     );
@@ -476,92 +571,100 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <Text style={styles.newSessionBtnText}>New Session</Text>
           </TouchableOpacity>
 
-          {/* 4. Workspace Carousel Filter */}
-          {workspaces.length > 0 && (
-            <View style={styles.workspacesCarousel}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.workspacePillScroll}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.wsPill,
-                    activeFilterWs === 'all' && styles.wsPillActive,
-                  ]}
-                  onPress={() => setActiveFilterWs('all')}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.wsPillText,
-                      activeFilterWs === 'all' && styles.wsPillTextActive,
-                    ]}
-                  >
-                    All
-                  </Text>
-                </TouchableOpacity>
-                {workspaces.map((ws) => (
-                  <TouchableOpacity
-                    key={ws}
-                    style={[
-                      styles.wsPill,
-                      activeFilterWs === ws && styles.wsPillActive,
-                    ]}
-                    onPress={() => setActiveFilterWs(ws)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.wsPillText,
-                        activeFilterWs === ws && styles.wsPillTextActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {ws}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* 5. Sessions List */}
+          {/* 4. Pinned Sessions (if any) */}
           {pinnedSessions.length > 0 && (
             <View style={styles.pinnedSection}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleWithIcon}>
                   <Pin size={11} color={colors.primary} />
-                  <Text style={styles.sectionTitle}>PINNED</Text>
+                  <Text style={styles.sectionTitle}>PINNED SESSIONS</Text>
                 </View>
                 <Text style={styles.sectionBadge}>{pinnedSessions.length}</Text>
               </View>
-              {pinnedSessions.map((item) => renderSessionRow(item))}
+              {pinnedSessions.map((item) => renderSessionRow(item, false))}
             </View>
           )}
 
+          {/* 5. Workspaces & Sessions Tree Hierarchy */}
           <View style={[styles.sectionHeaderRow, pinnedSessions.length > 0 && { marginTop: 12 }]}>
-            <Text style={styles.sectionTitle}>RECENT SESSIONS</Text>
+            <Text style={styles.sectionTitle}>WORKSPACES</Text>
             {isLoadingSessions ? (
               <ActivityIndicator size="small" color="#a3a3a3" style={{ transform: [{ scale: 0.65 }] }} />
             ) : (
-              <Text style={styles.sectionBadge}>{recentSessions.length}</Text>
+              <Text style={styles.sectionBadge}>
+                {workspaceGroups.length} {workspaceGroups.length === 1 ? 'folder' : 'folders'}
+              </Text>
             )}
           </View>
 
-          {isLoadingSessions && recentSessions.length === 0 ? (
+          {isLoadingSessions && workspaceGroups.length === 0 ? (
             <View style={styles.loadingSessionsBox}>
               <ActivityIndicator size="small" color="#a3a3a3" style={{ transform: [{ scale: 0.8 }] }} />
-              <Text style={styles.loadingSessionsText}>Loading sessions...</Text>
+              <Text style={styles.loadingSessionsText}>Loading workspaces...</Text>
             </View>
-          ) : recentSessions.length === 0 ? (
+          ) : workspaceGroups.length === 0 ? (
             <View style={styles.emptySessionsBox}>
               <Text style={styles.emptySessionsText}>
-                {drawerSearch ? 'No matching sessions' : 'No active sessions'}
+                {drawerSearch ? 'No matching workspaces or sessions' : 'No workspaces discovered'}
               </Text>
             </View>
           ) : (
-            recentSessions.map((item) => renderSessionRow(item))
+            workspaceGroups.map((group) => {
+              const hasActiveSession = Boolean(
+                activeSession && (
+                  group.name === (activeSession.workspaceName || 'Default') ||
+                  group.items.some((item) => item.id === activeSession.id)
+                )
+              );
+              const isExpanded = drawerSearch.trim()
+                ? true
+                : userToggledGroups[group.name] !== undefined
+                  ? userToggledGroups[group.name]
+                  : hasActiveSession;
+              const isCollapsed = !isExpanded;
+              return (
+                <View key={group.name} style={styles.workspaceGroupContainer}>
+                  {/* Workspace Folder Header */}
+                  <TouchableOpacity
+                    style={styles.workspaceFolderHeader}
+                    onPress={() => toggleGroupCollapse(group.name)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.workspaceFolderToggle}>
+                      {isCollapsed ? (
+                        <ChevronRight size={14} color={colors.textMuted} />
+                      ) : (
+                        <ChevronDown size={14} color={colors.textMuted} />
+                      )}
+                      <FolderGit2 size={16} color="#f0f6fc" style={{ marginLeft: 7, marginRight: 7 }} />
+                      <Text style={styles.workspaceFolderName} numberOfLines={1}>
+                        {group.name}
+                      </Text>
+                      <View style={styles.workspaceCountBadge}>
+                        <Text style={styles.workspaceCountBadgeText}>{group.items.length}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Child Sessions in Folder */}
+                  {!isCollapsed && (
+                    <View style={styles.workspaceChildrenContainer}>
+                      {group.items.map((session) => renderSessionRow(session, true))}
+                      <TouchableOpacity
+                        style={styles.workspaceNewSessionItem}
+                        onPress={() => handleStartSessionInWorkspace(group.path || group.name)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.workspaceNewSessionIconCircle}>
+                          <Plus size={10} color={colors.textMuted} />
+                        </View>
+                        <Text style={styles.workspaceNewSessionText}>New Session</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })
           )}
 
           {/* 6. Management & Navigation Links */}
@@ -1037,32 +1140,74 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  workspacesCarousel: {
-    marginBottom: 8,
+  workspaceGroupContainer: {
+    marginBottom: 6,
   },
-  workspacePillScroll: {
-    gap: 6,
+  workspaceFolderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    marginBottom: 3,
   },
-  wsPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.full,
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
+  workspaceFolderToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  wsPillActive: {
-    backgroundColor: colors.primarySubtle,
-    borderColor: colors.primaryBorder,
-  },
-  wsPillText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  wsPillTextActive: {
-    color: colors.textPrimary,
+  workspaceFolderName: {
+    fontSize: 15,
     fontWeight: '600',
+    color: '#fafafa',
+    flexShrink: 1,
+  },
+  workspaceCountBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    paddingHorizontal: 7,
+    paddingVertical: 1.5,
+    borderRadius: radii.full,
+    marginLeft: 8,
+  },
+  workspaceCountBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  workspaceChildrenContainer: {
+    marginLeft: 10,
+    paddingLeft: 8,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255, 255, 255, 0.08)',
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
+  workspaceNewSessionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+    borderRadius: radii.md,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  workspaceNewSessionIconCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 7,
+  },
+  workspaceNewSessionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textMuted,
   },
   pinnedSection: {
     marginBottom: 8,
@@ -1124,6 +1269,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
   },
+  sessionItemChild: {
+    paddingLeft: 8,
+    paddingVertical: 7,
+    marginBottom: 2,
+  },
   sessionItemContent: {
     flex: 1,
     marginRight: 8,
@@ -1144,12 +1294,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   moreActionBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    padding: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
   },
   sessionMetaRow: {
     flexDirection: 'row',
@@ -1161,6 +1308,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.textMuted,
     maxWidth: 110,
+  },
+  sessionMetaDot: {
+    fontSize: 9,
+    color: colors.textDisabled,
+  },
+  sessionMetaText: {
+    fontSize: 10,
+    color: colors.textMuted,
   },
   metaDot: {
     display: "none",

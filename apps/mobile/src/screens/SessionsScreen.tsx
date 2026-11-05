@@ -18,7 +18,7 @@ import {
   Sparkles,
   RefreshCw,
   Pin,
-  MoreHorizontal,
+  MoreVertical,
   FolderGit2,
   ChevronDown,
   ChevronRight,
@@ -44,6 +44,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   onNavigateTab,
 }) => {
   const sessions = useDaemonStore((s) => s.sessions);
+  const activeSession = useDaemonStore((s) => s.activeSession);
   const workspaces = useDaemonStore((s) => s.workspaces);
   const selectedWorkspace = useDaemonStore((s) => s.selectedWorkspace);
   const setSelectedWorkspace = useDaemonStore((s) => s.setSelectedWorkspace);
@@ -59,13 +60,21 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  const [userToggledGroups, setUserToggledGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroupCollapse = (groupName: string) => {
-    setCollapsedGroups((prev) => ({
-      ...prev,
-      [groupName]: !prev[groupName],
-    }));
+    const isCurrentlyActive = Boolean(
+      activeSession && (
+        (activeSession.workspaceName || 'Default') === groupName
+      )
+    );
+    setUserToggledGroups((prev) => {
+      const wasOpen = prev[groupName] !== undefined ? prev[groupName] : isCurrentlyActive;
+      return {
+        ...prev,
+        [groupName]: !wasOpen,
+      };
+    });
   };
 
   const filteredSessions = sessions.filter((s) => {
@@ -262,7 +271,18 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         ) : (
           <View style={styles.treeContainer}>
             {workspaceGroups.map((group) => {
-              const isCollapsed = Boolean(collapsedGroups[group.name]);
+              const hasActiveSession = Boolean(
+                activeSession && (
+                  group.name === (activeSession.workspaceName || 'Default') ||
+                  group.items.some((item) => item.id === activeSession.id)
+                )
+              );
+              const isExpanded = searchQuery.trim()
+                ? true
+                : userToggledGroups[group.name] !== undefined
+                  ? userToggledGroups[group.name]
+                  : hasActiveSession;
+              const isCollapsed = !isExpanded;
               return (
                 <View key={group.name} style={styles.groupCard}>
                   {/* Workspace Group Header */}
@@ -329,7 +349,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
                                   activeOpacity={0.7}
                                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                 >
-                                  <MoreHorizontal size={14} color={colors.textMuted} />
+                                  <MoreVertical size={14} color={colors.textMuted} />
                                 </TouchableOpacity>
                               </View>
 
@@ -550,7 +570,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   groupName: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.textPrimary,
     fontFamily: typography.mono,
@@ -623,9 +643,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   moreActionBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    padding: 4,
+
+
     alignItems: 'center',
     justifyContent: 'center',
   },
