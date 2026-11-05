@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Dimensions,
   ScrollView,
   Pressable,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import {
   X,
@@ -31,6 +33,12 @@ import {
 } from '../stores/useDaemonStore';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
+const FULL_HEIGHT = SCREEN_HEIGHT - TOP_INSET;
+const DEFAULT_HEIGHT = Math.min(SCREEN_HEIGHT * 0.75, 640);
+const SNAP_TOP = 0;
+const SNAP_DEFAULT = Math.round(FULL_HEIGHT - DEFAULT_HEIGHT);
+const SNAP_CLOSED = FULL_HEIGHT + 60;
 
 interface SessionConfigSheetProps {
   visible: boolean;
@@ -90,29 +98,64 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
   const sessionConfig = useDaemonStore((s) => s.sessionConfig);
   const setSessionConfig = useDaemonStore((s) => s.setSessionConfig);
 
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isExpandedRef = useRef(false);
+  isExpandedRef.current = isExpanded;
 
-  // PanResponder to handle dragging from top to bottom
+  const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const currentY = useRef(SNAP_DEFAULT);
+  const startDragY = useRef(SNAP_DEFAULT);
+
+  const snapTo = (toValue: number, expanded: boolean) => {
+    currentY.current = toValue;
+    setIsExpanded(expanded);
+    Animated.spring(translateY, {
+      toValue,
+      damping: 24,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleToggleExpand = () => {
+    if (isExpandedRef.current) {
+      snapTo(SNAP_DEFAULT, false);
+    } else {
+      snapTo(SNAP_TOP, true);
+    }
+  };
+
+  // PanResponder to handle dragging up to expand full screen, or down to collapse/dismiss
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 4,
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onPanResponderGrant: () => {
+        startDragY.current = currentY.current;
+      },
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
-        }
+        const nextY = Math.max(SNAP_TOP, startDragY.current + gestureState.dy);
+        currentY.current = nextY;
+        translateY.setValue(nextY);
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 100 || gestureState.vy > 0.45) {
-          handleClose();
+        if (!isExpandedRef.current) {
+          if (gestureState.dy < -40 || gestureState.vy < -0.3) {
+            snapTo(SNAP_TOP, true);
+          } else if (gestureState.dy > 90 || gestureState.vy > 0.45) {
+            handleClose();
+          } else {
+            snapTo(SNAP_DEFAULT, false);
+          }
         } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            damping: 22,
-            mass: 0.8,
-            useNativeDriver: true,
-          }).start();
+          if (gestureState.dy > 60 || gestureState.vy > 0.35) {
+            snapTo(SNAP_DEFAULT, false);
+          } else {
+            snapTo(SNAP_TOP, true);
+          }
         }
       },
     })
@@ -120,7 +163,9 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
 
   useEffect(() => {
     if (visible) {
-      translateY.setValue(SCREEN_HEIGHT);
+      setIsExpanded(false);
+      currentY.current = SNAP_DEFAULT;
+      translateY.setValue(SNAP_CLOSED);
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 1,
@@ -128,19 +173,22 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
           useNativeDriver: true,
         }),
         Animated.spring(translateY, {
-          toValue: 0,
+          toValue: SNAP_DEFAULT,
           damping: 24,
           mass: 0.85,
           useNativeDriver: true,
         }),
       ]).start();
     } else {
-      translateY.setValue(SCREEN_HEIGHT);
+      currentY.current = SNAP_CLOSED;
+      translateY.setValue(SNAP_CLOSED);
       backdropOpacity.setValue(0);
+      setIsExpanded(false);
     }
   }, [visible]);
 
   const handleClose = () => {
+    currentY.current = SNAP_CLOSED;
     Animated.parallel([
       Animated.timing(backdropOpacity, {
         toValue: 0,
@@ -148,7 +196,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
-        toValue: SCREEN_HEIGHT,
+        toValue: SNAP_CLOSED,
         duration: 200,
         useNativeDriver: true,
       }),
@@ -174,32 +222,43 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
         </Animated.View>
 
         {/* Animated Sheet */}
-        <Animated.View style={[styles.sheetContainer, { transform: [{ translateY }] }]}>
-          {/* Drag Handle */}
-          <View style={styles.handleContainer} {...panResponder.panHandlers}>
-            <View style={styles.dragPill} />
-          </View>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View style={styles.iconCircle}>
-                <SlidersHorizontal size={16} color="#ffffff" />
-              </View>
-              <View>
-                <Text style={styles.headerTitle}>SESSION PARAMETERS</Text>
-                <Text style={styles.headerSubtitle}>Configure model, reasoning, and execution mode</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
-              <X size={16} color={colors.textMuted} />
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+            { transform: [{ translateY }] },
+          ]}
+        >
+          {/* Top Drag Handle & Header Zone */}
+          <View {...panResponder.panHandlers} collapsable={false}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.handleContainer}
+              onPress={handleToggleExpand}
+            >
+              <View style={styles.dragPill} />
             </TouchableOpacity>
+
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.iconCircle}>
+                  <SlidersHorizontal size={16} color="#ffffff" />
+                </View>
+                <View>
+                  <Text style={styles.headerTitle}>SESSION PARAMETERS</Text>
+                  <Text style={styles.headerSubtitle}>Configure model, reasoning, and execution mode</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
+                <X size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Scrollable Form */}
           <ScrollView
-            style={styles.scroll}
+            style={[styles.scroll, isExpanded && { flex: 1 }]}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
@@ -428,12 +487,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(1, 4, 9, 0.75)',
   },
   sheetContainer: {
+    height: FULL_HEIGHT,
     backgroundColor: colors.bgCard,
     borderTopLeftRadius: radii.xl,
     borderTopRightRadius: radii.xl,
     borderWidth: 1,
     borderColor: colors.borderDefault,
-    maxHeight: SCREEN_HEIGHT * 0.85,
+    overflow: 'hidden',
   },
   handleContainer: {
     alignItems: 'center',
@@ -484,7 +544,7 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   scroll: {
-    flexGrow: 0,
+    flex: 1,
   },
   scrollContent: {
     padding: 16,

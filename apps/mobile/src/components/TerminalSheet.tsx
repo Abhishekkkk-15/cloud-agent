@@ -298,9 +298,9 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
               activeOpacity={0.8}
             >
               {isTerminalRunning ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color="#0a0a0a" />
               ) : (
-                <Play size={14} color="#ffffff" />
+                <Play size={14} color={!inputCommand.trim() ? '#737373' : '#0a0a0a'} />
               )}
             </TouchableOpacity>
           </View>

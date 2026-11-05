@@ -384,7 +384,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   activeOpacity={0.7}
                 >
                   {isSaving ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
+                    <ActivityIndicator size="small" color="#0a0a0a" />
                   ) : (
                     <Text style={styles.saveBtnText}>Save & Connect</Text>
                   )}
@@ -749,7 +749,7 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     fontSize: 13,
-    color: '#ffffff',
+    color: '#0a0a0a',
     fontWeight: '600',
   },
 });

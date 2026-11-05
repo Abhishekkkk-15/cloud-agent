@@ -34,3 +34,13 @@ Thumbs.db
 # expo
 .expo/
 web-build/
+
+# secrets & credentials
+*.pem
+*.key
+*firebase-adminsdk*.json
+firebase-service-account*.json
+google-services.json
+!google-services.json.example
+.secrets/
+

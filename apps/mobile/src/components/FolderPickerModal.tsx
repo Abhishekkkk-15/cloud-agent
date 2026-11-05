@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,10 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  Animated,
+  PanResponder,
+  Dimensions,
+  StatusBar,
 } from 'react-native';
 import {
   Folder,
@@ -25,6 +29,14 @@ import {
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore, DirectoryBrowseResult } from '../stores/useDaemonStore';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
+const FULL_HEIGHT = SCREEN_HEIGHT - TOP_INSET;
+const DEFAULT_HEIGHT = Math.min(SCREEN_HEIGHT * 0.75, 640);
+const SNAP_TOP = 0;
+const SNAP_DEFAULT = Math.round(FULL_HEIGHT - DEFAULT_HEIGHT);
+const SNAP_CLOSED = FULL_HEIGHT + 60;
 
 interface FolderPickerModalProps {
   visible: boolean;
@@ -49,14 +61,98 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   const [subdirs, setSubdirs] = useState<Array<{ name: string; fullPath: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isExpandedRef = useRef(false);
+  isExpandedRef.current = isExpanded;
+
+  const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
+  const currentY = useRef(SNAP_DEFAULT);
+  const startDragY = useRef(SNAP_DEFAULT);
+
+  const snapTo = (toValue: number, expanded: boolean) => {
+    currentY.current = toValue;
+    setIsExpanded(expanded);
+    Animated.spring(translateY, {
+      toValue,
+      damping: 24,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleToggleExpand = () => {
+    if (isExpandedRef.current) {
+      snapTo(SNAP_DEFAULT, false);
+    } else {
+      snapTo(SNAP_TOP, true);
+    }
+  };
+
+  // PanResponder to handle dragging up to expand full screen, or down to collapse/dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onPanResponderGrant: () => {
+        startDragY.current = currentY.current;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const nextY = Math.max(SNAP_TOP, startDragY.current + gestureState.dy);
+        currentY.current = nextY;
+        translateY.setValue(nextY);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (!isExpandedRef.current) {
+          if (gestureState.dy < -40 || gestureState.vy < -0.3) {
+            snapTo(SNAP_TOP, true);
+          } else if (gestureState.dy > 90 || gestureState.vy > 0.45) {
+            handleClose();
+          } else {
+            snapTo(SNAP_DEFAULT, false);
+          }
+        } else {
+          if (gestureState.dy > 60 || gestureState.vy > 0.35) {
+            snapTo(SNAP_DEFAULT, false);
+          } else {
+            snapTo(SNAP_TOP, true);
+          }
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
+      setIsExpanded(false);
+      currentY.current = SNAP_DEFAULT;
+      translateY.setValue(SNAP_CLOSED);
+      Animated.spring(translateY, {
+        toValue: SNAP_DEFAULT,
+        damping: 24,
+        mass: 0.85,
+        useNativeDriver: true,
+      }).start();
       loadDirectory(initialPath);
     } else {
+      currentY.current = SNAP_CLOSED;
+      translateY.setValue(SNAP_CLOSED);
       setSearchFilter('');
+      setIsExpanded(false);
     }
   }, [visible, initialPath]);
+
+  const handleClose = () => {
+    currentY.current = SNAP_CLOSED;
+    Animated.timing(translateY, {
+      toValue: SNAP_CLOSED,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  };
 
   const loadDirectory = async (target?: string) => {
     setIsLoading(true);
@@ -122,39 +218,55 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={styles.modalCard}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <View style={styles.iconCircle}>
-                <Folder size={18} color={colors.primary} />
-              </View>
-              <View>
-                <Text style={styles.title}>Browse Remote Folders</Text>
-                <Text style={styles.subtitle}>
-                  Select workspace directory on{' '}
-                  <Text style={{ color: colors.primary, fontWeight: '600' }}>
-                    {activeMachine?.name || 'Local Machine'}
-                  </Text>
-                </Text>
-              </View>
-            </View>
+        <Animated.View
+          style={[
+            styles.modalCard,
+            { transform: [{ translateY }] },
+          ]}
+        >
+          {/* Top Drag Handle & Header Zone */}
+          <View {...panResponder.panHandlers} collapsable={false}>
             <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.8}
+              style={styles.handleContainer}
+              onPress={handleToggleExpand}
             >
-              <X size={18} color="#a3a3a3" />
+              <View style={styles.dragPill} />
             </TouchableOpacity>
+
+            {/* Header */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <View style={styles.iconCircle}>
+                  <Folder size={18} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.title}>Browse Remote Folders</Text>
+                  <Text style={styles.subtitle}>
+                    Select workspace directory on{' '}
+                    <Text style={{ color: colors.primary, fontWeight: '600' }}>
+                      {activeMachine?.name || 'Local Machine'}
+                    </Text>
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={handleClose}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={18} color="#a3a3a3" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Navigation & Breadcrumb Toolbar */}
@@ -320,11 +432,11 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
               disabled={!currentPath}
               activeOpacity={0.85}
             >
-              <Check size={16} color="#ffffff" />
-              <Text style={styles.selectBtnText}>Select This Folder</Text>
+              <Check size={16} color={!currentPath ? '#737373' : '#0a0a0a'} />
+              <Text style={[styles.selectBtnText, !currentPath && { color: '#737373' }]}>Select This Folder</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -340,13 +452,23 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
   },
   modalCard: {
+    height: FULL_HEIGHT,
     backgroundColor: '#0a0a0a',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: radii.xl || 20,
+    borderTopRightRadius: radii.xl || 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.10)',
-    maxHeight: '88%',
-    minHeight: 480,
+    overflow: 'hidden',
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  dragPill: {
+    width: 38,
+    height: 4,
+    borderRadius: radii.full,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
   header: {
     flexDirection: 'row',
@@ -583,6 +705,6 @@ const styles = StyleSheet.create({
   selectBtnText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
 });

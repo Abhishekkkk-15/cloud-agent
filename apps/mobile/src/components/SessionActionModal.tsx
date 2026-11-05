@@ -142,7 +142,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
                     disabled={isLoading || !newTitle.trim()}
                   >
                     {isLoading ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
+                      <ActivityIndicator size="small" color="#0a0a0a" />
                     ) : (
                       <Text style={styles.renameSaveText}>Save</Text>
                     )}
@@ -365,6 +365,6 @@ const styles = StyleSheet.create({
   renameSaveText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
 });

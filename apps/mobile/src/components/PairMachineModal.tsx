@@ -307,9 +307,9 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                       activeOpacity={0.8}
                     >
                       {isPairingPaste ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
+                        <ActivityIndicator size="small" color={!pasteInput.trim() ? '#737373' : '#0a0a0a'} />
                       ) : (
-                        <Text style={styles.pairActionBtnText}>Connect Machine</Text>
+                        <Text style={[styles.pairActionBtnText, (!pasteInput.trim() || isPairingPaste) && { color: '#737373' }]}>Connect Machine</Text>
                       )}
                     </TouchableOpacity>
                   </View>
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   pairActionBtnText: {
-    color: '#ffffff',
+    color: '#0a0a0a',
     fontSize: 13,
     fontWeight: '600',
   },

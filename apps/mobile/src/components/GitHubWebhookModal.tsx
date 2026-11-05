@@ -266,10 +266,10 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         activeOpacity={0.7}
                       >
                         {isSavingGithubToken ? (
-                          <ActivityIndicator size="small" color="#ffffff" />
+                          <ActivityIndicator size="small" color="#0a0a0a" />
                         ) : (
                           <>
-                            <Key size={14} color="#ffffff" />
+                            <Key size={14} color="#0a0a0a" />
                             <Text style={styles.saveBtnText}>Verify & Save Token</Text>
                           </>
                         )}
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   saveBtnText: {
-    color: '#ffffff',
+    color: '#0a0a0a',
     fontSize: 13,
     fontWeight: '600',
   },

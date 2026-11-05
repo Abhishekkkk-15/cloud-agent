@@ -85,7 +85,7 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
           activeOpacity={0.85}
         >
           {isResponding ? (
-            <ActivityIndicator size="small" color="#ffffff" />
+            <ActivityIndicator size="small" color="#0a0a0a" />
           ) : (
             <>
               <Check size={14} color="#0a0a0a" />

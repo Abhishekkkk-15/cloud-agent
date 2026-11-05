@@ -12,6 +12,7 @@ import {
   Platform,
   Pressable,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import {
   Terminal,
@@ -35,6 +36,12 @@ import { MarkdownText, JsonViewer } from './MarkdownText';
 import { DiffViewer } from './DiffViewer';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
+const FULL_HEIGHT = SCREEN_HEIGHT - TOP_INSET;
+const DEFAULT_HEIGHT = Math.min(SCREEN_HEIGHT * 0.72, 600);
+const SNAP_TOP = 0;
+const SNAP_DEFAULT = Math.round(FULL_HEIGHT - DEFAULT_HEIGHT);
+const SNAP_CLOSED = FULL_HEIGHT + 60;
 
 export interface ActionStep {
   id: string;
@@ -57,36 +64,66 @@ interface ToolActionTrayProps {
 }
 
 export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action, onClose }) => {
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [copiedInput, setCopiedInput] = useState(false);
   const [copiedOutput, setCopiedOutput] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isExpandedRef = useRef(false);
+  isExpandedRef.current = isExpanded;
 
-  // PanResponder to handle dragging from top to bottom
+  const currentY = useRef(SNAP_DEFAULT);
+  const startDragY = useRef(SNAP_DEFAULT);
+
+  const snapTo = (toValue: number, expanded: boolean) => {
+    currentY.current = toValue;
+    setIsExpanded(expanded);
+    Animated.spring(translateY, {
+      toValue,
+      damping: 24,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleToggleExpand = () => {
+    if (isExpandedRef.current) {
+      snapTo(SNAP_DEFAULT, false);
+    } else {
+      snapTo(SNAP_TOP, true);
+    }
+  };
+
+  // PanResponder to handle dragging up to expand full screen, or down to collapse/dismiss
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Only capture downward dragging
-        return gestureState.dy > 4;
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onPanResponderGrant: () => {
+        startDragY.current = currentY.current;
       },
       onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
-        }
+        const nextY = Math.max(SNAP_TOP, startDragY.current + gestureState.dy);
+        currentY.current = nextY;
+        translateY.setValue(nextY);
       },
       onPanResponderRelease: (_, gestureState) => {
-        // If dragged down past 110px or fast downward velocity, dismiss
-        if (gestureState.dy > 110 || gestureState.vy > 0.45) {
-          handleClose();
+        if (!isExpandedRef.current) {
+          if (gestureState.dy < -40 || gestureState.vy < -0.3) {
+            snapTo(SNAP_TOP, true);
+          } else if (gestureState.dy > 90 || gestureState.vy > 0.45) {
+            handleClose();
+          } else {
+            snapTo(SNAP_DEFAULT, false);
+          }
         } else {
-          // Snap back up
-          Animated.spring(translateY, {
-            toValue: 0,
-            damping: 22,
-            mass: 0.8,
-            useNativeDriver: true,
-          }).start();
+          if (gestureState.dy > 60 || gestureState.vy > 0.35) {
+            snapTo(SNAP_DEFAULT, false);
+          } else {
+            snapTo(SNAP_TOP, true);
+          }
         }
       },
     })
@@ -94,7 +131,9 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
 
   useEffect(() => {
     if (visible) {
-      translateY.setValue(SCREEN_HEIGHT);
+      setIsExpanded(false);
+      currentY.current = SNAP_DEFAULT;
+      translateY.setValue(SNAP_CLOSED);
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 1,
@@ -102,19 +141,22 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
           useNativeDriver: true,
         }),
         Animated.spring(translateY, {
-          toValue: 0,
+          toValue: SNAP_DEFAULT,
           damping: 24,
           mass: 0.85,
           useNativeDriver: true,
         }),
       ]).start();
     } else {
-      translateY.setValue(SCREEN_HEIGHT);
+      currentY.current = SNAP_CLOSED;
+      translateY.setValue(SNAP_CLOSED);
       backdropOpacity.setValue(0);
+      setIsExpanded(false);
     }
   }, [visible]);
 
   const handleClose = () => {
+    currentY.current = SNAP_CLOSED;
     Animated.parallel([
       Animated.timing(backdropOpacity, {
         toValue: 0,
@@ -122,7 +164,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
-        toValue: SCREEN_HEIGHT,
+        toValue: SNAP_CLOSED,
         duration: 200,
         useNativeDriver: true,
       }),
@@ -224,66 +266,72 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
             },
           ]}
         >
-          {/* Draggable Top Handle Bar */}
-          <View style={styles.handleContainer} {...panResponder.panHandlers}>
-            <View style={styles.dragPill} />
-          </View>
+          {/* Draggable Top Handle & Header Zone */}
+          <View {...panResponder.panHandlers} collapsable={false}>
+            <TouchableOpacity
+              style={styles.handleContainer}
+              activeOpacity={0.8}
+              onPress={handleToggleExpand}
+            >
+              <View style={styles.dragPill} />
+            </TouchableOpacity>
 
-          {/* Tray Header */}
-          <View style={styles.trayHeader}>
-            <View style={styles.trayHeaderLeft}>
-              <View style={styles.iconCircle}>
-                {renderCategoryIcon(action.category, 18)}
-              </View>
-              <View style={styles.titleColumn}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.toolNameText} numberOfLines={1}>
-                    {toolName}
-                  </Text>
-                  {/* Status Pill */}
-                  <View
-                    style={[
-                      styles.statusPill,
-                      isRunning
-                        ? styles.statusPillRunning
-                        : isSuccess
-                        ? styles.statusPillSuccess
-                        : styles.statusPillError,
-                    ]}
-                  >
-                    {isRunning ? (
-                      <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.65 }] }} />
-                    ) : isSuccess ? (
-                      <CheckCircle2 size={11} color={colors.green} />
-                    ) : (
-                      <XCircle size={11} color={colors.red} />
-                    )}
-                    <Text
+            {/* Tray Header */}
+            <View style={styles.trayHeader}>
+              <View style={styles.trayHeaderLeft}>
+                <View style={styles.iconCircle}>
+                  {renderCategoryIcon(action.category, 18)}
+                </View>
+                <View style={styles.titleColumn}>
+                  <View style={styles.titleRow}>
+                    <Text style={styles.toolNameText} numberOfLines={1}>
+                      {toolName}
+                    </Text>
+                    {/* Status Pill */}
+                    <View
                       style={[
-                        styles.statusPillText,
-                        { color: isRunning ? colors.green : isSuccess ? colors.green : colors.red },
+                        styles.statusPill,
+                        isRunning
+                          ? styles.statusPillRunning
+                          : isSuccess
+                          ? styles.statusPillSuccess
+                          : styles.statusPillError,
                       ]}
                     >
-                      {isRunning
-                        ? 'Running...'
-                        : action.exitCode !== undefined
-                        ? `Exit ${action.exitCode}`
-                        : isSuccess
-                        ? 'Success'
-                        : 'Failed'}
-                    </Text>
+                      {isRunning ? (
+                        <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.65 }] }} />
+                      ) : isSuccess ? (
+                        <CheckCircle2 size={11} color={colors.green} />
+                      ) : (
+                        <XCircle size={11} color={colors.red} />
+                      )}
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          { color: isRunning ? colors.green : isSuccess ? colors.green : colors.red },
+                        ]}
+                      >
+                        {isRunning
+                          ? 'Running...'
+                          : action.exitCode !== undefined
+                          ? `Exit ${action.exitCode}`
+                          : isSuccess
+                          ? 'Success'
+                          : 'Failed'}
+                      </Text>
+                    </View>
                   </View>
+                  <Text style={styles.categorySubtext}>
+                    {getCategoryLabel(action.category)}
+                    {action.duration ? ` • ${action.duration}` : ''}
+                  </Text>
                 </View>
-                <Text style={styles.categorySubtext}>
-                  {getCategoryLabel(action.category)}
-                  {action.duration ? ` • ${action.duration}` : ''}
-                </Text>
               </View>
-            </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
-              <X size={16} color={colors.textMuted} />
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
+                <X size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Tray Scrollable Content */}
@@ -451,14 +499,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(1, 4, 9, 0.72)',
   },
   traySheet: {
+    height: FULL_HEIGHT,
     backgroundColor: colors.bgCard,
     borderTopLeftRadius: radii.xl + 4,
     borderTopRightRadius: radii.xl + 4,
     borderWidth: 1,
     borderColor: colors.borderDefault,
     borderBottomWidth: 0,
-    maxHeight: '85%',
-    minHeight: 380,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },

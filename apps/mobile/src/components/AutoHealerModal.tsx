@@ -426,10 +426,10 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                       activeOpacity={0.7}
                     >
                       {isSubmitting ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
+                        <ActivityIndicator size="small" color="#0a0a0a" />
                       ) : (
                         <>
-                          <GitPullRequest size={14} color="#ffffff" />
+                          <GitPullRequest size={14} color="#0a0a0a" />
                           <Text style={styles.primaryActionBtnText}>Approve & PR</Text>
                         </>
                       )}
@@ -453,10 +453,10 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                       activeOpacity={0.7}
                     >
                       {isSubmitting ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
+                        <ActivityIndicator size="small" color="#0a0a0a" />
                       ) : (
                         <>
-                          <GitPullRequest size={14} color="#ffffff" />
+                          <GitPullRequest size={14} color="#0a0a0a" />
                           <Text style={styles.primaryActionBtnText}>Post to GitHub</Text>
                         </>
                       )}
@@ -820,6 +820,6 @@ const styles = StyleSheet.create({
   primaryActionBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
 });

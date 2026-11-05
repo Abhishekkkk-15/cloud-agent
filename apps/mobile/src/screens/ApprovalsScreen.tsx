@@ -202,9 +202,9 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                 activeOpacity={0.85}
               >
                 {isAuthorizing ? (
-                  <ActivityIndicator size="small" color="#ffffff" style={{ transform: [{ scale: 0.75 }] }} />
+                  <ActivityIndicator size="small" color="#0a0a0a" style={{ transform: [{ scale: 0.75 }] }} />
                 ) : (
-                  <Check size={15} color="#ffffff" />
+                  <Check size={15} color="#0a0a0a" />
                 )}
                 <Text style={styles.authorizeActionBtnText}>
                   {isAuthorizing ? 'Authorizing...' : 'Authorize Action'}
@@ -279,7 +279,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               activeOpacity={0.8}
             >
               <View style={[styles.checkbox, rememberRule && styles.checkboxActive]}>
-                {rememberRule && <Check size={11} color="#ffffff" />}
+                {rememberRule && <Check size={11} color="#0a0a0a" />}
               </View>
               <Text style={styles.checkboxLabel}>
                 Always permit this action for current session
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   authorizeActionBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
   diffViewerCard: {
     backgroundColor: colors.surfaceContainer,

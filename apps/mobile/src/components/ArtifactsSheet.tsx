@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,9 @@ import {
   ActivityIndicator,
   Platform,
   Dimensions,
+  Animated,
+  PanResponder,
+  StatusBar,
 } from 'react-native';
 import {
   X,
@@ -31,6 +34,12 @@ import { MarkdownText } from './MarkdownText';
 import type { CliArtifact } from '@cloud-agent/cli-interface';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
+const FULL_HEIGHT = SCREEN_HEIGHT - TOP_INSET;
+const DEFAULT_HEIGHT = Math.min(SCREEN_HEIGHT * 0.75, 640);
+const SNAP_TOP = 0;
+const SNAP_DEFAULT = Math.round(FULL_HEIGHT - DEFAULT_HEIGHT);
+const SNAP_CLOSED = FULL_HEIGHT + 60;
 
 interface ArtifactsSheetProps {
   visible: boolean;
@@ -55,16 +64,101 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
   const [viewMode, setViewMode] = useState<'preview' | 'source'>('preview');
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isExpandedRef = useRef(false);
+  isExpandedRef.current = isExpanded;
+
+  const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
+  const currentY = useRef(SNAP_DEFAULT);
+  const startDragY = useRef(SNAP_DEFAULT);
+
+  const snapTo = (toValue: number, expanded: boolean) => {
+    currentY.current = toValue;
+    setIsExpanded(expanded);
+    Animated.spring(translateY, {
+      toValue,
+      damping: 24,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleToggleExpand = () => {
+    if (isExpandedRef.current) {
+      snapTo(SNAP_DEFAULT, false);
+    } else {
+      snapTo(SNAP_TOP, true);
+    }
+  };
+
+  // PanResponder to handle dragging up to expand full screen, or down to collapse/dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onPanResponderGrant: () => {
+        startDragY.current = currentY.current;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const nextY = Math.max(SNAP_TOP, startDragY.current + gestureState.dy);
+        currentY.current = nextY;
+        translateY.setValue(nextY);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (!isExpandedRef.current) {
+          if (gestureState.dy < -40 || gestureState.vy < -0.3) {
+            snapTo(SNAP_TOP, true);
+          } else if (gestureState.dy > 90 || gestureState.vy > 0.45) {
+            handleClose();
+          } else {
+            snapTo(SNAP_DEFAULT, false);
+          }
+        } else {
+          if (gestureState.dy > 60 || gestureState.vy > 0.35) {
+            snapTo(SNAP_DEFAULT, false);
+          } else {
+            snapTo(SNAP_TOP, true);
+          }
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
+      setIsExpanded(false);
+      currentY.current = SNAP_DEFAULT;
+      translateY.setValue(SNAP_CLOSED);
+      Animated.spring(translateY, {
+        toValue: SNAP_DEFAULT,
+        damping: 24,
+        mass: 0.85,
+        useNativeDriver: true,
+      }).start();
       setSearchQuery(initialSearchQuery);
       setSelectedArtifact(null);
       setContent('');
       setViewMode('preview');
       fetchSessionArtifacts().catch(() => {});
+    } else {
+      currentY.current = SNAP_CLOSED;
+      translateY.setValue(SNAP_CLOSED);
+      setIsExpanded(false);
     }
   }, [visible, initialSearchQuery]);
+
+  const handleClose = () => {
+    currentY.current = SNAP_CLOSED;
+    Animated.timing(translateY, {
+      toValue: SNAP_CLOSED,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  };
 
   const handleSelectArtifact = async (artifact: CliArtifact) => {
     setSelectedArtifact(artifact);
@@ -125,62 +219,80 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={styles.sheetContainer}>
-          {/* Header */}
-          <View style={styles.header}>
-            {selectedArtifact ? (
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={handleBackToList}
-                activeOpacity={0.7}
-              >
-                <ArrowLeft size={16} color="#fafafa" />
-                <Text style={styles.backButtonText}>All Artifacts</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.headerLeft}>
-                <View style={styles.headerIconBox}>
-                  <Layers size={18} color="#fafafa" />
-                </View>
-                <View>
-                  <View style={styles.titleRow}>
-                    <Text style={styles.title}>Session Artifacts</Text>
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countBadgeText}>{sessionArtifacts.length}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.subtitle}>Plans, reports, and generated specs</Text>
-                </View>
-              </View>
-            )}
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+            {
+              transform: [{ translateY }],
+            },
+          ]}
+        >
+          {/* Top Drag Handle & Header Zone */}
+          <View {...panResponder.panHandlers} collapsable={false}>
+            <TouchableOpacity
+              style={styles.handleContainer}
+              activeOpacity={0.8}
+              onPress={handleToggleExpand}
+            >
+              <View style={styles.dragPill} />
+            </TouchableOpacity>
 
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={handleRefresh}
-                activeOpacity={0.7}
-                disabled={isRefreshing || isLoadingArtifacts}
-              >
-                <RefreshCw
-                  size={16}
-                  color={isRefreshing ? '#fafafa' : '#a3a3a3'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={onClose}
-                activeOpacity={0.7}
-              >
-                <X size={18} color="#a3a3a3" />
-              </TouchableOpacity>
+            {/* Header */}
+            <View style={styles.header}>
+              {selectedArtifact ? (
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={handleBackToList}
+                  activeOpacity={0.7}
+                >
+                  <ArrowLeft size={16} color="#fafafa" />
+                  <Text style={styles.backButtonText}>All Artifacts</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.headerLeft}>
+                  <View style={styles.headerIconBox}>
+                    <Layers size={18} color="#fafafa" />
+                  </View>
+                  <View>
+                    <View style={styles.titleRow}>
+                      <Text style={styles.title}>Session Artifacts</Text>
+                      <View style={styles.countBadge}>
+                        <Text style={styles.countBadgeText}>{sessionArtifacts.length}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.subtitle}>Plans, reports, and generated specs</Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={handleRefresh}
+                  activeOpacity={0.7}
+                  disabled={isRefreshing || isLoadingArtifacts}
+                >
+                  <RefreshCw
+                    size={16}
+                    color={isRefreshing ? '#fafafa' : '#a3a3a3'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionBtn}
+                  onPress={handleClose}
+                  activeOpacity={0.7}
+                >
+                  <X size={18} color="#a3a3a3" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -366,7 +478,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               )}
             </View>
           )}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -385,13 +497,28 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
+  handleContainer: {
+    width: '100%',
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#161616',
+    borderBottomWidth: 1,
+    borderBottomColor: '#262626',
+  },
+  dragPill: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#3a3a3a',
+  },
   sheetContainer: {
+    height: FULL_HEIGHT,
     backgroundColor: '#0a0a0a',
     borderTopLeftRadius: radii.xl || 20,
     borderTopRightRadius: radii.xl || 20,
     borderTopWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.10)',
-    height: Math.min(SCREEN_HEIGHT * 0.85, 720),
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -649,7 +776,7 @@ const styles = StyleSheet.create({
     color: '#a3a3a3',
   },
   modeTabTextActive: {
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
   copyBtn: {
     width: 32,

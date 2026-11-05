@@ -237,7 +237,7 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
               }}
               activeOpacity={0.8}
             >
-              <Plus size={16} color="#ffffff" />
+              <Plus size={16} color="#0a0a0a" />
               <Text style={styles.pairNewBtnText}>Pair Another Machine / VPS</Text>
             </TouchableOpacity>
           </View>
@@ -449,6 +449,6 @@ const styles = StyleSheet.create({
   pairNewBtnText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
 });

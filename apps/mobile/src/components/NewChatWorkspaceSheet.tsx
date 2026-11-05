@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,10 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  Dimensions,
+  Animated,
+  PanResponder,
+  StatusBar,
 } from 'react-native';
 import {
   X,
@@ -25,6 +29,14 @@ import {
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore, ReasoningEffort, ExecutionMode } from '../stores/useDaemonStore';
 import { FolderPickerModal } from './FolderPickerModal';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
+const FULL_HEIGHT = SCREEN_HEIGHT - TOP_INSET;
+const DEFAULT_HEIGHT = Math.min(SCREEN_HEIGHT * 0.75, 640);
+const SNAP_TOP = 0;
+const SNAP_DEFAULT = Math.round(FULL_HEIGHT - DEFAULT_HEIGHT);
+const SNAP_CLOSED = FULL_HEIGHT + 60;
 
 interface NewChatWorkspaceSheetProps {
   visible: boolean;
@@ -53,17 +65,102 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   const [selectedModel, setSelectedModel] = useState(sessionConfig.model);
   const [selectedEffort, setSelectedEffort] = useState<ReasoningEffort>(sessionConfig.effort);
   const [selectedMode, setSelectedMode] = useState<ExecutionMode>(sessionConfig.mode);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isExpandedRef = useRef(false);
+  isExpandedRef.current = isExpanded;
+
+  const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
+  const currentY = useRef(SNAP_DEFAULT);
+  const startDragY = useRef(SNAP_DEFAULT);
+
+  const snapTo = (toValue: number, expanded: boolean) => {
+    currentY.current = toValue;
+    setIsExpanded(expanded);
+    Animated.spring(translateY, {
+      toValue,
+      damping: 24,
+      mass: 0.8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleToggleExpand = () => {
+    if (isExpandedRef.current) {
+      snapTo(SNAP_DEFAULT, false);
+    } else {
+      snapTo(SNAP_TOP, true);
+    }
+  };
+
+  // PanResponder to handle dragging up to expand full screen, or down to collapse/dismiss
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
+      onPanResponderGrant: () => {
+        startDragY.current = currentY.current;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        const nextY = Math.max(SNAP_TOP, startDragY.current + gestureState.dy);
+        currentY.current = nextY;
+        translateY.setValue(nextY);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (!isExpandedRef.current) {
+          if (gestureState.dy < -40 || gestureState.vy < -0.3) {
+            snapTo(SNAP_TOP, true);
+          } else if (gestureState.dy > 90 || gestureState.vy > 0.45) {
+            handleClose();
+          } else {
+            snapTo(SNAP_DEFAULT, false);
+          }
+        } else {
+          if (gestureState.dy > 60 || gestureState.vy > 0.35) {
+            snapTo(SNAP_DEFAULT, false);
+          } else {
+            snapTo(SNAP_TOP, true);
+          }
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible) {
+      setIsExpanded(false);
+      currentY.current = SNAP_DEFAULT;
+      translateY.setValue(SNAP_CLOSED);
+      Animated.spring(translateY, {
+        toValue: SNAP_DEFAULT,
+        damping: 24,
+        mass: 0.85,
+        useNativeDriver: true,
+      }).start();
       fetchKnownWorkspaces();
       const defaultPath =
         targetWorkspacePath ||
         (knownWorkspaces.length > 0 ? knownWorkspaces[0].path : '/');
       setPathInput(defaultPath);
       loadSuggestions(defaultPath);
+    } else {
+      currentY.current = SNAP_CLOSED;
+      translateY.setValue(SNAP_CLOSED);
+      setIsExpanded(false);
     }
   }, [visible, targetWorkspacePath, knownWorkspaces.length]);
+
+  const handleClose = () => {
+    currentY.current = SNAP_CLOSED;
+    Animated.timing(translateY, {
+      toValue: SNAP_CLOSED,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      onClose();
+    });
+  };
 
   const loadSuggestions = async (path: string) => {
     setIsLoadingSuggestions(true);
@@ -106,39 +203,57 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
     <Modal
       visible={visible}
       transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      animationType="none"
+      onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
+        <TouchableWithoutFeedback onPress={handleClose}>
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={styles.sheetContainer}>
-          {/* Header */}
-          <View style={styles.sheetHeader}>
-            <View style={styles.headerLeft}>
-              <View style={styles.headerIconBox}>
-                <FolderGit2 size={18} color={colors.primary} />
-              </View>
-              <View>
-                <Text style={styles.sheetTitle}>Start New Session</Text>
-                <Text style={styles.sheetSubtitle}>
-                  Choose a project directory on{' '}
-                  <Text style={styles.machineHighlight}>
-                    {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
-                  </Text>
-                </Text>
-              </View>
-            </View>
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+            {
+              transform: [{ translateY }],
+            },
+          ]}
+        >
+          {/* Top Drag Handle & Header Zone */}
+          <View {...panResponder.panHandlers} collapsable={false}>
             <TouchableOpacity
-              style={styles.closeBtn}
-              onPress={onClose}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={styles.handleContainer}
+              activeOpacity={0.8}
+              onPress={handleToggleExpand}
             >
-              <X size={18} color="#a3a3a3" />
+              <View style={styles.dragPill} />
             </TouchableOpacity>
+
+            {/* Header */}
+            <View style={styles.sheetHeader}>
+              <View style={styles.headerLeft}>
+                <View style={styles.headerIconBox}>
+                  <FolderGit2 size={18} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={styles.sheetTitle}>Start New Session</Text>
+                  <Text style={styles.sheetSubtitle}>
+                    Choose a project directory on{' '}
+                    <Text style={styles.machineHighlight}>
+                      {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
+                    </Text>
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={handleClose}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={18} color="#a3a3a3" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView
@@ -321,11 +436,11 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
               onPress={handleConfirm}
               activeOpacity={0.85}
             >
-              <Play size={16} color="#ffffff" />
+              <Play size={16} color="#0a0a0a" />
               <Text style={styles.startBtnText}>Start Session in Workspace</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </Animated.View>
 
         {/* Remote Folder Browser Modal */}
         <FolderPickerModal
@@ -348,13 +463,29 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
+  handleContainer: {
+    width: '100%',
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0a0a0a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  dragPill: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#3a3a3a',
+  },
   sheetContainer: {
+    height: FULL_HEIGHT,
     backgroundColor: '#0a0a0a',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderWidth: 1,
     borderColor: '#262626',
-    maxHeight: '85%',
+    overflow: 'hidden',
   },
   sheetHeader: {
     flexDirection: 'row',
@@ -403,7 +534,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sheetScroll: {
-    maxHeight: 460,
+    flex: 1,
   },
   sheetScrollContent: {
     paddingHorizontal: 16,
@@ -586,6 +717,6 @@ const styles = StyleSheet.create({
   startBtnText: {
     fontSize: 14.5,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#0a0a0a',
   },
 });
