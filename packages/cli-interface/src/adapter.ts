@@ -85,6 +85,9 @@ export interface ICliAdapter {
    */
   cancel(sessionId: string): Promise<void>;
 
+  /** Checks if an agent turn is actively executing for a session */
+  isTurnRunning?(sessionId: string): boolean;
+
   /**
    * Optional interactive terminal fallback (via pseudo-terminal).
    */
@@ -113,6 +116,10 @@ export abstract class BaseCliAdapter implements ICliAdapter {
   ): Promise<CliPaginatedResult<CliMessage>>;
   abstract run(options: CliRunOptions): AsyncIterable<CliEvent>;
   abstract cancel(sessionId: string): Promise<void>;
+
+  isTurnRunning(sessionId: string): boolean {
+    return false;
+  }
 
   async respondPermission?(sessionId: string, requestId: string, allow: boolean): Promise<void> {
     throw new Error(`respondPermission is not implemented for ${this.id}`);

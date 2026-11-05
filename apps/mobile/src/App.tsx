@@ -6,6 +6,7 @@ import {
   StatusBar,
   Platform,
   PanResponder,
+  AppState,
   ActivityIndicator,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
@@ -18,6 +19,7 @@ import { AgentTurnScreen } from './screens/AgentTurnScreen';
 import { SessionsScreen } from './screens/SessionsScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { useDaemonStore } from './stores/useDaemonStore';
+import { mobileP2P } from './lib/p2p-client';
 
 export default function App() {
   // Default screen is Chat with the last opened session
@@ -32,6 +34,23 @@ export default function App() {
   useEffect(() => {
     init();
   }, [init]);
+
+  // Auto-reconnect and session reconciliation when app returns to foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        const store = useDaemonStore.getState();
+        if (store.token) {
+          if (store.connectionState !== 'connected') {
+            mobileP2P.reconnectNow();
+          } else {
+            store.reconcileActiveSession();
+          }
+        }
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Left-edge swipe responder to smoothly slide open the sidebar drawer
   const edgeSwipePanResponder = useRef(

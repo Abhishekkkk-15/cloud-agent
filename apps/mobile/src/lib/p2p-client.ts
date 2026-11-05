@@ -61,6 +61,11 @@ export class MobileP2PClient {
   private eventListeners = new Set<(event: any) => void>();
   private stateListeners = new Set<(state: ConnectionState) => void>();
   private reqCounter = 0;
+  private lastGatewayUrl = '';
+  private lastToken = '';
+  private reconnectTimer: any = null;
+  private reconnectAttempts = 0;
+  private isExplicitlyDisconnected = false;
 
   constructor() {}
 
@@ -86,7 +91,10 @@ export class MobileP2PClient {
 
   async connect(gatewayUrl: string, token: string, machineId: string): Promise<void> {
     if (this.state === 'connected' || this.state === 'connecting') return;
+    this.lastGatewayUrl = gatewayUrl;
+    this.lastToken = token;
     this.machineId = machineId;
+    this.isExplicitlyDisconnected = false;
     this.setState('connecting');
 
     try {
@@ -100,6 +108,11 @@ export class MobileP2PClient {
         if (!this.ws) return reject(new Error('WebSocket creation failed'));
         this.ws.onopen = () => {
           console.log('[MobileP2P] WebSocket opened to Gateway');
+          this.reconnectAttempts = 0;
+          if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+          }
           resolve();
         };
         this.ws.onerror = (e) => {
@@ -199,10 +212,16 @@ export class MobileP2PClient {
 
       this.ws.onclose = () => {
         this.setState('disconnected');
+        if (!this.isExplicitlyDisconnected) {
+          this.scheduleReconnect();
+        }
       };
     } catch (err) {
       console.error('[MobileP2PClient] Connection error:', err);
       this.setState('error');
+      if (!this.isExplicitlyDisconnected) {
+        this.scheduleReconnect();
+      }
     }
   }
 
@@ -346,7 +365,47 @@ export class MobileP2PClient {
     }
   }
 
+  private scheduleReconnect(): void {
+    if (this.isExplicitlyDisconnected || !this.lastGatewayUrl || !this.lastToken) return;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+
+    // Jittered exponential backoff: 1.5s, 3s, 6s, 10s max (+ 0-500ms jitter)
+    const baseDelay = Math.min(1500 * Math.pow(1.5, this.reconnectAttempts), 10000);
+    const jitter = Math.floor(Math.random() * 500);
+    const delay = baseDelay + jitter;
+    this.reconnectAttempts++;
+
+    console.log(`[MobileP2P] Disconnected. Reconnecting in ${Math.round(delay)}ms (attempt #${this.reconnectAttempts})`);
+    this.reconnectTimer = setTimeout(() => {
+      if (this.state === 'disconnected' || this.state === 'error') {
+        this.connect(this.lastGatewayUrl, this.lastToken, this.machineId).catch(() => {});
+      }
+    }, delay);
+  }
+
+  reconnectNow(): void {
+    if (this.isExplicitlyDisconnected || !this.lastGatewayUrl || !this.lastToken) return;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempts = 0;
+    if (this.state !== 'connected' && this.state !== 'connecting') {
+      console.log('[MobileP2P] Reconnecting immediately...');
+      this.connect(this.lastGatewayUrl, this.lastToken, this.machineId).catch(() => {});
+    }
+  }
+
+  isConnected(): boolean {
+    return this.state === 'connected';
+  }
+
   disconnect() {
+    this.isExplicitlyDisconnected = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.dc?.close();
     this.pc?.close();
     this.ws?.close();

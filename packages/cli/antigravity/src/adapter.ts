@@ -110,6 +110,10 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
     this.client.cancel(sessionId);
   }
 
+  isTurnRunning(sessionId: string): boolean {
+    return this.client.isTurnRunning(sessionId);
+  }
+
   /**
    * Renames a brain session by updating its meta.json on disk.
    */

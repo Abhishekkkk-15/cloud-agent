@@ -246,6 +246,22 @@ export class RpcDispatcher {
           };
         }
 
+        case "agent.status": {
+          const sessionId = params.sessionId || params.options?.sessionId;
+          if (!sessionId) {
+            throw new Error("Missing sessionId param");
+          }
+          const adapter = registry.get(params.cli);
+          const isRunning = typeof adapter.isTurnRunning === "function" ? adapter.isTurnRunning(sessionId) : false;
+          return {
+            id: req.id,
+            result: {
+              sessionId,
+              isRunning,
+            },
+          };
+        }
+
         case "agent.cancel": {
           if (!params.sessionId) {
             throw new Error("Missing sessionId param");

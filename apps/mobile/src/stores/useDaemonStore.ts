@@ -334,6 +334,7 @@ interface DaemonStoreState {
   selectSession: (session: RealSessionItem) => Promise<void>;
   createNewSession: () => void;
   loadOlderMessages: () => Promise<void>;
+  reconcileActiveSession: () => Promise<void>;
   sendPrompt: (promptText: string) => Promise<void>;
   cancelPrompt: () => Promise<boolean>;
   respondApproval: (allowed: boolean) => Promise<void>;
@@ -654,6 +655,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         get().fetchSessions();
         get().fetchKnownWorkspaces();
         get().fetchMachines();
+        get().reconcileActiveSession();
       }
     });
 
@@ -1563,6 +1565,70 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     });
   },
 
+  reconcileActiveSession: async () => {
+    const { activeSession, isSendingPrompt } = get();
+    if (!activeSession) return;
+
+    try {
+      // 1. Check if the daemon host is still actively executing a turn for this session
+      let isStillRunning = false;
+      try {
+        const statusRes = await mobileP2P.sendRpc<any>(
+          'agent.status',
+          { sessionId: activeSession.id },
+          4000
+        );
+        if (statusRes?.isRunning) {
+          isStillRunning = true;
+        }
+      } catch {
+        // If agent.status query times out or fails, proceed to message reconciliation
+      }
+
+      // 2. Query authoritative message history from daemon's disk transcript
+      const resp = await mobileP2P.sendRpc<any>(
+        'sessions.messages',
+        {
+          sessionId: activeSession.id,
+          limit: 50,
+          offset: 0,
+          order: 'desc',
+        },
+        8000
+      );
+
+      const rawList = Array.isArray(resp?.items)
+        ? resp.items
+        : Array.isArray(resp?.messages)
+        ? resp.messages
+        : [];
+
+      if (rawList.length > 0) {
+        const msgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
+          id: m.id,
+          role: m.role || 'user',
+          content: m.content || '',
+          reasoning: m.reasoning,
+          timestamp: m.timestamp || new Date().toISOString(),
+          toolCalls: m.toolCalls,
+        }));
+
+        set((state) => ({
+          sessionMessages: msgs,
+          messagesOffset: rawList.length,
+          hasMoreMessages: Boolean(resp?.hasMore),
+          isSendingPrompt: isStillRunning,
+        }));
+      } else if (!isStillRunning && isSendingPrompt) {
+        set({ isSendingPrompt: false });
+      }
+
+      get().fetchSessionArtifacts();
+    } catch (err) {
+      console.warn('[DaemonStore] reconcileActiveSession error:', err);
+    }
+  },
+
   loadOlderMessages: async () => {
     const { activeSession, messagesOffset, hasMoreMessages, isLoadingOlderMessages } = get();
     if (!activeSession || !hasMoreMessages || isLoadingOlderMessages) return;
@@ -1695,18 +1761,31 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch (err: any) {
       console.error('[DaemonStore] sendPrompt error:', err);
       const errMsg = err?.message || String(err);
-      set((state) => ({
-        sessionMessages: [
-          ...state.sessionMessages,
-          {
-            id: `err_${Date.now()}`,
-            role: 'assistant',
-            content: `⚠️ Failed to execute turn: ${errMsg}`,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        isSendingPrompt: false,
-      }));
+      const isConnectionLoss =
+        !mobileP2P.isConnected() ||
+        errMsg.includes('timeout') ||
+        errMsg.includes('No active connection');
+
+      if (isConnectionLoss) {
+        // Disconnected mid-flight: do not inject a permanent error card.
+        // Instead, schedule background reconciliation with the host disk.
+        setTimeout(() => {
+          get().reconcileActiveSession();
+        }, 1500);
+      } else {
+        set((state) => ({
+          sessionMessages: [
+            ...state.sessionMessages,
+            {
+              id: `err_${Date.now()}`,
+              role: 'assistant',
+              content: `⚠️ Failed to execute turn: ${errMsg}`,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+          isSendingPrompt: false,
+        }));
+      }
     }
   },
 

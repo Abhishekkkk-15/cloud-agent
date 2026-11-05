@@ -222,6 +222,10 @@ class PersistentWorker {
     return this.isAlive && !this.child.killed;
   }
 
+  get isBusy(): boolean {
+    return this.isRunning && this.isTurnRunning;
+  }
+
   hasConfigChanged(options: CliRunOptions): boolean {
     if (options.model && options.model !== this.activeModel) return true;
     if (options.effort && options.effort !== this.activeEffort) return true;
@@ -441,6 +445,11 @@ export class AntigravityStreamClient {
    * If a worker for this session already exists and is alive, reuses it immediately.
    * If not, spawns a warm worker that stays alive for subsequent turns.
    */
+  isTurnRunning(sessionId: string): boolean {
+    const worker = this.workers.get(sessionId);
+    return Boolean(worker && worker.isBusy);
+  }
+
   async *run(options: CliRunOptions): AsyncIterable<CliEvent> {
     const binary = getAgyBinaryPath() || "agy";
     const sessionId = options.sessionId || crypto.randomUUID();
