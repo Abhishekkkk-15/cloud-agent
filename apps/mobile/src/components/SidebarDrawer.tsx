@@ -78,6 +78,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
   const [activeFilterWs, setActiveFilterWs] = useState<string>('all');
   const [drawerSearch, setDrawerSearch] = useState<string>('');
+  const [isRendered, setIsRendered] = useState<boolean>(isOpen);
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
@@ -89,10 +90,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      setIsRendered(true);
       Animated.parallel([
-        Animated.timing(slideAnim, {
+        Animated.spring(slideAnim, {
           toValue: 0,
-          duration: 240,
+          damping: 24,
+          mass: 0.8,
+          stiffness: 220,
           useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
@@ -105,7 +109,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: -DRAWER_WIDTH,
-          duration: 200,
+          duration: 220,
           useNativeDriver: true,
         }),
         Animated.timing(backdropAnim, {
@@ -113,51 +117,120 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           duration: 200,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsRendered(false);
+        }
+      });
     }
   }, [isOpen, slideAnim, backdropAnim]);
 
-  // Pan responder for swiping left to close
+  const handleBackdropPress = () => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: -DRAWER_WIDTH,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsRendered(false);
+      onClose();
+    });
+  };
+
+  // Pan responder for live swiping left to close
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dx < -15 && Math.abs(gestureState.dy) < 30;
+        return gestureState.dx < -8 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dx < 0) {
           slideAnim.setValue(Math.max(gestureState.dx, -DRAWER_WIDTH));
+          const progress = 1 - Math.abs(gestureState.dx) / DRAWER_WIDTH;
+          backdropAnim.setValue(Math.max(0, Math.min(1, progress)));
         }
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -60 || gestureState.vx < -0.4) {
-          onClose();
+        if (gestureState.dx < -60 || gestureState.vx < -0.3) {
+          Animated.parallel([
+            Animated.timing(slideAnim, {
+              toValue: -DRAWER_WIDTH,
+              duration: 180,
+              useNativeDriver: true,
+            }),
+            Animated.timing(backdropAnim, {
+              toValue: 0,
+              duration: 180,
+              useNativeDriver: true,
+            }),
+          ]).start(() => {
+            setIsRendered(false);
+            onClose();
+          });
         } else {
-          Animated.spring(slideAnim, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 4,
-          }).start();
+          Animated.parallel([
+            Animated.spring(slideAnim, {
+              toValue: 0,
+              damping: 24,
+              mass: 0.8,
+              stiffness: 220,
+              useNativeDriver: true,
+            }),
+            Animated.timing(backdropAnim, {
+              toValue: 1,
+              duration: 160,
+              useNativeDriver: true,
+            }),
+          ]).start();
         }
       },
     })
   ).current;
 
+  const closeAndNavigate = (action: () => void) => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: -DRAWER_WIDTH,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setIsRendered(false);
+      action();
+      onClose();
+    });
+  };
+
   const handleStartSessionInWorkspace = (workspacePath: string) => {
-    startNewSessionInWorkspace(workspacePath);
-    onNavigateScreen('agent');
-    onClose();
+    closeAndNavigate(() => {
+      startNewSessionInWorkspace(workspacePath);
+      onNavigateScreen('agent');
+    });
   };
 
   const handleSelectSession = (item: RealSessionItem) => {
-    selectSession(item);
-    onNavigateScreen('agent');
-    onClose();
+    closeAndNavigate(() => {
+      selectSession(item);
+      onNavigateScreen('agent');
+    });
   };
 
   const handleNavScreen = (screen: AppScreen) => {
-    onNavigateScreen(screen);
-    onClose();
+    closeAndNavigate(() => {
+      onNavigateScreen(screen);
+    });
   };
 
   const searchedSessions = sessions.filter((s) => {
@@ -237,7 +310,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     );
   };
 
-  if (!isOpen) return null;
+  if (!isRendered && !isOpen) return null;
 
   const operatorInitial = currentUser?.name ? currentUser.name[0].toUpperCase() : 'O';
   const operatorName = currentUser?.name || 'Local Operator';
@@ -250,7 +323,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 200 }]} pointerEvents="box-none">
       {/* Dimmed Backdrop */}
-      <TouchableWithoutFeedback onPress={onClose}>
+      <TouchableWithoutFeedback onPress={handleBackdropPress}>
         <Animated.View
           style={[
             styles.backdrop,

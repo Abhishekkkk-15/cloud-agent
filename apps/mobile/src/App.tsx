@@ -38,10 +38,10 @@ export default function App() {
     PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dx > 15 && Math.abs(gestureState.dy) < 30;
+        return gestureState.dx > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2;
       },
       onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx > 25 || gestureState.vx > 0.3) {
+        if (gestureState.dx > 18 || gestureState.vx > 0.22) {
           setIsDrawerOpen(true);
         }
       },
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    width: 24,
+    width: 44,
     zIndex: 100,
     backgroundColor: 'transparent',
   },
