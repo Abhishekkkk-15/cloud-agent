@@ -9,7 +9,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Sparkles, ShieldAlert, AlertTriangle, Check, X } from './Icons';
+import { Sparkles, ShieldAlert, AlertTriangle, Check, X, ChevronRight } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { onInAppNotification, type NotificationPayload } from '../lib/notifications';
 
@@ -101,10 +101,20 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
             ? styles.bannerError
             : styles.bannerDefault,
         ]}
-        activeOpacity={0.85}
+        activeOpacity={0.88}
         onPress={handleBannerPress}
       >
-        <View style={styles.iconCircle}>{renderIcon()}</View>
+        <View
+          style={[
+            styles.iconCircle,
+            currentNotif.type === 'approval_required' || currentNotif.type === 'error'
+              ? styles.iconCircleAlert
+              : styles.iconCircleDefault,
+          ]}
+        >
+          {renderIcon()}
+        </View>
+
         <View style={styles.textCol}>
           <Text style={styles.titleText} numberOfLines={1}>
             {currentNotif.title}
@@ -113,13 +123,17 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
             {currentNotif.body}
           </Text>
         </View>
-        <TouchableOpacity
-          style={styles.closeBtn}
-          onPress={handleDismiss}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <X size={14} color="#a3a3a3" />
-        </TouchableOpacity>
+
+        <View style={styles.rightActions}>
+          <ChevronRight size={14} color="#737373" />
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={handleDismiss}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={13} color="#a3a3a3" />
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -128,45 +142,51 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 48 : 16,
-    left: 12,
-    right: 12,
+    left: 14,
+    right: 14,
     zIndex: 9999,
     alignItems: 'center',
   },
   banner: {
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 440,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161616',
-    borderRadius: radii.md,
+    backgroundColor: 'rgba(22, 22, 22, 0.96)',
+    borderRadius: 22,
     borderWidth: 1,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.40,
+    shadowRadius: 14,
+    elevation: 10,
   },
   bannerDefault: {
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   bannerApproval: {
     borderColor: 'rgba(248, 81, 73, 0.45)',
-    backgroundColor: '#1c1517',
+    backgroundColor: 'rgba(28, 20, 22, 0.96)',
   },
   bannerError: {
     borderColor: 'rgba(248, 81, 73, 0.45)',
+    backgroundColor: 'rgba(28, 20, 22, 0.96)',
   },
   iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#262626',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
+  },
+  iconCircleDefault: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  iconCircleAlert: {
+    backgroundColor: 'rgba(248, 81, 73, 0.18)',
   },
   textCol: {
     flex: 1,
@@ -176,14 +196,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#fafafa',
+    letterSpacing: -0.2,
   },
   bodyText: {
     fontSize: 12,
-    color: '#d4d4d4',
+    color: '#a3a3a3',
     marginTop: 2,
     lineHeight: 16,
   },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   closeBtn: {
-    padding: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
