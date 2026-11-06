@@ -78,40 +78,40 @@ Scan the terminal QR code from your **Cloud Agent Mobile** app or enter the 6-ch
 
 ```mermaid
 flowchart TD
-    subgraph MobileClient ["Cloud Agent Mobile (apps/mobile)"]
-        MobileApp["Expo / React Native"]
-        Drawer["Machine & Workspace Drawer"]
-        TurnView["Live Turn & Tool Inspector"]
+    subgraph MobileClient ["Cloud Agent Mobile"]
+        MobileApp["Expo React Native App"]
+        Drawer["Machine and Workspace Switcher"]
+        TurnView["Live Turn and Tool Inspector"]
     end
 
-    subgraph GatewayHub ["Cloud Agent Gateway (apps/gateway)"]
-        GW["Gateway Server (:8080)"]
-        PairingService["Pairing & Auth Service"]
+    subgraph GatewayHub ["Cloud Agent Gateway"]
+        GW["Gateway Hub Port 8080"]
+        PairingService["Pairing and Auth Service"]
         TunnelService["Ephemeral Tunnel Proxy"]
-        ScriptServer["Installer Host (/install.sh, /install.ps1)"]
+        ScriptServer["Installer Script Host"]
     end
 
-    subgraph HostMachines ["Developer Machines / VPS (apps/daemon)"]
-        Daemon["Host Daemon ('ca')"]
+    subgraph HostMachines ["Developer Workstations / VPS"]
+        Daemon["Host Daemon ca"]
         PersistentPool["Warm Process Pool"]
-        AgyCLI["Google Antigravity ('agy')"]
-        LocalGit["Local Workspaces & Git Repos"]
+        AgyCLI["Google Antigravity CLI"]
+        LocalGit["Local Workspaces and Git Repos"]
     end
 
-    subgraph CloudIDE ["Cloud Web IDE & API (apps/web + apps/api)"]
-        WebIDE["React 19 Web IDE (:5173)"]
-        FastAPIApp["FastAPI Backend (:8000)"]
+    subgraph CloudIDE ["Cloud Web IDE and API"]
+        WebIDE["React 19 Web IDE Port 5173"]
+        FastAPIApp["FastAPI Backend Port 8000"]
         DockerDaemon["Docker Sandbox Containers"]
     end
 
-    MobileApp <-->|WebRTC DataChannel / WS| GW
-    GW <-->|Outbound WS (/daemon/ws)| Daemon
+    MobileApp <-->|WebRTC or WebSocket| GW
+    GW <-->|Outbound WebSocket| Daemon
     Daemon --> PersistentPool
     PersistentPool --> AgyCLI
     AgyCLI <--> LocalGit
     TunnelService <-->|Stream Dev Server| Daemon
 
-    WebIDE <-->|REST & Terminal WS| FastAPIApp
+    WebIDE <-->|REST and WebSocket| FastAPIApp
     FastAPIApp <--> DockerDaemon
 ```
 
