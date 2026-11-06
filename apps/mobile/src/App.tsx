@@ -30,14 +30,17 @@ function MainApp() {
   const isAuthenticated = useDaemonStore((s) => s.isAuthenticated);
   const isInitializingAuth = useDaemonStore((s) => s.isInitializingAuth);
   const token = useDaemonStore((s) => s.token);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   useEffect(() => {
     init();
     if (Platform.OS === 'android') {
       (StatusBar as any).setTranslucent?.(true);
       (StatusBar as any).setBackgroundColor?.('transparent');
+      StatusBar.setBarStyle(isLight ? 'dark-content' : 'light-content');
     }
-  }, [init]);
+  }, [init, isLight]);
 
   // Auto-reconnect and session reconciliation when app returns to foreground
   useEffect(() => {
@@ -89,68 +92,64 @@ function MainApp() {
     })
   ).current;
 
-  // While restoring persisted auth session from storage, prevent flash of AuthScreen
-  if (isInitializingAuth) {
-    return (
-      <View style={[styles.rootContainer, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ExpoStatusBar style="light" />
-        <ActivityIndicator size="small" color="#fafafa" />
-      </View>
-    );
-  }
-
-  // If not authenticated, present the clean AuthScreen
-  if (!isAuthenticated && !token) {
-    return (
-      <View style={styles.rootContainer}>
-        <ExpoStatusBar style="light" />
-        <AuthScreen />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.rootContainer}>
-      <ExpoStatusBar style="light" />
+    <View style={[styles.rootContainer, isLight && { backgroundColor: '#ffffff' }]}>
+      <ExpoStatusBar style={isLight ? "dark" : "light"} />
 
-      {/* Main Screens with edge swipe gesture support */}
-      <View style={styles.screenContainer} {...edgeSwipePanResponder.panHandlers}>
-        {currentScreen === 'agent' && (
-          <AgentTurnScreen
-            onBack={() => setIsDrawerOpen(true)}
-            onOpenDrawer={() => setIsDrawerOpen(true)}
-            onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
-          />
-        )}
-        {currentScreen === 'health' && (
-          <MachineHealthScreen
-            onBack={() => setCurrentScreen('agent')}
-            onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
-          />
-        )}
-        {currentScreen === 'approvals' && (
-          <ApprovalsScreen
-            onBack={() => setCurrentScreen('agent')}
-            onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
-          />
-        )}
-        {currentScreen === 'sessions' && (
-          <SessionsScreen
-            onBack={() => setCurrentScreen('agent')}
-            onSelectSession={() => setCurrentScreen('agent')}
-          />
-        )}
-      </View>
+      {isInitializingAuth ? (
+        <View style={[styles.rootContainer, { alignItems: 'center', justifyContent: 'center' }]}>
+          <ActivityIndicator size="small" color={isLight ? "#0077b6" : "#fafafa"} />
+        </View>
+      ) : !isAuthenticated && !token ? (
+        <AuthScreen />
+      ) : (
+        <>
+          {/* Main Screens with edge swipe gesture support */}
+          <View
+            style={[
+              styles.screenContainer,
+              isLight && { backgroundColor: '#f6f8fa' },
+            ]}
+            {...edgeSwipePanResponder.panHandlers}
+          >
+            {currentScreen === 'agent' && (
+              <AgentTurnScreen
+                onBack={() => setIsDrawerOpen(true)}
+                onOpenDrawer={() => setIsDrawerOpen(true)}
+                onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
+              />
+            )}
+            {currentScreen === 'health' && (
+              <MachineHealthScreen
+                onBack={() => setCurrentScreen('agent')}
+                onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
+              />
+            )}
+            {currentScreen === 'approvals' && (
+              <ApprovalsScreen
+                onBack={() => setCurrentScreen('agent')}
+                onNavigateTab={(tab) => setCurrentScreen(tab as AppScreen)}
+              />
+            )}
+            {currentScreen === 'sessions' && (
+              <SessionsScreen
+                onBack={() => setCurrentScreen('agent')}
+                onSelectSession={() => setCurrentScreen('agent')}
+              />
+            )}
+          </View>
 
-      {/* Swipeable Sidebar Drawer */}
-      <SidebarDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        currentScreen={currentScreen}
-        onNavigateScreen={(screen) => setCurrentScreen(screen)}
-      />
+          {/* Swipeable Sidebar Drawer */}
+          <SidebarDrawer
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+            currentScreen={currentScreen}
+            onNavigateScreen={(screen) => setCurrentScreen(screen)}
+          />
+        </>
+      )}
 
-      {/* Global In-App Notification Toast */}
+      {/* Global In-App Notification Toast (Mounted across All Screens, Auth & Modals) */}
       <NotificationBanner onNavigate={(screen) => setCurrentScreen(screen)} />
     </View>
   );

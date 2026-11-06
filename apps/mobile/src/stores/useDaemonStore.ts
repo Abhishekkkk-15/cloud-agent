@@ -321,9 +321,12 @@ interface DaemonStoreState {
   githubStatus: GithubAuthStatus | null;
   isCheckingGithub: boolean;
   isSavingGithubToken: boolean;
+  theme: 'dark' | 'light';
 
   // Actions
   init: () => Promise<void>;
+  setTheme: (theme: 'dark' | 'light') => void;
+  toggleTheme: () => void;
   registerPushNotifications: () => Promise<void>;
   triggerTestPushNotification: () => Promise<{ success: boolean; message: string }>;
   openAutoHealerProposal: (proposal: AutoHealerProposal) => void;
@@ -428,6 +431,18 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   githubStatus: null,
   isCheckingGithub: false,
   isSavingGithubToken: false,
+  theme: 'dark',
+
+  setTheme: (theme: 'dark' | 'light') => {
+    set({ theme });
+    AsyncStorage.setItem('cloud_agent_theme', theme).catch(() => {});
+  },
+
+  toggleTheme: () => {
+    const next = get().theme === 'light' ? 'dark' : 'light';
+    set({ theme: next });
+    AsyncStorage.setItem('cloud_agent_theme', next).catch(() => {});
+  },
 
   openAutoHealerProposal: (proposal: AutoHealerProposal) => {
     set({
@@ -683,6 +698,16 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   init: async () => {
     const { apiUrl, gatewayUrl } = get();
+
+    // Restore persisted theme
+    try {
+      const savedTheme = await AsyncStorage.getItem('cloud_agent_theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        set({ theme: savedTheme });
+      }
+    } catch {
+      // ignore
+    }
 
     // Initialize notification channels and request permission immediately on app startup
     get().registerPushNotifications().catch(() => {});

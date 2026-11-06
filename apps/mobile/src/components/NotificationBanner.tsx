@@ -5,8 +5,10 @@ import {
   StyleSheet,
   Animated,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   Platform,
   StatusBar,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sparkles, ShieldAlert, AlertTriangle, Check, X, ChevronRight } from './Icons';
@@ -27,6 +29,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
   useEffect(() => {
     const unsubscribe = onInAppNotification((payload) => {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      translateY.setValue(-160);
       setCurrentNotif(payload);
 
       Animated.spring(translateY, {
@@ -57,6 +60,10 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
   };
 
   const handleDismiss = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
     Animated.timing(translateY, {
       toValue: -160,
       duration: 200,
@@ -82,64 +89,82 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
   };
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          top: topInset + (Platform.OS === 'ios' ? 8 : 10),
-          transform: [{ translateY }],
-        },
-      ]}
-      pointerEvents="box-none"
+    <Modal
+      visible={Boolean(currentNotif)}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={handleDismiss}
     >
-      <TouchableOpacity
-        style={[
-          styles.banner,
-          currentNotif.type === 'approval_required'
-            ? styles.bannerApproval
-            : currentNotif.type === 'error'
-            ? styles.bannerError
-            : styles.bannerDefault,
-        ]}
-        activeOpacity={0.88}
-        onPress={handleBannerPress}
-      >
-        <View
+      <View style={styles.modalBackdrop}>
+        <TouchableWithoutFeedback onPress={handleDismiss}>
+          <View style={StyleSheet.absoluteFill} />
+        </TouchableWithoutFeedback>
+
+        <Animated.View
           style={[
-            styles.iconCircle,
-            currentNotif.type === 'approval_required' || currentNotif.type === 'error'
-              ? styles.iconCircleAlert
-              : styles.iconCircleDefault,
+            styles.container,
+            {
+              top: topInset + (Platform.OS === 'ios' ? 8 : 10),
+              transform: [{ translateY }],
+            },
           ]}
+          pointerEvents="box-none"
         >
-          {renderIcon()}
-        </View>
-
-        <View style={styles.textCol}>
-          <Text style={styles.titleText} numberOfLines={1}>
-            {currentNotif.title}
-          </Text>
-          <Text style={styles.bodyText} numberOfLines={2}>
-            {currentNotif.body}
-          </Text>
-        </View>
-
-        <View style={styles.rightActions}>
-          <ChevronRight size={14} color="#737373" />
           <TouchableOpacity
-            style={styles.closeBtn}
-            onPress={handleDismiss}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={[
+              styles.banner,
+              currentNotif.type === 'approval_required'
+                ? styles.bannerApproval
+                : currentNotif.type === 'error'
+                ? styles.bannerError
+                : styles.bannerDefault,
+            ]}
+            activeOpacity={0.88}
+            onPress={handleBannerPress}
           >
-            <X size={13} color="#a3a3a3" />
+            <View
+              style={[
+                styles.iconCircle,
+                currentNotif.type === 'approval_required' || currentNotif.type === 'error'
+                  ? styles.iconCircleAlert
+                  : styles.iconCircleDefault,
+              ]}
+            >
+              {renderIcon()}
+            </View>
+
+            <View style={styles.textCol}>
+              <Text style={styles.titleText} numberOfLines={1}>
+                {currentNotif.title}
+              </Text>
+              <Text style={styles.bodyText} numberOfLines={2}>
+                {currentNotif.body}
+              </Text>
+            </View>
+
+            <View style={styles.rightActions}>
+              <ChevronRight size={14} color="#737373" />
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={handleDismiss}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={13} color="#a3a3a3" />
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
   container: {
     position: 'absolute',
     left: 14,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { colors, radii, typography } from '../theme/tokens';
+import { useDaemonStore } from '../stores/useDaemonStore';
 import { DiffViewer } from './DiffViewer';
 import {
   Copy,
@@ -109,6 +110,8 @@ type ContentBlock =
 
 export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser = false }) => {
   const safeContent = typeof content === 'string' ? content : String(content ?? '');
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   if (!safeContent.trim()) {
     return null;
@@ -141,19 +144,20 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser
                 key={idx}
                 style={[
                   styles.headerText,
-                  block.level === 1 && styles.h1,
+                  isLight && { color: '#1f2328' },
+                  block.level === 1 && [styles.h1, isLight && { borderBottomColor: '#d0d7de' }],
                   block.level === 2 && styles.h2,
                   block.level >= 3 && styles.h3,
                   isUser && { color: '#ffffff' },
                 ]}
               >
-                {renderInline(block.text, isUser)}
+                {renderInline(block.text, isUser, isLight)}
               </Text>
             );
           case 'quote':
             return (
-              <View key={idx} style={styles.quoteBox}>
-                <Text style={styles.quoteText}>{renderInline(block.text, isUser)}</Text>
+              <View key={idx} style={[styles.quoteBox, isLight && { borderLeftColor: '#0077b6' }]}>
+                <Text style={[styles.quoteText, isLight && { color: '#57606a' }]}>{renderInline(block.text, isUser, isLight)}</Text>
               </View>
             );
           case 'list':
@@ -161,11 +165,11 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser
               <View key={idx} style={styles.listBox}>
                 {block.items.map((item, itemIdx) => (
                   <View key={itemIdx} style={styles.listItemRow}>
-                    <Text style={[styles.listBullet, isUser && { color: '#ffffff' }]}>
+                    <Text style={[styles.listBullet, isLight && { color: '#57606a' }, isUser && { color: '#ffffff' }]}>
                       {block.ordered ? `${itemIdx + 1}.` : '•'}
                     </Text>
-                    <Text style={[styles.listItemText, isUser && { color: '#ffffff' }]}>
-                      {renderInline(item, isUser)}
+                    <Text style={[styles.listItemText, isLight && { color: '#1f2328' }, isUser && { color: '#ffffff' }]}>
+                      {renderInline(item, isUser, isLight)}
                     </Text>
                   </View>
                 ))}
@@ -174,8 +178,8 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser
           case 'paragraph':
           default:
             return (
-              <Text key={idx} style={[styles.paragraphText, isUser && { color: '#ffffff' }]}>
-                {renderInline(block.text, isUser)}
+              <Text key={idx} style={[styles.paragraphText, isLight && { color: '#1f2328' }, isUser && { color: '#ffffff' }]}>
+                {renderInline(block.text, isUser, isLight)}
               </Text>
             );
         }
@@ -221,6 +225,8 @@ export const JsonViewer: React.FC<{
 }> = ({ data, rawString, title = 'JSON', maxInitialLines = 14 }) => {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   let formatted = '';
   try {
@@ -260,10 +266,10 @@ export const JsonViewer: React.FC<{
       const valStr = kvMatch[2];
       return (
         <View key={index} style={styles.jsonLineRow}>
-          <Text style={styles.jsonLineNumber}>{index + 1}</Text>
+          <Text style={[styles.jsonLineNumber, isLight && { color: '#8c959f' }]}>{index + 1}</Text>
           <Text style={styles.jsonIndent}>{indent}</Text>
-          <Text style={styles.jsonKey}>{keyStr}</Text>
-          <Text style={styles.jsonPunctuation}>: </Text>
+          <Text style={[styles.jsonKey, isLight && { color: '#0969da' }]}>{keyStr}</Text>
+          <Text style={[styles.jsonPunctuation, isLight && { color: '#24292f' }]}>: </Text>
           {renderJsonValue(valStr)}
         </View>
       );
@@ -271,7 +277,7 @@ export const JsonViewer: React.FC<{
 
     return (
       <View key={index} style={styles.jsonLineRow}>
-        <Text style={styles.jsonLineNumber}>{index + 1}</Text>
+        <Text style={[styles.jsonLineNumber, isLight && { color: '#8c959f' }]}>{index + 1}</Text>
         <Text style={styles.jsonIndent}>{indent}</Text>
         {renderJsonValue(trimmed)}
       </View>
@@ -281,31 +287,31 @@ export const JsonViewer: React.FC<{
   const renderJsonValue = (val: string) => {
     // Strings in double quotes
     if (val.startsWith('"') && (val.endsWith('"') || val.endsWith('",'))) {
-      return <Text style={styles.jsonString}>{val}</Text>;
+      return <Text style={[styles.jsonString, isLight && { color: '#0a3069' }]}>{val}</Text>;
     }
     // Numbers
     if (/^-?\d+(\.\d+)?(e[+-]?\d+)?,?$/i.test(val)) {
-      return <Text style={styles.jsonNumber}>{val}</Text>;
+      return <Text style={[styles.jsonNumber, isLight && { color: '#0550ae' }]}>{val}</Text>;
     }
     // Booleans
     if (/^(true|false),?$/i.test(val)) {
-      return <Text style={styles.jsonBoolean}>{val}</Text>;
+      return <Text style={[styles.jsonBoolean, isLight && { color: '#0550ae' }]}>{val}</Text>;
     }
     // Null
     if (/^null,?$/i.test(val)) {
-      return <Text style={styles.jsonNull}>{val}</Text>;
+      return <Text style={[styles.jsonNull, isLight && { color: '#6e7681' }]}>{val}</Text>;
     }
     // Structural braces/brackets
-    return <Text style={styles.jsonPunctuation}>{val}</Text>;
+    return <Text style={[styles.jsonPunctuation, isLight && { color: '#24292f' }]}>{val}</Text>;
   };
 
   return (
-    <View style={styles.codeContainer}>
-      <View style={styles.codeHeader}>
+    <View style={[styles.codeContainer, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
+      <View style={[styles.codeHeader, isLight && { backgroundColor: '#eaedf1', borderBottomColor: '#d0d7de' }]}>
         <View style={styles.codeHeaderLeft}>
-          <FileCode size={12} color={colors.primary} />
-          <Text style={styles.codeLangText}>{title}</Text>
-          <Text style={styles.jsonLineCountBadge}>{lines.length} lines</Text>
+          <FileCode size={12} color={isLight ? '#0077b6' : colors.primary} />
+          <Text style={[styles.codeLangText, isLight && { color: '#1f2328' }]}>{title}</Text>
+          <Text style={[styles.jsonLineCountBadge, isLight && { backgroundColor: '#e1e4e8', color: '#57606a' }]}>{lines.length} lines</Text>
         </View>
         <TouchableOpacity style={styles.copyBtn} onPress={handleCopy} activeOpacity={0.7}>
           {copied ? (
@@ -315,8 +321,8 @@ export const JsonViewer: React.FC<{
             </>
           ) : (
             <>
-              <Copy size={12} color={colors.textMuted} />
-              <Text style={styles.copyBtnText}>Copy</Text>
+              <Copy size={12} color={isLight ? '#57606a' : colors.textMuted} />
+              <Text style={[styles.copyBtnText, isLight && { color: '#57606a' }]}>Copy</Text>
             </>
           )}
         </TouchableOpacity>
@@ -330,19 +336,19 @@ export const JsonViewer: React.FC<{
 
       {isTruncatable ? (
         <TouchableOpacity
-          style={styles.expandJsonBtn}
+          style={[styles.expandJsonBtn, isLight && { backgroundColor: '#f6f8fa', borderTopColor: '#d0d7de' }]}
           onPress={() => setIsExpanded(!isExpanded)}
           activeOpacity={0.7}
         >
           {isExpanded ? (
             <>
-              <ChevronUp size={13} color={colors.primary} />
-              <Text style={styles.expandJsonText}>Collapse ({lines.length} lines)</Text>
+              <ChevronUp size={13} color={isLight ? '#0077b6' : colors.primary} />
+              <Text style={[styles.expandJsonText, isLight && { color: '#0077b6' }]}>Collapse ({lines.length} lines)</Text>
             </>
           ) : (
             <>
-              <ChevronDown size={13} color={colors.primary} />
-              <Text style={styles.expandJsonText}>
+              <ChevronDown size={13} color={isLight ? '#0077b6' : colors.primary} />
+              <Text style={[styles.expandJsonText, isLight && { color: '#0077b6' }]}>
                 Show full JSON (+{lines.length - maxInitialLines} more lines)
               </Text>
             </>
@@ -356,38 +362,40 @@ export const JsonViewer: React.FC<{
 const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
   const folders = block.items.filter((i) => i.isDir);
   const files = block.items.filter((i) => !i.isDir);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   return (
-    <View style={styles.dirContainer}>
-      <View style={styles.dirHeader}>
+    <View style={[styles.dirContainer, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
+      <View style={[styles.dirHeader, isLight && { backgroundColor: '#f6f8fa', borderBottomColor: '#d0d7de' }]}>
         <View style={styles.dirHeaderLeft}>
-          <Folder size={14} color={colors.primary} />
-          <Text style={styles.dirTitle}>Workspace Directory</Text>
+          <Folder size={14} color={isLight ? '#0077b6' : colors.primary} />
+          <Text style={[styles.dirTitle, isLight && { color: '#1f2328' }]}>Workspace Directory</Text>
         </View>
-        <Text style={styles.dirSummary}>
+        <Text style={[styles.dirSummary, isLight && { color: '#6e7681' }]}>
           {folders.length} folders • {files.length} files
         </Text>
       </View>
       <View style={styles.dirBody}>
         {folders.map((item, idx) => (
-          <View key={`dir_${idx}`} style={styles.dirRow}>
+          <View key={`dir_${idx}`} style={[styles.dirRow, isLight && { borderBottomColor: '#e1e4e8' }]}>
             <View style={styles.dirRowLeft}>
-              <Folder size={13} color={colors.primary} />
-              <Text style={styles.dirFolderName}>{item.name}</Text>
+              <Folder size={13} color={isLight ? '#0077b6' : colors.primary} />
+              <Text style={[styles.dirFolderName, isLight && { color: '#1f2328' }]}>{item.name}</Text>
             </View>
-            <View style={styles.dirBadge}>
-              <Text style={styles.dirBadgeText}>dir</Text>
+            <View style={[styles.dirBadge, isLight && { backgroundColor: 'rgba(0, 119, 182, 0.1)', borderColor: 'rgba(0, 119, 182, 0.3)' }]}>
+              <Text style={[styles.dirBadgeText, isLight && { color: '#0077b6' }]}>dir</Text>
             </View>
           </View>
         ))}
         {files.map((item, idx) => (
-          <View key={`file_${idx}`} style={styles.dirRow}>
+          <View key={`file_${idx}`} style={[styles.dirRow, isLight && { borderBottomColor: '#e1e4e8' }]}>
             <View style={styles.dirRowLeft}>
-              <FileText size={13} color="#a3a3a3" />
-              <Text style={styles.dirFileName}>{item.name}</Text>
+              <FileText size={13} color={isLight ? '#57606a' : '#a3a3a3'} />
+              <Text style={[styles.dirFileName, isLight && { color: '#57606a' }]}>{item.name}</Text>
             </View>
             {item.sizeBytes ? (
-              <Text style={styles.dirFileSize}>{formatBytes(item.sizeBytes)}</Text>
+              <Text style={[styles.dirFileSize, isLight && { color: '#8c959f' }]}>{formatBytes(item.sizeBytes)}</Text>
             ) : null}
           </View>
         ))}
@@ -398,22 +406,24 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
 
 const FileHeaderView: React.FC<{ block: FileHeaderBlock }> = ({ block }) => {
   const fileName = block.path.split(/[\\/]/).pop() || block.path;
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   return (
-    <View style={styles.fileHeaderBanner}>
+    <View style={[styles.fileHeaderBanner, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
       <View style={styles.fileHeaderLeft}>
-        <FileText size={14} color={colors.primary} />
-        <Text style={styles.fileHeaderName}>{fileName}</Text>
-        <Text style={styles.fileHeaderPath} numberOfLines={1}>
+        <FileText size={14} color={isLight ? '#0077b6' : colors.primary} />
+        <Text style={[styles.fileHeaderName, isLight && { color: '#1f2328' }]}>{fileName}</Text>
+        <Text style={[styles.fileHeaderPath, isLight && { color: '#6e7681' }]} numberOfLines={1}>
           {block.path}
         </Text>
       </View>
       <View style={styles.fileHeaderMetaBadge}>
         {block.totalLines ? (
-          <Text style={styles.fileHeaderMetaText}>{block.totalLines} lines</Text>
+          <Text style={[styles.fileHeaderMetaText, isLight && { color: '#6e7681' }]}>{block.totalLines} lines</Text>
         ) : null}
         {block.totalBytes ? (
-          <Text style={styles.fileHeaderMetaText}>
+          <Text style={[styles.fileHeaderMetaText, isLight && { color: '#6e7681' }]}>
             {' '}• {formatBytes(block.totalBytes)}
           </Text>
         ) : null}
@@ -423,48 +433,51 @@ const FileHeaderView: React.FC<{ block: FileHeaderBlock }> = ({ block }) => {
 };
 
 const AlertBlockView: React.FC<{ block: AlertBlock }> = ({ block }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   const getAlertProps = (variant: AlertBlock['variant']) => {
     switch (variant) {
       case 'tip':
         return {
           title: 'Tip',
           borderColor: colors.green,
-          titleColor: colors.green,
+          titleColor: isLight ? '#1a7f37' : colors.green,
           bgColor: colors.greenSubtle,
-          icon: <Sparkles size={14} color={colors.green} />,
+          icon: <Sparkles size={14} color={isLight ? '#1a7f37' : colors.green} />,
         };
       case 'important':
         return {
           title: 'Important',
           borderColor: colors.green,
-          titleColor: colors.green,
+          titleColor: isLight ? '#1a7f37' : colors.green,
           bgColor: colors.greenSubtle,
-          icon: <AlertTriangle size={14} color={colors.green} />,
+          icon: <AlertTriangle size={14} color={isLight ? '#1a7f37' : colors.green} />,
         };
       case 'warning':
         return {
           title: 'Warning',
           borderColor: '#d29922',
-          titleColor: '#e3b341',
+          titleColor: isLight ? '#9a6700' : '#e3b341',
           bgColor: 'rgba(210, 153, 34, 0.15)',
-          icon: <AlertTriangle size={14} color="#e3b341" />,
+          icon: <AlertTriangle size={14} color={isLight ? '#9a6700' : '#e3b341'} />,
         };
       case 'caution':
         return {
           title: 'Caution',
           borderColor: colors.red,
-          titleColor: colors.red,
+          titleColor: isLight ? '#cf222e' : colors.red,
           bgColor: colors.redSubtle,
-          icon: <ShieldAlert size={14} color={colors.red} />,
+          icon: <ShieldAlert size={14} color={isLight ? '#cf222e' : colors.red} />,
         };
       case 'note':
       default:
         return {
           title: 'Note',
-          borderColor: colors.borderDefault,
-          titleColor: colors.textSecondary,
+          borderColor: isLight ? '#0077b6' : colors.borderDefault,
+          titleColor: isLight ? '#0077b6' : colors.textSecondary,
           bgColor: colors.bgHover,
-          icon: <Sparkles size={14} color={colors.green} />,
+          icon: <Sparkles size={14} color={isLight ? '#0077b6' : colors.green} />,
         };
     }
   };
@@ -472,34 +485,38 @@ const AlertBlockView: React.FC<{ block: AlertBlock }> = ({ block }) => {
   const alertProps = getAlertProps(block.variant);
 
   return (
-    <View style={[styles.alertContainer, { borderLeftColor: alertProps.borderColor }]}>
+    <View style={[styles.alertContainer, { borderLeftColor: alertProps.borderColor }, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
       <View style={styles.alertHeader}>
         {alertProps.icon}
         <Text style={[styles.alertTitle, { color: alertProps.titleColor }]}>
           {alertProps.title}
         </Text>
       </View>
-      <Text style={styles.alertBody}>{renderInline(block.text, false)}</Text>
+      <Text style={[styles.alertBody, isLight && { color: '#24292f' }]}>{renderInline(block.text, false, isLight)}</Text>
     </View>
   );
 };
 
 const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   return (
-    <View style={styles.tableWrapper}>
+    <View style={[styles.tableWrapper, isLight && { borderColor: '#d0d7de' }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.tableContainer}>
+        <View style={[styles.tableContainer, isLight && { backgroundColor: '#ffffff' }]}>
           {/* Table Header */}
-          <View style={styles.tableHeaderRow}>
+          <View style={[styles.tableHeaderRow, isLight && { backgroundColor: '#f6f8fa', borderBottomColor: '#d0d7de' }]}>
             {block.headers.map((header, colIdx) => (
               <View
                 key={colIdx}
                 style={[
                   styles.tableHeaderCell,
+                  isLight && { borderRightColor: '#d0d7de' },
                   colIdx === block.headers.length - 1 && { borderRightWidth: 0 },
                 ]}
               >
-                <Text style={styles.tableHeaderText}>{renderInline(header, false)}</Text>
+                <Text style={[styles.tableHeaderText, isLight && { color: '#1f2328' }]}>{renderInline(header, false, isLight)}</Text>
               </View>
             ))}
           </View>
@@ -510,7 +527,8 @@ const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
               key={rowIdx}
               style={[
                 styles.tableRow,
-                rowIdx % 2 === 1 && styles.tableRowAlt,
+                isLight && { borderBottomColor: '#e1e4e8' },
+                rowIdx % 2 === 1 && (isLight ? { backgroundColor: '#f6f8fa' } : styles.tableRowAlt),
                 rowIdx === block.rows.length - 1 && { borderBottomWidth: 0 },
               ]}
             >
@@ -519,10 +537,11 @@ const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
                   key={colIdx}
                   style={[
                     styles.tableCell,
+                    isLight && { borderRightColor: '#e1e4e8' },
                     colIdx === row.length - 1 && { borderRightWidth: 0 },
                   ]}
                 >
-                  <Text style={styles.tableCellText}>{renderInline(cell, false)}</Text>
+                  <Text style={[styles.tableCellText, isLight && { color: '#24292f' }]}>{renderInline(cell, false, isLight)}</Text>
                 </View>
               ))}
             </View>
@@ -535,6 +554,8 @@ const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
 
 const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) => {
   const [copied, setCopied] = useState(false);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const isSuccess = block.exitCode === 0;
 
   const handleCopy = () => {
@@ -546,11 +567,11 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
   };
 
   return (
-    <View style={styles.commandOutputContainer}>
-      <View style={styles.commandOutputHeader}>
+    <View style={[styles.commandOutputContainer, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
+      <View style={[styles.commandOutputHeader, isLight && { backgroundColor: '#eaedf1', borderBottomColor: '#d0d7de' }]}>
         <View style={styles.codeHeaderLeft}>
-          <Terminal size={12} color="#ffffff" />
-          <Text style={styles.codeLangText}>TERMINAL OUTPUT</Text>
+          <Terminal size={12} color={isLight ? '#1f2328' : '#ffffff'} />
+          <Text style={[styles.codeLangText, isLight && { color: '#1f2328' }]}>TERMINAL OUTPUT</Text>
           <View
             style={[
               styles.exitCodeBadge,
@@ -576,8 +597,8 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
             </>
           ) : (
             <>
-              <Copy size={12} color={colors.textMuted} />
-              <Text style={styles.copyBtnText}>Copy</Text>
+              <Copy size={12} color={isLight ? '#57606a' : colors.textMuted} />
+              <Text style={[styles.copyBtnText, isLight && { color: '#57606a' }]}>Copy</Text>
             </>
           )}
         </TouchableOpacity>
@@ -585,7 +606,7 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.codeBody}>
-          <Text style={styles.codeText} selectable>
+          <Text style={[styles.codeText, isLight && { color: '#1f2328' }]} selectable>
             {block.output}
           </Text>
         </View>
@@ -596,6 +617,8 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
 
 const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
   const [copied, setCopied] = useState(false);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   // If the language is JSON or the code string is valid JSON, render with JsonViewer
   const isJsonLang = block.language && block.language.toLowerCase() === 'json';
@@ -625,11 +648,11 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
   const lines = block.code.split(/\r?\n/);
 
   return (
-    <View style={styles.codeContainer}>
-      <View style={styles.codeHeader}>
+    <View style={[styles.codeContainer, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
+      <View style={[styles.codeHeader, isLight && { backgroundColor: '#eaedf1', borderBottomColor: '#d0d7de' }]}>
         <View style={styles.codeHeaderLeft}>
-          <Terminal size={12} color="#ffffff" />
-          <Text style={styles.codeLangText}>
+          <Terminal size={12} color={isLight ? '#57606a' : '#ffffff'} />
+          <Text style={[styles.codeLangText, isLight && { color: '#57606a' }]}>
             {block.language ? block.language.toUpperCase() : 'CODE'}
           </Text>
         </View>
@@ -641,8 +664,8 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
             </>
           ) : (
             <>
-              <Copy size={12} color={colors.textMuted} />
-              <Text style={styles.copyBtnText}>Copy</Text>
+              <Copy size={12} color={isLight ? '#57606a' : colors.textMuted} />
+              <Text style={[styles.copyBtnText, isLight && { color: '#57606a' }]}>Copy</Text>
             </>
           )}
         </TouchableOpacity>
@@ -666,6 +689,7 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
                   <Text
                     style={[
                       styles.codeText,
+                      isLight && { color: '#1f2328' },
                       isAdd && { color: colors.green },
                       isSub && { color: colors.red },
                     ]}
@@ -677,7 +701,7 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
               );
             })
           ) : (
-            <Text style={styles.codeText} selectable>
+            <Text style={[styles.codeText, isLight && { color: '#1f2328' }]} selectable>
               {block.code}
             </Text>
           )}
@@ -1096,7 +1120,7 @@ function parseBlocks(rawText: string): ContentBlock[] {
 /**
  * Parses inline elements: `inline code`, **bold**, *italic*, and [link](url).
  */
-function renderInline(text: string, isUser: boolean): React.ReactNode {
+function renderInline(text: string, isUser = false, isLight = false): React.ReactNode {
   const regex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
   const parts = text.split(regex);
 
@@ -1114,9 +1138,18 @@ function renderInline(text: string, isUser: boolean): React.ReactNode {
           key={index}
           style={[
             styles.inlineCode,
-            isUser ? styles.inlineCodeUser : styles.inlineCodeAssistant,
-            isCommitHash && styles.commitHashBadge,
-            isFilePath && styles.filePathBadge,
+            isUser
+              ? styles.inlineCodeUser
+              : [
+                  styles.inlineCodeAssistant,
+                  isLight && {
+                    backgroundColor: '#afb8c133',
+                    color: '#1f2328',
+                    borderColor: '#d0d7de',
+                  },
+                ],
+            isCommitHash && [styles.commitHashBadge, isLight && { color: '#0077b6' }],
+            isFilePath && [styles.filePathBadge, isLight && { color: '#1f2328' }],
           ]}
         >
           {codeSnippet}
@@ -1128,7 +1161,14 @@ function renderInline(text: string, isUser: boolean): React.ReactNode {
     if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
       const boldText = part.slice(2, -2);
       return (
-        <Text key={index} style={[styles.boldText, isUser && { color: '#ffffff' }]}>
+        <Text
+          key={index}
+          style={[
+            styles.boldText,
+            isLight && { color: '#1f2328' },
+            isUser && { color: '#ffffff' },
+          ]}
+        >
           {boldText}
         </Text>
       );
@@ -1138,7 +1178,7 @@ function renderInline(text: string, isUser: boolean): React.ReactNode {
     if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
       const italicText = part.slice(1, -1);
       return (
-        <Text key={index} style={styles.italicText}>
+        <Text key={index} style={[styles.italicText, isLight && { color: '#57606a' }]}>
           {italicText}
         </Text>
       );
@@ -1148,7 +1188,7 @@ function renderInline(text: string, isUser: boolean): React.ReactNode {
     const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
     if (linkMatch) {
       return (
-        <Text key={index} style={styles.linkText}>
+        <Text key={index} style={[styles.linkText, isLight && { color: '#0077b6' }]}>
           {linkMatch[1]}
         </Text>
       );

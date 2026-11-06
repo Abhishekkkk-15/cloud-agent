@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
   StatusBar,
   Modal,
 } from 'react-native';
@@ -46,7 +47,7 @@ import {
   Pencil,
   Trash2,
 } from '../components/Icons';
-import { colors, radii, typography } from '../theme/tokens';
+import { colors, radii, typography, getThemeColors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from '../components/MarkdownText';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
@@ -107,6 +108,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const fetchSessionArtifacts = useDaemonStore((s) => s.fetchSessionArtifacts);
   const isAutoHealerModalVisible = useDaemonStore((s) => s.isAutoHealerModalVisible);
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   const [promptInput, setPromptInput] = useState('');
   const [showCommandPicker, setShowCommandPicker] = useState(false);
@@ -121,6 +124,29 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [isRespondingApproval, setIsRespondingApproval] = useState(false);
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 60);
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const handleSaveRename = async () => {
     if (!activeSession || !renameTitle.trim() || isSavingRename) return;
@@ -138,15 +164,95 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState<boolean>(false);
+  const scrollViewRef = useRef<any>(null);
 
+  // Auto-scrolling state & throttle controls during live agent writing
+  const isAutoScrollPausedRef = useRef<boolean>(false);
+  const [isAutoScrollPaused, setIsAutoScrollPaused] = useState<boolean>(false);
+  const lastScrollTimeRef = useRef<number>(0);
+  const scrollTimeoutRef = useRef<any>(null);
+
+  const pauseAutoScroll = () => {
+    if (isSendingPrompt && !isAutoScrollPausedRef.current) {
+      isAutoScrollPausedRef.current = true;
+      setIsAutoScrollPaused(true);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+    }
+  };
+
+  const resumeAutoScroll = () => {
+    if (isAutoScrollPausedRef.current) {
+      isAutoScrollPausedRef.current = false;
+      setIsAutoScrollPaused(false);
+    }
+  };
+
+  const triggerAutoScroll = () => {
+    if (!isSendingPrompt || isAutoScrollPausedRef.current) return;
+    const now = Date.now();
+    // Throttle to 50ms so rapid stream chunks scroll smoothly without JS thread choking
+    if (now - lastScrollTimeRef.current < 50) {
+      if (!scrollTimeoutRef.current) {
+        scrollTimeoutRef.current = setTimeout(() => {
+          scrollTimeoutRef.current = null;
+          if (isSendingPrompt && !isAutoScrollPausedRef.current) {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+            lastScrollTimeRef.current = Date.now();
+          }
+        }, 50);
+      }
+      return;
+    }
+    lastScrollTimeRef.current = now;
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  };
 
   const handleScroll = (event: any) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
     const isScrolledUp = distanceFromBottom > 140 && contentOffset.y > 60;
     setShowScrollToBottom(isScrolledUp);
+
+    // If user scrolled back down near the bottom (within 45px), resume auto-scroll
+    if (distanceFromBottom <= 45) {
+      resumeAutoScroll();
+    } else if (distanceFromBottom > 80 && isSendingPrompt) {
+      // User scrolled up away from the bottom while agent is writing
+      pauseAutoScroll();
+    }
   };
-  const scrollViewRef = useRef<any>(null);
+
+  const handleScrollToBottom = () => {
+    resumeAutoScroll();
+    scrollViewRef.current?.scrollToEnd({ animated: true });
+  };
+
+  // Reset auto-scroll pause when prompt execution finishes
+  useEffect(() => {
+    if (!isSendingPrompt) {
+      resumeAutoScroll();
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+        scrollTimeoutRef.current = null;
+      }
+    }
+  }, [isSendingPrompt]);
+
+  // When new messages or streaming chunks update, auto-scroll to latest token if not paused by user
+  const lastMsg = sessionMessages[sessionMessages.length - 1];
+  const lastMsgLen =
+    (typeof lastMsg?.content === 'string' ? lastMsg.content.length : 0) +
+    (typeof lastMsg?.reasoning === 'string' ? lastMsg.reasoning.length : 0) +
+    (lastMsg?.toolCalls?.length || 0);
+
+  useEffect(() => {
+    if (isSendingPrompt && !isAutoScrollPausedRef.current) {
+      triggerAutoScroll();
+    }
+  }, [sessionMessages.length, lastMsgLen, isSendingPrompt]);
 
   const isTurnOpen = (turnId: string) => openTurnAccordions[turnId] ?? true;
 
@@ -226,14 +332,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     }
 
     setPromptInput('');
+    resumeAutoScroll();
     await sendPrompt(text);
     setTimeout(() => {
       scrollViewRef.current?.scrollToEnd({ animated: true });
     }, 150);
-  };
-
-  const handleScrollToBottom = () => {
-    scrollViewRef.current?.scrollToEnd({ animated: true });
   };
 
   const formatTimeAgo = (isoDate?: string) => {
@@ -433,8 +536,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   return (
-    <View style={styles.container}>
-      {/* 1. Floating Capsule Header (Option 3: No borders, floating pill islands) */}
+    <View style={[styles.container, isLight && { backgroundColor: '#f6f8fa' }]}>
+      {/* 1. Floating Capsule Header */}
       <View
         style={[
           styles.floatingHeaderContainer,
@@ -444,7 +547,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       >
         {/* Left: Floating Menu Pill */}
         <TouchableOpacity
-          style={styles.floatingCircleBtn}
+          style={[
+            styles.floatingCircleBtn,
+            isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
+          ]}
           onPress={() => {
             if (onOpenDrawer) {
               onOpenDrawer();
@@ -456,12 +562,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityLabel="Open Menu Drawer"
         >
-          <Menu size={20} color="#fafafa" />
+          <Menu size={20} color={isLight ? '#1f2328' : '#fafafa'} />
         </TouchableOpacity>
 
         {/* Center: Floating Workspace Pill */}
         <TouchableOpacity
-          style={styles.floatingCenterPill}
+          style={[
+            styles.floatingCenterPill,
+            isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
+          ]}
           onPress={() => setShowConfigSheet(true)}
           activeOpacity={0.75}
           accessibilityLabel="Open Session Parameters"
@@ -469,11 +578,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           {connectionState !== 'connected' && (
             <ActivityIndicator
               size="small"
-              color="#a3a3a3"
+              color={isLight ? '#0077b6' : '#a3a3a3'}
               style={{ transform: [{ scale: 0.75 }], marginRight: 6 }}
             />
           )}
-          <Text style={styles.floatingPillTitle} numberOfLines={1} ellipsizeMode="tail">
+          <Text
+            style={[
+              styles.floatingPillTitle,
+              isLight && { color: '#1f2328' },
+            ]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {workspaceTitle}
           </Text>
         </TouchableOpacity>
@@ -481,7 +597,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {/* Right: Floating Actions (Artifacts, Session Actions with Dropdown) */}
         <View style={styles.floatingRightCluster}>
           <TouchableOpacity
-            style={styles.floatingCircleBtn}
+            style={[
+              styles.floatingCircleBtn,
+              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
+            ]}
             onPress={() => {
               setArtifactFilterQuery('');
               setShowArtifactsSheet(true);
@@ -491,22 +610,26 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="View Session Artifacts"
           >
-            <Layers size={19} color="#fafafa" />
+            <Layers size={19} color={isLight ? '#1f2328' : '#fafafa'} />
             {sessionArtifacts.length > 0 ? (
-              <View style={styles.headerBadge}>
+              <View style={[styles.headerBadge, isLight && { backgroundColor: '#0077b6' }]}>
                 <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
               </View>
             ) : null}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.floatingCircleBtn, showSessionMenu && styles.floatingCircleBtnActive]}
+            style={[
+              styles.floatingCircleBtn,
+              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
+              showSessionMenu && (isLight ? { borderColor: '#0077b6' } : styles.floatingCircleBtnActive),
+            ]}
             onPress={() => setShowSessionMenu((prev) => !prev)}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Session Actions"
           >
-            <MoreVertical size={20} color={showSessionMenu ? '#fafafa' : '#a3a3a3'} />
+            <MoreVertical size={20} color={showSessionMenu ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')} />
           </TouchableOpacity>
         </View>
       </View>
@@ -521,6 +644,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           <View
             style={[
               styles.dropdownMenu,
+              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de', shadowOpacity: 0.12 },
               {
                 top: topInset + (Platform.OS === 'ios' ? 52 : 54),
               },
@@ -535,12 +659,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               }}
               activeOpacity={0.7}
             >
-              <View style={styles.dropdownItemIcon}>
-                <Terminal size={15} color="#fafafa" />
+              <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
+                <Terminal size={15} color={isLight ? '#1f2328' : '#fafafa'} />
               </View>
               <View style={styles.dropdownItemContent}>
-                <Text style={styles.dropdownItemTitle}>Terminal / PTY</Text>
-                <Text style={styles.dropdownItemSub}>Live interactive shell</Text>
+                <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Terminal / PTY</Text>
+                <Text style={[styles.dropdownItemSub, isLight && { color: '#6e7681' }]}>Live interactive shell</Text>
               </View>
             </TouchableOpacity>
 
@@ -553,16 +677,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               }}
               activeOpacity={0.7}
             >
-              <View style={styles.dropdownItemIcon}>
-                <SlidersHorizontal size={15} color="#a3a3a3" />
+              <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
+                <SlidersHorizontal size={15} color={isLight ? '#57606a' : '#a3a3a3'} />
               </View>
               <View style={styles.dropdownItemContent}>
-                <Text style={styles.dropdownItemTitle}>Parameters</Text>
-                <Text style={styles.dropdownItemSub}>Model, thinking, temperature</Text>
+                <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Parameters</Text>
+                <Text style={[styles.dropdownItemSub, isLight && { color: '#6e7681' }]}>Model, thinking, temperature</Text>
               </View>
             </TouchableOpacity>
 
-            <View style={styles.dropdownDivider} />
+            <View style={[styles.dropdownDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
 
             {/* Pin / Unpin */}
             {activeSession && (
@@ -574,11 +698,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 }}
                 activeOpacity={0.7}
               >
-                <View style={styles.dropdownItemIcon}>
-                  <Pin size={15} color={activeSession.pinned ? '#48cae4' : '#a3a3a3'} />
+                <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
+                  <Pin size={15} color={activeSession.pinned ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')} />
                 </View>
                 <View style={styles.dropdownItemContent}>
-                  <Text style={styles.dropdownItemTitle}>
+                  <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>
                     {activeSession.pinned ? 'Unpin Session' : 'Pin Session'}
                   </Text>
                 </View>
@@ -596,16 +720,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 }}
                 activeOpacity={0.7}
               >
-                <View style={styles.dropdownItemIcon}>
-                  <Pencil size={15} color="#a3a3a3" />
+                <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
+                  <Pencil size={15} color={isLight ? '#57606a' : '#a3a3a3'} />
                 </View>
                 <View style={styles.dropdownItemContent}>
-                  <Text style={styles.dropdownItemTitle}>Rename Session</Text>
+                  <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Rename Session</Text>
                 </View>
               </TouchableOpacity>
             )}
 
-            <View style={styles.dropdownDivider} />
+            <View style={[styles.dropdownDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
 
             {/* Delete Session */}
             {activeSession && (
@@ -646,17 +770,26 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       <ScrollView
         ref={scrollViewRef}
-        style={styles.scroll}
+        style={[styles.scroll, isLight && { backgroundColor: '#f6f8fa' }]}
         contentContainerStyle={[
           styles.scrollContent,
           {
             paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
-            paddingBottom: 100 + insets.bottom,
+            paddingBottom: 100 + insets.bottom + keyboardHeight,
           },
         ]}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        onTouchStart={pauseAutoScroll}
+        onScrollBeginDrag={pauseAutoScroll}
+        onContentSizeChange={() => {
+          if (isSendingPrompt && !isAutoScrollPausedRef.current) {
+            triggerAutoScroll();
+          }
+        }}
       >
 
         {/* 3. Pagination: Load Older History Button */}
@@ -701,14 +834,28 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         ) : (
           displayedTurns.map((turn, turnIdx) => (
             <View key={turn.id || turnIdx} style={styles.turnCardContainer}>
-              {/* User Prompt: Paradev OutgoingBubble (bg-[#2F2F2F], rounded-[22px], self-end) */}
+              {/* User Prompt: Paradev OutgoingBubble */}
               {turn.userMessage?.content ? (
                 <View style={styles.userBubbleWrapper}>
-                  <View style={styles.userOutgoingBubble}>
-                    <Text style={styles.userBubbleText}>{turn.userMessage.content}</Text>
+                  <View
+                    style={[
+                      styles.userOutgoingBubble,
+                      isLight && {
+                        backgroundColor: '#ffffff',
+                        borderWidth: 1,
+                        borderColor: '#d0d7de',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.05,
+                        shadowRadius: 3,
+                        elevation: 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.userBubbleText, isLight && { color: '#1f2328' }]}>{turn.userMessage.content}</Text>
                   </View>
                   <View style={styles.userBubbleMeta}>
-                    <Text style={styles.userBubbleMetaText}>
+                    <Text style={[styles.userBubbleMetaText, isLight && { color: '#8c959f' }]}>
                       {turn.userMessage.timestamp
                         ? formatTimeAgo(turn.userMessage.timestamp)
                         : `turn #${turnIdx + 1}`}
@@ -722,15 +869,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 <View style={styles.assistantTurnWrapper}>
                   {/* Reasoning Process: Paradev Reasoning Component */}
                   {turn.assistant.reasoning ? (
-                    <View style={styles.reasoningContainer}>
+                    <View
+                      style={[
+                        styles.reasoningContainer,
+                        isLight && {
+                          backgroundColor: '#ffffff',
+                          borderColor: '#e1e4e8',
+                        },
+                      ]}
+                    >
                       <TouchableOpacity
                         style={styles.reasoningToggleBtn}
                         onPress={() => toggleReasoningAccordion(turn.id)}
                         activeOpacity={0.7}
                       >
                         <View style={styles.reasoningToggleLeft}>
-                          <Brain size={14} color="#a3a3a3" />
-                          <Text style={styles.reasoningToggleText}>
+                          <Brain size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
+                          <Text style={[styles.reasoningToggleText, isLight && { color: '#57606a' }]}>
                             {isSendingPrompt && turnIdx === displayedTurns.length - 1
                               ? 'Thinking...'
                               : 'Thought for a few seconds'}
@@ -738,9 +893,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         </View>
                         <View style={styles.reasoningToggleRight}>
                           {isReasoningOpen(turn.id) ? (
-                            <ChevronUp size={14} color="#a3a3a3" />
+                            <ChevronUp size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
                           ) : (
-                            <ChevronDown size={14} color="#a3a3a3" />
+                            <ChevronDown size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
                           )}
                         </View>
                       </TouchableOpacity>
@@ -748,7 +903,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       {isReasoningOpen(turn.id) && (
                         <View style={styles.reasoningBody}>
                           <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true} style={{ maxHeight: 220 }}>
-                            <Text style={styles.reasoningText} selectable>
+                            <Text style={[styles.reasoningText, isLight && { color: '#57606a' }]} selectable>
                               {turn.assistant.reasoning.trim()}
                             </Text>
                           </ScrollView>
@@ -759,7 +914,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
                   {/* Inline Tool Execution Steps: Paradev ToolCallRow */}
                   {turn.assistant.actions && turn.assistant.actions.length > 0 ? (
-                    <View style={styles.toolCallsSection}>
+                    <View style={[styles.toolCallsSection, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
                       <TouchableOpacity
                         style={styles.toolCallsSummaryRow}
                         onPress={() => toggleTurnAccordion(turn.id)}
@@ -769,22 +924,22 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                           {turn.assistant.actions.some((a) => a.status === 'running') ? (
                             <ActivityIndicator
                               size="small"
-                              color="#a3a3a3"
+                              color={isLight ? '#0077b6' : '#a3a3a3'}
                               style={{ transform: [{ scale: 0.7 }], marginRight: 6 }}
                             />
                           ) : (
-                            <Wrench size={13} color="#737373" style={{ marginRight: 6 }} />
+                            <Wrench size={13} color={isLight ? '#57606a' : '#737373'} style={{ marginRight: 6 }} />
                           )}
-                          <Text style={styles.toolCallsSummaryText}>
+                          <Text style={[styles.toolCallsSummaryText, isLight && { color: '#57606a' }]}>
                             {turn.assistant.actions.length} tool call
                             {turn.assistant.actions.length > 1 ? 's' : ''} executed
                           </Text>
                         </View>
                         <View style={styles.toolCallsSummaryRight}>
                           {isTurnOpen(turn.id) ? (
-                            <ChevronUp size={14} color="#737373" />
+                            <ChevronUp size={14} color={isLight ? '#57606a' : '#737373'} />
                           ) : (
-                            <ChevronDown size={14} color="#737373" />
+                            <ChevronDown size={14} color={isLight ? '#57606a' : '#737373'} />
                           )}
                         </View>
                       </TouchableOpacity>
@@ -794,15 +949,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                           {turn.assistant.actions.map((action) => (
                             <TouchableOpacity
                               key={action.id}
-                              style={styles.toolCallRow}
+                              style={[styles.toolCallRow, isLight && { backgroundColor: '#f6f8fa', borderColor: '#e1e4e8' }]}
                               activeOpacity={0.7}
                               onPress={() => setSelectedActionForTray(action)}
                             >
                               <View style={styles.toolCallLeft}>
-                                <View style={styles.toolCallIconBox}>
+                                <View style={[styles.toolCallIconBox, isLight && { backgroundColor: '#e1e4e8' }]}>
                                   {renderActionIcon(action.category)}
                                 </View>
-                                <Text style={styles.toolCallTitle} numberOfLines={1}>
+                                <Text style={[styles.toolCallTitle, isLight && { color: '#1f2328' }]} numberOfLines={1}>
                                   {action.title}
                                 </Text>
                               </View>
@@ -812,7 +967,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                                   <View style={styles.actionRunningBadge}>
                                     <ActivityIndicator
                                       size="small"
-                                      color="#a3a3a3"
+                                      color={isLight ? '#0077b6' : '#a3a3a3'}
                                       style={{ transform: [{ scale: 0.65 }] }}
                                     />
                                     <Text style={styles.actionRunningBadgeText}>Running</Text>
@@ -823,9 +978,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                                     <Text style={styles.actionErrorBadgeText}>Failed</Text>
                                   </View>
                                 ) : (
-                                  <Check size={13} color="#fafafa" />
+                                  <Check size={13} color={isLight ? '#0077b6' : '#fafafa'} />
                                 )}
-                                <ChevronRight size={14} color="#737373" />
+                                <ChevronRight size={14} color={isLight ? '#57606a' : '#737373'} />
                               </View>
                             </TouchableOpacity>
                           ))}
@@ -856,7 +1011,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       {/* Paradev Action Row (Copy Message & Branch Icon Buttons) */}
                       <View style={styles.agentActionRow}>
                         <TouchableOpacity
-                          style={styles.agentActionBtn}
+                          style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
                           onPress={() =>
                             handleCopyTurnText(turn.id, turn.assistant?.content || '')
                           }
@@ -864,25 +1019,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                           accessibilityLabel="Copy message"
                         >
                           {copiedTurnId === turn.id ? (
-                            <Check size={14} color="#fafafa" />
+                            <Check size={14} color={isLight ? '#0077b6' : '#fafafa'} />
                           ) : (
-                            <Copy size={14} color="#737373" />
+                            <Copy size={14} color={isLight ? '#57606a' : '#737373'} />
                           )}
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          style={styles.agentActionBtn}
+                          style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
                           onPress={() => {
                             setPromptInput(`Regarding turn #${turnIdx + 1}: `);
                           }}
                           activeOpacity={0.7}
                           accessibilityLabel="Branch from here"
                         >
-                          <GitFork size={14} color="#737373" />
+                          <GitFork size={14} color={isLight ? '#57606a' : '#737373'} />
                         </TouchableOpacity>
 
-                        <View style={styles.agentMetaPill}>
-                          <Text style={styles.agentMetaPillText}>{modelStr}</Text>
+                        <View style={[styles.agentMetaPill, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
+                          <Text style={[styles.agentMetaPillText, isLight && { color: '#57606a' }]}>{modelStr}</Text>
                         </View>
                       </View>
                     </View>
@@ -896,37 +1051,47 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {/* 5. Streaming Live Indicator */}
         {isSendingPrompt && (
           <View style={styles.streamingIndicatorRow}>
-            <ActivityIndicator size="small" color="#a3a3a3" />
-            <Text style={styles.streamingText}>Agent is thinking and executing...</Text>
+            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#a3a3a3'} />
+            <Text style={[styles.streamingText, isLight && { color: '#57606a' }]}>Agent is thinking and executing...</Text>
           </View>
         )}
       </ScrollView>
 
-      {/* 6. Floating Scroll FAB (Only visible when user scrolled up into history) */}
-      {showScrollToBottom && (
+      {/* 6. Floating Scroll FAB (Visible when user scrolled up or paused auto-scroll mid-stream) */}
+      {(showScrollToBottom || (isSendingPrompt && isAutoScrollPaused)) && (
         <View
           style={[
             styles.scrollFabContainer,
-            { bottom: 76 + Math.max(insets.bottom, 12), pointerEvents: 'box-none' },
+            { bottom: 76 + Math.max(insets.bottom, 12) + keyboardHeight, pointerEvents: 'box-none' },
           ]}
         >
           <TouchableOpacity
-            style={styles.scrollFab}
+            style={[styles.scrollFab, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}
             activeOpacity={0.7}
             onPress={handleScrollToBottom}
           >
-            <ArrowDown size={14} color="#a3a3a3" />
+            <ArrowDown
+              size={14}
+              color={isSendingPrompt && isAutoScrollPaused ? (isLight ? '#0077b6' : colors.primaryLight) : (isLight ? '#57606a' : '#a3a3a3')}
+            />
+            {isSendingPrompt && isAutoScrollPaused && (
+              <View style={[styles.scrollFabBadge, isLight && { backgroundColor: '#0077b6' }]} />
+            )}
           </TouchableOpacity>
         </View>
       )}
 
       {/* 7. Chat Input Bar: Floating Capsule */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      <View
         style={[
           styles.chatInputWrapper,
-          { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12) },
+          {
+            bottom: keyboardHeight,
+            paddingBottom:
+              keyboardHeight > 0
+                ? (Platform.OS === 'android' ? 8 : 12)
+                : Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12),
+          },
         ]}
         pointerEvents="box-none"
       >
@@ -957,22 +1122,26 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         )}
 
         {/* Paradev Inset Composer Card */}
-        <View style={styles.composerCard}>
+        <View style={[styles.composerCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de', shadowOpacity: 0.08 }]}>
           {/* Circular '+' Button on Left */}
           <TouchableOpacity
-            style={[styles.composerPlusBtn, showCommandPicker && styles.composerPlusBtnActive]}
+            style={[
+              styles.composerPlusBtn,
+              isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' },
+              showCommandPicker && (isLight ? { backgroundColor: '#0077b6', borderColor: '#0077b6' } : styles.composerPlusBtnActive),
+            ]}
             activeOpacity={0.7}
             onPress={() => setShowCommandPicker((prev) => !prev)}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Plus size={16} color={showCommandPicker ? '#fafafa' : '#a3a3a3'} />
+            <Plus size={16} color={showCommandPicker ? '#ffffff' : (isLight ? '#57606a' : '#a3a3a3')} />
           </TouchableOpacity>
 
           {/* Clean Text Input with Dynamic Multiline Expansion */}
           <TextInput
-            style={styles.composerTextInput}
+            style={[styles.composerTextInput, isLight && { color: '#1f2328' }]}
             placeholder="Type a message..."
-            placeholderTextColor="#737373"
+            placeholderTextColor={isLight ? '#8c959f' : '#737373'}
             value={promptInput}
             onChangeText={handleInputChange}
             onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
@@ -998,15 +1167,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             </TouchableOpacity>
           ) : promptInput.trim().length > 0 ? (
             <TouchableOpacity
-              style={styles.composerSendBtn}
+              style={[styles.composerSendBtn, isLight && { backgroundColor: '#0077b6' }]}
               onPress={handleSendPrompt}
               activeOpacity={0.85}
             >
-              <ArrowUp size={16} color="#0a0a0a" />
+              <ArrowUp size={16} color={isLight ? '#ffffff' : '#0a0a0a'} />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={styles.composerMicBtn}
+              style={[styles.composerMicBtn, isLight && { backgroundColor: '#f6f8fa' }]}
               activeOpacity={0.7}
               onPress={() => {
                 Alert.alert(
@@ -1015,11 +1184,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 );
               }}
             >
-              <Mic size={17} color="#737373" />
+              <Mic size={17} color={isLight ? '#57606a' : '#737373'} />
             </TouchableOpacity>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
 
       {/* 8. Draggable Tool Slide Tray */}
       <ToolActionTray
@@ -1056,24 +1225,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.renameCardWrapper}
           >
-            <View style={styles.renameCard}>
+            <View style={[styles.renameCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
               <View style={styles.renameHeader}>
-                <Text style={styles.renameTitle}>Rename Session</Text>
+                <Text style={[styles.renameTitle, isLight && { color: '#1f2328' }]}>Rename Session</Text>
                 <TouchableOpacity
                   onPress={() => setIsRenamingSession(false)}
                   style={styles.renameCloseBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <X size={16} color="#a3a3a3" />
+                  <X size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
                 </TouchableOpacity>
               </View>
 
               <TextInput
-                style={styles.renameInput}
+                style={[styles.renameInput, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de', color: '#1f2328' }]}
                 value={renameTitle}
                 onChangeText={setRenameTitle}
                 placeholder="Session title..."
-                placeholderTextColor="#737373"
+                placeholderTextColor={isLight ? '#8c959f' : '#737373'}
                 autoFocus
                 selectTextOnFocus
                 returnKeyType="done"
@@ -1082,23 +1251,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
               <View style={styles.renameActionsRow}>
                 <TouchableOpacity
-                  style={styles.renameCancelBtn}
+                  style={[styles.renameCancelBtn, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}
                   onPress={() => setIsRenamingSession(false)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.renameCancelText}>Cancel</Text>
+                  <Text style={[styles.renameCancelText, isLight && { color: '#57606a' }]}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.renameSaveBtn, isSavingRename && { opacity: 0.6 }]}
+                  style={[styles.renameSaveBtn, isLight && { backgroundColor: '#0077b6' }, isSavingRename && { opacity: 0.6 }]}
                   onPress={handleSaveRename}
                   disabled={isSavingRename || !renameTitle.trim()}
                   activeOpacity={0.7}
                 >
                   {isSavingRename ? (
-                    <ActivityIndicator size="small" color="#0a0a0a" />
+                    <ActivityIndicator size="small" color="#ffffff" />
                   ) : (
-                    <Text style={styles.renameSaveText}>Save</Text>
+                    <Text style={[styles.renameSaveText, isLight && { color: '#ffffff' }]}>Save</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -1746,6 +1915,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 6,
     elevation: 4,
+  },
+  scrollFabBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.primary,
+    borderWidth: 1,
+    borderColor: '#161616',
   },
 
   // Chat Input Bar: Paradev Floating Capsule

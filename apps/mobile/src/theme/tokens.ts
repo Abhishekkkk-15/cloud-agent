@@ -1,4 +1,6 @@
-export const colors = {
+export type ThemeMode = 'dark' | 'light';
+
+export const darkColors = {
   // Paradev & Cloud Agent Unified Dark Theme (Pure Monochrome Black, White, Gray)
   bgPrimary: '#0a0a0a',
   bgCanvasInset: '#050505',
@@ -41,7 +43,7 @@ export const colors = {
   statusLiveSubtle: 'rgba(255, 255, 255, 0.08)',
   statusLiveBorder: 'rgba(255, 255, 255, 0.18)',
 
-  // Mappings for legacy colors (All Zero Blue)
+  // Mappings for legacy colors
   blue: '#fafafa',
   blueLight: '#ffffff',
   blueBg: '#fafafa',
@@ -67,6 +69,83 @@ export const colors = {
   redSubtle: 'rgba(239, 68, 68, 0.15)',
   redBorder: 'rgba(239, 68, 68, 0.3)',
 };
+
+export const lightColors: typeof darkColors = {
+  // Pure Clean White Theme (Crisp, High Contrast, Modern)
+  bgPrimary: '#ffffff',
+  bgCanvasInset: '#f6f8fa',
+  bgCard: '#ffffff',
+  bgSurface: '#f6f8fa',
+  bgUserBubble: '#f0f3f6',
+  bgHover: '#eaeef2',
+  bgInput: '#f6f8fa',
+  bgModal: 'rgba(255, 255, 255, 0.98)',
+
+  // Surface Tiers
+  surfaceContainerLowest: '#ffffff',
+  surfaceContainerLow: '#f6f8fa',
+  surfaceContainer: '#ffffff',
+  surfaceContainerHigh: '#f0f2f5',
+  surfaceContainerHighest: '#e4e7eb',
+
+  borderDefault: '#d0d7de',
+  borderMuted: '#e1e4e8',
+  borderSubtle: 'rgba(0, 0, 0, 0.08)',
+
+  textPrimary: '#1f2328',
+  textSecondary: '#57606a',
+  textMuted: '#6e7781',
+  textCode: '#24292f',
+  textMutedOutline: '#6e7781',
+  textSecondaryOutline: '#57606a',
+  textDisabled: '#8c959f',
+
+  // Primary Accent: Pacific Azure Blue & Crisp Dark
+  primary: '#0077b6',
+  primaryLight: '#0096c7',
+  primarySubtle: 'rgba(0, 119, 182, 0.08)',
+  primaryBorder: 'rgba(0, 119, 182, 0.25)',
+  primaryHover: 'rgba(0, 119, 182, 0.15)',
+
+  // Live Status Indicator
+  statusLive: '#1a7f37',
+  statusLivePulse: '#2da44e',
+  statusLiveSubtle: 'rgba(45, 164, 78, 0.10)',
+  statusLiveBorder: 'rgba(45, 164, 78, 0.25)',
+
+  blue: '#0077b6',
+  blueLight: '#0096c7',
+  blueBg: '#e7f5ff',
+  blueSubtle: 'rgba(0, 119, 182, 0.08)',
+  blueBorder: 'rgba(0, 119, 182, 0.25)',
+
+  green: '#1a7f37',
+  greenLight: '#2da44e',
+  greenWhitish: '#1a7f37',
+  greenBg: '#dafbe1',
+  greenHover: '#c8f7d3',
+  greenSubtle: 'rgba(45, 164, 78, 0.10)',
+  greenBorder: 'rgba(45, 164, 78, 0.25)',
+
+  purple: '#8250df',
+  purpleBg: '#fbefff',
+  purpleSubtle: 'rgba(130, 80, 223, 0.10)',
+  purpleBorder: 'rgba(130, 80, 223, 0.25)',
+
+  red: '#cf222e',
+  redBg: '#ffebe9',
+  redSubtle: 'rgba(207, 34, 46, 0.10)',
+  redBorder: 'rgba(207, 34, 46, 0.25)',
+};
+
+export type ThemeColors = typeof darkColors;
+
+// Default exported colors (for static backwards compatibility)
+export const colors = darkColors;
+
+export function getThemeColors(mode?: ThemeMode | null): ThemeColors {
+  return mode === 'light' ? lightColors : darkColors;
+}
 
 export const radii = {
   xs: 4,

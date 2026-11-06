@@ -34,8 +34,10 @@ import {
   X,
   Bell,
   ChevronsUpDown,
+  Sun,
+  Moon,
 } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
+import { colors, radii, typography, getThemeColors } from '../theme/tokens';
 import { useDaemonStore, RealSessionItem, MachineInfo } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
@@ -83,6 +85,10 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
+  const theme = useDaemonStore((s) => s.theme);
+  const toggleTheme = useDaemonStore((s) => s.toggleTheme);
+  const isLight = theme === 'light';
+  const themeColors = getThemeColors(theme);
 
   const [userToggledGroups, setUserToggledGroups] = useState<Record<string, boolean>>({});
   const [drawerSearch, setDrawerSearch] = useState<string>('');
@@ -367,6 +373,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           styles.sessionItem,
           isChild && styles.sessionItemChild,
           isActive && styles.sessionItemActive,
+          isActive && isLight && { backgroundColor: 'rgba(0, 119, 182, 0.08)', borderLeftColor: '#0077b6' },
         ]}
       >
         <TouchableOpacity
@@ -376,12 +383,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         >
           <View style={styles.sessionTitleRow}>
             {item.pinned ? (
-              <Pin size={11} color={colors.primary} style={{ marginRight: 5 }} />
+              <Pin size={11} color={isLight ? '#0077b6' : colors.primary} style={{ marginRight: 5 }} />
             ) : null}
             <Text
               style={[
                 styles.sessionTitle,
-                isActive && styles.sessionTitleActive,
+                isLight && { color: '#24292f' },
+                isActive && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.sessionTitleActive),
               ]}
               numberOfLines={1}
             >
@@ -391,21 +399,21 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           <View style={styles.sessionMetaRow}>
             {!isChild && (
               <>
-                <Text style={styles.sessionWorkspace} numberOfLines={1}>
+                <Text style={[styles.sessionWorkspace, isLight && { color: '#6e7781' }]} numberOfLines={1}>
                   {item.workspaceName}
                 </Text>
-                <Text style={styles.sessionMetaDot}>•</Text>
+                <Text style={[styles.sessionMetaDot, isLight && { color: '#8c959f' }]}>•</Text>
               </>
             )}
             {item.messageCount > 0 && (
               <>
-                <Text style={styles.sessionMetaText}>
+                <Text style={[styles.sessionMetaText, isLight && { color: '#6e7781' }]}>
                   {item.messageCount} msg{item.messageCount === 1 ? '' : 's'}
                 </Text>
-                <Text style={styles.sessionMetaDot}>•</Text>
+                <Text style={[styles.sessionMetaDot, isLight && { color: '#8c959f' }]}>•</Text>
               </>
             )}
-            <Text style={styles.sessionTime}>
+            <Text style={[styles.sessionTime, isLight && { color: '#6e7781' }]}>
               {formatTimeAgo(item.updatedAt || item.createdAt)}
             </Text>
           </View>
@@ -417,7 +425,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MoreVertical size={14} color={colors.textMuted} />
+          <MoreVertical size={14} color={isLight ? '#57606a' : colors.textMuted} />
         </TouchableOpacity>
       </View>
     );
@@ -461,6 +469,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           {
             width: DRAWER_WIDTH,
             transform: [{ translateX: slideAnim }],
+            backgroundColor: isLight ? '#ffffff' : colors.surfaceContainerLowest,
+            borderRightColor: isLight ? '#d0d7de' : colors.borderMuted,
           },
         ]}
         {...panResponder.panHandlers}
@@ -476,14 +486,25 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         >
           {/* Floating Search Bar (No borders, no < icon, floating pill) */}
         <View style={styles.floatingSearchContainer}>
-          <View style={styles.floatingSearchBox}>
-            <Search size={15} color={colors.textMuted} />
+          <View
+            style={[
+              styles.floatingSearchBox,
+              isLight && {
+                backgroundColor: '#f6f8fa',
+                borderColor: '#d0d7de',
+              },
+            ]}
+          >
+            <Search size={15} color={isLight ? '#57606a' : colors.textMuted} />
             <TextInput
-              style={styles.floatingSearchInput}
+              style={[
+                styles.floatingSearchInput,
+                isLight && { color: '#1f2328' },
+              ]}
               value={drawerSearch}
               onChangeText={setDrawerSearch}
               placeholder="Search sessions or workspaces..."
-              placeholderTextColor={colors.textDisabled}
+              placeholderTextColor={isLight ? '#8c959f' : colors.textDisabled}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -492,7 +513,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 onPress={() => setDrawerSearch('')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <X size={14} color={colors.textMuted} />
+                <X size={14} color={isLight ? '#57606a' : colors.textMuted} />
               </TouchableOpacity>
             )}
           </View>
@@ -508,33 +529,70 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           <View style={styles.computeNodeSection}>
             <View style={styles.sectionHeaderRow}>
               <View style={styles.computeLabelRow}>
-                <Server size={12} color={colors.textMuted} />
-                <Text style={styles.computeLabel}>COMPUTE NODE</Text>
+                <Server size={12} color={isLight ? '#6e7781' : colors.textMuted} />
+                <Text style={[styles.computeLabel, isLight && { color: '#6e7781' }]}>COMPUTE NODE</Text>
               </View>
-              <View style={styles.latencyTag}>
-                <Text style={styles.latencyTagText}>{pingRtt || '18ms'}</Text>
+              <View
+                style={[
+                  styles.latencyTag,
+                  isLight && { backgroundColor: '#f0f2f5', borderColor: '#d0d7de' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.latencyTagText,
+                    isLight && { color: '#0077b6' },
+                  ]}
+                >
+                  {pingRtt || '18ms'}
+                </Text>
               </View>
             </View>
 
             {/* Primary Connected Machine Card */}
-            <View style={styles.activeMachineCard}>
+            <View
+              style={[
+                styles.activeMachineCard,
+                isLight && {
+                  backgroundColor: '#f6f8fa',
+                  borderColor: '#d0d7de',
+                },
+              ]}
+            >
               <View style={styles.machineCardTopRow}>
                 <View style={styles.machineTitleRow}>
-                  
-                  <Text style={styles.machineHostname} numberOfLines={1}>
+                  <Text
+                    style={[
+                      styles.machineHostname,
+                      isLight && { color: '#1f2328' },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.switchNodeBtn}
+                  style={[
+                    styles.switchNodeBtn,
+                    isLight && {
+                      backgroundColor: 'rgba(0, 119, 182, 0.10)',
+                      borderColor: 'rgba(0, 119, 182, 0.3)',
+                    },
+                  ]}
                   onPress={() => setShowMachineSwitcher(true)}
                   activeOpacity={0.7}
                 >
-                  <ChevronsUpDown size={12} color={colors.primaryLight} />
-                  <Text style={styles.switchNodeText}>Switch</Text>
+                  <ChevronsUpDown size={12} color={isLight ? '#0077b6' : colors.primaryLight} />
+                  <Text style={[styles.switchNodeText, isLight && { color: '#0077b6' }]}>Switch</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.machineSpecs} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.machineSpecs,
+                  isLight && { color: '#6e7781' },
+                ]}
+                numberOfLines={1}
+              >
                 {cpuCores} vCPU • {ramGb}GB RAM • {nodePlatform}
               </Text>
             </View>
@@ -544,29 +602,52 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               {standbyMachines.slice(0, 2).map((m) => (
                 <TouchableOpacity
                   key={m.machineId}
-                  style={styles.standbyCard}
+                  style={[
+                    styles.standbyCard,
+                    isLight && {
+                      backgroundColor: '#ffffff',
+                      borderColor: '#e1e4e8',
+                    },
+                  ]}
                   onPress={() => selectMachine(m)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.standbyTopRow}>
-
-                    <Text style={styles.standbyName} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.standbyName,
+                        isLight && { color: '#24292f' },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {m.name}
                     </Text>
                   </View>
-                  <Text style={styles.standbySub} numberOfLines={1}>
+                  <Text
+                    style={[
+                      styles.standbySub,
+                      isLight && { color: '#6e7781' },
+                    ]}
+                    numberOfLines={1}
+                  >
                     {m.platform} • {m.isOnline ? 'Standby' : 'Offline'}
                   </Text>
                 </TouchableOpacity>
               ))}
               {standbyMachines.length < 2 && (
                 <TouchableOpacity
-                  style={styles.standbyAddCard}
+                  style={[
+                    styles.standbyAddCard,
+                    isLight && {
+                      backgroundColor: '#ffffff',
+                      borderColor: '#d0d7de',
+                    },
+                  ]}
                   onPress={() => setShowPairModal(true)}
                   activeOpacity={0.7}
                 >
-                  <Plus size={14} color={colors.textMuted} />
-                  <Text style={styles.standbyAddText}>Pair Node</Text>
+                  <Plus size={14} color={isLight ? '#57606a' : colors.textMuted} />
+                  <Text style={[styles.standbyAddText, isLight && { color: '#57606a' }]}>Pair Node</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -574,14 +655,25 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
           {/* 3. Primary Action: + New Session */}
           <TouchableOpacity
-            style={styles.newSessionBtn}
+            style={[
+              styles.newSessionBtn,
+              isLight && {
+                backgroundColor: '#f6f8fa',
+                borderColor: '#d0d7de',
+              },
+            ]}
             onPress={() => setShowNewChatSheet(true)}
             activeOpacity={0.8}
           >
-            <View style={styles.newSessionIconCircle}>
-              <Plus size={14} color="#0a0a0a" />
+            <View
+              style={[
+                styles.newSessionIconCircle,
+                isLight && { backgroundColor: '#0077b6' },
+              ]}
+            >
+              <Plus size={14} color="#ffffff" />
             </View>
-            <Text style={styles.newSessionBtnText}>New Session</Text>
+            <Text style={[styles.newSessionBtnText, isLight && { color: '#1f2328' }]}>New Session</Text>
           </TouchableOpacity>
 
           {/* 4. Pinned Sessions (if any) */}
@@ -589,10 +681,10 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.pinnedSection}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleWithIcon}>
-                  <Pin size={11} color={colors.primary} />
-                  <Text style={styles.sectionTitle}>PINNED SESSIONS</Text>
+                  <Pin size={11} color={isLight ? '#0077b6' : colors.primary} />
+                  <Text style={[styles.sectionTitle, isLight && { color: '#6e7781' }]}>PINNED SESSIONS</Text>
                 </View>
-                <Text style={styles.sectionBadge}>{pinnedSessions.length}</Text>
+                <Text style={[styles.sectionBadge, isLight && { color: '#6e7781' }]}>{pinnedSessions.length}</Text>
               </View>
               {pinnedSessions.map((item) => renderSessionRow(item, false))}
             </View>
@@ -600,11 +692,11 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
           {/* 5. Workspaces & Sessions Tree Hierarchy */}
           <View style={[styles.sectionHeaderRow, pinnedSessions.length > 0 && { marginTop: 12 }]}>
-            <Text style={styles.sectionTitle}>WORKSPACES</Text>
+            <Text style={[styles.sectionTitle, isLight && { color: '#6e7781' }]}>WORKSPACES</Text>
             {isLoadingSessions ? (
-              <ActivityIndicator size="small" color="#a3a3a3" style={{ transform: [{ scale: 0.65 }] }} />
+              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#a3a3a3'} style={{ transform: [{ scale: 0.65 }] }} />
             ) : (
-              <Text style={styles.sectionBadge}>
+              <Text style={[styles.sectionBadge, isLight && { color: '#6e7781' }]}>
                 {workspaceGroups.length} {workspaceGroups.length === 1 ? 'folder' : 'folders'}
               </Text>
             )}
@@ -612,12 +704,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
           {isLoadingSessions && workspaceGroups.length === 0 ? (
             <View style={styles.loadingSessionsBox}>
-              <ActivityIndicator size="small" color="#a3a3a3" style={{ transform: [{ scale: 0.8 }] }} />
-              <Text style={styles.loadingSessionsText}>Loading workspaces...</Text>
+              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#a3a3a3'} style={{ transform: [{ scale: 0.8 }] }} />
+              <Text style={[styles.loadingSessionsText, isLight && { color: '#6e7781' }]}>Loading workspaces...</Text>
             </View>
           ) : workspaceGroups.length === 0 ? (
             <View style={styles.emptySessionsBox}>
-              <Text style={styles.emptySessionsText}>
+              <Text style={[styles.emptySessionsText, isLight && { color: '#6e7781' }]}>
                 {drawerSearch ? 'No matching workspaces or sessions' : 'No workspaces discovered'}
               </Text>
             </View>
@@ -639,24 +731,53 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 <View key={group.name} style={styles.workspaceGroupContainer}>
                   {/* Workspace Folder Header */}
                   <TouchableOpacity
-                    style={styles.workspaceFolderHeader}
+                    style={[
+                      styles.workspaceFolderHeader,
+                      isLight && {
+                        backgroundColor: '#f6f8fa',
+                        borderColor: '#e1e4e8',
+                      },
+                    ]}
                     onPress={() => toggleGroupCollapse(group.name)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.workspaceFolderToggle}>
                       {isCollapsed ? (
-                        <ChevronRight size={15} color={colors.textMuted} />
+                        <ChevronRight size={15} color={isLight ? '#57606a' : colors.textMuted} />
                       ) : (
-                        <ChevronDown size={15} color={colors.textMuted} />
+                        <ChevronDown size={15} color={isLight ? '#57606a' : colors.textMuted} />
                       )}
-                      <View style={styles.workspaceFolderIconBox}>
-                        <FolderGit2 size={20} color="#fafafa" />
+                      <View
+                        style={[
+                          styles.workspaceFolderIconBox,
+                          isLight && { backgroundColor: 'rgba(0, 0, 0, 0.05)' },
+                        ]}
+                      >
+                        <FolderGit2 size={20} color={isLight ? '#24292f' : '#fafafa'} />
                       </View>
-                      <Text style={styles.workspaceFolderName} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.workspaceFolderName,
+                          isLight && { color: '#1f2328' },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {group.name}
                       </Text>
-                      <View style={styles.workspaceCountBadge}>
-                        <Text style={styles.workspaceCountBadgeText}>{group.items.length}</Text>
+                      <View
+                        style={[
+                          styles.workspaceCountBadge,
+                          isLight && { backgroundColor: 'rgba(0, 0, 0, 0.06)' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.workspaceCountBadgeText,
+                            isLight && { color: '#57606a' },
+                          ]}
+                        >
+                          {group.items.length}
+                        </Text>
                       </View>
                     </View>
                   </TouchableOpacity>
@@ -681,17 +802,71 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               );
             })
           )}
+        </ScrollView>
 
-          {/* 6. Management & Navigation Links */}
-          <View style={[styles.sectionHeaderRow, { marginTop: 20 }]}>
-            <Text style={styles.sectionTitle}>MANAGEMENT & TOOLS</Text>
+        {/* 6. Sticky Management & Navigation Links (Pinned above user profile) */}
+        <View
+          style={[
+            styles.stickyManagementSection,
+            isLight && {
+              backgroundColor: '#ffffff',
+              borderTopColor: '#e1e4e8',
+            },
+          ]}
+        >
+          <View style={styles.stickyManagementHeaderRow}>
+            <Text style={[styles.sectionTitle, isLight && { color: '#6e7781' }]}>MANAGEMENT & TOOLS</Text>
           </View>
+
+          {/* Theme Mode Toggle (White / Dark) */}
+          <TouchableOpacity
+            style={[
+              styles.navItem,
+              isLight && { backgroundColor: 'transparent' },
+            ]}
+            onPress={toggleTheme}
+            activeOpacity={0.7}
+          >
+            <View style={styles.navIconBox}>
+              {isLight ? (
+                <Sun size={17} color="#0077b6" />
+              ) : (
+                <Moon size={17} color={colors.textSecondary} />
+              )}
+            </View>
+            <Text style={[styles.navLabel, isLight && { color: '#1f2328' }]}>
+              {isLight ? 'Theme: White' : 'Theme: Dark'}
+            </Text>
+            <View
+              style={[
+                styles.themeToggleBadge,
+                isLight && {
+                  backgroundColor: 'rgba(0, 119, 182, 0.10)',
+                  borderColor: 'rgba(0, 119, 182, 0.25)',
+                },
+              ]}
+            >
+              {isLight ? (
+                <Sun size={10} color="#0077b6" style={{ marginRight: 3 }} />
+              ) : (
+                <Moon size={10} color="#a3a3a3" style={{ marginRight: 3 }} />
+              )}
+              <Text
+                style={[
+                  styles.themeToggleBadgeText,
+                  isLight && { color: '#0077b6', fontWeight: '700' },
+                ]}
+              >
+                {isLight ? 'White' : 'Dark'}
+              </Text>
+            </View>
+          </TouchableOpacity>
 
           {/* Security Approvals */}
           <TouchableOpacity
             style={[
               styles.navItem,
-              currentScreen === 'approvals' && styles.navItemActive,
+              currentScreen === 'approvals' && (isLight ? { backgroundColor: 'rgba(0, 119, 182, 0.10)' } : styles.navItemActive),
             ]}
             onPress={() => handleNavScreen('approvals')}
             activeOpacity={0.7}
@@ -699,13 +874,14 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.navIconBox}>
               <ShieldAlert
                 size={17}
-                color={pendingApproval ? colors.red : colors.textSecondary}
+                color={pendingApproval ? colors.red : (isLight ? '#57606a' : colors.textSecondary)}
               />
             </View>
             <Text
               style={[
                 styles.navLabel,
-                currentScreen === 'approvals' && styles.navLabelActive,
+                isLight && { color: '#24292f' },
+                currentScreen === 'approvals' && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.navLabelActive),
               ]}
             >
               Security Approvals & Diff
@@ -721,7 +897,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           <TouchableOpacity
             style={[
               styles.navItem,
-              currentScreen === 'health' && styles.navItemActive,
+              currentScreen === 'health' && (isLight ? { backgroundColor: 'rgba(0, 119, 182, 0.10)' } : styles.navItemActive),
             ]}
             onPress={() => handleNavScreen('health')}
             activeOpacity={0.7}
@@ -729,13 +905,14 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.navIconBox}>
               <Activity
                 size={17}
-                color={currentScreen === 'health' ? colors.primary : colors.textSecondary}
+                color={currentScreen === 'health' ? (isLight ? '#0077b6' : colors.primary) : (isLight ? '#57606a' : colors.textSecondary)}
               />
             </View>
             <Text
               style={[
                 styles.navLabel,
-                currentScreen === 'health' && styles.navLabelActive,
+                isLight && { color: '#24292f' },
+                currentScreen === 'health' && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.navLabelActive),
               ]}
             >
               Machine Health & Fleet
@@ -746,7 +923,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           <TouchableOpacity
             style={[
               styles.navItem,
-              currentScreen === 'sessions' && styles.navItemActive,
+              currentScreen === 'sessions' && (isLight ? { backgroundColor: 'rgba(0, 119, 182, 0.10)' } : styles.navItemActive),
             ]}
             onPress={() => handleNavScreen('sessions')}
             activeOpacity={0.7}
@@ -754,13 +931,14 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <View style={styles.navIconBox}>
               <Layers
                 size={17}
-                color={currentScreen === 'sessions' ? colors.primary : colors.textSecondary}
+                color={currentScreen === 'sessions' ? (isLight ? '#0077b6' : colors.primary) : (isLight ? '#57606a' : colors.textSecondary)}
               />
             </View>
             <Text
               style={[
                 styles.navLabel,
-                currentScreen === 'sessions' && styles.navLabelActive,
+                isLight && { color: '#24292f' },
+                currentScreen === 'sessions' && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.navLabelActive),
               ]}
             >
               Workspace & Fleet Tree
@@ -774,10 +952,10 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navIconBox}>
-              <Folder size={17} color={colors.textSecondary} />
+              <Folder size={17} color={isLight ? '#57606a' : colors.textSecondary} />
             </View>
-            <Text style={styles.navLabel}>Browse Node Folders</Text>
-            <ChevronRight size={14} color={colors.textMuted} />
+            <Text style={[styles.navLabel, isLight && { color: '#24292f' }]}>Browse Node Folders</Text>
+            <ChevronRight size={14} color={isLight ? '#57606a' : colors.textMuted} />
           </TouchableOpacity>
 
           {/* Server & Notifications Settings */}
@@ -787,17 +965,33 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             activeOpacity={0.7}
           >
             <View style={styles.navIconBox}>
-              <Bell size={17} color={colors.textSecondary} />
+              <Bell size={17} color={isLight ? '#57606a' : colors.textSecondary} />
             </View>
-            <Text style={styles.navLabel}>Push & Server Settings</Text>
-            <ChevronRight size={14} color={colors.textMuted} />
+            <Text style={[styles.navLabel, isLight && { color: '#24292f' }]}>Push & Server Settings</Text>
+            <ChevronRight size={14} color={isLight ? '#57606a' : colors.textMuted} />
           </TouchableOpacity>
-        </ScrollView>
+        </View>
 
         {/* 7. Drawer Footer: User Profile */}
-        <View style={styles.drawerBottomFooter}>
+        <View
+          style={[
+            styles.drawerBottomFooter,
+            isLight && {
+              backgroundColor: '#ffffff',
+              borderTopColor: '#e1e4e8',
+            },
+          ]}
+        >
           <View style={styles.bottomProfileCard}>
-            <View style={styles.avatarBox}>
+            <View
+              style={[
+                styles.avatarBox,
+                isLight && {
+                  backgroundColor: '#f0f2f5',
+                  borderColor: '#d0d7de',
+                },
+              ]}
+            >
               {avatarUri && !avatarError ? (
                 <Image
                   source={{ uri: avatarUri }}
@@ -806,25 +1000,57 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                   resizeMode="cover"
                 />
               ) : (
-                <Text style={styles.avatarText}>{operatorInitial}</Text>
+                <Text style={[styles.avatarText, isLight && { color: '#1f2328' }]}>{operatorInitial}</Text>
               )}
             </View>
             <View style={styles.bottomProfileTextCol}>
-              <Text style={styles.bottomProfileName} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.bottomProfileName,
+                  isLight && { color: '#1f2328' },
+                ]}
+                numberOfLines={1}
+              >
                 {operatorName}
               </Text>
-              <Text style={styles.bottomProfileEmail} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.bottomProfileEmail,
+                  isLight && { color: '#6e7781' },
+                ]}
+                numberOfLines={1}
+              >
                 {operatorEmail}
               </Text>
             </View>
             <TouchableOpacity
-              style={styles.bottomLogoutBtn}
+              style={[
+                styles.bottomThemeBtn,
+                isLight && { backgroundColor: '#f0f2f5', borderColor: '#d0d7de' },
+              ]}
+              onPress={toggleTheme}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Toggle Theme"
+            >
+              {isLight ? (
+                <Sun size={15} color="#0077b6" />
+              ) : (
+                <Moon size={15} color={colors.textMuted} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.bottomLogoutBtn,
+                isLight && { backgroundColor: '#f0f2f5', borderColor: '#d0d7de' },
+              ]}
               onPress={logout}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Sign Out"
             >
-              <LogOut size={15} color={colors.textMuted} />
+              <LogOut size={15} color={isLight ? '#57606a' : colors.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -981,6 +1207,32 @@ const styles = StyleSheet.create({
     color: '#737373',
     marginTop: 1,
   },
+  bottomThemeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  themeToggleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  themeToggleBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#a3a3a3',
+  },
   bottomLogoutBtn: {
     width: 32,
     height: 32,
@@ -996,7 +1248,23 @@ const styles = StyleSheet.create({
   },
   drawerScrollContent: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  stickyManagementSection: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 6,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: colors.surfaceContainerLowest,
+  },
+  stickyManagementHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+    marginBottom: 6,
   },
   computeNodeSection: {
     marginBottom: 12,
@@ -1354,9 +1622,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
-    paddingVertical: 9,
+    paddingVertical: 7.5,
     borderRadius: radii.md,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   navItemActive: {
     backgroundColor: colors.primarySubtle,
