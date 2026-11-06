@@ -207,7 +207,13 @@ export class DaemonHub {
 
     return new Promise((resolve, reject) => {
       let timer: NodeJS.Timeout | undefined;
-      if (method !== "agent.run" && timeoutMs > 0) {
+      const isLongRunning =
+        method === "agent.run" ||
+        method === "agent.subscribe" ||
+        method === "sessions.subscribe" ||
+        method === "terminal.exec";
+
+      if (!isLongRunning && timeoutMs > 0) {
         timer = setTimeout(() => {
           this.pendingRpcs.delete(id);
           reject(new Error(`RPC timeout for method '${method}' on machine [${machineId}]`));

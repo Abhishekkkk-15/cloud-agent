@@ -8,6 +8,21 @@ export class ClientHub {
   private userSockets = new Map<string, Set<WebSocket>>();
   private clientSockets = new Map<string, WebSocket>();
 
+  constructor() {
+    // Keep alive all connected client sockets across proxies (Render/Cloudflare/NAT)
+    setInterval(() => {
+      for (const ws of this.clientSockets.values()) {
+        if (ws.readyState === 1) {
+          try {
+            ws.ping();
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }, 25000);
+  }
+
   register(ws: WebSocket, user: AuthenticatedUser): void {
     if (!this.userSockets.has(user.userId)) {
       this.userSockets.set(user.userId, new Set());
@@ -32,6 +47,14 @@ export class ClientHub {
         const clientId = msg.clientId || defaultClientId;
         if (!this.clientSockets.has(clientId)) {
           this.clientSockets.set(clientId, ws);
+        }
+
+        // 0. Heartbeat Ping from Mobile/Web Client
+        if (msg.type === "ping" || msg.type === "heartbeat") {
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: "pong", timestamp: msg.timestamp || Date.now() }));
+          }
+          return;
         }
 
         // 1. WebRTC Signaling: Client -> Gateway -> Daemon

@@ -723,7 +723,11 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     // Subscribe to connection state
     mobileP2P.onStateChange((state) => {
       set({ connectionState: state });
-      if (state === 'connected') {
+      if (state === 'disconnected' || state === 'error') {
+        // Clear active subscription lock so reconnect can seamlessly re-attach
+        activeSubscriptionSessionId = null;
+      } else if (state === 'connected') {
+        activeSubscriptionSessionId = null;
         get().refreshStatus();
         get().fetchSessions();
         get().fetchKnownWorkspaces();
@@ -1917,12 +1921,14 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           isSendingPrompt: isStillRunning,
         }));
         if (isStillRunning) {
+          activeSubscriptionSessionId = null;
           get().subscribeToSessionStream(activeSession.id);
         }
       } else if (!isStillRunning && isSendingPrompt) {
         set({ isSendingPrompt: false });
       } else if (isStillRunning) {
         set({ isSendingPrompt: true });
+        activeSubscriptionSessionId = null;
         get().subscribeToSessionStream(activeSession.id);
       }
 
@@ -1955,7 +1961,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
     } catch (err: any) {
       console.warn(`[DaemonStore] subscribeToSessionStream error for ${sessionId}:`, err);
-      if (get().activeSession?.id === sessionId) {
+      if (get().activeSession?.id === sessionId && mobileP2P.isConnected()) {
         set({ isSendingPrompt: false });
       }
     } finally {
@@ -2100,14 +2106,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       const isConnectionLoss =
         !mobileP2P.isConnected() ||
         errMsg.includes('timeout') ||
-        errMsg.includes('No active connection');
+        errMsg.includes('No active connection') ||
+        errMsg.includes('Connection closed') ||
+        errMsg.includes('mid-flight');
 
       if (isConnectionLoss) {
         // Disconnected mid-flight: do not inject a permanent error card.
-        // Instead, schedule background reconciliation with the host disk.
+        // Instead, release lock and schedule background reconciliation with the host disk.
+        activeSubscriptionSessionId = null;
         setTimeout(() => {
           get().reconcileActiveSession();
-        }, 1500);
+        }, 1200);
       } else {
         set((state) => ({
           sessionMessages: [

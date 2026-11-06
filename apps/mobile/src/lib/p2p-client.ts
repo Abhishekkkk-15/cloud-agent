@@ -50,6 +50,14 @@ export interface DaemonStatusResult {
   }>;
 }
 
+interface PendingRpcEntry {
+  resolve: (val: any) => void;
+  reject: (err: any) => void;
+  timer?: any;
+  resetTimer?: () => void;
+  isLongRunning?: boolean;
+}
+
 export class MobileP2PClient {
   private ws: WebSocket | null = null;
   private pc: any | null = null;
@@ -57,7 +65,7 @@ export class MobileP2PClient {
   private state: ConnectionState = 'disconnected';
   private clientId: string = '';
   private machineId: string = '';
-  private pendingRpcs = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
+  private pendingRpcs = new Map<string, PendingRpcEntry>();
   private eventListeners = new Set<(event: any) => void>();
   private stateListeners = new Set<(state: ConnectionState) => void>();
   private reqCounter = 0;
@@ -66,8 +74,43 @@ export class MobileP2PClient {
   private reconnectTimer: any = null;
   private reconnectAttempts = 0;
   private isExplicitlyDisconnected = false;
+  private heartbeatTimer: any = null;
+  private lastPongAt = Date.now();
 
   constructor() {}
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.lastPongAt = Date.now();
+
+    this.heartbeatTimer = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          this.ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+        } catch (e) {
+          console.warn('[MobileP2P] Failed to send heartbeat ping:', e);
+        }
+
+        // If no pong or message received for >40 seconds, socket is zombie -> force reconnect
+        if (Date.now() - this.lastPongAt > 40000) {
+          console.warn('[MobileP2P] Heartbeat timeout (>40s without pong/activity). Force reconnecting...');
+          this.stopHeartbeat();
+          try {
+            this.ws.close();
+          } catch {}
+          this.setState('disconnected');
+          this.scheduleReconnect();
+        }
+      }
+    }, 15000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+  }
 
   getState(): ConnectionState {
     return this.state;
@@ -109,6 +152,8 @@ export class MobileP2PClient {
         this.ws.onopen = () => {
           console.log('[MobileP2P] WebSocket opened to Gateway');
           this.reconnectAttempts = 0;
+          this.lastPongAt = Date.now();
+          this.startHeartbeat();
           if (this.reconnectTimer) {
             clearTimeout(this.reconnectTimer);
             this.reconnectTimer = null;
@@ -117,6 +162,7 @@ export class MobileP2PClient {
         };
         this.ws.onerror = (e) => {
           console.error('[MobileP2P] WebSocket error:', e);
+          this.stopHeartbeat();
           reject(e);
         };
       });
@@ -169,6 +215,11 @@ export class MobileP2PClient {
           const rawText = typeof msg.data === 'string' ? msg.data : msg.data.toString();
           const data = JSON.parse(rawText);
 
+          this.lastPongAt = Date.now();
+          if (data.type === 'pong' || data.type === 'heartbeat') {
+            return;
+          }
+
           if (data.type === 'client.ready') {
             this.clientId = data.clientId;
             console.log('[MobileP2P] Client ready with ID:', this.clientId);
@@ -211,13 +262,24 @@ export class MobileP2PClient {
       };
 
       this.ws.onclose = () => {
+        console.log('[MobileP2P] WebSocket closed by gateway/host');
+        this.stopHeartbeat();
         this.setState('disconnected');
+
+        // Fail pending RPCs with connection error so callers do not hang
+        for (const [id, entry] of this.pendingRpcs.entries()) {
+          if (entry.timer) clearTimeout(entry.timer);
+          entry.reject(new Error('Connection closed mid-flight'));
+        }
+        this.pendingRpcs.clear();
+
         if (!this.isExplicitlyDisconnected) {
           this.scheduleReconnect();
         }
       };
     } catch (err) {
       console.error('[MobileP2PClient] Connection error:', err);
+      this.stopHeartbeat();
       this.setState('error');
       if (!this.isExplicitlyDisconnected) {
         this.scheduleReconnect();
@@ -229,15 +291,20 @@ export class MobileP2PClient {
     try {
       const data = JSON.parse(rawText);
 
-      // Handle streaming chunks (e.g. agent.run)
+      // Handle streaming chunks (e.g. agent.run, agent.subscribe)
       if (data.stream) {
+        if (data.id && this.pendingRpcs.has(data.id)) {
+          const handler = this.pendingRpcs.get(data.id)!;
+          // Crucial: reset inactivity watchdog so long tasks never get killed while streaming
+          handler.resetTimer?.();
+          if (data.done) {
+            if (handler.timer) clearTimeout(handler.timer);
+            this.pendingRpcs.delete(data.id);
+            handler.resolve(data.result);
+          }
+        }
         if (data.event) {
           this.eventListeners.forEach((listener) => listener(data.event));
-        }
-        if (data.done && data.id && this.pendingRpcs.has(data.id)) {
-          const handler = this.pendingRpcs.get(data.id)!;
-          this.pendingRpcs.delete(data.id);
-          handler.resolve(data.result);
         }
         return;
       }
@@ -250,6 +317,7 @@ export class MobileP2PClient {
       // Handle final RPC response
       if (data.id && this.pendingRpcs.has(data.id)) {
         const handler = this.pendingRpcs.get(data.id)!;
+        if (handler.timer) clearTimeout(handler.timer);
         this.pendingRpcs.delete(data.id);
         if (data.error) {
           handler.reject(new Error(typeof data.error === 'string' ? data.error : data.error.message || 'RPC Failed'));
@@ -266,30 +334,46 @@ export class MobileP2PClient {
     const id = customId || `rpc_${++this.reqCounter}_${Date.now()}`;
     const payload = JSON.stringify({ id, machineId: this.machineId, method, params });
 
+    const isLongRunning =
+      method === 'agent.run' ||
+      method === 'agent.subscribe' ||
+      method === 'sessions.subscribe' ||
+      method === 'terminal.exec';
+
     return new Promise<T>((resolve, reject) => {
-      this.pendingRpcs.set(id, { resolve, reject });
+      let timer: any = null;
 
-      // Generous timeout for AI agent runs (3 minutes), 30s for standard RPCs
-      const effectiveTimeout = timeoutMs !== undefined
-        ? timeoutMs
-        : (method === 'agent.run' || method === 'agent.subscribe' || method === 'sessions.subscribe')
-        ? 180000
-        : 30000;
+      const resetTimer = () => {
+        if (timer) clearTimeout(timer);
+        // For long running tasks (AI turns, continuous stream subscriptions):
+        // 5-minute inactivity watchdog that resets on every incoming stream chunk.
+        // For standard RPC queries (daemon.status, sessions.list): 30 seconds.
+        const timeout = timeoutMs !== undefined
+          ? timeoutMs
+          : isLongRunning
+          ? 300000 // 5 minutes inactivity watchdog
+          : 30000;  // 30 seconds standard
 
-      if (effectiveTimeout > 0) {
-        setTimeout(() => {
-          if (this.pendingRpcs.has(id)) {
-            this.pendingRpcs.delete(id);
-            reject(new Error(`RPC timeout for method ${method}`));
-          }
-        }, effectiveTimeout);
-      }
+        if (timeout > 0) {
+          timer = setTimeout(() => {
+            if (this.pendingRpcs.has(id)) {
+              this.pendingRpcs.delete(id);
+              reject(new Error(`RPC timeout for method ${method} (inactivity)`));
+            }
+          }, timeout);
+        }
+      };
+
+      resetTimer();
+
+      this.pendingRpcs.set(id, { resolve, reject, timer, resetTimer, isLongRunning });
 
       if (this.dc && this.dc.readyState === 'open') {
         this.dc.send(payload);
       } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         this.ws.send(payload);
       } else {
+        if (timer) clearTimeout(timer);
         this.pendingRpcs.delete(id);
         reject(new Error('No active connection to Gateway or Daemon'));
       }
@@ -402,10 +486,16 @@ export class MobileP2PClient {
 
   disconnect() {
     this.isExplicitlyDisconnected = true;
+    this.stopHeartbeat();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    for (const [id, entry] of this.pendingRpcs.entries()) {
+      if (entry.timer) clearTimeout(entry.timer);
+      entry.reject(new Error('P2P Client explicitly disconnected'));
+    }
+    this.pendingRpcs.clear();
     this.dc?.close();
     this.pc?.close();
     this.ws?.close();
