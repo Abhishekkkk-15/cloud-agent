@@ -58,6 +58,7 @@ import { LiveApprovalCard } from '../components/LiveApprovalCard';
 import { ArtifactsSheet } from '../components/ArtifactsSheet';
 import { AutoHealerModal } from '../components/AutoHealerModal';
 import { AskQuestionCard } from '../components/AskQuestionCard';
+import { startDictation, stopDictation, isSpeechRecognitionSupported } from '../lib/speech';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -122,6 +123,41 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [renameTitle, setRenameTitle] = useState('');
   const [isSavingRename, setIsSavingRename] = useState(false);
   const [isRespondingApproval, setIsRespondingApproval] = useState(false);
+  const [isDictating, setIsDictating] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      stopDictation();
+    };
+  }, []);
+
+  const handleToggleDictation = async () => {
+    if (isDictating) {
+      stopDictation();
+      setIsDictating(false);
+      return;
+    }
+
+    const basePrompt = promptInput.trim();
+    setIsDictating(true);
+
+    await startDictation({
+      onStart: () => {
+        setIsDictating(true);
+      },
+      onResult: (transcript) => {
+        const full = basePrompt ? `${basePrompt} ${transcript}` : transcript;
+        setPromptInput(full);
+      },
+      onError: (err) => {
+        setIsDictating(false);
+        Alert.alert('Voice Dictation', err);
+      },
+      onEnd: () => {
+        setIsDictating(false);
+      },
+    });
+  };
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -1143,8 +1179,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           {/* Clean Text Input with Dynamic Multiline Expansion */}
           <TextInput
             style={[styles.composerTextInput, isLight && { color: '#1f2328' }]}
-            placeholder="Type a message..."
-            placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+            placeholder={isDictating ? 'Listening... speak your prompt' : 'Type a message...'}
+            placeholderTextColor={isDictating ? '#ef4444' : (isLight ? '#8c959f' : '#737373')}
             value={promptInput}
             onChangeText={handleInputChange}
             onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
@@ -1168,7 +1204,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 <Square size={13} color="#ffffff" />
               )}
             </TouchableOpacity>
-          ) : promptInput.trim().length > 0 ? (
+          ) : promptInput.trim().length > 0 && !isDictating ? (
             <TouchableOpacity
               style={[styles.composerSendBtn, isLight && { backgroundColor: '#0077b6' }]}
               onPress={handleSendPrompt}
@@ -1178,16 +1214,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.composerMicBtn, isLight && { backgroundColor: '#f6f8fa' }]}
+              style={[
+                styles.composerMicBtn,
+                isLight && { backgroundColor: '#f6f8fa' },
+                isDictating && styles.composerMicBtnActive,
+              ]}
               activeOpacity={0.7}
-              onPress={() => {
-                Alert.alert(
-                  'Voice Input',
-                  'Antigravity voice input is ready. Type or speak your prompt directly.'
-                );
-              }}
+              onPress={handleToggleDictation}
+              accessibilityLabel={isDictating ? 'Stop voice dictation' : 'Start voice dictation'}
             >
-              <Mic size={17} color={isLight ? '#57606a' : '#737373'} />
+              <Mic size={17} color={isDictating ? '#ffffff' : (isLight ? '#57606a' : '#737373')} />
             </TouchableOpacity>
           )}
         </View>
@@ -2006,5 +2042,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Platform.OS === 'ios' ? 2 : 1,
+  },
+  composerMicBtnActive: {
+    backgroundColor: '#ef4444',
   },
 });

@@ -59,6 +59,106 @@ function MainApp() {
     return () => sub.remove();
   }, []);
 
+  // Listen for push notification lock-screen quick actions and deep linking
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    try {
+      const Notifications = require('expo-notifications');
+      if (!Notifications?.addNotificationResponseReceivedListener) return;
+
+      const handleNotificationResponse = async (response: any) => {
+        if (!response) return;
+        const actionIdentifier = response.actionIdentifier;
+        const data = response.notification?.request?.content?.data || {};
+        const store = useDaemonStore.getState();
+
+        // 1. Interactive Lock-Screen Quick Actions (APPROVE / REJECT)
+        if (actionIdentifier === 'APPROVE' || actionIdentifier === 'REJECT') {
+          const isAllowed = actionIdentifier === 'APPROVE';
+          const machineId = data.machineId || store.activeMachine?.machineId;
+          const approvalId = data.approvalId;
+
+          // Dispatch to Gateway HTTP bridge immediately
+          if (machineId && approvalId) {
+            const cleanGw = (store.gatewayUrl || '').replace(/\/+$/, '');
+            fetch(`${cleanGw}/api/machines/${machineId}/approve`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(store.token ? { Authorization: `Bearer ${store.token}` } : {}),
+              },
+              body: JSON.stringify({ approvalId, allowed: isAllowed }),
+            }).catch((err) => console.warn('[NotificationAction] Gateway approve error:', err));
+          }
+
+          // If connected via WebRTC, also trigger store handler
+          if (store.connectionState === 'connected') {
+            store.respondApproval(isAllowed).catch(() => {});
+          } else {
+            store.dismissPendingApproval();
+          }
+          return;
+        }
+
+        // 2. Notification Card Tap (Deep Linking)
+        if (actionIdentifier === Notifications.DEFAULT_ACTION_IDENTIFIER || !actionIdentifier) {
+          // Switch to target machine if provided and different
+          if (data.machineId && data.machineId !== store.activeMachine?.machineId) {
+            const matched = store.machines.find((m) => m.machineId === data.machineId);
+            if (matched) {
+              await store.selectMachine(matched);
+            }
+          }
+
+          // Switch to target session if provided
+          if (data.sessionId) {
+            const matchedSession = store.sessions.find((s) => s.id === data.sessionId);
+            if (matchedSession) {
+              await store.selectSession(matchedSession);
+            } else {
+              store.subscribeToSessionStream(data.sessionId);
+            }
+          }
+
+          // If approval required, restore approval state
+          if (data.type === 'approval_required' && data.approvalId) {
+            store.setPendingApproval({
+              id: data.approvalId,
+              sessionId: data.sessionId,
+              tool: data.tool || 'bash',
+              command: data.command || '',
+              description: 'Elevated command requires approval',
+              requestedAt: 'Just now',
+              targetNode: store.activeMachine?.name || 'Remote Host',
+              caller: 'Google Antigravity CLI',
+              riskLevel: 'high',
+            });
+          }
+
+          setCurrentScreen('agent');
+          setIsDrawerOpen(false);
+        }
+      };
+
+      const sub = Notifications.addNotificationResponseReceivedListener(handleNotificationResponse);
+
+      // Check cold-start launch response
+      if (typeof Notifications.getLastNotificationResponseAsync === 'function') {
+        Notifications.getLastNotificationResponseAsync()
+          .then((last: any) => {
+            if (last) handleNotificationResponse(last);
+          })
+          .catch(() => {});
+      }
+
+      return () => {
+        sub?.remove?.();
+      };
+    } catch (err) {
+      console.warn('[Notifications] Deep link response listener setup failed:', err);
+    }
+  }, []);
+
   // Left-edge swipe responder to smoothly slide open the sidebar drawer
   const edgeSwipePanResponder = useRef(
     PanResponder.create({

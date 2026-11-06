@@ -27,6 +27,7 @@
     "expo-dev-client": "^58.0.15",
     "expo-device": "^58.0.5",
     "expo-notifications": "58.1.6",
+    "expo-speech-recognition": "^58.0.1",
     "expo-status-bar": "^58.0.4",
     "expo-web-browser": "^58.0.6",
     "lucide-react-native": "^0.475.0",

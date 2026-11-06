@@ -39,6 +39,7 @@ const STORAGE_KEY_TOKEN = 'cloud_agent_token';
 const STORAGE_KEY_USER = 'cloud_agent_user';
 const STORAGE_KEY_API = 'cloud_agent_api_url';
 const STORAGE_KEY_GATEWAY = 'cloud_agent_gateway_url';
+const STORAGE_KEY_TERMINAL_HISTORY = 'cloud_agent_terminal_history';
 
 async function getStorageItem(key: string): Promise<string | null> {
   try {
@@ -306,6 +307,8 @@ interface DaemonStoreState {
   }>;
   sessionConfig: SessionConfig;
   terminalLines: TerminalOutputLine[];
+  terminalHistory: string[];
+  activeTerminalProcessId: string | null;
   isTerminalRunning: boolean;
   sessionArtifacts: CliArtifact[];
   isLoadingArtifacts: boolean;
@@ -346,6 +349,7 @@ interface DaemonStoreState {
   fetchUserProfile: () => Promise<UserProfile | null>;
   logout: () => void;
   execTerminalCommand: (command: string, cwd?: string) => Promise<{ exitCode: number }>;
+  killTerminalCommand: () => Promise<boolean>;
   clearTerminal: () => void;
   refreshStatus: () => Promise<void>;
   fetchSessions: () => Promise<void>;
@@ -372,6 +376,8 @@ interface DaemonStoreState {
   sendPrompt: (promptText: string) => Promise<void>;
   cancelPrompt: () => Promise<boolean>;
   respondApproval: (allowed: boolean) => Promise<void>;
+  dismissPendingApproval: () => void;
+  setPendingApproval: (approval: ApprovalRequest | null) => void;
   pingHeartbeat: () => Promise<void>;
   setSelectedWorkspace: (ws: string) => void;
   setSessionConfig: (config: Partial<SessionConfig>) => void;
@@ -416,6 +422,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     dangerouslySkipPermissions: true,
   },
   terminalLines: [],
+  terminalHistory: [],
+  activeTerminalProcessId: null,
   isTerminalRunning: false,
   sessionArtifacts: [],
   isLoadingArtifacts: false,
@@ -955,13 +963,23 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       requestNotificationPermission().catch(() => {});
 
-      // Restore stored token, user profile, and custom endpoints from persistent storage
-      const [storedToken, storedUserJson, storedApi, storedGateway] = await Promise.all([
+      // Restore stored token, user profile, endpoints, and terminal history from persistent storage
+      const [storedToken, storedUserJson, storedApi, storedGateway, storedTermHist] = await Promise.all([
         getStorageItem(STORAGE_KEY_TOKEN),
         getStorageItem(STORAGE_KEY_USER),
         getStorageItem(STORAGE_KEY_API),
         getStorageItem(STORAGE_KEY_GATEWAY),
+        getStorageItem(STORAGE_KEY_TERMINAL_HISTORY),
       ]);
+
+      if (storedTermHist) {
+        try {
+          const parsedHist = JSON.parse(storedTermHist);
+          if (Array.isArray(parsedHist)) set({ terminalHistory: parsedHist });
+        } catch {
+          // ignore corrupted history
+        }
+      }
 
       let restoredUser: UserProfile | null = null;
       if (storedUserJson) {
@@ -1277,14 +1295,26 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   execTerminalCommand: async (command: string, cwd?: string) => {
+    const cleanCmd = command.trim();
+    if (!cleanCmd) return { exitCode: 0 };
+
     const activeWs = cwd || get().targetWorkspacePath || get().activeSession?.workspacePath;
+    const execId = `term_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+    // Update command history: deduplicate, prepend to top, cap at 50
+    const currentHist = get().terminalHistory;
+    const nextHist = [cleanCmd, ...currentHist.filter((c) => c !== cleanCmd)].slice(0, 50);
+    setStorageItem(STORAGE_KEY_TERMINAL_HISTORY, JSON.stringify(nextHist)).catch(() => {});
+
     set((state) => ({
       isTerminalRunning: true,
+      activeTerminalProcessId: execId,
+      terminalHistory: nextHist,
       terminalLines: [
         ...state.terminalLines,
         {
           id: `cmd_${Date.now()}`,
-          text: `$ ${command}`,
+          text: `$ ${cleanCmd}`,
           stream: 'info',
           timestamp: new Date().toISOString(),
         },
@@ -1294,11 +1324,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       const res = await mobileP2P.sendRpc<{ exitCode: number; durationMs?: number }>(
         'terminal.exec',
-        { command, cwd: activeWs },
-        180000
+        { command: cleanCmd, cwd: activeWs },
+        180000,
+        execId
       );
       set((state) => ({
         isTerminalRunning: false,
+        activeTerminalProcessId: null,
         terminalLines: [
           ...state.terminalLines,
           {
@@ -1313,6 +1345,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch (err: any) {
       set((state) => ({
         isTerminalRunning: false,
+        activeTerminalProcessId: null,
         terminalLines: [
           ...state.terminalLines,
           {
@@ -1324,6 +1357,33 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         ],
       }));
       return { exitCode: 1 };
+    }
+  },
+
+  killTerminalCommand: async () => {
+    const { activeTerminalProcessId, isTerminalRunning } = get();
+    if (!isTerminalRunning) return false;
+
+    try {
+      const targetId = activeTerminalProcessId || undefined;
+      await mobileP2P.sendRpc('terminal.kill', { targetId });
+      set((state) => ({
+        isTerminalRunning: false,
+        activeTerminalProcessId: null,
+        terminalLines: [
+          ...state.terminalLines,
+          {
+            id: `kill_${Date.now()}`,
+            text: `[Process terminated by operator (SIGTERM)]`,
+            stream: 'stderr',
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }));
+      return true;
+    } catch (err) {
+      console.warn('[DaemonStore] killTerminalCommand failed:', err);
+      return false;
     }
   },
 
@@ -2145,6 +2205,14 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         ],
       }));
     }
+  },
+
+  dismissPendingApproval: () => {
+    set({ pendingApproval: null });
+  },
+
+  setPendingApproval: (approval: ApprovalRequest | null) => {
+    set({ pendingApproval: approval });
   },
 
   pingHeartbeat: async () => {

@@ -28,7 +28,8 @@
         "POST_NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
         "WAKE_LOCK",
-        "CAMERA"
+        "CAMERA",
+        "RECORD_AUDIO"
       ],
       "androidNavigationBar": {
         "backgroundColor": "#0a0a0a",
@@ -52,6 +53,13 @@
           "icon": "./assets/icon.png",
           "color": "#fafafa",
           "defaultChannel": "agent-alerts"
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Cloud Agent to access your microphone for voice dictation.",
+          "speechRecognitionPermission": "Allow Cloud Agent to transcribe your voice prompts."
         }
       ]
     ],

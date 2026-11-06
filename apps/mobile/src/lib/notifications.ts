@@ -166,6 +166,41 @@ export async function ensureNotificationChannelsAsync(): Promise<void> {
   }
 }
 
+export const NOTIFICATION_CATEGORY_APPROVAL = 'approval_actions';
+
+/**
+ * Registers interactive notification action categories for Android/iOS lock-screens.
+ */
+export async function setupNotificationCategoriesAsync(): Promise<void> {
+  if (Platform.OS === 'web' || isRunningInExpoGo()) return;
+  const { notifications } = getNativeModules();
+  if (!notifications?.setNotificationCategoryAsync) return;
+
+  try {
+    await notifications.setNotificationCategoryAsync(NOTIFICATION_CATEGORY_APPROVAL, [
+      {
+        identifier: 'APPROVE',
+        buttonTitle: '✓ Approve',
+        options: {
+          opensAppToForeground: false,
+          isAuthenticationRequired: false,
+        },
+      },
+      {
+        identifier: 'REJECT',
+        buttonTitle: '✕ Reject',
+        options: {
+          isDestructive: true,
+          opensAppToForeground: false,
+          isAuthenticationRequired: false,
+        },
+      },
+    ]);
+  } catch (err) {
+    console.warn('[Notifications] Error setting up notification categories:', err);
+  }
+}
+
 /**
  * Registers device for real native push notifications.
  * Automatically configures Android notification channels, requests runtime permissions,
@@ -211,6 +246,7 @@ export async function registerForPushNotificationsAsync(options?: {
   try {
     // 1. Ensure high-importance notification channels exist on Android
     await ensureNotificationChannelsAsync();
+    await setupNotificationCategoriesAsync();
 
     // 2. Request Android 13+ / iOS runtime permissions
     const { status: existingStatus } = await notifications.getPermissionsAsync();

@@ -6,6 +6,7 @@ export interface PushNotificationMessage {
   sound?: "default" | null;
   priority?: "default" | "normal" | "high";
   channelId?: string;
+  categoryId?: string;
   badge?: number;
 }
 
@@ -44,6 +45,7 @@ export async function sendExpoPushNotifications(
     sound?: string;
     priority?: string;
     channelId?: string;
+    categoryId?: string;
     badge?: number;
   }> = [];
 
@@ -59,6 +61,7 @@ export async function sendExpoPushNotifications(
           sound: msg.sound === null ? undefined : "default",
           priority: msg.priority || "high",
           channelId: msg.channelId || "agent-alerts",
+          categoryId: msg.categoryId,
           badge: msg.badge,
         });
       } else {

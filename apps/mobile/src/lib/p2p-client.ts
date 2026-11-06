@@ -262,8 +262,8 @@ export class MobileP2PClient {
     }
   }
 
-  sendRpc<T = any>(method: string, params: Record<string, unknown> = {}, timeoutMs?: number): Promise<T> {
-    const id = `rpc_${++this.reqCounter}_${Date.now()}`;
+  sendRpc<T = any>(method: string, params: Record<string, unknown> = {}, timeoutMs?: number, customId?: string): Promise<T> {
+    const id = customId || `rpc_${++this.reqCounter}_${Date.now()}`;
     const payload = JSON.stringify({ id, machineId: this.machineId, method, params });
 
     return new Promise<T>((resolve, reject) => {

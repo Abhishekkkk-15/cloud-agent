@@ -338,5 +338,25 @@ export async function handleMachinesRoutes(
     return true;
   }
 
+  // 5. POST /api/machines/:machineId/approve - Quick approval bridge for background/lockscreen push
+  if (path.startsWith("/api/machines/") && path.endsWith("/approve") && method === "POST") {
+    const machineId = path.split("/")[3];
+    try {
+      const body = await parseBody(req);
+      const { approvalId, allowed } = body;
+      if (!approvalId || typeof allowed !== "boolean") {
+        sendJson(res, 400, { error: "Missing approvalId or allowed boolean parameter" });
+        return true;
+      }
+
+      const resRpc = await daemonHub.sendRpc(machineId, "agent.approve", { approvalId, allowed });
+      console.log(`[MachinesRoute] Forwarded lockscreen approval for machine=${machineId} approvalId=${approvalId} allowed=${allowed}:`, JSON.stringify(resRpc));
+      sendJson(res, 200, { success: true, machineId, approvalId, allowed, result: resRpc });
+    } catch (err) {
+      sendJson(res, 400, { error: (err as Error).message });
+    }
+    return true;
+  }
+
   return false;
 }

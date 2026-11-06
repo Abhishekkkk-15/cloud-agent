@@ -122,6 +122,7 @@ export async function notifyUser(
     body: string;
     data?: Record<string, any>;
     channelId?: string;
+    categoryId?: string;
   }
 ): Promise<ExpoPushTicket[]> {
   const tokens = Array.from(userTokens.get(userId) || []);
@@ -136,6 +137,7 @@ export async function notifyUser(
       body: message.body,
       data: message.data,
       channelId: message.channelId || "agent-alerts",
+      categoryId: message.categoryId,
       priority: "high",
     },
   ]);
@@ -151,6 +153,7 @@ export async function notifyMachineSubscribers(
     body: string;
     data?: Record<string, any>;
     channelId?: string;
+    categoryId?: string;
   }
 ): Promise<ExpoPushTicket[]> {
   let tokens = Array.from(machineTokens.get(machineId) || []);
@@ -163,7 +166,7 @@ export async function notifyMachineSubscribers(
     return [];
   }
 
-  console.log(`[PushRegistry] Delivering push to ${tokens.length} device(s) for machine=${machineId}: "${message.title}"`);
+  console.log(`[PushRegistry] Delivering push to ${tokens.length} device(s) for machine=${machineId}: "${message.title}" (category: ${message.categoryId || 'none'})`);
   return sendExpoPushNotifications([
     {
       to: tokens,
@@ -171,6 +174,7 @@ export async function notifyMachineSubscribers(
       body: message.body,
       data: message.data,
       channelId: message.channelId || "agent-alerts",
+      categoryId: message.categoryId,
       priority: "high",
     },
   ]);

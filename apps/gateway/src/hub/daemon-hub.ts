@@ -142,11 +142,20 @@ export class DaemonHub {
           }
           if (data.event?.type === "permission_request") {
             const toolName = data.event?.data?.tool || data.event?.data?.name || "Tool";
+            const approvalId = data.event?.data?.id || data.event?.approvalId || data.id;
             notifyMachineSubscribers(machineId, {
               title: "Security Approval Required",
               body: `Waiting for confirmation to execute: ${toolName}`,
-              data: { type: "approval_required", machineId },
+              data: {
+                type: "approval_required",
+                machineId,
+                approvalId,
+                sessionId: data.sessionId,
+                tool: toolName,
+                command: data.event?.data?.command || "",
+              },
               channelId: "agent-alerts",
+              categoryId: "approval_actions",
             }).catch(() => {});
           }
           if (data.done) {
@@ -156,7 +165,11 @@ export class DaemonHub {
             notifyMachineSubscribers(machineId, {
               title: "Turn Complete",
               body: "Antigravity agent has finished execution.",
-              data: { type: "turn_complete", machineId },
+              data: {
+                type: "turn_complete",
+                machineId,
+                sessionId: data.sessionId,
+              },
               channelId: "agent-alerts",
             }).catch(() => {});
           }
