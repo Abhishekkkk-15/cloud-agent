@@ -57,6 +57,8 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
@@ -141,7 +143,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLight && styles.containerLight]}>
       <HeaderBar
         title="Workspace & Fleets"
         subtitle={`${activeMachine?.name || 'Local Machine'} • ${workspaces.length} workspaces`}
@@ -155,23 +157,22 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         {/* 1. Fleet & Organization Header Bar (Stitch Screen 3) */}
-        <View style={styles.fleetHeaderCard}>
+        <View style={[styles.fleetHeaderCard, isLight && styles.fleetHeaderCardLight]}>
           <View style={styles.fleetHeaderLeft}>
-            <View style={styles.fleetBadgeBox}>
-              <Text style={styles.fleetBadgeText}>
+            <View style={[styles.fleetBadgeBox, isLight && styles.fleetBadgeBoxLight]}>
+              <Text style={[styles.fleetBadgeText, isLight && styles.fleetBadgeTextLight]}>
                 {activeMachine?.name ? activeMachine.name[0].toUpperCase() : 'A'}
               </Text>
             </View>
             <View style={styles.fleetTitleCol}>
-              <Text style={styles.fleetTitle}>Cloud Agent Fleet</Text>
-              <Text style={styles.fleetSub}>
+              <Text style={[styles.fleetTitle, isLight && styles.fleetTitleLight]}>Cloud Agent Fleet</Text>
+              <Text style={[styles.fleetSub, isLight && styles.fleetSubLight]}>
                 {activeMachine?.name || 'Local Machine'} • {pingRtt || '18ms'}
               </Text>
             </View>
           </View>
-          <View style={styles.liveAgentsPill}>
-            
-            <Text style={styles.liveAgentsText}>{sessions.length} agents live</Text>
+          <View style={[styles.liveAgentsPill, isLight && styles.liveAgentsPillLight]}>
+            <Text style={[styles.liveAgentsText, isLight && styles.liveAgentsTextLight]}>{sessions.length} agents live</Text>
           </View>
         </View>
 
@@ -183,9 +184,9 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           contentContainerStyle={styles.carouselContainer}
         >
           {/* Active Box Pill */}
-          <View style={styles.envPillActive}>
+          <View style={[styles.envPillActive, isLight && styles.envPillActiveLight]}>
             <View style={styles.envDot} />
-            <Text style={styles.envPillTextActive}>
+            <Text style={[styles.envPillTextActive, isLight && styles.envPillTextActiveLight]}>
               {activeMachine?.name || 'Local Machine'}
             </Text>
           </View>
@@ -194,7 +195,8 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           <TouchableOpacity
             style={[
               styles.envPill,
-              selectedWorkspace === 'all' && styles.envPillSelected,
+              isLight && styles.envPillLight,
+              selectedWorkspace === 'all' && (isLight ? styles.envPillSelectedLight : styles.envPillSelected),
             ]}
             onPress={() => setSelectedWorkspace('all')}
             activeOpacity={0.7}
@@ -202,7 +204,8 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
             <Text
               style={[
                 styles.envPillText,
-                selectedWorkspace === 'all' && styles.envPillTextSelected,
+                isLight && styles.envPillTextLight,
+                selectedWorkspace === 'all' && (isLight ? styles.envPillTextSelectedLight : styles.envPillTextSelected),
               ]}
             >
               All ({sessions.length})
@@ -216,14 +219,19 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
             return (
               <TouchableOpacity
                 key={ws}
-                style={[styles.envPill, isSelected && styles.envPillSelected]}
+                style={[
+                  styles.envPill,
+                  isLight && styles.envPillLight,
+                  isSelected && (isLight ? styles.envPillSelectedLight : styles.envPillSelected),
+                ]}
                 onPress={() => setSelectedWorkspace(ws)}
                 activeOpacity={0.7}
               >
                 <Text
                   style={[
                     styles.envPillText,
-                    isSelected && styles.envPillTextSelected,
+                    isLight && styles.envPillTextLight,
+                    isSelected && (isLight ? styles.envPillTextSelectedLight : styles.envPillTextSelected),
                   ]}
                 >
                   {ws} ({count})
@@ -234,12 +242,12 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         </ScrollView>
 
         {/* 3. Search Bar */}
-        <View style={styles.searchBar}>
-          <Search size={14} color={colors.textMuted} style={styles.searchIcon} />
+        <View style={[styles.searchBar, isLight && styles.searchBarLight]}>
+          <Search size={14} color={isLight ? '#57606a' : colors.textMuted} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, isLight && styles.searchInputLight]}
             placeholder="Search sessions, prompts, repositories..."
-            placeholderTextColor={colors.textDisabled}
+            placeholderTextColor={isLight ? '#8c959f' : colors.textDisabled}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -248,7 +256,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
               onPress={() => setSearchQuery('')}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={14} color={colors.textMuted} />
+              <X size={14} color={isLight ? '#57606a' : colors.textMuted} />
             </TouchableOpacity>
           )}
         </View>
@@ -257,12 +265,12 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         {isLoadingSessions && sessions.length === 0 ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Loading workspace tree...</Text>
+            <Text style={[styles.loadingText, isLight && { color: '#6e7681' }]}>Loading workspace tree...</Text>
           </View>
         ) : workspaceGroups.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyTitle}>No workspaces discovered</Text>
-            <Text style={styles.emptySub}>
+            <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>No workspaces discovered</Text>
+            <Text style={[styles.emptySub, isLight && styles.emptySubLight]}>
               {searchQuery
                 ? `No sessions matching "${searchQuery}"`
                 : 'Connect to daemon to browse active repositories'}
@@ -284,38 +292,38 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
                   : hasActiveSession;
               const isCollapsed = !isExpanded;
               return (
-                <View key={group.name} style={styles.groupCard}>
+                <View key={group.name} style={[styles.groupCard, isLight && styles.groupCardLight]}>
                   {/* Workspace Group Header */}
-                  <View style={styles.groupHeaderRow}>
+                  <View style={[styles.groupHeaderRow, isLight && styles.groupHeaderRowLight]}>
                     <TouchableOpacity
                       style={styles.groupHeaderLeft}
                       onPress={() => toggleGroupCollapse(group.name)}
                       activeOpacity={0.7}
                     >
                       {isCollapsed ? (
-                        <ChevronRight size={16} color={colors.textMuted} />
+                        <ChevronRight size={16} color={isLight ? '#57606a' : colors.textMuted} />
                       ) : (
-                        <ChevronDown size={16} color={colors.textMuted} />
+                        <ChevronDown size={16} color={isLight ? '#57606a' : colors.textMuted} />
                       )}
-                      <View style={styles.groupIconBox}>
-                        <FolderGit2 size={20} color="#fafafa" />
+                      <View style={[styles.groupIconBox, isLight && styles.groupIconBoxLight]}>
+                        <FolderGit2 size={20} color={isLight ? '#0077b6' : '#fafafa'} />
                       </View>
-                      <Text style={styles.groupName} numberOfLines={1}>
+                      <Text style={[styles.groupName, isLight && styles.groupNameLight]} numberOfLines={1}>
                         {group.name}
                       </Text>
-                      <View style={styles.groupBadge}>
-                        <Text style={styles.groupBadgeText}>{group.items.length}</Text>
+                      <View style={[styles.groupBadge, isLight && styles.groupBadgeLight]}>
+                        <Text style={[styles.groupBadgeText, isLight && styles.groupBadgeTextLight]}>{group.items.length}</Text>
                       </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.newChatInGroupBtn}
+                      style={[styles.newChatInGroupBtn, isLight && styles.newChatInGroupBtnLight]}
                       onPress={() => handleNewSessionInGroup(group.path || group.name)}
                       activeOpacity={0.7}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                       accessibilityLabel={`Start new session in ${group.name}`}
                     >
-                      <Plus size={14} color={colors.primaryLight} />
+                      <Plus size={14} color={isLight ? '#0077b6' : colors.primaryLight} />
                     </TouchableOpacity>
                   </View>
 
@@ -324,13 +332,13 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
                     <View style={styles.groupSessionsList}>
                       {group.items.length === 0 ? (
                         <View style={styles.emptyGroupSub}>
-                          <Text style={styles.emptyGroupText}>No sessions in this workspace</Text>
+                          <Text style={[styles.emptyGroupText, isLight && { color: '#6e7681' }]}>No sessions in this workspace</Text>
                         </View>
                       ) : (
                         group.items.map((session) => (
                           <TouchableOpacity
                             key={session.id}
-                            style={styles.sessionTreeItem}
+                            style={[styles.sessionTreeItem, isLight && styles.sessionTreeItemLight]}
                             onPress={() => handleCardPress(session)}
                             activeOpacity={0.7}
                           >
@@ -341,7 +349,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
                                   {session.pinned ? (
                                     <Pin size={11} color={colors.primary} style={{ marginRight: 5 }} />
                                   ) : null}
-                                  <Text style={styles.sessionTitle} numberOfLines={1}>
+                                  <Text style={[styles.sessionTitle, isLight && styles.sessionTitleLight]} numberOfLines={1}>
                                     {session.title}
                                   </Text>
                                 </View>
@@ -351,20 +359,20 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
                                   activeOpacity={0.7}
                                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                 >
-                                  <MoreVertical size={14} color={colors.textMuted} />
+                                  <MoreVertical size={14} color={isLight ? '#57606a' : colors.textMuted} />
                                 </TouchableOpacity>
                               </View>
 
                               <View style={styles.sessionMetaRow}>
-                                <Text style={styles.sessionMetaText}>
+                                <Text style={[styles.sessionMetaText, isLight && styles.sessionMetaTextLight]}>
                                   {session.messageCount} msgs
                                 </Text>
-                                <Text style={styles.metaDot}>•</Text>
-                                <Text style={styles.sessionMetaText}>
+                                <Text style={[styles.metaDot, isLight && { color: '#8c959f' }]}>•</Text>
+                                <Text style={[styles.sessionMetaText, isLight && styles.sessionMetaTextLight]}>
                                   {formatTimeAgo(session.updatedAt || session.createdAt)}
                                 </Text>
-                                <Text style={styles.metaDot}>•</Text>
-                                <Text style={styles.sessionModelTag}>
+                                <Text style={[styles.metaDot, isLight && { color: '#8c959f' }]}>•</Text>
+                                <Text style={[styles.sessionModelTag, isLight && styles.sessionModelTagLight]}>
                                   {session.model || 'claude-3-5-sonnet'}
                                 </Text>
                               </View>
@@ -702,5 +710,104 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     textAlign: 'center',
+  },
+  containerLight: {
+    backgroundColor: '#ffffff',
+  },
+  fleetHeaderCardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  fleetBadgeBoxLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  fleetBadgeTextLight: {
+    color: '#0077b6',
+  },
+  fleetTitleLight: {
+    color: '#1f2328',
+  },
+  fleetSubLight: {
+    color: '#6e7681',
+  },
+  liveAgentsPillLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.3)',
+  },
+  liveAgentsTextLight: {
+    color: '#0077b6',
+  },
+  envPillActiveLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#0077b6',
+  },
+  envPillTextActiveLight: {
+    color: '#0077b6',
+  },
+  envPillLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  envPillSelectedLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    borderColor: '#0077b6',
+  },
+  envPillTextLight: {
+    color: '#57606a',
+  },
+  envPillTextSelectedLight: {
+    color: '#0077b6',
+    fontWeight: '600',
+  },
+  searchBarLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  searchInputLight: {
+    color: '#1f2328',
+  },
+  groupCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  groupHeaderRowLight: {
+    backgroundColor: '#f6f8fa',
+  },
+  groupIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  groupNameLight: {
+    color: '#1f2328',
+  },
+  groupBadgeLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  groupBadgeTextLight: {
+    color: '#57606a',
+  },
+  newChatInGroupBtnLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  sessionTreeItemLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e1e4e8',
+  },
+  sessionTitleLight: {
+    color: '#1f2328',
+  },
+  sessionMetaTextLight: {
+    color: '#6e7681',
+  },
+  sessionModelTagLight: {
+    color: '#0077b6',
+  },
+  emptyTitleLight: {
+    color: '#1f2328',
+  },
+  emptySubLight: {
+    color: '#6e7681',
   },
 });

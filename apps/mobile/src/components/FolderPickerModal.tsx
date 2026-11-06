@@ -51,6 +51,8 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   onClose,
   onSelectFolder,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const browseDirectories = useDaemonStore((s) => s.browseDirectories);
 
@@ -229,6 +231,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
         <Animated.View
           style={[
             styles.modalCard,
+            isLight && styles.modalCardLight,
             { transform: [{ translateY }] },
           ]}
         >
@@ -239,62 +242,62 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
               style={styles.handleContainer}
               onPress={handleToggleExpand}
             >
-              <View style={styles.dragPill} />
+              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
             </TouchableOpacity>
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, isLight && styles.headerLight]}>
               <View style={styles.headerLeft}>
-                <View style={styles.iconCircle}>
-                  <Folder size={18} color={colors.primary} />
+                <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
+                  <Folder size={18} color={isLight ? '#0077b6' : colors.primary} />
                 </View>
                 <View>
-                  <Text style={styles.title}>Browse Remote Folders</Text>
-                  <Text style={styles.subtitle}>
+                  <Text style={[styles.title, isLight && styles.titleLight]}>Browse Remote Folders</Text>
+                  <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>
                     Select workspace directory on{' '}
-                    <Text style={{ color: colors.primary, fontWeight: '600' }}>
+                    <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontWeight: '600' }}>
                       {activeMachine?.name || 'Local Machine'}
                     </Text>
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
-                style={styles.closeBtn}
+                style={[styles.closeBtn, isLight && styles.closeBtnLight]}
                 onPress={handleClose}
                 activeOpacity={0.7}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <X size={18} color="#a3a3a3" />
+                <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Navigation & Breadcrumb Toolbar */}
-          <View style={styles.navBar}>
+          <View style={[styles.navBar, isLight && styles.navBarLight]}>
             <View style={styles.navActions}>
               <TouchableOpacity
-                style={[styles.navActionBtn, !parentPath && styles.navActionBtnDisabled]}
+                style={[styles.navActionBtn, isLight && styles.navActionBtnLight, !parentPath && styles.navActionBtnDisabled]}
                 onPress={() => parentPath && loadDirectory(parentPath)}
                 disabled={!parentPath || isLoading}
                 activeOpacity={0.7}
               >
-                <ArrowUp size={15} color={parentPath ? '#fafafa' : '#484f58'} />
+                <ArrowUp size={15} color={parentPath ? (isLight ? '#1f2328' : '#fafafa') : (isLight ? '#8c959f' : '#484f58')} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.navActionBtn}
+                style={[styles.navActionBtn, isLight && styles.navActionBtnLight]}
                 onPress={() => loadDirectory(homePath)}
                 disabled={isLoading}
                 activeOpacity={0.7}
               >
-                <Home size={15} color="#fafafa" />
+                <Home size={15} color={isLight ? '#1f2328' : '#fafafa'} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.navActionBtn}
+                style={[styles.navActionBtn, isLight && styles.navActionBtnLight]}
                 onPress={() => loadDirectory(currentPath)}
                 disabled={isLoading}
                 activeOpacity={0.7}
               >
-                <RefreshCw size={14} color="#fafafa" />
+                <RefreshCw size={14} color={isLight ? '#1f2328' : '#fafafa'} />
               </TouchableOpacity>
             </View>
 
@@ -313,7 +316,8 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                     <Text
                       style={[
                         styles.breadcrumbText,
-                        idx === pathSegments.length - 1 && styles.breadcrumbTextActive,
+                        isLight && styles.breadcrumbTextLight,
+                        idx === pathSegments.length - 1 && (isLight ? styles.breadcrumbTextActiveLight : styles.breadcrumbTextActive),
                       ]}
                       numberOfLines={1}
                     >
@@ -321,7 +325,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                     </Text>
                   </TouchableOpacity>
                   {idx < pathSegments.length - 1 && (
-                    <Text style={styles.breadcrumbSep}>/</Text>
+                    <Text style={[styles.breadcrumbSep, isLight && { color: '#8c959f' }]}>/</Text>
                   )}
                 </View>
               ))}
@@ -330,7 +334,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
 
           {/* Drives / Partitions Selector Bar */}
           {availableDrives.length > 0 && (
-            <View style={styles.drivesBar}>
+            <View style={[styles.drivesBar, isLight && styles.drivesBarLight]}>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -346,12 +350,22 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                   return (
                     <TouchableOpacity
                       key={drive}
-                      style={[styles.driveChip, isCurrent && styles.driveChipActive]}
+                      style={[
+                        styles.driveChip,
+                        isLight && styles.driveChipLight,
+                        isCurrent && (isLight ? styles.driveChipActiveLight : styles.driveChipActive),
+                      ]}
                       onPress={() => loadDirectory(drive)}
                       activeOpacity={0.7}
                     >
-                      <HardDrive size={12} color={isCurrent ? '#fafafa' : '#a3a3a3'} />
-                      <Text style={[styles.driveChipText, isCurrent && styles.driveChipTextActive]}>
+                      <HardDrive size={12} color={isCurrent ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')} />
+                      <Text
+                        style={[
+                          styles.driveChipText,
+                          isLight && styles.driveChipTextLight,
+                          isCurrent && (isLight ? styles.driveChipTextActiveLight : styles.driveChipTextActive),
+                        ]}
+                      >
                         {drive}
                       </Text>
                     </TouchableOpacity>
@@ -362,38 +376,38 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
           )}
 
           {/* Quick Search in Current Folder */}
-          <View style={styles.searchContainer}>
-            <Search size={14} color="#a3a3a3" />
+          <View style={[styles.searchContainer, isLight && styles.searchContainerLight]}>
+            <Search size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, isLight && styles.searchInputLight]}
               value={searchFilter}
               onChangeText={setSearchFilter}
               placeholder="Filter folders in this directory..."
-              placeholderTextColor="#737373"
+              placeholderTextColor={isLight ? '#8c959f' : '#737373'}
             />
             {searchFilter.length > 0 && (
               <TouchableOpacity onPress={() => setSearchFilter('')}>
-                <X size={14} color="#a3a3a3" />
+                <X size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
               </TouchableOpacity>
             )}
           </View>
 
           {/* Folder List */}
           <ScrollView
-            style={styles.folderList}
+            style={[styles.folderList, isLight && styles.folderListLight]}
             contentContainerStyle={styles.folderListContent}
             showsVerticalScrollIndicator={false}
           >
             {isLoading ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.loadingText}>Reading directories...</Text>
+                <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.primary} />
+                <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Reading directories...</Text>
               </View>
             ) : filteredDirs.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Folder size={32} color="rgba(255, 255, 255, 0.10)" />
-                <Text style={styles.emptyTitle}>No subdirectories</Text>
-                <Text style={styles.emptySubtitle}>
+                <Folder size={32} color={isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.10)'} />
+                <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>No subdirectories</Text>
+                <Text style={[styles.emptySubtitle, isLight && styles.emptySubtitleLight]}>
                   You can choose this current folder as your workspace.
                 </Text>
               </View>
@@ -401,39 +415,51 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
               filteredDirs.map((dir) => (
                 <TouchableOpacity
                   key={dir.fullPath}
-                  style={styles.folderRow}
+                  style={[styles.folderRow, isLight && styles.folderRowLight]}
                   onPress={() => loadDirectory(dir.fullPath)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.folderIconBox}>
-                    <Folder size={17} color={colors.primary} />
+                  <View style={[styles.folderIconBox, isLight && styles.folderIconBoxLight]}>
+                    <Folder size={17} color={isLight ? '#0077b6' : colors.primary} />
                   </View>
-                  <Text style={styles.folderName} numberOfLines={1}>
+                  <Text style={[styles.folderName, isLight && styles.folderNameLight]} numberOfLines={1}>
                     {dir.name}
                   </Text>
-                  <ChevronRight size={15} color="#737373" />
+                  <ChevronRight size={15} color={isLight ? '#8c959f' : '#737373'} />
                 </TouchableOpacity>
               ))
             )}
           </ScrollView>
 
           {/* Footer: Confirm Selection */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, isLight && styles.footerLight]}>
             <View style={styles.selectedRow}>
-              <Text style={styles.selectedLabel}>Target:</Text>
-              <Text style={styles.selectedPath} numberOfLines={1}>
+              <Text style={[styles.selectedLabel, isLight && styles.selectedLabelLight]}>Target:</Text>
+              <Text style={[styles.selectedPath, isLight && styles.selectedPathLight]} numberOfLines={1}>
                 {currentPath || 'None'}
               </Text>
             </View>
 
             <TouchableOpacity
-              style={[styles.selectBtn, !currentPath && styles.selectBtnDisabled]}
+              style={[
+                styles.selectBtn,
+                isLight && styles.selectBtnLight,
+                !currentPath && styles.selectBtnDisabled,
+              ]}
               onPress={handleSelectCurrent}
               disabled={!currentPath}
               activeOpacity={0.85}
             >
-              <Check size={16} color={!currentPath ? '#737373' : '#0a0a0a'} />
-              <Text style={[styles.selectBtnText, !currentPath && { color: '#737373' }]}>Select This Folder</Text>
+              <Check size={16} color={!currentPath ? '#737373' : (isLight ? '#ffffff' : '#0a0a0a')} />
+              <Text
+                style={[
+                  styles.selectBtnText,
+                  isLight && styles.selectBtnTextLight,
+                  !currentPath && { color: '#737373' },
+                ]}
+              >
+                Select This Folder
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -706,5 +732,106 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#0a0a0a',
+  },
+
+  // Light Theme Overrides
+  modalCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  dragPillLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  headerLight: {
+    borderBottomColor: '#e1e4e8',
+  },
+  iconCircleLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  titleLight: {
+    color: '#1f2328',
+  },
+  subtitleLight: {
+    color: '#6e7681',
+  },
+  closeBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  navBarLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#e1e4e8',
+  },
+  navActionBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  breadcrumbTextLight: {
+    color: '#57606a',
+  },
+  breadcrumbTextActiveLight: {
+    color: '#0077b6',
+    fontWeight: '600',
+  },
+  drivesBarLight: {
+    backgroundColor: '#ffffff',
+    borderBottomColor: '#e1e4e8',
+  },
+  driveChipLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  driveChipActiveLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: '#0077b6',
+  },
+  driveChipTextLight: {
+    color: '#57606a',
+  },
+  driveChipTextActiveLight: {
+    color: '#0077b6',
+    fontWeight: '600',
+  },
+  searchContainerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#e1e4e8',
+  },
+  searchInputLight: {
+    color: '#1f2328',
+  },
+  folderListLight: {
+    backgroundColor: '#ffffff',
+  },
+  loadingTextLight: {
+    color: '#6e7681',
+  },
+  emptyTitleLight: {
+    color: '#1f2328',
+  },
+  emptySubtitleLight: {
+    color: '#6e7681',
+  },
+  folderRowLight: {
+    borderBottomColor: '#f0f2f5',
+  },
+  folderIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+  },
+  folderNameLight: {
+    color: '#1f2328',
+  },
+  footerLight: {
+    backgroundColor: '#ffffff',
+    borderTopColor: '#e1e4e8',
+  },
+  selectedLabelLight: {
+    color: '#6e7681',
+  },
+  selectedPathLight: {
+    color: '#1f2328',
+  },
+  selectBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  selectBtnTextLight: {
+    color: '#ffffff',
   },
 });

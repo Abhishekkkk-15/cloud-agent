@@ -49,6 +49,8 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   onClose,
   onStartSession,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
   const knownWorkspaces = useDaemonStore((s) => s.knownWorkspaces);
@@ -214,6 +216,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
         <Animated.View
           style={[
             styles.sheetContainer,
+            isLight && styles.sheetContainerLight,
             {
               transform: [{ translateY }],
             },
@@ -226,45 +229,45 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
               activeOpacity={0.8}
               onPress={handleToggleExpand}
             >
-              <View style={styles.dragPill} />
+              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
             </TouchableOpacity>
 
             {/* Header */}
-            <View style={styles.sheetHeader}>
+            <View style={[styles.sheetHeader, isLight && styles.sheetHeaderLight]}>
               <View style={styles.headerLeft}>
-                <View style={styles.headerIconBox}>
-                  <FolderGit2 size={18} color={colors.primary} />
+                <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
+                  <FolderGit2 size={18} color={isLight ? '#0077b6' : colors.primary} />
                 </View>
                 <View>
-                  <Text style={styles.sheetTitle}>Start New Session</Text>
-                  <Text style={styles.sheetSubtitle}>
+                  <Text style={[styles.sheetTitle, isLight && styles.sheetTitleLight]}>Start New Session</Text>
+                  <Text style={[styles.sheetSubtitle, isLight && styles.sheetSubtitleLight]}>
                     Choose a project directory on{' '}
-                    <Text style={styles.machineHighlight}>
+                    <Text style={[styles.machineHighlight, isLight && styles.machineHighlightLight]}>
                       {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
                     </Text>
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
-                style={styles.closeBtn}
+                style={[styles.closeBtn, isLight && styles.closeBtnLight]}
                 onPress={handleClose}
                 activeOpacity={0.7}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <X size={18} color="#a3a3a3" />
+                <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
               </TouchableOpacity>
             </View>
           </View>
 
           <ScrollView
-            style={styles.sheetScroll}
+            style={[styles.sheetScroll, isLight && styles.sheetScrollLight]}
             contentContainerStyle={styles.sheetScrollContent}
             showsVerticalScrollIndicator={false}
           >
             {/* 1. Quick Workspace Chips */}
             {knownWorkspaces.length > 0 && (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>RECENT WORKSPACES</Text>
+                <Text style={[styles.sectionLabel, isLight && styles.sectionLabelLight]}>RECENT WORKSPACES</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -275,18 +278,23 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
                     return (
                       <TouchableOpacity
                         key={ws.path}
-                        style={[styles.wsChip, isSelected && styles.wsChipActive]}
+                        style={[
+                          styles.wsChip,
+                          isLight && styles.wsChipLight,
+                          isSelected && (isLight ? styles.wsChipActiveLight : styles.wsChipActive),
+                        ]}
                         onPress={() => handleSelectChip(ws.path)}
                         activeOpacity={0.7}
                       >
                         <FolderGit2
                           size={13}
-                          color={isSelected ? colors.primary : '#a3a3a3'}
+                          color={isSelected ? (isLight ? '#0077b6' : colors.primary) : (isLight ? '#57606a' : '#a3a3a3')}
                         />
                         <Text
                           style={[
                             styles.wsChipText,
-                            isSelected && styles.wsChipTextActive,
+                            isLight && styles.wsChipTextLight,
+                            isSelected && (isLight ? styles.wsChipTextActiveLight : styles.wsChipTextActive),
                           ]}
                           numberOfLines={1}
                         >
@@ -302,46 +310,46 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
             {/* 2. Target Directory / Folder Picker */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionLabel}>TARGET DIRECTORY (CWD)</Text>
+                <Text style={[styles.sectionLabel, isLight && styles.sectionLabelLight]}>TARGET DIRECTORY (CWD)</Text>
                 <TouchableOpacity
                   style={styles.browseBtn}
                   onPress={() => setShowFolderPicker(true)}
                   activeOpacity={0.7}
                 >
-                  <Folder size={13} color={colors.primary} />
-                  <Text style={styles.browseBtnText}>Browse Folders</Text>
-                  <ChevronRight size={13} color={colors.primary} />
+                  <Folder size={13} color={isLight ? '#0077b6' : colors.primary} />
+                  <Text style={[styles.browseBtnText, isLight && { color: '#0077b6' }]}>Browse Folders</Text>
+                  <ChevronRight size={13} color={isLight ? '#0077b6' : colors.primary} />
                 </TouchableOpacity>
               </View>
 
               {/* Selected Folder Banner */}
               <TouchableOpacity
-                style={styles.folderCard}
+                style={[styles.folderCard, isLight && styles.folderCardLight]}
                 onPress={() => setShowFolderPicker(true)}
                 activeOpacity={0.8}
               >
                 <View style={styles.folderCardLeft}>
-                  <View style={styles.folderCardIconBox}>
-                    <FolderGit2 size={18} color={colors.primary} />
+                  <View style={[styles.folderCardIconBox, isLight && styles.folderCardIconBoxLight]}>
+                    <FolderGit2 size={18} color={isLight ? '#0077b6' : colors.primary} />
                   </View>
                   <View style={styles.folderCardTextCol}>
-                    <Text style={styles.folderCardName} numberOfLines={1}>
+                    <Text style={[styles.folderCardName, isLight && styles.folderCardNameLight]} numberOfLines={1}>
                       {pathInput.split(/[\\/]/).filter(Boolean).pop() || 'Root Directory'}
                     </Text>
-                    <Text style={styles.folderCardPath} numberOfLines={1}>
+                    <Text style={[styles.folderCardPath, isLight && styles.folderCardPathLight]} numberOfLines={1}>
                       {pathInput}
                     </Text>
                   </View>
                 </View>
-                <View style={styles.changeBadge}>
-                  <Text style={styles.changeBadgeText}>Change</Text>
+                <View style={[styles.changeBadge, isLight && styles.changeBadgeLight]}>
+                  <Text style={[styles.changeBadgeText, isLight && styles.changeBadgeTextLight]}>Change</Text>
                 </View>
               </TouchableOpacity>
             </View>
 
             {/* 3. Session Model Selection */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>RUNTIME MODEL</Text>
+              <Text style={[styles.sectionLabel, isLight && styles.sectionLabelLight]}>RUNTIME MODEL</Text>
               <View style={styles.optionRow}>
                 {[
                   { id: 'gemini-3.8-flash-high', label: 'gemini flash' },
@@ -352,14 +360,19 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
                   return (
                     <TouchableOpacity
                       key={m.id}
-                      style={[styles.paramPill, isSelected && styles.paramPillActive]}
+                      style={[
+                        styles.paramPill,
+                        isLight && styles.paramPillLight,
+                        isSelected && (isLight ? styles.paramPillActiveLight : styles.paramPillActive),
+                      ]}
                       onPress={() => setSelectedModel(m.id)}
                       activeOpacity={0.7}
                     >
                       <Text
                         style={[
                           styles.paramPillText,
-                          isSelected && styles.paramPillTextActive,
+                          isLight && styles.paramPillTextLight,
+                          isSelected && (isLight ? styles.paramPillTextActiveLight : styles.paramPillTextActive),
                         ]}
                       >
                         {m.label}
@@ -372,21 +385,26 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
 
             {/* 4. Reasoning Effort Selection */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>REASONING EFFORT</Text>
+              <Text style={[styles.sectionLabel, isLight && styles.sectionLabelLight]}>REASONING EFFORT</Text>
               <View style={styles.optionRow}>
                 {(['low', 'medium', 'high', 'xhigh'] as ReasoningEffort[]).map((eff) => {
                   const isSelected = selectedEffort === eff;
                   return (
                     <TouchableOpacity
                       key={eff}
-                      style={[styles.paramPill, isSelected && styles.paramPillActive]}
+                      style={[
+                        styles.paramPill,
+                        isLight && styles.paramPillLight,
+                        isSelected && (isLight ? styles.paramPillActiveLight : styles.paramPillActive),
+                      ]}
                       onPress={() => setSelectedEffort(eff)}
                       activeOpacity={0.7}
                     >
                       <Text
                         style={[
                           styles.paramPillText,
-                          isSelected && styles.paramPillTextActive,
+                          isLight && styles.paramPillTextLight,
+                          isSelected && (isLight ? styles.paramPillTextActiveLight : styles.paramPillTextActive),
                         ]}
                       >
                         {eff}
@@ -399,7 +417,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
 
             {/* 5. Execution Mode */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>EXECUTION MODE</Text>
+              <Text style={[styles.sectionLabel, isLight && styles.sectionLabelLight]}>EXECUTION MODE</Text>
               <View style={styles.optionRow}>
                 {[
                   { id: 'auto' as ExecutionMode, label: 'Auto' },
@@ -410,14 +428,19 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
                   return (
                     <TouchableOpacity
                       key={mode.id}
-                      style={[styles.paramPill, isSelected && styles.paramPillActive]}
+                      style={[
+                        styles.paramPill,
+                        isLight && styles.paramPillLight,
+                        isSelected && (isLight ? styles.paramPillActiveLight : styles.paramPillActive),
+                      ]}
                       onPress={() => setSelectedMode(mode.id)}
                       activeOpacity={0.7}
                     >
                       <Text
                         style={[
                           styles.paramPillText,
-                          isSelected && styles.paramPillTextActive,
+                          isLight && styles.paramPillTextLight,
+                          isSelected && (isLight ? styles.paramPillTextActiveLight : styles.paramPillTextActive),
                         ]}
                       >
                         {mode.label}
@@ -430,14 +453,14 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
           </ScrollView>
 
           {/* Action Footer */}
-          <View style={styles.sheetFooter}>
+          <View style={[styles.sheetFooter, isLight && styles.sheetFooterLight]}>
             <TouchableOpacity
-              style={styles.startBtn}
+              style={[styles.startBtn, isLight && styles.startBtnLight]}
               onPress={handleConfirm}
               activeOpacity={0.85}
             >
-              <Play size={16} color="#0a0a0a" />
-              <Text style={styles.startBtnText}>Start Session in Workspace</Text>
+              <Play size={16} color={isLight ? '#ffffff' : '#0a0a0a'} />
+              <Text style={[styles.startBtnText, isLight && styles.startBtnTextLight]}>Start Session in Workspace</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -718,5 +741,97 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '700',
     color: '#0a0a0a',
+  },
+
+  // Light Theme Overrides
+  sheetContainerLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  dragPillLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  sheetHeaderLight: {
+    borderBottomColor: '#e1e4e8',
+  },
+  headerIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  sheetTitleLight: {
+    color: '#1f2328',
+  },
+  sheetSubtitleLight: {
+    color: '#6e7681',
+  },
+  machineHighlightLight: {
+    color: '#0077b6',
+  },
+  closeBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  sheetScrollLight: {
+    backgroundColor: '#ffffff',
+  },
+  sectionLabelLight: {
+    color: '#6e7681',
+  },
+  wsChipLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  wsChipActiveLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: '#0077b6',
+  },
+  wsChipTextLight: {
+    color: '#57606a',
+  },
+  wsChipTextActiveLight: {
+    color: '#0077b6',
+    fontWeight: '600',
+  },
+  folderCardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  folderCardIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  folderCardNameLight: {
+    color: '#1f2328',
+  },
+  folderCardPathLight: {
+    color: '#6e7681',
+  },
+  changeBadgeLight: {
+    backgroundColor: '#eaeef2',
+  },
+  changeBadgeTextLight: {
+    color: '#57606a',
+  },
+  paramPillLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  paramPillActiveLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: '#0077b6',
+  },
+  paramPillTextLight: {
+    color: '#57606a',
+  },
+  paramPillTextActiveLight: {
+    color: '#0077b6',
+    fontWeight: '600',
+  },
+  sheetFooterLight: {
+    backgroundColor: '#ffffff',
+    borderTopColor: '#e1e4e8',
+  },
+  startBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  startBtnTextLight: {
+    color: '#ffffff',
   },
 });

@@ -21,6 +21,7 @@ import {
   Zap,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
+import { useDaemonStore } from '../stores/useDaemonStore';
 
 export interface SlashCommandItem {
   command: string;
@@ -180,6 +181,9 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   onSelect,
   onClose,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   if (!visible) return null;
 
   // Filter commands by search query
@@ -200,63 +204,64 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   }, [searchQuery]);
 
   const renderIcon = (cmd: SlashCommandItem) => {
+    const iconColor = isLight ? '#0077b6' : '#ffffff';
     switch (cmd.category) {
       case 'workflow':
-        return <Sparkles size={14} color="#ffffff" />;
+        return <Sparkles size={14} color={iconColor} />;
       case 'context':
-        return <Brain size={14} color="#ffffff" />;
+        return <Brain size={14} color={iconColor} />;
       case 'cli':
       default:
-        return <Terminal size={14} color="#ffffff" />;
+        return <Terminal size={14} color={iconColor} />;
     }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLight && styles.containerLight]}>
       {/* Header Bar */}
-      <View style={styles.header}>
+      <View style={[styles.header, isLight && styles.headerLight]}>
         <View style={styles.headerLeft}>
-          <Command size={13} color={colors.green} />
-          <Text style={styles.headerTitle}>ANTIGRAVITY COMMANDS</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countBadgeText}>{filteredCommands.length}</Text>
+          <Command size={13} color={isLight ? '#0077b6' : colors.green} />
+          <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>ANTIGRAVITY COMMANDS</Text>
+          <View style={[styles.countBadge, isLight && styles.countBadgeLight]}>
+            <Text style={[styles.countBadgeText, isLight && styles.countBadgeTextLight]}>{filteredCommands.length}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-          <X size={14} color={colors.textMuted} />
+          <X size={14} color={isLight ? '#57606a' : colors.textMuted} />
         </TouchableOpacity>
       </View>
 
       {/* Commands List */}
       <ScrollView
-        style={styles.listScroll}
+        style={[styles.listScroll, isLight && styles.listScrollLight]}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
         {filteredCommands.length === 0 ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>No matching Antigravity commands</Text>
+            <Text style={[styles.emptyText, isLight && styles.emptyTextLight]}>No matching Antigravity commands</Text>
           </View>
         ) : (
           filteredCommands.map((item) => (
             <TouchableOpacity
               key={item.command}
-              style={styles.itemRow}
+              style={[styles.itemRow, isLight && styles.itemRowLight]}
               activeOpacity={0.7}
               onPress={() => onSelect(item, false)}
             >
               {/* Category Icon */}
-              <View style={styles.iconBox}>{renderIcon(item)}</View>
+              <View style={[styles.iconBox, isLight && styles.iconBoxLight]}>{renderIcon(item)}</View>
 
               {/* Command Info */}
               <View style={styles.infoCol}>
                 <View style={styles.nameRow}>
-                  <Text style={styles.commandTag}>{item.command}</Text>
-                  <Text style={styles.titleText}>{item.title}</Text>
+                  <Text style={[styles.commandTag, isLight && styles.commandTagLight]}>{item.command}</Text>
+                  <Text style={[styles.titleText, isLight && styles.titleTextLight]}>{item.title}</Text>
                 </View>
-                <Text style={styles.descText} numberOfLines={1}>
+                <Text style={[styles.descText, isLight && styles.descTextLight]} numberOfLines={1}>
                   {item.description}
                 </Text>
               </View>
@@ -264,7 +269,7 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
               {/* Immediate Run Action (if self-contained command) */}
               {item.immediate ? (
                 <TouchableOpacity
-                  style={styles.runNowBtn}
+                  style={[styles.runNowBtn, isLight && styles.runNowBtnLight]}
                   activeOpacity={0.8}
                   onPress={() => onSelect(item, true)}
                 >
@@ -407,5 +412,49 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+
+  // Light Theme Overrides
+  containerLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+    shadowOpacity: 0.12,
+  },
+  headerLight: {
+    borderBottomColor: '#e1e4e8',
+    backgroundColor: '#f6f8fa',
+  },
+  headerTitleLight: {
+    color: '#6e7681',
+  },
+  countBadgeLight: {
+    backgroundColor: '#eaeef2',
+  },
+  countBadgeTextLight: {
+    color: '#57606a',
+  },
+  listScrollLight: {
+    backgroundColor: '#ffffff',
+  },
+  itemRowLight: {
+    borderBottomColor: '#f0f2f5',
+  },
+  iconBoxLight: {
+    backgroundColor: '#f6f8fa',
+  },
+  commandTagLight: {
+    color: '#0077b6',
+  },
+  titleTextLight: {
+    color: '#1f2328',
+  },
+  descTextLight: {
+    color: '#6e7681',
+  },
+  runNowBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  emptyTextLight: {
+    color: '#6e7681',
   },
 });

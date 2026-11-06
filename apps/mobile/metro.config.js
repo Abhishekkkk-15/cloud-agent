@@ -33,10 +33,24 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
-// 3. Shim react-native-web AssetRegistry for web builds
+// 3. Shims for web and Expo Go compatibility
 const assetRegistryShim = path.resolve(projectRoot, 'shims/assetRegistry.js');
+const topicSubscriptionShim = path.resolve(projectRoot, 'shims/TopicSubscriptionModule.js');
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Prevent crash in Expo Go where ExpoTopicSubscriptionModule is absent natively
+  if (
+    moduleName === './TopicSubscriptionModule' ||
+    moduleName === './TopicSubscriptionModule.android' ||
+    moduleName.endsWith('/TopicSubscriptionModule') ||
+    moduleName.endsWith('/TopicSubscriptionModule.android')
+  ) {
+    return {
+      filePath: topicSubscriptionShim,
+      type: 'sourceFile',
+    };
+  }
+
   if (
     moduleName === 'react-native-web/dist/exports/AssetRegistry' ||
     moduleName === 'react-native-web/dist/cjs/exports/AssetRegistry' ||

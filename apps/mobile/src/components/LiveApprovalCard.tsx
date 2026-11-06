@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { ShieldAlert, Check, X, Terminal } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
-import type { ApprovalRequest } from '../stores/useDaemonStore';
+import { useDaemonStore, type ApprovalRequest } from '../stores/useDaemonStore';
 
 interface LiveApprovalCardProps {
   approval: ApprovalRequest;
@@ -24,12 +24,15 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
   onDeny,
   isResponding = false,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   return (
-    <View style={styles.cardContainer}>
+    <View style={[styles.cardContainer, isLight && styles.cardContainerLight]}>
       {/* Top Header Pill Row */}
       <View style={styles.headerRow}>
-        <View style={styles.askerBadge}>
-          <Text style={styles.askerBadgeText}>
+        <View style={[styles.askerBadge, isLight && styles.askerBadgeLight]}>
+          <Text style={[styles.askerBadgeText, isLight && styles.askerBadgeTextLight]}>
             {approval.caller || 'Antigravity'} • {approval.targetNode || 'Host Daemon'}
           </Text>
         </View>
@@ -42,26 +45,26 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
 
       {/* Title & Icon */}
       <View style={styles.titleRow}>
-        <View style={styles.iconCircle}>
-          <ShieldAlert size={15} color="#fafafa" />
+        <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
+          <ShieldAlert size={15} color={isLight ? '#cf222e' : '#fafafa'} />
         </View>
-        <Text style={styles.titleText}>Action Confirmation Required</Text>
+        <Text style={[styles.titleText, isLight && styles.titleTextLight]}>Action Confirmation Required</Text>
       </View>
 
       {/* Description */}
       {approval.description ? (
-        <Text style={styles.descriptionText} numberOfLines={2}>
+        <Text style={[styles.descriptionText, isLight && styles.descriptionTextLight]} numberOfLines={2}>
           {approval.description}
         </Text>
       ) : null}
 
       {/* Code / Command Preview Box (Paradev Inset Box) */}
-      <View style={styles.codeBox}>
-        <View style={styles.codeHeader}>
-          <Terminal size={12} color="#a3a3a3" />
-          <Text style={styles.codeToolName}>tool: {approval.tool || 'bash'}</Text>
+      <View style={[styles.codeBox, isLight && styles.codeBoxLight]}>
+        <View style={[styles.codeHeader, isLight && styles.codeHeaderLight]}>
+          <Terminal size={12} color={isLight ? '#57606a' : '#a3a3a3'} />
+          <Text style={[styles.codeToolName, isLight && styles.codeToolNameLight]}>tool: {approval.tool || 'bash'}</Text>
         </View>
-        <Text style={styles.codeContent} selectable numberOfLines={4}>
+        <Text style={[styles.codeContent, isLight && styles.codeContentLight]} selectable numberOfLines={4}>
           {approval.command || 'No command details available.'}
         </Text>
       </View>
@@ -69,7 +72,7 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
       {/* Decision Action Buttons */}
       <View style={styles.actionsRow}>
         <TouchableOpacity
-          style={[styles.denyBtn, isResponding && styles.btnDisabled]}
+          style={[styles.denyBtn, isLight && styles.denyBtnLight, isResponding && styles.btnDisabled]}
           onPress={onDeny}
           disabled={isResponding}
           activeOpacity={0.75}
@@ -79,17 +82,17 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.authorizeBtn, isResponding && styles.btnDisabled]}
+          style={[styles.authorizeBtn, isLight && styles.authorizeBtnLight, isResponding && styles.btnDisabled]}
           onPress={onAuthorize}
           disabled={isResponding}
           activeOpacity={0.85}
         >
           {isResponding ? (
-            <ActivityIndicator size="small" color="#0a0a0a" />
+            <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
           ) : (
             <>
-              <Check size={14} color="#0a0a0a" />
-              <Text style={styles.authorizeBtnText}>Authorize</Text>
+              <Check size={14} color={isLight ? '#ffffff' : '#0a0a0a'} />
+              <Text style={[styles.authorizeBtnText, isLight && styles.authorizeBtnTextLight]}>Authorize</Text>
             </>
           )}
         </TouchableOpacity>
@@ -240,5 +243,52 @@ const styles = StyleSheet.create({
   },
   btnDisabled: {
     opacity: 0.5,
+  },
+
+  // Light Theme Overrides
+  cardContainerLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+    shadowOpacity: 0.1,
+  },
+  askerBadgeLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  askerBadgeTextLight: {
+    color: '#57606a',
+  },
+  iconCircleLight: {
+    backgroundColor: '#ffebe9',
+  },
+  titleTextLight: {
+    color: '#1f2328',
+  },
+  descriptionTextLight: {
+    color: '#57606a',
+  },
+  codeBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  codeHeaderLight: {
+    backgroundColor: '#eaeef2',
+    borderBottomColor: '#d0d7de',
+  },
+  codeToolNameLight: {
+    color: '#57606a',
+  },
+  codeContentLight: {
+    color: '#1f2328',
+  },
+  denyBtnLight: {
+    backgroundColor: '#ffebe9',
+    borderColor: 'rgba(207, 34, 46, 0.25)',
+  },
+  authorizeBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  authorizeBtnTextLight: {
+    color: '#ffffff',
   },
 });

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Pin, Pencil, Trash2, X, Check } from './Icons';
 import { colors, radii } from '../theme/tokens';
-import type { RealSessionItem } from '../stores/useDaemonStore';
+import { useDaemonStore, type RealSessionItem } from '../stores/useDaemonStore';
 
 interface SessionActionModalProps {
   visible: boolean;
@@ -31,6 +31,9 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
   onTogglePin,
   onDelete,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -93,58 +96,58 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
           {/* Header */}
-          <View style={styles.header}>
+          <View style={[styles.header, isLight && styles.headerLight]}>
             <View style={styles.headerTextCol}>
-              <Text style={styles.headerTitle} numberOfLines={1}>
+              <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]} numberOfLines={1}>
                 {session.title}
               </Text>
-              <Text style={styles.headerSubtitle} numberOfLines={1}>
+              <Text style={[styles.headerSubtitle, isLight && styles.headerSubtitleLight]} numberOfLines={1}>
                 {session.workspaceName} • {session.id.slice(0, 8)}
               </Text>
             </View>
             <TouchableOpacity
-              style={styles.closeBtn}
+              style={[styles.closeBtn, isLight && styles.closeBtnLight]}
               onPress={onClose}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={18} color="#a3a3a3" />
+              <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
             </TouchableOpacity>
           </View>
 
           {/* Body / Actions */}
-          <View style={styles.body}>
+          <View style={[styles.body, isLight && styles.bodyLight]}>
             {isRenaming ? (
               <View style={styles.renameContainer}>
-                <Text style={styles.renameLabel}>Rename Session</Text>
+                <Text style={[styles.renameLabel, isLight && styles.renameLabelLight]}>Rename Session</Text>
                 <TextInput
-                  style={styles.renameInput}
+                  style={[styles.renameInput, isLight && styles.renameInputLight]}
                   value={newTitle}
                   onChangeText={setNewTitle}
                   placeholder="Enter new title..."
-                  placeholderTextColor="#737373"
+                  placeholderTextColor={isLight ? '#8c959f' : '#737373'}
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={handleSaveRename}
                 />
                 <View style={styles.renameActionsRow}>
                   <TouchableOpacity
-                    style={styles.renameCancelBtn}
+                    style={[styles.renameCancelBtn, isLight && styles.renameCancelBtnLight]}
                     onPress={() => setIsRenaming(false)}
                     disabled={isLoading}
                   >
-                    <Text style={styles.renameCancelText}>Cancel</Text>
+                    <Text style={[styles.renameCancelText, isLight && styles.renameCancelTextLight]}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.renameSaveBtn}
+                    style={[styles.renameSaveBtn, isLight && styles.renameSaveBtnLight]}
                     onPress={handleSaveRename}
                     disabled={isLoading || !newTitle.trim()}
                   >
                     {isLoading ? (
-                      <ActivityIndicator size="small" color="#0a0a0a" />
+                      <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
                     ) : (
-                      <Text style={styles.renameSaveText}>Save</Text>
+                      <Text style={[styles.renameSaveText, isLight && styles.renameSaveTextLight]}>Save</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -153,22 +156,22 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
               <>
                 {/* 1. Pin / Unpin Action */}
                 <TouchableOpacity
-                  style={styles.actionRow}
+                  style={[styles.actionRow, isLight && styles.actionRowLight]}
                   onPress={handleTogglePinAction}
                   activeOpacity={0.7}
                   disabled={isLoading}
                 >
-                  <View style={styles.actionIconBox}>
+                  <View style={[styles.actionIconBox, isLight && styles.actionIconBoxLight]}>
                     <Pin
                       size={16}
-                      color={session.pinned ? '#fafafa' : '#d4d4d4'}
+                      color={session.pinned ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#d4d4d4')}
                     />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionTitle}>
+                    <Text style={[styles.actionTitle, isLight && styles.actionTitleLight]}>
                       {session.pinned ? 'Unpin Session' : 'Pin to Top'}
                     </Text>
-                    <Text style={styles.actionDesc}>
+                    <Text style={[styles.actionDesc, isLight && styles.actionDescLight]}>
                       {session.pinned
                         ? 'Remove from pinned list'
                         : 'Keep this session pinned to the top of your drawer'}
@@ -178,33 +181,37 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
 
                 {/* 2. Rename Action */}
                 <TouchableOpacity
-                  style={styles.actionRow}
+                  style={[styles.actionRow, isLight && styles.actionRowLight]}
                   onPress={() => setIsRenaming(true)}
                   activeOpacity={0.7}
                   disabled={isLoading}
                 >
-                  <View style={styles.actionIconBox}>
-                    <Pencil size={16} color="#d4d4d4" />
+                  <View style={[styles.actionIconBox, isLight && styles.actionIconBoxLight]}>
+                    <Pencil size={16} color={isLight ? '#57606a' : '#d4d4d4'} />
                   </View>
                   <View style={styles.actionTextCol}>
-                    <Text style={styles.actionTitle}>Rename Session</Text>
-                    <Text style={styles.actionDesc}>Change the title of this session</Text>
+                    <Text style={[styles.actionTitle, isLight && styles.actionTitleLight]}>Rename Session</Text>
+                    <Text style={[styles.actionDesc, isLight && styles.actionDescLight]}>Change the title of this session</Text>
                   </View>
                 </TouchableOpacity>
 
                 {/* 3. Delete Action */}
                 <TouchableOpacity
-                  style={[styles.actionRow, styles.actionRowDanger]}
+                  style={[
+                    styles.actionRow,
+                    styles.actionRowDanger,
+                    isLight && styles.actionRowDangerLight,
+                  ]}
                   onPress={handleDeleteAction}
                   activeOpacity={0.7}
                   disabled={isLoading}
                 >
                   <View style={[styles.actionIconBox, styles.actionIconDanger]}>
-                    <Trash2 size={16} color="#f85149" />
+                    <Trash2 size={16} color="#cf222e" />
                   </View>
                   <View style={styles.actionTextCol}>
                     <Text style={styles.actionTitleDanger}>Delete Session</Text>
-                    <Text style={styles.actionDescDanger}>
+                    <Text style={[styles.actionDescDanger, isLight && { color: '#cf222e' }]}>
                       Permanently delete transcript from host disk
                     </Text>
                   </View>
@@ -366,5 +373,64 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#0a0a0a',
+  },
+
+  // Light Theme Overrides
+  modalCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  headerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#e1e4e8',
+  },
+  headerTitleLight: {
+    color: '#1f2328',
+  },
+  headerSubtitleLight: {
+    color: '#6e7681',
+  },
+  closeBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  bodyLight: {
+    backgroundColor: '#ffffff',
+  },
+  actionRowLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  actionRowDangerLight: {
+    borderColor: 'rgba(207, 34, 46, 0.25)',
+    backgroundColor: '#fff8f8',
+  },
+  actionIconBoxLight: {
+    backgroundColor: '#eaeef2',
+  },
+  actionTitleLight: {
+    color: '#1f2328',
+  },
+  actionDescLight: {
+    color: '#6e7681',
+  },
+  renameLabelLight: {
+    color: '#57606a',
+  },
+  renameInputLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+    color: '#1f2328',
+  },
+  renameCancelBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  renameCancelTextLight: {
+    color: '#57606a',
+  },
+  renameSaveBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  renameSaveTextLight: {
+    color: '#ffffff',
   },
 });

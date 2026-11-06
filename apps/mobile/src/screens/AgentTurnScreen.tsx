@@ -554,20 +554,21 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const displayedTurns = chatTurns;
 
   const renderActionIcon = (category: ActionStep['category']) => {
+    const iconColor = isLight ? '#1f2328' : '#ffffff';
     switch (category) {
       case 'repo':
-        return <FolderGit2 size={15} color="#ffffff" />;
+        return <FolderGit2 size={14} color={iconColor} />;
       case 'mcp':
-        return <Link size={15} color="#ffffff" />;
+        return <Link size={14} color={iconColor} />;
       case 'skill':
-        return <GitFork size={15} color="#ffffff" />;
+        return <GitFork size={14} color={iconColor} />;
       case 'file':
-        return <FileText size={15} color="#ffffff" />;
+        return <FileText size={14} color={iconColor} />;
       case 'search':
-        return <Search size={15} color="#ffffff" />;
+        return <Search size={14} color={iconColor} />;
       case 'terminal':
       default:
-        return <Terminal size={15} color="#ffffff" />;
+        return <Terminal size={14} color={iconColor} />;
     }
   };
 
@@ -832,17 +833,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {hasMoreMessages && (
           <View style={styles.loadOlderContainer}>
             <TouchableOpacity
-              style={styles.loadOlderBtn}
+              style={[styles.loadOlderBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}
               onPress={loadOlderMessages}
               disabled={isLoadingOlderMessages}
               activeOpacity={0.7}
             >
               {isLoadingOlderMessages ? (
-                <ActivityIndicator size="small" color={colors.primaryLight} />
+                <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.primaryLight} />
               ) : (
                 <>
-                  <ArrowUp size={13} color={colors.primaryLight} />
-                  <Text style={styles.loadOlderText}>Load older messages</Text>
+                  <ArrowUp size={13} color={isLight ? '#0077b6' : colors.primaryLight} />
+                  <Text style={[styles.loadOlderText, isLight && { color: '#57606a' }]}>Load older messages</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -852,18 +853,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {/* 4. Turn-by-Turn Timeline (Paradev OutgoingBubble & AgentMessage) */}
         {isLoadingMessages ? (
           <View style={styles.sessionLoadingBox}>
-            <View style={styles.sessionLoadingCard}>
-              <ActivityIndicator size="small" color="#fafafa" />
-              <Text style={styles.sessionLoadingText}>Loading session transcript...</Text>
+            <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
+              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+              <Text style={[styles.sessionLoadingText, isLight && { color: '#57606a' }]}>Loading session transcript...</Text>
             </View>
           </View>
         ) : displayedTurns.length === 0 ? (
           <View style={styles.emptyChatBox}>
-            <View style={styles.emptyChatIconBox}>
-              <Terminal size={22} color="#fafafa" />
+            <View style={[styles.emptyChatIconBox, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
+              <Terminal size={22} color={isLight ? '#0077b6' : '#fafafa'} />
             </View>
-            <Text style={styles.emptyChatTitle}>No messages in this session yet</Text>
-            <Text style={styles.emptyChatSubtitle}>
+            <Text style={[styles.emptyChatTitle, isLight && { color: '#1f2328' }]}>No messages in this session yet</Text>
+            <Text style={[styles.emptyChatSubtitle, isLight && { color: '#57606a' }]}>
               Send a prompt below to interact with the Antigravity agent runtime.
             </Text>
           </View>
@@ -981,16 +982,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       </TouchableOpacity>
 
                       {isTurnOpen(turn.id) && (
-                        <View style={styles.toolActionRowsList}>
+                        <View style={[styles.toolActionRowsList, isLight && { borderTopColor: '#e1e4e8' }]}>
                           {turn.assistant.actions.map((action) => (
                             <TouchableOpacity
                               key={action.id}
-                              style={[styles.toolCallRow, isLight && { backgroundColor: '#f6f8fa', borderColor: '#e1e4e8' }]}
+                              style={[
+                                styles.toolCallRow,
+                                isLight && {
+                                  backgroundColor: '#f6f8fa',
+                                  borderColor: '#e1e4e8',
+                                  borderBottomColor: '#e1e4e8',
+                                },
+                              ]}
                               activeOpacity={0.7}
                               onPress={() => setSelectedActionForTray(action)}
                             >
                               <View style={styles.toolCallLeft}>
-                                <View style={[styles.toolCallIconBox, isLight && { backgroundColor: '#e1e4e8' }]}>
+                                <View style={[styles.toolCallIconBox, isLight && styles.toolCallIconBoxLight]}>
                                   {renderActionIcon(action.category)}
                                 </View>
                                 <Text style={[styles.toolCallTitle, isLight && { color: '#1f2328' }]} numberOfLines={1}>
@@ -1000,13 +1008,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
                               <View style={styles.toolCallRight}>
                                 {action.status === 'running' ? (
-                                  <View style={styles.actionRunningBadge}>
+                                  <View style={[styles.actionRunningBadge, isLight && { backgroundColor: 'rgba(0, 119, 182, 0.10)' }]}>
                                     <ActivityIndicator
                                       size="small"
                                       color={isLight ? '#0077b6' : '#a3a3a3'}
                                       style={{ transform: [{ scale: 0.65 }] }}
                                     />
-                                    <Text style={styles.actionRunningBadgeText}>Running</Text>
+                                    <Text style={[styles.actionRunningBadgeText, isLight && { color: '#0077b6' }]}>Running</Text>
                                   </View>
                                 ) : action.status === 'error' ? (
                                   <View style={styles.actionErrorBadge}>
@@ -1784,10 +1792,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   toolCallIconBox: {
-    width: 20,
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginRight: 8,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  toolCallIconBoxLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
   },
   toolCallTitle: {
     fontSize: 12,

@@ -31,7 +31,12 @@ let currentPushToken: string | null = null;
 export function isRunningInExpoGo(): boolean {
   if (Platform.OS === 'web') return false;
   try {
-    return (Constants as any).appOwnership === 'expo';
+    return (
+      (Constants as any).appOwnership === 'expo' ||
+      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any).executionEnvironment === 'storeClient' ||
+      (Constants as any).expoVersion != null
+    );
   } catch {
     return false;
   }

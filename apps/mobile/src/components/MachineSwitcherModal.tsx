@@ -35,6 +35,8 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
   onClose,
   onPairNew,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const machines = useDaemonStore((s) => s.machines);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const isLoadingMachines = useDaemonStore((s) => s.isLoadingMachines);
@@ -99,23 +101,23 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerIconBox}>
-              <Server size={18} color="#fafafa" />
+          <View style={[styles.header, isLight && styles.headerLight]}>
+            <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
+              <Server size={18} color={isLight ? '#0077b6' : '#fafafa'} />
             </View>
             <View style={{ flex: 1 }}>
               <View style={styles.titleRow}>
-                <Text style={styles.title}>Machines & VPSs</Text>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{machines.length}</Text>
+                <Text style={[styles.title, isLight && styles.titleLight]}>Machines & VPSs</Text>
+                <View style={[styles.countBadge, isLight && styles.countBadgeLight]}>
+                  <Text style={[styles.countBadgeText, isLight && styles.countBadgeTextLight]}>{machines.length}</Text>
                 </View>
               </View>
-              <Text style={styles.subtitle}>Select an active VPS or workstation</Text>
+              <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>Select an active VPS or workstation</Text>
             </View>
             <TouchableOpacity
-              style={styles.actionBtn}
+              style={[styles.actionBtn, isLight && styles.actionBtnLight]}
               onPress={handleRefresh}
               activeOpacity={0.7}
               disabled={isRefreshing || isLoadingMachines}
@@ -123,35 +125,35 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
             >
               <RefreshCw
                 size={16}
-                color={isRefreshing ? '#fafafa' : '#a3a3a3'}
+                color={isRefreshing ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')}
               />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.actionBtn}
+              style={[styles.actionBtn, isLight && styles.actionBtnLight]}
               onPress={onClose}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={18} color="#a3a3a3" />
+              <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
             </TouchableOpacity>
           </View>
 
           {/* Machine List */}
           <ScrollView
-            style={styles.listScroll}
+            style={[styles.listScroll, isLight && styles.listScrollLight]}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           >
             {isLoadingMachines && machines.length === 0 ? (
               <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color="#fafafa" />
-                <Text style={styles.loadingText}>Fetching paired machines...</Text>
+                <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+                <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Fetching paired machines...</Text>
               </View>
             ) : machines.length === 0 ? (
               <View style={styles.emptyBox}>
-                <Server size={32} color="#737373" />
-                <Text style={styles.emptyTitle}>No Paired Machines</Text>
-                <Text style={styles.emptySubtitle}>
+                <Server size={32} color={isLight ? '#8c959f' : '#737373'} />
+                <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>No Paired Machines</Text>
+                <Text style={[styles.emptySubtitle, isLight && styles.emptySubtitleLight]}>
                   You don't have any active VPS or local workstation paired with this account yet.
                 </Text>
               </View>
@@ -165,7 +167,8 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
                     key={machine.machineId}
                     style={[
                       styles.machineCard,
-                      isActive && styles.machineCardActive,
+                      isLight && styles.machineCardLight,
+                      isActive && (isLight ? styles.machineCardActiveLight : styles.machineCardActive),
                     ]}
                     onPress={() => handleSelect(machine)}
                     activeOpacity={0.7}
@@ -176,21 +179,21 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
                     {/* Machine Details */}
                     <View style={styles.machineInfo}>
                       <View style={styles.nameRow}>
-                        <Text style={styles.machineName} numberOfLines={1}>
+                        <Text style={[styles.machineName, isLight && styles.machineNameLight]} numberOfLines={1}>
                           {machine.name}
                         </Text>
                         {isActive ? (
-                          <View style={styles.activePill}>
-                            <Check size={11} color="#fafafa" />
-                            <Text style={styles.activePillText}>Active</Text>
+                          <View style={[styles.activePill, isLight && styles.activePillLight]}>
+                            <Check size={11} color={isLight ? '#0077b6' : '#fafafa'} />
+                            <Text style={[styles.activePillText, isLight && styles.activePillTextLight]}>Active</Text>
                           </View>
                         ) : null}
                       </View>
-                      <Text style={styles.machineSub} numberOfLines={1}>
+                      <Text style={[styles.machineSub, isLight && styles.machineSubLight]} numberOfLines={1}>
                         {machine.platform} ({machine.arch}) •{' '}
                         <Text
                           style={{
-                            color: machine.isOnline ? '#fafafa' : '#737373',
+                            color: machine.isOnline ? (isLight ? '#1a7f37' : '#fafafa') : '#737373',
                           }}
                         >
                           {machine.isOnline ? 'Online' : 'Offline'}
@@ -201,24 +204,24 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
                     {/* Action Right */}
                     <View style={styles.cardActions}>
                       {isSwitchingThis ? (
-                        <ActivityIndicator size="small" color="#fafafa" />
+                        <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
                       ) : !isActive ? (
                         <TouchableOpacity
-                          style={styles.switchBtn}
+                          style={[styles.switchBtn, isLight && styles.switchBtnLight]}
                           onPress={() => handleSelect(machine)}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.switchBtnText}>Switch</Text>
+                          <Text style={[styles.switchBtnText, isLight && styles.switchBtnTextLight]}>Switch</Text>
                         </TouchableOpacity>
                       ) : null}
 
                       <TouchableOpacity
-                        style={styles.trashBtn}
+                        style={[styles.trashBtn, isLight && styles.trashBtnLight]}
                         onPress={() => handleUnpair(machine)}
                         activeOpacity={0.7}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
-                        <Trash2 size={14} color="#737373" />
+                        <Trash2 size={14} color={isLight ? '#8c959f' : '#737373'} />
                       </TouchableOpacity>
                     </View>
                   </TouchableOpacity>
@@ -228,17 +231,17 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
           </ScrollView>
 
           {/* Footer: Pair New Button */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, isLight && styles.footerLight]}>
             <TouchableOpacity
-              style={styles.pairNewBtn}
+              style={[styles.pairNewBtn, isLight && styles.pairNewBtnLight]}
               onPress={() => {
                 onClose();
                 onPairNew();
               }}
               activeOpacity={0.8}
             >
-              <Plus size={16} color="#0a0a0a" />
-              <Text style={styles.pairNewBtnText}>Pair Another Machine / VPS</Text>
+              <Plus size={16} color={isLight ? '#ffffff' : '#0a0a0a'} />
+              <Text style={[styles.pairNewBtnText, isLight && styles.pairNewBtnTextLight]}>Pair Another Machine / VPS</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -450,5 +453,85 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#0a0a0a',
+  },
+
+  // Light Theme Overrides
+  modalCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  headerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#e1e4e8',
+  },
+  headerIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  titleLight: {
+    color: '#1f2328',
+  },
+  subtitleLight: {
+    color: '#6e7681',
+  },
+  countBadgeLight: {
+    backgroundColor: '#eaeef2',
+  },
+  countBadgeTextLight: {
+    color: '#57606a',
+  },
+  actionBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  listScrollLight: {
+    backgroundColor: '#ffffff',
+  },
+  loadingTextLight: {
+    color: '#6e7681',
+  },
+  emptyTitleLight: {
+    color: '#1f2328',
+  },
+  emptySubtitleLight: {
+    color: '#6e7681',
+  },
+  machineCardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  machineCardActiveLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: '#0077b6',
+  },
+  machineNameLight: {
+    color: '#1f2328',
+  },
+  machineSubLight: {
+    color: '#6e7681',
+  },
+  activePillLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    borderColor: 'rgba(0, 119, 182, 0.3)',
+  },
+  activePillTextLight: {
+    color: '#0077b6',
+  },
+  switchBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  switchBtnTextLight: {
+    color: '#0077b6',
+  },
+  trashBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  footerLight: {
+    backgroundColor: '#ffffff',
+    borderTopColor: '#e1e4e8',
+  },
+  pairNewBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  pairNewBtnTextLight: {
+    color: '#ffffff',
   },
 });

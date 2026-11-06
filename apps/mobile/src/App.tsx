@@ -21,6 +21,7 @@ import { SessionsScreen } from './screens/SessionsScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { useDaemonStore } from './stores/useDaemonStore';
 import { mobileP2P } from './lib/p2p-client';
+import { isRunningInExpoGo } from './lib/notifications';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Keep the native splash screen visible while fonts and auth credentials hydrate
@@ -81,7 +82,7 @@ function MainApp() {
 
   // Listen for push notification lock-screen quick actions and deep linking
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web' || isRunningInExpoGo()) return;
     try {
       const Notifications = require('expo-notifications');
       if (!Notifications?.addNotificationResponseReceivedListener) return;

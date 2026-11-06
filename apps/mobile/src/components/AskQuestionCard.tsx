@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { HelpCircle, Check, Circle, Square, CheckSquare, Send, CheckCheck } from './Icons';
 import { colors, radii } from '../theme/tokens';
+import { useDaemonStore } from '../stores/useDaemonStore';
 import type { ActionStep } from './ToolActionTray';
 
 export interface QuestionItem {
@@ -28,6 +29,8 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
   onSubmitAnswer,
   isSubmitting = false,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   // 1. Parse questions array from action arguments safely
   const questions = useMemo<QuestionItem[]>(() => {
     const raw = action.args?.questions;
@@ -126,17 +129,31 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
   const hasAnySelection = Object.values(selectedOptions).some((arr) => arr.length > 0);
 
   return (
-    <View style={styles.cardContainer}>
+    <View style={[styles.cardContainer, isLight && styles.cardContainerLight]}>
       {/* Header Row */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, isLight && styles.headerRowLight]}>
         <View style={styles.headerLeft}>
-          <View style={styles.iconCircle}>
-            <HelpCircle size={14} color="#fafafa" />
+          <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
+            <HelpCircle size={14} color={isLight ? '#0077b6' : '#fafafa'} />
           </View>
-          <Text style={styles.headerTitle}>Clarification Required</Text>
+          <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>Clarification Required</Text>
         </View>
-        <View style={[styles.statusBadge, isAnswered ? styles.statusBadgeAnswered : styles.statusBadgePending]}>
-          <Text style={[styles.statusBadgeText, isAnswered ? styles.statusBadgeTextAnswered : styles.statusBadgeTextPending]}>
+        <View
+          style={[
+            styles.statusBadge,
+            isAnswered
+              ? (isLight ? styles.statusBadgeAnsweredLight : styles.statusBadgeAnswered)
+              : (isLight ? styles.statusBadgePendingLight : styles.statusBadgePending),
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusBadgeText,
+              isAnswered
+                ? (isLight ? styles.statusBadgeTextAnsweredLight : styles.statusBadgeTextAnswered)
+                : (isLight ? styles.statusBadgeTextPendingLight : styles.statusBadgeTextPending),
+            ]}
+          >
             {isAnswered ? 'Resolved' : 'Input Needed'}
           </Text>
         </View>
@@ -153,12 +170,12 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
           <View key={`q_${qIdx}`} style={styles.questionBlock}>
             {/* Question Label */}
             <View style={styles.questionTitleRow}>
-              <Text style={styles.questionIndexBadge}>Q{qIdx + 1}</Text>
-              <Text style={styles.questionText}>{q.question}</Text>
+              <Text style={[styles.questionIndexBadge, isLight && styles.questionIndexBadgeLight]}>Q{qIdx + 1}</Text>
+              <Text style={[styles.questionText, isLight && styles.questionTextLight]}>{q.question}</Text>
             </View>
 
             {isMulti && !isAnswered ? (
-              <Text style={styles.multiSelectHint}>Select all that apply</Text>
+              <Text style={[styles.multiSelectHint, isLight && styles.multiSelectHintLight]}>Select all that apply</Text>
             ) : null}
 
             {/* Options List */}
@@ -175,7 +192,8 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
                     key={`opt_${qIdx}_${optIdx}`}
                     style={[
                       styles.optionCard,
-                      isSelected && styles.optionCardSelected,
+                      isLight && styles.optionCardLight,
+                      isSelected && (isLight ? styles.optionCardSelectedLight : styles.optionCardSelected),
                       isAnswered && styles.optionCardReadonly,
                     ]}
                     onPress={() => handleToggleOption(qIdx, opt, isMulti)}
@@ -184,26 +202,41 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
                   >
                     <View style={styles.optionLeft}>
                       {isMulti ? (
-                        <View style={[styles.checkboxBox, isSelected && styles.checkboxBoxSelected]}>
-                          {isSelected && <Check size={11} color="#0a0a0a" />}
+                        <View
+                          style={[
+                            styles.checkboxBox,
+                            isLight && styles.checkboxBoxLight,
+                            isSelected && (isLight ? styles.checkboxBoxSelectedLight : styles.checkboxBoxSelected),
+                          ]}
+                        >
+                          {isSelected && <Check size={11} color={isLight ? '#ffffff' : '#0a0a0a'} />}
                         </View>
                       ) : (
-                        <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
-                          {isSelected && <View style={styles.radioDot} />}
+                        <View
+                          style={[
+                            styles.radioCircle,
+                            isLight && styles.radioCircleLight,
+                            isSelected && (isLight ? styles.radioCircleSelectedLight : styles.radioCircleSelected),
+                          ]}
+                        >
+                          {isSelected && (
+                            <View style={[styles.radioDot, isLight && styles.radioDotLight]} />
+                          )}
                         </View>
                       )}
 
                       <View style={styles.optionContentCol}>
                         <View style={styles.optionTextRow}>
                           {isRecommended && (
-                            <View style={styles.recommendedBadge}>
-                              <Text style={styles.recommendedBadgeText}>Recommended</Text>
+                            <View style={[styles.recommendedBadge, isLight && styles.recommendedBadgeLight]}>
+                              <Text style={[styles.recommendedBadgeText, isLight && styles.recommendedBadgeTextLight]}>Recommended</Text>
                             </View>
                           )}
                           <Text
                             style={[
                               styles.optionText,
-                              isSelected && styles.optionTextSelected,
+                              isLight && styles.optionTextLight,
+                              isSelected && (isLight ? styles.optionTextSelectedLight : styles.optionTextSelected),
                             ]}
                           >
                             {cleanOptText}
@@ -225,6 +258,7 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
           <TouchableOpacity
             style={[
               styles.submitBtn,
+              isLight && styles.submitBtnLight,
               (!hasAnySelection || isSubmitting) && styles.submitBtnDisabled,
             ]}
             onPress={handleSubmit}
@@ -232,11 +266,11 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
             activeOpacity={0.85}
           >
             {isSubmitting ? (
-              <ActivityIndicator size="small" color="#0a0a0a" />
+              <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
             ) : (
               <>
-                <Send size={13} color="#0a0a0a" />
-                <Text style={styles.submitBtnText}>Submit Selection</Text>
+                <Send size={13} color={isLight ? '#ffffff' : '#0a0a0a'} />
+                <Text style={[styles.submitBtnText, isLight && styles.submitBtnTextLight]}>Submit Selection</Text>
               </>
             )}
           </TouchableOpacity>
@@ -244,9 +278,9 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
       )}
 
       {isAnswered && (
-        <View style={styles.answeredFooterRow}>
-          <CheckCheck size={13} color="#a3a3a3" />
-          <Text style={styles.answeredFooterText}>Decision recorded and applied to agent session</Text>
+        <View style={[styles.answeredFooterRow, isLight && styles.answeredFooterRowLight]}>
+          <CheckCheck size={13} color={isLight ? '#1a7f37' : '#a3a3a3'} />
+          <Text style={[styles.answeredFooterText, isLight && styles.answeredFooterTextLight]}>Decision recorded and applied to agent session</Text>
         </View>
       )}
     </View>
@@ -476,5 +510,94 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#737373',
     fontStyle: 'italic',
+  },
+
+  // Light Theme Overrides
+  cardContainerLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+    shadowOpacity: 0.08,
+  },
+  headerRowLight: {
+    borderBottomColor: '#e1e4e8',
+  },
+  iconCircleLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  headerTitleLight: {
+    color: '#1f2328',
+  },
+  statusBadgePendingLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  statusBadgeTextPendingLight: {
+    color: '#0077b6',
+  },
+  statusBadgeAnsweredLight: {
+    backgroundColor: '#dafbe1',
+  },
+  statusBadgeTextAnsweredLight: {
+    color: '#1a7f37',
+  },
+  questionIndexBadgeLight: {
+    color: '#57606a',
+    backgroundColor: '#eaeef2',
+  },
+  questionTextLight: {
+    color: '#1f2328',
+  },
+  multiSelectHintLight: {
+    color: '#6e7681',
+  },
+  optionCardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  optionCardSelectedLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: '#0077b6',
+  },
+  radioCircleLight: {
+    borderColor: '#8c959f',
+  },
+  radioCircleSelectedLight: {
+    borderColor: '#0077b6',
+  },
+  radioDotLight: {
+    backgroundColor: '#0077b6',
+  },
+  checkboxBoxLight: {
+    borderColor: '#8c959f',
+  },
+  checkboxBoxSelectedLight: {
+    backgroundColor: '#0077b6',
+    borderColor: '#0077b6',
+  },
+  recommendedBadgeLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  recommendedBadgeTextLight: {
+    color: '#0077b6',
+  },
+  optionTextLight: {
+    color: '#57606a',
+  },
+  optionTextSelectedLight: {
+    color: '#1f2328',
+    fontWeight: '600',
+  },
+  submitBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  submitBtnTextLight: {
+    color: '#ffffff',
+  },
+  answeredFooterRowLight: {
+    borderTopColor: '#e1e4e8',
+  },
+  answeredFooterTextLight: {
+    color: '#6e7681',
   },
 });

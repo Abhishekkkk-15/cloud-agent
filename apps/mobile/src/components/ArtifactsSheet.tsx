@@ -52,6 +52,8 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
   onClose,
   initialSearchQuery = '',
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const sessionArtifacts = useDaemonStore((s) => s.sessionArtifacts);
   const isLoadingArtifacts = useDaemonStore((s) => s.isLoadingArtifacts);
   const fetchSessionArtifacts = useDaemonStore((s) => s.fetchSessionArtifacts);
@@ -205,14 +207,15 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
   if (!visible) return null;
 
   const renderIconForArtifact = (item: CliArtifact) => {
+    const iconColor = isLight ? '#0077b6' : '#fafafa';
     const lang = (item.language || '').toLowerCase();
     if (lang === 'md' || lang === 'markdown') {
-      return <FileText size={16} color="#fafafa" />;
+      return <FileText size={16} color={iconColor} />;
     }
     if (['ts', 'tsx', 'js', 'jsx', 'py', 'json', 'yaml', 'yml'].includes(lang)) {
-      return <Code2 size={16} color="#fafafa" />;
+      return <Code2 size={16} color={iconColor} />;
     }
-    return <Layers size={16} color="#fafafa" />;
+    return <Layers size={16} color={iconColor} />;
   };
 
   return (
@@ -230,6 +233,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
         <Animated.View
           style={[
             styles.sheetContainer,
+            isLight && styles.sheetContainerLight,
             {
               transform: [{ translateY }],
             },
@@ -242,55 +246,55 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               activeOpacity={0.8}
               onPress={handleToggleExpand}
             >
-              <View style={styles.dragPill} />
+              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
             </TouchableOpacity>
 
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, isLight && styles.headerLight]}>
               {selectedArtifact ? (
                 <TouchableOpacity
-                  style={styles.backButton}
+                  style={[styles.backButton, isLight && styles.backButtonLight]}
                   onPress={handleBackToList}
                   activeOpacity={0.7}
                 >
-                  <ArrowLeft size={16} color="#fafafa" />
-                  <Text style={styles.backButtonText}>All Artifacts</Text>
+                  <ArrowLeft size={16} color={isLight ? '#1f2328' : '#fafafa'} />
+                  <Text style={[styles.backButtonText, isLight && styles.backButtonTextLight]}>All Artifacts</Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.headerLeft}>
-                  <View style={styles.headerIconBox}>
-                    <Layers size={18} color="#fafafa" />
+                  <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
+                    <Layers size={18} color={isLight ? '#0077b6' : '#fafafa'} />
                   </View>
                   <View>
                     <View style={styles.titleRow}>
-                      <Text style={styles.title}>Session Artifacts</Text>
-                      <View style={styles.countBadge}>
-                        <Text style={styles.countBadgeText}>{sessionArtifacts.length}</Text>
+                      <Text style={[styles.title, isLight && styles.titleLight]}>Session Artifacts</Text>
+                      <View style={[styles.countBadge, isLight && styles.countBadgeLight]}>
+                        <Text style={[styles.countBadgeText, isLight && styles.countBadgeTextLight]}>{sessionArtifacts.length}</Text>
                       </View>
                     </View>
-                    <Text style={styles.subtitle}>Plans, reports, and generated specs</Text>
+                    <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>Plans, reports, and generated specs</Text>
                   </View>
                 </View>
               )}
 
               <View style={styles.headerActions}>
                 <TouchableOpacity
-                  style={styles.actionBtn}
+                  style={[styles.actionBtn, isLight && styles.actionBtnLight]}
                   onPress={handleRefresh}
                   activeOpacity={0.7}
                   disabled={isRefreshing || isLoadingArtifacts}
                 >
                   <RefreshCw
                     size={16}
-                    color={isRefreshing ? '#fafafa' : '#a3a3a3'}
+                    color={isRefreshing ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.actionBtn}
+                  style={[styles.actionBtn, isLight && styles.actionBtnLight]}
                   onPress={handleClose}
                   activeOpacity={0.7}
                 >
-                  <X size={18} color="#a3a3a3" />
+                  <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -299,35 +303,53 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
           {/* Modal Body */}
           {selectedArtifact ? (
             // ================== 1. READER VIEW ==================
-            <View style={styles.readerWrapper}>
+            <View style={[styles.readerWrapper, isLight && styles.readerWrapperLight]}>
               {/* Reader Subheader */}
-              <View style={styles.readerSubHeader}>
+              <View style={[styles.readerSubHeader, isLight && styles.readerSubHeaderLight]}>
                 <View style={{ flex: 1, marginRight: 12 }}>
-                  <Text style={styles.readerTitle} numberOfLines={1}>
+                  <Text style={[styles.readerTitle, isLight && styles.readerTitleLight]} numberOfLines={1}>
                     {selectedArtifact.title || selectedArtifact.id}
                   </Text>
-                  <Text style={styles.readerMeta}>
+                  <Text style={[styles.readerMeta, isLight && styles.readerMetaLight]}>
                     {selectedArtifact.language ? selectedArtifact.language.toUpperCase() : 'DOCUMENT'} • {selectedArtifact.path ? selectedArtifact.path.split(/[/\\]/).pop() : ''}
                   </Text>
                 </View>
 
                 {/* View Mode Toggle */}
-                <View style={styles.modeToggle}>
+                <View style={[styles.modeToggle, isLight && styles.modeToggleLight]}>
                   <TouchableOpacity
-                    style={[styles.modeTab, viewMode === 'preview' && styles.modeTabActive]}
+                    style={[
+                      styles.modeTab,
+                      viewMode === 'preview' && (isLight ? styles.modeTabActiveLight : styles.modeTabActive),
+                    ]}
                     onPress={() => setViewMode('preview')}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.modeTabText, viewMode === 'preview' && styles.modeTabTextActive]}>
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        isLight && styles.modeTabTextLight,
+                        viewMode === 'preview' && (isLight ? styles.modeTabTextActiveLight : styles.modeTabTextActive),
+                      ]}
+                    >
                       Preview
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modeTab, viewMode === 'source' && styles.modeTabActive]}
+                    style={[
+                      styles.modeTab,
+                      viewMode === 'source' && (isLight ? styles.modeTabActiveLight : styles.modeTabActive),
+                    ]}
                     onPress={() => setViewMode('source')}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.modeTabText, viewMode === 'source' && styles.modeTabTextActive]}>
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        isLight && styles.modeTabTextLight,
+                        viewMode === 'source' && (isLight ? styles.modeTabTextActiveLight : styles.modeTabTextActive),
+                      ]}
+                    >
                       Source
                     </Text>
                   </TouchableOpacity>
@@ -335,15 +357,15 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
 
                 {/* Copy Button */}
                 <TouchableOpacity
-                  style={styles.copyBtn}
+                  style={[styles.copyBtn, isLight && styles.copyBtnLight]}
                   onPress={handleCopy}
                   activeOpacity={0.7}
                   disabled={!content}
                 >
                   {copied ? (
-                    <Check size={14} color="#fafafa" />
+                    <Check size={14} color={isLight ? '#0077b6' : '#fafafa'} />
                   ) : (
-                    <Copy size={14} color="#a3a3a3" />
+                    <Copy size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -351,23 +373,23 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Reader Scrollable Content */}
               {isLoadingArtifactContent ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color="#fafafa" />
-                  <Text style={styles.loadingText}>Loading artifact content...</Text>
+                  <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+                  <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Loading artifact content...</Text>
                 </View>
               ) : (
                 <ScrollView
-                  style={styles.readerScroll}
+                  style={[styles.readerScroll, isLight && styles.readerScrollLight]}
                   contentContainerStyle={styles.readerContentContainer}
                   showsVerticalScrollIndicator={true}
                 >
                   {/* Summary Card if present */}
                   {selectedArtifact.summary ? (
-                    <View style={styles.summaryBox}>
+                    <View style={[styles.summaryBox, isLight && styles.summaryBoxLight]}>
                       <View style={styles.summaryHeader}>
-                        <Sparkles size={13} color="#fafafa" />
-                        <Text style={styles.summaryTitle}>Summary</Text>
+                        <Sparkles size={13} color={isLight ? '#0077b6' : '#fafafa'} />
+                        <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight]}>Summary</Text>
                       </View>
-                      <Text style={styles.summaryText}>{selectedArtifact.summary}</Text>
+                      <Text style={[styles.summaryText, isLight && styles.summaryTextLight]}>{selectedArtifact.summary}</Text>
                     </View>
                   ) : null}
 
@@ -375,8 +397,8 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   {viewMode === 'preview' ? (
                     <MarkdownText content={content || '*(Empty file)*'} />
                   ) : (
-                    <View style={styles.sourceBox}>
-                      <Text style={styles.sourceText} selectable>
+                    <View style={[styles.sourceBox, isLight && styles.sourceBoxLight]}>
+                      <Text style={[styles.sourceText, isLight && styles.sourceTextLight]} selectable>
                         {content || '(Empty file)'}
                       </Text>
                     </View>
@@ -386,16 +408,16 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
             </View>
           ) : (
             // ================== 2. LIST VIEW ==================
-            <View style={styles.listWrapper}>
+            <View style={[styles.listWrapper, isLight && styles.listWrapperLight]}>
               {/* Search Filter Bar */}
-              <View style={styles.searchBarContainer}>
-                <Search size={15} color="#a3a3a3" style={styles.searchIcon} />
+              <View style={[styles.searchBarContainer, isLight && styles.searchBarContainerLight]}>
+                <Search size={15} color={isLight ? '#57606a' : '#a3a3a3'} style={styles.searchIcon} />
                 <TextInput
-                  style={styles.searchInput}
+                  style={[styles.searchInput, isLight && styles.searchInputLight]}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   placeholder="Filter artifacts by title, summary, or type..."
-                  placeholderTextColor="#737373"
+                  placeholderTextColor={isLight ? '#8c959f' : '#737373'}
                   autoCapitalize="none"
                   autoCorrect={false}
                   clearButtonMode="while-editing"
@@ -405,7 +427,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                     onPress={() => setSearchQuery('')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <X size={14} color="#a3a3a3" />
+                    <X size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -413,18 +435,18 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Artifacts List */}
               {isLoadingArtifacts && sessionArtifacts.length === 0 ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color="#fafafa" />
-                  <Text style={styles.loadingText}>Fetching session artifacts...</Text>
+                  <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+                  <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Fetching session artifacts...</Text>
                 </View>
               ) : filteredArtifacts.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <View style={styles.emptyIconBox}>
-                    <Layers size={28} color="#fafafa" />
+                  <View style={[styles.emptyIconBox, isLight && styles.emptyIconBoxLight]}>
+                    <Layers size={28} color={isLight ? '#0077b6' : '#fafafa'} />
                   </View>
-                  <Text style={styles.emptyTitle}>
+                  <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>
                     {searchQuery ? 'No matching artifacts' : 'No artifacts created yet'}
                   </Text>
-                  <Text style={styles.emptySubtitle}>
+                  <Text style={[styles.emptySubtitle, isLight && styles.emptySubtitleLight]}>
                     {searchQuery
                       ? `No artifacts matching "${searchQuery}" in this session.`
                       : 'When the agent generates implementation plans, markdown reports, or diagrams, they will appear here.'}
@@ -432,7 +454,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                 </View>
               ) : (
                 <ScrollView
-                  style={styles.listScroll}
+                  style={[styles.listScroll, isLight && styles.listScrollLight]}
                   contentContainerStyle={styles.listContentContainer}
                   showsVerticalScrollIndicator={false}
                 >
@@ -441,36 +463,36 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                     return (
                       <TouchableOpacity
                         key={item.id || item.path}
-                        style={styles.artifactCard}
+                        style={[styles.artifactCard, isLight && styles.artifactCardLight]}
                         onPress={() => handleSelectArtifact(item)}
                         activeOpacity={0.7}
                       >
-                        <View style={styles.cardIconBox}>
+                        <View style={[styles.cardIconBox, isLight && styles.cardIconBoxLight]}>
                           {renderIconForArtifact(item)}
                         </View>
 
                         <View style={styles.cardDetails}>
                           <View style={styles.cardTitleRow}>
-                            <Text style={styles.cardTitle} numberOfLines={1}>
+                            <Text style={[styles.cardTitle, isLight && styles.cardTitleLight]} numberOfLines={1}>
                               {item.title || item.id}
                             </Text>
-                            <View style={styles.extBadge}>
-                              <Text style={styles.extBadgeText}>{ext}</Text>
+                            <View style={[styles.extBadge, isLight && styles.extBadgeLight]}>
+                              <Text style={[styles.extBadgeText, isLight && styles.extBadgeTextLight]}>{ext}</Text>
                             </View>
                           </View>
 
                           {item.summary ? (
-                            <Text style={styles.cardSummary} numberOfLines={2}>
+                            <Text style={[styles.cardSummary, isLight && styles.cardSummaryLight]} numberOfLines={2}>
                               {item.summary}
                             </Text>
                           ) : (
-                            <Text style={styles.cardPath} numberOfLines={1}>
+                            <Text style={[styles.cardPath, isLight && styles.cardPathLight]} numberOfLines={1}>
                               {item.path.split(/[/\\]/).pop()}
                             </Text>
                           )}
                         </View>
 
-                        <ChevronRight size={16} color="#737373" />
+                        <ChevronRight size={16} color={isLight ? '#8c959f' : '#737373'} />
                       </TouchableOpacity>
                     );
                   })}
@@ -831,5 +853,137 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: '#d4d4d4',
     lineHeight: 18,
+  },
+
+  // Light Theme Overrides
+  sheetContainerLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  dragPillLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  headerLight: {
+    borderBottomColor: '#e1e4e8',
+  },
+  headerIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  titleLight: {
+    color: '#1f2328',
+  },
+  subtitleLight: {
+    color: '#6e7681',
+  },
+  countBadgeLight: {
+    backgroundColor: '#eaeef2',
+  },
+  countBadgeTextLight: {
+    color: '#57606a',
+  },
+  backButtonLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  backButtonTextLight: {
+    color: '#1f2328',
+  },
+  actionBtnLight: {
+    backgroundColor: '#f6f8fa',
+  },
+  readerWrapperLight: {
+    backgroundColor: '#ffffff',
+  },
+  readerSubHeaderLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#e1e4e8',
+  },
+  readerTitleLight: {
+    color: '#1f2328',
+  },
+  readerMetaLight: {
+    color: '#6e7681',
+  },
+  modeToggleLight: {
+    backgroundColor: '#eaeef2',
+  },
+  modeTabActiveLight: {
+    backgroundColor: '#0077b6',
+  },
+  modeTabTextLight: {
+    color: '#57606a',
+  },
+  modeTabTextActiveLight: {
+    color: '#ffffff',
+  },
+  copyBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  loadingTextLight: {
+    color: '#6e7681',
+  },
+  readerScrollLight: {
+    backgroundColor: '#ffffff',
+  },
+  summaryBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#e1e4e8',
+  },
+  summaryTitleLight: {
+    color: '#0077b6',
+  },
+  summaryTextLight: {
+    color: '#1f2328',
+  },
+  sourceBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  sourceTextLight: {
+    color: '#1f2328',
+  },
+  listWrapperLight: {
+    backgroundColor: '#ffffff',
+  },
+  searchBarContainerLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  searchInputLight: {
+    color: '#1f2328',
+  },
+  emptyIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  emptyTitleLight: {
+    color: '#1f2328',
+  },
+  emptySubtitleLight: {
+    color: '#6e7681',
+  },
+  listScrollLight: {
+    backgroundColor: '#ffffff',
+  },
+  artifactCardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  cardIconBoxLight: {
+    backgroundColor: '#ffffff',
+  },
+  cardTitleLight: {
+    color: '#1f2328',
+  },
+  extBadgeLight: {
+    backgroundColor: '#eaeef2',
+  },
+  extBadgeTextLight: {
+    color: '#57606a',
+  },
+  cardSummaryLight: {
+    color: '#6e7681',
+  },
+  cardPathLight: {
+    color: '#8c959f',
   },
 });

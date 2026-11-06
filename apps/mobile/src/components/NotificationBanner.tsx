@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sparkles, ShieldAlert, AlertTriangle, Check, X, ChevronRight } from './Icons';
 import { colors, radii } from '../theme/tokens';
 import { onInAppNotification, type NotificationPayload } from '../lib/notifications';
+import { useDaemonStore } from '../stores/useDaemonStore';
 
 interface NotificationBannerProps {
   onNavigate?: (screen: 'agent' | 'health' | 'approvals' | 'sessions') => void;
@@ -22,6 +23,8 @@ interface NotificationBannerProps {
 export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNavigate }) => {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const [currentNotif, setCurrentNotif] = useState<NotificationPayload | null>(null);
   const translateY = useRef(new Animated.Value(-160)).current;
   const hideTimerRef = useRef<any>(null);
@@ -78,13 +81,13 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
   const renderIcon = () => {
     switch (currentNotif.type) {
       case 'turn_complete':
-        return <Sparkles size={16} color="#fafafa" />;
+        return <Sparkles size={16} color={isLight ? '#0077b6' : '#fafafa'} />;
       case 'approval_required':
         return <ShieldAlert size={16} color="#f85149" />;
       case 'error':
         return <AlertTriangle size={16} color="#f85149" />;
       default:
-        return <Sparkles size={16} color="#fafafa" />;
+        return <Sparkles size={16} color={isLight ? '#0077b6' : '#fafafa'} />;
     }
   };
 
@@ -118,7 +121,7 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
                 ? styles.bannerApproval
                 : currentNotif.type === 'error'
                 ? styles.bannerError
-                : styles.bannerDefault,
+                : (isLight ? styles.bannerDefaultLight : styles.bannerDefault),
             ]}
             activeOpacity={0.88}
             onPress={handleBannerPress}
@@ -128,29 +131,29 @@ export const NotificationBanner: React.FC<NotificationBannerProps> = ({ onNaviga
                 styles.iconCircle,
                 currentNotif.type === 'approval_required' || currentNotif.type === 'error'
                   ? styles.iconCircleAlert
-                  : styles.iconCircleDefault,
+                  : (isLight ? styles.iconCircleDefaultLight : styles.iconCircleDefault),
               ]}
             >
               {renderIcon()}
             </View>
 
             <View style={styles.textCol}>
-              <Text style={styles.titleText} numberOfLines={1}>
+              <Text style={[styles.titleText, isLight && styles.titleTextLight]} numberOfLines={1}>
                 {currentNotif.title}
               </Text>
-              <Text style={styles.bodyText} numberOfLines={2}>
+              <Text style={[styles.bodyText, isLight && styles.bodyTextLight]} numberOfLines={2}>
                 {currentNotif.body}
               </Text>
             </View>
 
             <View style={styles.rightActions}>
-              <ChevronRight size={14} color="#737373" />
+              <ChevronRight size={14} color={isLight ? '#57606a' : '#737373'} />
               <TouchableOpacity
                 style={styles.closeBtn}
                 onPress={handleDismiss}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <X size={13} color="#a3a3a3" />
+                <X size={13} color={isLight ? '#57606a' : '#a3a3a3'} />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -241,5 +244,24 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bannerDefaultLight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderColor: '#d0d7de',
+    shadowColor: '#000000',
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  iconCircleDefaultLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  titleTextLight: {
+    color: '#1f2328',
+  },
+  bodyTextLight: {
+    color: '#57606a',
   },
 });

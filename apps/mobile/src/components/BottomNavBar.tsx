@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Activity, ShieldAlert, Bot, Layers } from './Icons';
 import { colors, radii } from '../theme/tokens';
+import { useDaemonStore } from '../stores/useDaemonStore';
 
 export type TabId = 'health' | 'approvals' | 'agent' | 'sessions';
 
@@ -16,8 +17,11 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   onSelectTab,
   pendingApprovalsCount = 0,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLight && styles.containerLight]}>
       <TouchableOpacity
         style={styles.tabItem}
         onPress={() => onSelectTab('health')}
@@ -25,11 +29,12 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       >
         <Activity
           size={20}
-          color={activeTab === 'health' ? colors.green : colors.textMuted}
+          color={activeTab === 'health' ? colors.green : (isLight ? '#6e7681' : colors.textMuted)}
         />
         <Text
           style={[
             styles.tabLabel,
+            isLight && { color: '#6e7681' },
             activeTab === 'health' && { color: colors.green, fontWeight: '700' },
           ]}
         >
@@ -45,7 +50,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         <View>
           <ShieldAlert
             size={20}
-            color={activeTab === 'approvals' ? colors.red : colors.textMuted}
+            color={activeTab === 'approvals' ? colors.red : (isLight ? '#6e7681' : colors.textMuted)}
           />
           {pendingApprovalsCount > 0 && (
             <View style={styles.badge}>
@@ -56,6 +61,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         <Text
           style={[
             styles.tabLabel,
+            isLight && { color: '#6e7681' },
             activeTab === 'approvals' && { color: colors.red, fontWeight: '700' },
           ]}
         >
@@ -68,16 +74,17 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
         onPress={() => onSelectTab('agent')}
         activeOpacity={0.7}
       >
-        <View style={activeTab === 'agent' ? styles.activePill : styles.iconWrapper}>
+        <View style={activeTab === 'agent' ? (isLight ? styles.activePillLight : styles.activePill) : styles.iconWrapper}>
           <Bot
             size={18}
-            color={activeTab === 'agent' ? '#ffffff' : '#8d96a0'}
+            color={activeTab === 'agent' ? '#ffffff' : (isLight ? '#6e7681' : '#8d96a0')}
           />
         </View>
         <Text
           style={[
             styles.tabLabel,
-            activeTab === 'agent' && styles.activeTabLabel,
+            isLight && { color: '#6e7681' },
+            activeTab === 'agent' && (isLight ? styles.activeTabLabelLight : styles.activeTabLabel),
           ]}
         >
           Agent
@@ -91,12 +98,13 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
       >
         <Layers
           size={20}
-          color={activeTab === 'sessions' ? colors.green : colors.textMuted}
+          color={activeTab === 'sessions' ? (isLight ? '#0077b6' : colors.green) : (isLight ? '#6e7681' : colors.textMuted)}
         />
         <Text
           style={[
             styles.tabLabel,
-            activeTab === 'sessions' && { color: colors.green, fontWeight: '700' },
+            isLight && { color: '#6e7681' },
+            activeTab === 'sessions' && { color: isLight ? '#0077b6' : colors.green, fontWeight: '700' },
           ]}
         >
           Sessions
@@ -117,6 +125,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingBottom: 4,
   },
+  containerLight: {
+    backgroundColor: '#ffffff',
+    borderTopColor: '#d0d7de',
+  },
   tabItem: {
     flex: 1,
     alignItems: 'center',
@@ -136,6 +148,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  activePillLight: {
+    backgroundColor: '#0077b6',
+    paddingHorizontal: 16,
+    paddingVertical: 3,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabLabel: {
     fontSize: 11,
     color: '#8d96a0',
@@ -144,6 +164,10 @@ const styles = StyleSheet.create({
   },
   activeTabLabel: {
     color: '#fafafa',
+    fontWeight: '700',
+  },
+  activeTabLabelLight: {
+    color: '#0077b6',
     fontWeight: '700',
   },
   badge: {

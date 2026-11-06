@@ -38,6 +38,8 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
   visible,
   onClose,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const connectionState = useDaemonStore((s) => s.connectionState);
   const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
@@ -201,23 +203,23 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
           <View style={styles.backdrop} />
         </TouchableWithoutFeedback>
 
-        <View style={styles.modalCard}>
+        <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerIconBox}>
-              <Server size={18} color="#f0f6fc" />
+          <View style={[styles.header, isLight && styles.headerLight]}>
+            <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
+              <Server size={18} color={isLight ? '#0077b6' : '#f0f6fc'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>Pair a Machine</Text>
-              <Text style={styles.subtitle}>Link your local computer, workstation, or VPS</Text>
+              <Text style={[styles.title, isLight && styles.titleLight]}>Pair a Machine</Text>
+              <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>Link your local computer, workstation, or VPS</Text>
             </View>
             <TouchableOpacity
-              style={styles.closeBtn}
+              style={[styles.closeBtn, isLight && styles.closeBtnLight]}
               onPress={onClose}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <X size={18} color="#8b949e" />
+              <X size={18} color={isLight ? '#57606a' : '#8b949e'} />
             </TouchableOpacity>
           </View>
 
@@ -227,15 +229,15 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
               <View style={styles.successIconBox}>
                 <CheckCircle2 size={38} color="#0077b6" />
               </View>
-              <Text style={styles.successTitle}>Machine Paired!</Text>
-              <Text style={styles.successSubtitle}>
+              <Text style={[styles.successTitle, isLight && { color: '#1f2328' }]}>Machine Paired!</Text>
+              <Text style={[styles.successSubtitle, isLight && { color: '#6e7681' }]}>
                 {successResult.machineName} is now linked and starting up.
               </Text>
             </View>
           ) : (
             <>
               {/* Tab Selector */}
-              <View style={styles.tabBar}>
+              <View style={[styles.tabBar, isLight && styles.tabBarLight]}>
                 <TouchableOpacity
                   style={[styles.tabItem, activeTab === 'scan' && styles.tabItemActive]}
                   onPress={() => {
@@ -247,12 +249,13 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 >
                   <Camera
                     size={14}
-                    color={activeTab === 'scan' ? '#f0f6fc' : '#8b949e'}
+                    color={activeTab === 'scan' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#57606a' : '#8b949e')}
                   />
                   <Text
                     style={[
                       styles.tabLabel,
-                      activeTab === 'scan' && styles.tabLabelActive,
+                      isLight && { color: '#57606a' },
+                      activeTab === 'scan' && (isLight ? { color: '#0077b6' } : styles.tabLabelActive),
                     ]}
                   >
                     Scan QR
@@ -269,12 +272,13 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 >
                   <Code2
                     size={14}
-                    color={activeTab === 'code' ? '#f0f6fc' : '#8b949e'}
+                    color={activeTab === 'code' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#57606a' : '#8b949e')}
                   />
                   <Text
                     style={[
                       styles.tabLabel,
-                      activeTab === 'code' && styles.tabLabelActive,
+                      isLight && { color: '#57606a' },
+                      activeTab === 'code' && (isLight ? { color: '#0077b6' } : styles.tabLabelActive),
                     ]}
                   >
                     Enter Code
@@ -291,12 +295,13 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 >
                   <Terminal
                     size={14}
-                    color={activeTab === 'cli' ? '#f0f6fc' : '#8b949e'}
+                    color={activeTab === 'cli' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#57606a' : '#8b949e')}
                   />
                   <Text
                     style={[
                       styles.tabLabel,
-                      activeTab === 'cli' && styles.tabLabelActive,
+                      isLight && { color: '#57606a' },
+                      activeTab === 'cli' && (isLight ? { color: '#0077b6' } : styles.tabLabelActive),
                     ]}
                   >
                     Headless / CLI
@@ -398,20 +403,20 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 {/* 2. Enter Code Tab */}
                 {activeTab === 'code' ? (
                   <View style={styles.codeTabContent}>
-                    <Text style={styles.tabInstruction}>
-                      Run <Text style={styles.codeBadge}>ca pair</Text> in your terminal and enter the 6-character code:
+                    <Text style={[styles.tabInstruction, isLight && { color: '#6e7681' }]}>
+                      Run <Text style={[styles.codeBadge, isLight && { color: '#0077b6', backgroundColor: 'rgba(0, 119, 182, 0.10)' }]}>ca pair</Text> in your terminal and enter the 6-character code:
                     </Text>
 
-                    <View style={styles.codeInputWrapper}>
+                    <View style={[styles.codeInputWrapper, isLight && styles.codeInputWrapperLight]}>
                       <TextInput
-                        style={styles.codeInput}
+                        style={[styles.codeInput, isLight && styles.codeInputLight]}
                         value={codeInput}
                         onChangeText={(t) => {
                           setCodeInput(t.toUpperCase());
                           if (claimError) setClaimError(null);
                         }}
                         placeholder="CA-XXXX"
-                        placeholderTextColor="#484f58"
+                        placeholderTextColor={isLight ? '#8c959f' : '#484f58'}
                         autoCapitalize="characters"
                         autoCorrect={false}
                         maxLength={10}
@@ -458,51 +463,51 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                       </View>
                     ) : cliPairingData ? (
                       <>
-                        <Text style={styles.tabInstruction}>
+                        <Text style={[styles.tabInstruction, isLight && { color: '#6e7681' }]}>
                           For headless remote VPS or cloud servers, start the daemon with this command:
                         </Text>
 
-                        <View style={styles.codeSnippetBox}>
-                          <View style={styles.codeSnippetHeader}>
-                            <Terminal size={12} color="#8b949e" />
-                            <Text style={styles.codeSnippetTitle}>Terminal Command</Text>
+                        <View style={[styles.codeSnippetBox, isLight && styles.codeSnippetBoxLight]}>
+                          <View style={[styles.codeSnippetHeader, isLight && styles.codeSnippetHeaderLight]}>
+                            <Terminal size={12} color={isLight ? '#57606a' : '#8b949e'} />
+                            <Text style={[styles.codeSnippetTitle, isLight && { color: '#57606a' }]}>Terminal Command</Text>
                             <TouchableOpacity
-                              style={styles.copyPillBtn}
+                              style={[styles.copyPillBtn, isLight && { backgroundColor: '#eaeef2' }]}
                               onPress={() => handleCopy(cliPairingData.installCommand)}
                               activeOpacity={0.7}
                             >
                               {copied ? (
                                 <>
-                                  <Check size={12} color="#f0f6fc" />
-                                  <Text style={[styles.copyPillBtnText, { color: '#f0f6fc' }]}>
+                                  <Check size={12} color={isLight ? '#0077b6' : '#f0f6fc'} />
+                                  <Text style={[styles.copyPillBtnText, { color: isLight ? '#0077b6' : '#f0f6fc' }]}>
                                     Copied
                                   </Text>
                                 </>
                               ) : (
                                 <>
-                                  <Copy size={12} color="#8b949e" />
-                                  <Text style={styles.copyPillBtnText}>Copy</Text>
+                                  <Copy size={12} color={isLight ? '#57606a' : '#8b949e'} />
+                                  <Text style={[styles.copyPillBtnText, isLight && { color: '#57606a' }]}>Copy</Text>
                                 </>
                               )}
                             </TouchableOpacity>
                           </View>
-                          <Text style={styles.codeSnippetText} selectable>
+                          <Text style={[styles.codeSnippetText, isLight && { color: '#1f2328' }]} selectable>
                             {cliPairingData.installCommand}
                           </Text>
                         </View>
 
                         {/* Paste token or connect URL */}
-                        <Text style={[styles.tabInstruction, { marginTop: 8 }]}>
-                          Or paste a machine token or <Text style={styles.codeBadge}>ca_pair://</Text> link:
+                        <Text style={[styles.tabInstruction, { marginTop: 8 }, isLight && { color: '#6e7681' }]}>
+                          Or paste a machine token or <Text style={[styles.codeBadge, isLight && { color: '#0077b6', backgroundColor: 'rgba(0, 119, 182, 0.10)' }]}>ca_pair://</Text> link:
                         </Text>
 
-                        <View style={styles.pasteBox}>
+                        <View style={[styles.pasteBox, isLight && styles.pasteBoxLight]}>
                           <TextInput
-                            style={styles.pasteInput}
+                            style={[styles.pasteInput, isLight && styles.pasteInputLight]}
                             value={pasteInput}
                             onChangeText={setPasteInput}
                             placeholder="ca_pair://connect?token=... or token"
-                            placeholderTextColor="#484f58"
+                            placeholderTextColor={isLight ? '#8c959f' : '#484f58'}
                             autoCapitalize="none"
                             autoCorrect={false}
                           />
@@ -1105,5 +1110,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#f0f6fc',
     fontWeight: '600',
+  },
+
+  // Light Theme Overrides
+  modalCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  headerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#e1e4e8',
+  },
+  headerIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  titleLight: {
+    color: '#1f2328',
+  },
+  subtitleLight: {
+    color: '#6e7681',
+  },
+  closeBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  tabBarLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#e1e4e8',
+  },
+  codeInputWrapperLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  codeInputLight: {
+    color: '#1f2328',
+  },
+  codeSnippetBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  codeSnippetHeaderLight: {
+    backgroundColor: '#eaeef2',
+    borderBottomColor: '#d0d7de',
+  },
+  pasteBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  pasteInputLight: {
+    color: '#1f2328',
   },
 });

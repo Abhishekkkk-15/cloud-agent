@@ -41,6 +41,8 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
   const decisionTrail = useDaemonStore((s) => s.decisionTrail);
   const respondApproval = useDaemonStore((s) => s.respondApproval);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   const [rememberRule, setRememberRule] = useState(false);
   const [isTreeExpanded, setIsTreeExpanded] = useState(false);
@@ -76,7 +78,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
   const targetNode = pendingApproval?.targetNode || activeMachine?.name || 'Local Machine';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLight && styles.containerLight]}>
       <HeaderBar
         title="Diff Reviewer & Security Gate"
         subtitle={`${targetNode} • HITL Gate`}
@@ -95,14 +97,15 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
             <View
               style={[
                 styles.statusBadge,
-                pendingApproval ? styles.statusBadgeOpen : styles.statusBadgePassed,
+                pendingApproval
+                  ? (isLight ? styles.statusBadgeOpenLight : styles.statusBadgeOpen)
+                  : (isLight ? styles.statusBadgePassedLight : styles.statusBadgePassed),
               ]}
             >
-
               <Text
                 style={[
                   styles.statusBadgeText,
-                  { color: pendingApproval ? colors.primaryLight : colors.statusLive },
+                  { color: pendingApproval ? (isLight ? '#0077b6' : colors.primaryLight) : colors.statusLive },
                 ]}
               >
                 {pendingApproval ? 'Waiting for review' : 'All checks passed'}
@@ -110,14 +113,14 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
             </View>
           </View>
           <View style={styles.metricsRight}>
-            <Text style={styles.metricsText}>
+            <Text style={[styles.metricsText, isLight && { color: '#6e7681' }]}>
               {pendingApproval ? '1 action pending' : 'Zero elevated actions'}
             </Text>
           </View>
         </View>
 
         {/* 2. Verification Checks Summary Card (Stitch Screen 4) */}
-        <View style={styles.summaryCard}>
+        <View style={[styles.summaryCard, isLight && styles.summaryCardLight]}>
           <View style={styles.summaryHeaderRow}>
             <View style={styles.summaryHeaderLeft}>
               {pendingApproval ? (
@@ -125,17 +128,17 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                   <AlertTriangle size={15} color={colors.red} />
                 </View>
               ) : (
-                <View style={styles.summaryPassIcon}>
+                <View style={[styles.summaryPassIcon, isLight && { backgroundColor: 'rgba(46, 160, 67, 0.12)', borderColor: 'rgba(46, 160, 67, 0.3)' }]}>
                   <CheckCheck size={15} color={colors.statusLive} />
                 </View>
               )}
               <View style={styles.summaryTitleCol}>
-                <Text style={styles.summaryTitle}>
+                <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight]}>
                   {pendingApproval
                     ? 'Action Required • Human In The Loop'
                     : 'System Clean • No Approvals Required'}
                 </Text>
-                <Text style={styles.summarySub}>
+                <Text style={[styles.summarySub, isLight && styles.summarySubLight]}>
                   {pendingApproval
                     ? `Caller: ${pendingApproval.caller || 'Antigravity Agent'} requested privilege`
                     : 'Zero-Trust Gateways active • Inbound ports closed'}
@@ -146,17 +149,18 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
 
           {/* Mini Check Status Chips */}
           <View style={styles.checksChipsRow}>
-            <View style={styles.checkChip}>
+            <View style={[styles.checkChip, isLight && styles.checkChipLight]}>
               <CheckCircle2 size={11} color={colors.statusLive} />
-              <Text style={styles.checkChipText}>unit-tests: ok</Text>
+              <Text style={[styles.checkChipText, isLight && { color: '#1f2328' }]}>unit-tests: ok</Text>
             </View>
-            <View style={styles.checkChip}>
+            <View style={[styles.checkChip, isLight && styles.checkChipLight]}>
               <CheckCircle2 size={11} color={colors.statusLive} />
-              <Text style={styles.checkChipText}>typecheck: ok</Text>
+              <Text style={[styles.checkChipText, isLight && { color: '#1f2328' }]}>typecheck: ok</Text>
             </View>
             <View
               style={[
                 styles.checkChip,
+                isLight && styles.checkChipLight,
                 pendingApproval && styles.checkChipAlert,
               ]}
             >
@@ -168,6 +172,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               <Text
                 style={[
                   styles.checkChipText,
+                  isLight && { color: '#1f2328' },
                   pendingApproval && { color: colors.red },
                 ]}
               >
@@ -196,17 +201,21 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.authorizeActionBtn, (isDenying || isAuthorizing) && { opacity: 0.7 }]}
+                style={[
+                  styles.authorizeActionBtn,
+                  isLight && styles.authorizeActionBtnLight,
+                  (isDenying || isAuthorizing) && { opacity: 0.7 }
+                ]}
                 onPress={handleAuthorize}
                 disabled={isDenying || isAuthorizing}
                 activeOpacity={0.85}
               >
                 {isAuthorizing ? (
-                  <ActivityIndicator size="small" color="#0a0a0a" style={{ transform: [{ scale: 0.75 }] }} />
+                  <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} style={{ transform: [{ scale: 0.75 }] }} />
                 ) : (
-                  <Check size={15} color="#0a0a0a" />
+                  <Check size={15} color={isLight ? '#ffffff' : '#0a0a0a'} />
                 )}
-                <Text style={styles.authorizeActionBtnText}>
+                <Text style={[styles.authorizeActionBtnText, isLight && { color: '#ffffff' }]}>
                   {isAuthorizing ? 'Authorizing...' : 'Authorize Action'}
                 </Text>
               </TouchableOpacity>
@@ -216,11 +225,11 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
 
         {/* 3. Code Diff & Terminal Preview (Stitch Screen 4) */}
         {pendingApproval && (
-          <View style={styles.diffViewerCard}>
-            <View style={styles.diffHeaderRow}>
+          <View style={[styles.diffViewerCard, isLight && styles.diffViewerCardLight]}>
+            <View style={[styles.diffHeaderRow, isLight && styles.diffHeaderRowLight]}>
               <View style={styles.diffHeaderLeft}>
-                <Terminal size={14} color={colors.primaryLight} />
-                <Text style={styles.diffToolTitle}>
+                <Terminal size={14} color={isLight ? '#0077b6' : colors.primaryLight} />
+                <Text style={[styles.diffToolTitle, isLight && styles.diffToolTitleLight]}>
                   tool:{pendingApproval.tool || 'run_command'}
                 </Text>
                 <View style={styles.riskBadge}>
@@ -230,18 +239,19 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                 </View>
               </View>
               <TouchableOpacity
-                style={styles.copyBtn}
+                style={[styles.copyBtn, isLight && styles.copyBtnLight]}
                 onPress={handleCopy}
                 activeOpacity={0.7}
               >
                 {copied ? (
                   <Check size={12} color={colors.statusLive} />
                 ) : (
-                  <Copy size={12} color={colors.textMuted} />
+                  <Copy size={12} color={isLight ? '#57606a' : colors.textMuted} />
                 )}
                 <Text
                   style={[
                     styles.copyBtnText,
+                    isLight && { color: '#57606a' },
                     copied && { color: colors.statusLive },
                   ]}
                 >
@@ -251,22 +261,22 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
             </View>
 
             {/* Description / Justification */}
-            <View style={styles.diffDescriptionBox}>
-              <Text style={styles.diffDescriptionText}>
+            <View style={[styles.diffDescriptionBox, isLight && styles.diffDescriptionBoxLight]}>
+              <Text style={[styles.diffDescriptionText, isLight && styles.diffDescriptionTextLight]}>
                 {pendingApproval.description}
               </Text>
               {pendingApproval.justification ? (
-                <Text style={styles.diffJustificationText}>
+                <Text style={[styles.diffJustificationText, isLight && styles.diffJustificationTextLight]}>
                   "{pendingApproval.justification}"
                 </Text>
               ) : null}
             </View>
 
             {/* Command / Diff Snippet */}
-            <View style={styles.codeSnippetContainer}>
+            <View style={[styles.codeSnippetContainer, isLight && styles.codeSnippetContainerLight]}>
               <View style={styles.codeLine}>
-                <Text style={styles.codePromptSymbol}>$</Text>
-                <Text style={styles.codeContentText} selectable>
+                <Text style={[styles.codePromptSymbol, isLight && { color: '#0077b6' }]}>$</Text>
+                <Text style={[styles.codeContentText, isLight && { color: '#1f2328' }]} selectable>
                   {pendingApproval.command}
                 </Text>
               </View>
@@ -278,10 +288,10 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
               onPress={() => setRememberRule(!rememberRule)}
               activeOpacity={0.8}
             >
-              <View style={[styles.checkbox, rememberRule && styles.checkboxActive]}>
-                {rememberRule && <Check size={11} color="#0a0a0a" />}
+              <View style={[styles.checkbox, isLight && styles.checkboxLight, rememberRule && styles.checkboxActive]}>
+                {rememberRule && <Check size={11} color={isLight ? '#ffffff' : '#0a0a0a'} />}
               </View>
-              <Text style={styles.checkboxLabel}>
+              <Text style={[styles.checkboxLabel, isLight && styles.checkboxLabelLight]}>
                 Always permit this action for current session
               </Text>
             </TouchableOpacity>
@@ -289,7 +299,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
         )}
 
         {/* 4. Security Sandbox Policies (Collapsible) */}
-        <View style={styles.policiesCard}>
+        <View style={[styles.policiesCard, isLight && styles.policiesCardLight]}>
           <TouchableOpacity
             style={styles.policiesHeader}
             onPress={() => setIsTreeExpanded(!isTreeExpanded)}
@@ -297,14 +307,14 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
           >
             <View style={styles.policiesHeaderLeft}>
               <ShieldCheck size={15} color={colors.statusLive} />
-              <Text style={styles.policiesTitle}>Runtime Security Checks</Text>
+              <Text style={[styles.policiesTitle, isLight && styles.policiesTitleLight]}>Runtime Security Checks</Text>
             </View>
             <View style={styles.policiesHeaderRight}>
-              <Text style={styles.policiesStatusText}>Active</Text>
+              <Text style={[styles.policiesStatusText, isLight && { color: '#0077b6' }]}>Active</Text>
               {isTreeExpanded ? (
-                <ChevronUp size={15} color={colors.textMuted} />
+                <ChevronUp size={15} color={isLight ? '#57606a' : colors.textMuted} />
               ) : (
-                <ChevronDown size={15} color={colors.textMuted} />
+                <ChevronDown size={15} color={isLight ? '#57606a' : colors.textMuted} />
               )}
             </View>
           </TouchableOpacity>
@@ -312,16 +322,16 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
           {isTreeExpanded && (
             <View style={styles.policiesList}>
               <View style={styles.policyRow}>
-                <GitBranch size={13} color={colors.textMuted} />
-                <Text style={styles.policyText}>Workspace Sandboxing: Strict</Text>
+                <GitBranch size={13} color={isLight ? '#57606a' : colors.textMuted} />
+                <Text style={[styles.policyText, isLight && { color: '#57606a' }]}>Workspace Sandboxing: Strict</Text>
               </View>
               <View style={styles.policyRow}>
                 <Link size={13} color={colors.statusLive} />
-                <Text style={styles.policyText}>Inbound Ports: 0 Open (Zero-Trust)</Text>
+                <Text style={[styles.policyText, isLight && { color: '#57606a' }]}>Inbound Ports: 0 Open (Zero-Trust)</Text>
               </View>
               <View style={styles.policyRow}>
                 <ShieldCheck size={13} color={colors.statusLive} />
-                <Text style={[styles.policyText, { color: colors.textPrimary }]}>
+                <Text style={[styles.policyText, { color: isLight ? '#1f2328' : colors.textPrimary }]}>
                   WebRTC P2P Direct Tunnel: Encrypted
                 </Text>
               </View>
@@ -331,16 +341,16 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
 
         {/* 5. Decision Audit Trail */}
         <View style={styles.auditHeader}>
-          <Text style={styles.auditTitle}>DECISION AUDIT TRAIL</Text>
-          <View style={styles.auditBadge}>
-            <Text style={styles.auditBadgeText}>{decisionTrail.length} recorded</Text>
+          <Text style={[styles.auditTitle, isLight && { color: '#6e7681' }]}>DECISION AUDIT TRAIL</Text>
+          <View style={[styles.auditBadge, isLight && styles.auditBadgeLight]}>
+            <Text style={[styles.auditBadgeText, isLight && { color: '#57606a' }]}>{decisionTrail.length} recorded</Text>
           </View>
         </View>
 
         <View style={styles.auditList}>
           {decisionTrail.length > 0 ? (
             decisionTrail.map((item) => (
-              <View key={item.id} style={styles.auditItem}>
+              <View key={item.id} style={[styles.auditItem, isLight && styles.auditItemLight]}>
                 <View style={item.approved ? styles.auditIconAuth : styles.auditIconDeny}>
                   {item.approved ? (
                     <Check size={11} color={colors.statusLive} />
@@ -349,7 +359,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                   )}
                 </View>
                 <View style={styles.auditTexts}>
-                  <Text style={styles.auditCmd} numberOfLines={1}>{item.command}</Text>
+                  <Text style={[styles.auditCmd, isLight && styles.auditCmdLight]} numberOfLines={1}>{item.command}</Text>
                   <View style={styles.auditMetaRow}>
                     <Text
                       style={[
@@ -359,15 +369,15 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
                     >
                       {item.details}
                     </Text>
-                    <Text style={styles.auditDot}>•</Text>
-                    <Text style={styles.auditTime}>{item.timestamp}</Text>
+                    <Text style={[styles.auditDot, isLight && { color: '#8c959f' }]}>•</Text>
+                    <Text style={[styles.auditTime, isLight && { color: '#6e7681' }]}>{item.timestamp}</Text>
                   </View>
                 </View>
               </View>
             ))
           ) : (
-            <View style={styles.emptyAuditBox}>
-              <Text style={styles.emptyAuditText}>
+            <View style={[styles.emptyAuditBox, isLight && styles.emptyAuditBoxLight]}>
+              <Text style={[styles.emptyAuditText, isLight && { color: '#6e7681' }]}>
                 Zero privileged actions executed in this session yet.
               </Text>
             </View>
@@ -815,5 +825,91 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     fontFamily: typography.mono,
+  },
+  containerLight: {
+    backgroundColor: '#ffffff',
+  },
+  statusBadgeOpenLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.3)',
+  },
+  statusBadgePassedLight: {
+    backgroundColor: 'rgba(46, 160, 67, 0.10)',
+    borderColor: 'rgba(46, 160, 67, 0.3)',
+  },
+  summaryCardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  summaryTitleLight: {
+    color: '#1f2328',
+  },
+  summarySubLight: {
+    color: '#57606a',
+  },
+  checkChipLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  authorizeActionBtnLight: {
+    backgroundColor: '#0077b6',
+    borderColor: '#0077b6',
+  },
+  diffViewerCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  diffHeaderRowLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#d0d7de',
+  },
+  diffToolTitleLight: {
+    color: '#1f2328',
+  },
+  copyBtnLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  diffDescriptionBoxLight: {
+    backgroundColor: '#ffffff',
+  },
+  diffDescriptionTextLight: {
+    color: '#1f2328',
+  },
+  diffJustificationTextLight: {
+    color: '#57606a',
+  },
+  codeSnippetContainerLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  checkboxLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  checkboxLabelLight: {
+    color: '#57606a',
+  },
+  policiesCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  policiesTitleLight: {
+    color: '#1f2328',
+  },
+  auditBadgeLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  auditItemLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e1e4e8',
+  },
+  auditCmdLight: {
+    color: '#1f2328',
+  },
+  emptyAuditBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
   },
 });

@@ -66,6 +66,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   const openAutoPrReview = useDaemonStore((s) => s.openAutoPrReview);
   const githubStatus = useDaemonStore((s) => s.githubStatus);
   const fetchGithubStatus = useDaemonStore((s) => s.fetchGithubStatus);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   const [isPinging, setIsPinging] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -136,7 +138,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   }) || [];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLight && styles.containerLight]}>
       <HeaderBar
         title="Machine & CLI Health"
         subtitle={`${hostName} • ${platformStr}`}
@@ -145,24 +147,24 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
         rightElement={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {isRefreshing && (
-              <ActivityIndicator size="small" color="#fafafa" style={{ transform: [{ scale: 0.75 }] }} />
+              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} style={{ transform: [{ scale: 0.75 }] }} />
             )}
             <TouchableOpacity
-              style={styles.switchMachineBtn}
+              style={[styles.switchMachineBtn, isLight && styles.switchMachineBtnLight]}
               onPress={() => setShowMachineSwitcher(true)}
               activeOpacity={0.7}
             >
-              <Server size={14} color="#fafafa" />
-              <Text style={styles.switchMachineBtnText}>Switch</Text>
+              <Server size={14} color={isLight ? '#1f2328' : '#fafafa'} />
+              <Text style={[styles.switchMachineBtnText, isLight && styles.switchMachineBtnTextLight]}>Switch</Text>
             </TouchableOpacity>
           </View>
         }
       />
 
       {/* Sub-bar */}
-      <View style={styles.subBar}>
+      <View style={[styles.subBar, isLight && styles.subBarLight]}>
 
-        <Text style={styles.subBarText}>
+        <Text style={[styles.subBarText, isLight && styles.subBarTextLight]}>
           {isConnected ? 'GATEWAY CONNECTED' : connectionState.toUpperCase()} • 0 open ports • PID: {pidStr} • Uptime: {uptimeStr}
         </Text>
       </View>
@@ -173,15 +175,15 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
         showsVerticalScrollIndicator={false}
       >
         {/* Host System State Card */}
-        <View style={styles.card}>
+        <View style={[styles.card, isLight && styles.cardLight]}>
           <View style={styles.cardHeaderRow}>
             <View style={styles.hostInfo}>
-              <View style={styles.iconBox}>
-                <Server size={20} color="#fafafa" />
+              <View style={[styles.iconBox, isLight && styles.iconBoxLight]}>
+                <Server size={20} color={isLight ? '#0077b6' : '#fafafa'} />
               </View>
               <View style={styles.hostTexts}>
-                <Text style={styles.hostName}>{hostName}</Text>
-                <Text style={styles.hostSub}>{platformStr} • Zero-Trust Tunnel</Text>
+                <Text style={[styles.hostName, isLight && styles.hostNameLight]}>{hostName}</Text>
+                <Text style={[styles.hostSub, isLight && styles.hostSubLight]}>{platformStr} • Zero-Trust Tunnel</Text>
               </View>
             </View>
 
@@ -208,19 +210,19 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
 
           {/* Security & Transport Badges */}
           <View style={styles.badgesRow}>
-            <View style={styles.badgeCard}>
+            <View style={[styles.badgeCard, isLight && styles.badgeCardLight]}>
               <ShieldCheck size={16} color={colors.green} />
               <View style={styles.badgeCardTextCol}>
-                <Text style={styles.badgeCardLabel}>Inbound Ports</Text>
-                <Text style={styles.badgeCardValue}>0 Open (Zero-Trust)</Text>
+                <Text style={[styles.badgeCardLabel, isLight && styles.badgeCardLabelLight]}>Inbound Ports</Text>
+                <Text style={[styles.badgeCardValue, isLight && styles.badgeCardValueLight]}>0 Open (Zero-Trust)</Text>
               </View>
             </View>
 
-            <View style={styles.badgeCard}>
+            <View style={[styles.badgeCard, isLight && styles.badgeCardLight]}>
               <Lock size={16} color={colors.green} />
               <View style={styles.badgeCardTextCol}>
-                <Text style={styles.badgeCardLabel}>Tunnel Transport</Text>
-                <Text style={styles.badgeCardValue}>WebRTC DataChannel</Text>
+                <Text style={[styles.badgeCardLabel, isLight && styles.badgeCardLabelLight]}>Tunnel Transport</Text>
+                <Text style={[styles.badgeCardValue, isLight && styles.badgeCardValueLight]}>WebRTC DataChannel</Text>
               </View>
             </View>
           </View>
@@ -228,16 +230,16 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
 
         {/* Telemetry & Resource Pools */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>TELEMETRY & RESOURCE POOLS</Text>
+          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>TELEMETRY & RESOURCE POOLS</Text>
         </View>
 
-        <View style={styles.card}>
+        <View style={[styles.card, isLight && styles.cardLight]}>
           {/* CPU Metric */}
           <View style={styles.metricItem}>
             <View style={styles.metricHeader}>
               <View style={styles.metricTitleGroup}>
-                <Cpu size={15} color={colors.textMuted} />
-                <Text style={styles.metricLabel}>
+                <Cpu size={15} color={isLight ? '#57606a' : colors.textMuted} />
+                <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>
                   CPU ({daemonStatus?.telemetry?.cpu?.model || 'Intel / AMD Multi-Core'})
                 </Text>
               </View>
@@ -245,7 +247,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                 {daemonStatus?.telemetry?.cpu?.percent ?? 0}%
               </Text>
             </View>
-            <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarBg, isLight && styles.progressBarBgLight]}>
               <View
                 style={[
                   styles.progressBarFill,
@@ -257,30 +259,30 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               />
             </View>
             <View style={styles.metricFooter}>
-              <Text style={styles.metricFooterText}>
+              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>
                 Logical Cores: {daemonStatus?.telemetry?.cpu?.cores ?? 4}
               </Text>
-              <Text style={styles.metricFooterText}>
+              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>
                 Clock: {daemonStatus?.telemetry?.cpu?.speedMhz ? `${daemonStatus.telemetry.cpu.speedMhz} MHz` : 'Active'}
               </Text>
             </View>
           </View>
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isLight && styles.dividerLight]} />
 
           {/* RAM Metric */}
           <View style={styles.metricItem}>
             <View style={styles.metricHeader}>
               <View style={styles.metricTitleGroup}>
-                <Layers size={15} color={colors.textMuted} />
-                <Text style={styles.metricLabel}>RAM Allocation Pool (Host Physical)</Text>
+                <Layers size={15} color={isLight ? '#57606a' : colors.textMuted} />
+                <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>RAM Allocation Pool (Host Physical)</Text>
               </View>
-              <Text style={styles.metricValue}>
+              <Text style={[styles.metricValue, isLight && { color: '#1f2328' }]}>
                 {daemonStatus?.telemetry?.ram?.usedGb ?? 0} / {daemonStatus?.telemetry?.ram?.totalGb ?? 0} GB{' '}
-                <Text style={{ color: colors.textMuted }}>({daemonStatus?.telemetry?.ram?.percent ?? 0}%)</Text>
+                <Text style={{ color: isLight ? '#6e7681' : colors.textMuted }}>({daemonStatus?.telemetry?.ram?.percent ?? 0}%)</Text>
               </Text>
             </View>
-            <View style={styles.progressBarBg}>
+            <View style={[styles.progressBarBg, isLight && styles.progressBarBgLight]}>
               <View
                 style={[
                   styles.progressBarFill,
@@ -292,28 +294,28 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               />
             </View>
             <View style={styles.metricFooter}>
-              <Text style={styles.metricFooterText}>Free: {daemonStatus?.telemetry?.ram?.freeGb ?? 0} GB</Text>
-              <Text style={styles.metricFooterText}>Zero-DB In-Memory: Active</Text>
+              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Free: {daemonStatus?.telemetry?.ram?.freeGb ?? 0} GB</Text>
+              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Zero-DB In-Memory: Active</Text>
             </View>
           </View>
 
           {daemonStatus?.telemetry?.disk && (
             <>
-              <View style={styles.divider} />
+              <View style={[styles.divider, isLight && styles.dividerLight]} />
 
               {/* Persistent Storage Volume Metric */}
               <View style={styles.metricItem}>
                 <View style={styles.metricHeader}>
                   <View style={styles.metricTitleGroup}>
-                    <HardDrive size={15} color={colors.textMuted} />
-                    <Text style={styles.metricLabel}>System Disk Storage</Text>
+                    <HardDrive size={15} color={isLight ? '#57606a' : colors.textMuted} />
+                    <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>System Disk Storage</Text>
                   </View>
-                  <Text style={styles.metricValue}>
+                  <Text style={[styles.metricValue, isLight && { color: '#1f2328' }]}>
                     {daemonStatus.telemetry.disk.usedGb} / {daemonStatus.telemetry.disk.totalGb} GB{' '}
-                    <Text style={{ color: colors.textMuted }}>({daemonStatus.telemetry.disk.percent}%)</Text>
+                    <Text style={{ color: isLight ? '#6e7681' : colors.textMuted }}>({daemonStatus.telemetry.disk.percent}%)</Text>
                   </Text>
                 </View>
-                <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarBg, isLight && styles.progressBarBgLight]}>
                   <View
                     style={[
                       styles.progressBarFill,
@@ -325,19 +327,19 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                   />
                 </View>
                 <View style={styles.metricFooter}>
-                  <Text style={styles.metricFooterText}>Free: {daemonStatus.telemetry.disk.freeGb} GB</Text>
-                  <Text style={styles.metricFooterText}>Transcript Storage: Direct I/O</Text>
+                  <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Free: {daemonStatus.telemetry.disk.freeGb} GB</Text>
+                  <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Transcript Storage: Direct I/O</Text>
                 </View>
               </View>
             </>
           )}
 
-          <View style={styles.divider} />
+          <View style={[styles.divider, isLight && styles.dividerLight]} />
 
           {/* Network Tunnel Metric */}
           <View style={styles.networkRow}>
             <View>
-              <Text style={styles.metricLabel}>Network Tunnel Transport</Text>
+              <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>Network Tunnel Transport</Text>
               <View style={styles.trafficStats}>
                 <View style={styles.trafficStatItem}>
                   <ArrowUp size={13} color={colors.green} />
@@ -347,7 +349,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                 </View>
               </View>
             </View>
-            <View style={styles.pingPill}>
+            <View style={[styles.pingPill, isLight && styles.pingPillLight]}>
               <Text style={styles.pingText}>RTT: {pingRtt}</Text>
             </View>
           </View>
@@ -355,38 +357,38 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
 
         {/* Active Coding Adapters */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={styles.sectionTitle}>ACTIVE CODING ADAPTERS</Text>
+          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>ACTIVE CODING ADAPTERS</Text>
           <Text style={styles.sectionSubtitle}>{adapters.length} registered</Text>
         </View>
 
         {adapters.length === 0 ? (
-          <View style={[styles.card, { padding: 18, alignItems: 'center' }]}>
-            <Text style={{ color: colors.textMuted, fontSize: 13, fontFamily: typography.mono }}>
+          <View style={[styles.card, isLight && styles.cardLight, { padding: 18, alignItems: 'center' }]}>
+            <Text style={{ color: isLight ? '#6e7681' : colors.textMuted, fontSize: 13, fontFamily: typography.mono }}>
               No adapters detected yet. Connect daemon to register CLI tools.
             </Text>
           </View>
         ) : (
-          <View style={[styles.card, { padding: 0, overflow: 'hidden' }]}>
+          <View style={[styles.card, isLight && styles.cardLight, { padding: 0, overflow: 'hidden' }]}>
             {adapters.map((adapter, idx) => (
               <React.Fragment key={adapter.id || idx}>
-                {idx > 0 && <View style={styles.divider} />}
+                {idx > 0 && <View style={[styles.divider, isLight && styles.dividerLight]} />}
                 <TouchableOpacity
                   style={styles.adapterItem}
                   activeOpacity={0.7}
                   onPress={() => onNavigateTab && onNavigateTab('agent')}
                 >
                   <View style={styles.adapterLeft}>
-                    <View style={styles.adapterIconBox}>
-                      <Terminal size={17} color={colors.green} />
+                    <View style={[styles.adapterIconBox, isLight && styles.adapterIconBoxLight]}>
+                      <Terminal size={17} color={isLight ? '#0077b6' : colors.green} />
                     </View>
                     <View style={styles.adapterTexts}>
                       <View style={styles.adapterTitleRow}>
-                        <Text style={styles.adapterName}>{adapter.name || adapter.id}</Text>
-                        <View style={styles.versionBadge}>
+                        <Text style={[styles.adapterName, isLight && styles.adapterNameLight]}>{adapter.name || adapter.id}</Text>
+                        <View style={[styles.versionBadge, isLight && styles.versionBadgeLight]}>
                           <Text style={styles.versionBadgeText}>{adapter.version || 'installed'}</Text>
                         </View>
                       </View>
-                      <Text style={styles.adapterPath} numberOfLines={1}>
+                      <Text style={[styles.adapterPath, isLight && styles.adapterPathLight]} numberOfLines={1}>
                         {adapter.binaryPath || 'stdio RPC'}
                       </Text>
                     </View>
@@ -394,15 +396,14 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                   <View style={styles.adapterRight}>
                     {idx === 0 || adapter.status === 'active' ? (
                       <View style={styles.primaryBadge}>
-                        
                         <Text style={styles.primaryBadgeText}>Active</Text>
                       </View>
                     ) : (
-                      <View style={styles.readyBadge}>
-                        <Text style={styles.readyBadgeText}>Ready</Text>
+                      <View style={[styles.readyBadge, isLight && styles.readyBadgeLight]}>
+                        <Text style={[styles.readyBadgeText, isLight && styles.readyBadgeTextLight]}>Ready</Text>
                       </View>
                     )}
-                    <ChevronRight size={16} color={colors.textMuted} />
+                    <ChevronRight size={16} color={isLight ? '#57606a' : colors.textMuted} />
                   </View>
                 </TouchableOpacity>
               </React.Fragment>
@@ -412,32 +413,36 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
 
         {/* Push Notifications & Gateway */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={styles.sectionTitle}>PUSH NOTIFICATIONS & GATEWAY</Text>
+          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>PUSH NOTIFICATIONS & GATEWAY</Text>
           <TouchableOpacity onPress={() => setShowServerSettings(true)} activeOpacity={0.7}>
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Configure</Text>
+            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>Configure</Text>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.card, { padding: 14 }]}
+          style={[styles.card, isLight && styles.cardLight, { padding: 14 }]}
           onPress={() => setShowServerSettings(true)}
           activeOpacity={0.7}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Bell size={16} color={colors.primary} />
-              <Text style={{ color: colors.textPrimary, fontSize: 14, fontWeight: '600' }}>Native Push Notifications</Text>
+              <Bell size={16} color={isLight ? '#0077b6' : colors.primary} />
+              <Text style={{ color: isLight ? '#1f2328' : colors.textPrimary, fontSize: 14, fontWeight: '600' }}>Native Push Notifications</Text>
             </View>
             <View style={{
               paddingHorizontal: 8,
               paddingVertical: 2,
               borderRadius: 12,
-              backgroundColor: isPushRegistered ? 'rgba(255, 255, 255, 0.08)' : '#262626',
+              backgroundColor: isPushRegistered
+                ? (isLight ? 'rgba(0, 119, 182, 0.12)' : 'rgba(255, 255, 255, 0.08)')
+                : (isLight ? '#f6f8fa' : '#262626'),
               borderWidth: 1,
-              borderColor: isPushRegistered ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.10)',
+              borderColor: isPushRegistered
+                ? (isLight ? 'rgba(0, 119, 182, 0.3)' : 'rgba(255, 255, 255, 0.25)')
+                : (isLight ? '#d0d7de' : 'rgba(255, 255, 255, 0.10)'),
             }}>
               <Text style={{
-                color: isPushRegistered ? '#fafafa' : '#a3a3a3',
+                color: isPushRegistered ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#6e7681' : '#a3a3a3'),
                 fontSize: 11,
                 fontWeight: '600',
               }}>
@@ -445,14 +450,22 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               </Text>
             </View>
           </View>
-          <Text style={{ color: colors.textMuted, fontSize: 12, lineHeight: 16 }} numberOfLines={2}>
+          <Text style={{ color: isLight ? '#57606a' : colors.textMuted, fontSize: 12, lineHeight: 16 }} numberOfLines={2}>
             {pushStatus}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#262626' }}>
-            <Text style={{ color: '#737373', fontSize: 11 }}>
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 10,
+            paddingTop: 8,
+            borderTopWidth: 1,
+            borderTopColor: isLight ? '#d0d7de' : '#262626'
+          }}>
+            <Text style={{ color: isLight ? '#6e7681' : '#737373', fontSize: 11 }}>
               Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
             </Text>
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>
+            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>
               Test Push Notification →
             </Text>
           </View>
@@ -460,13 +473,13 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
 
         {/* Autonomous On-Call & PR Reviewer */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={styles.sectionTitle}>AUTONOMOUS ON-CALL & PR REVIEWER</Text>
+          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>AUTONOMOUS ON-CALL & PR REVIEWER</Text>
           <TouchableOpacity onPress={() => setShowGithubModal(true)} activeOpacity={0.7}>
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '600' }}>Webhook & Token</Text>
+            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>Webhook & Token</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.card, { padding: 14, gap: 10 }]}>
+        <View style={[styles.card, isLight && styles.cardLight, { padding: 14, gap: 10 }]}>
           {/* Active Proposal / Review Card if available */}
           {activeProposal && (
             <TouchableOpacity
@@ -485,23 +498,23 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             >
               <View style={{ flex: 1, marginRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <Bug size={14} color="#fafafa" />
-                  <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '700' }}>Fix Proposal Ready</Text>
+                  <Bug size={14} color={isLight ? '#1f2328' : '#fafafa'} />
+                  <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '700' }}>Fix Proposal Ready</Text>
                 </View>
-                <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+                <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
                   {activeProposal.title}
                 </Text>
               </View>
-              <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
+              <Text style={{ color: isLight ? '#0077b6' : '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
             </TouchableOpacity>
           )}
 
           {activePrReview && (
             <TouchableOpacity
               style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                backgroundColor: isLight ? '#f6f8fa' : 'rgba(255, 255, 255, 0.08)',
                 borderWidth: 1,
-                borderColor: 'rgba(255, 255, 255, 0.18)',
+                borderColor: isLight ? '#d0d7de' : 'rgba(255, 255, 255, 0.18)',
                 borderRadius: 8,
                 padding: 10,
                 flexDirection: 'row',
@@ -513,18 +526,18 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             >
               <View style={{ flex: 1, marginRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <GitPullRequest size={14} color="#fafafa" />
-                  <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '700' }}>PR Review Ready ({activePrReview.verdict})</Text>
+                  <GitPullRequest size={14} color={isLight ? '#1f2328' : '#fafafa'} />
+                  <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '700' }}>PR Review Ready ({activePrReview.verdict})</Text>
                 </View>
-                <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
+                <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
                   PR #{activePrReview.prNumber}: {activePrReview.prTitle}
                 </Text>
               </View>
-              <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
+              <Text style={{ color: isLight ? '#0077b6' : '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
             </TouchableOpacity>
           )}
 
-          <Text style={{ color: '#a3a3a3', fontSize: 12, lineHeight: 17 }}>
+          <Text style={{ color: isLight ? '#57606a' : '#a3a3a3', fontSize: 12, lineHeight: 17 }}>
             24/7 on-call agent listens to GitHub & Sentry webhooks, investigates bugs, writes tests, applies fixes, and conducts PR reviews autonomously.
           </Text>
 
@@ -564,9 +577,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 6,
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                backgroundColor: isLight ? 'rgba(0, 119, 182, 0.10)' : 'rgba(255, 255, 255, 0.08)',
                 borderWidth: 1,
-                borderColor: 'rgba(255, 255, 255, 0.20)',
+                borderColor: isLight ? 'rgba(0, 119, 182, 0.30)' : 'rgba(255, 255, 255, 0.20)',
                 borderRadius: 8,
                 paddingVertical: 9,
                 opacity: isSimulatingIncident ? 0.6 : 1,
@@ -576,11 +589,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               activeOpacity={0.7}
             >
               {isSimulatingIncident ? (
-                <ActivityIndicator size="small" color="#fafafa" />
+                <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
               ) : (
                 <>
-                  <GitPullRequest size={14} color="#fafafa" />
-                  <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>Simulate PR</Text>
+                  <GitPullRequest size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+                  <Text style={{ color: isLight ? '#0077b6' : '#fafafa', fontSize: 12, fontWeight: '600' }}>Simulate PR</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -592,9 +605,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: '#0a0a0a',
+              backgroundColor: isLight ? '#f6f8fa' : '#0a0a0a',
               borderWidth: 1,
-              borderColor: '#262626',
+              borderColor: isLight ? '#d0d7de' : '#262626',
               borderRadius: 8,
               padding: 10,
               marginTop: 4,
@@ -603,28 +616,32 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             activeOpacity={0.7}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Key size={14} color="#fafafa" />
-              <Text style={{ color: '#fafafa', fontSize: 12, fontWeight: '600' }}>
+              <Key size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+              <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '600' }}>
                 GitHub PAT & Webhooks
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{ color: githubStatus?.authenticated ? '#fafafa' : '#737373', fontSize: 11, fontWeight: '600' }}>
+              <Text style={{
+                color: githubStatus?.authenticated ? (isLight ? '#1f2328' : '#fafafa') : '#6e7681',
+                fontSize: 11,
+                fontWeight: '600'
+              }}>
                 {githubStatus?.authenticated ? `@${githubStatus.username}` : 'Configure (Option B)'}
               </Text>
-              <ChevronRight size={14} color="#a3a3a3" />
+              <ChevronRight size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
             </View>
           </TouchableOpacity>
         </View>
 
         {/* Daemon Operations */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={styles.sectionTitle}>DAEMON OPERATIONS</Text>
+          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>DAEMON OPERATIONS</Text>
         </View>
 
         <View style={styles.operationsGrid}>
           <TouchableOpacity
-            style={[styles.operationBtn, isPinging && { borderColor: colors.green }]}
+            style={[styles.operationBtn, isLight && styles.operationBtnLight, isPinging && { borderColor: colors.green }]}
             onPress={handlePing}
             disabled={isPinging}
             activeOpacity={0.7}
@@ -634,11 +651,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             ) : (
               <Radio size={16} color={colors.green} />
             )}
-            <Text style={styles.operationBtnText}>{isPinging ? 'Pinging...' : 'Ping Heartbeat'}</Text>
+            <Text style={[styles.operationBtnText, isLight && styles.operationBtnTextLight]}>{isPinging ? 'Pinging...' : 'Ping Heartbeat'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.operationBtn}
+            style={[styles.operationBtn, isLight && styles.operationBtnLight]}
             onPress={async () => {
               await handleRefresh();
               Alert.alert('Refreshed', 'Machine state and adapters queried from Daemon.');
@@ -647,20 +664,20 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             activeOpacity={0.7}
           >
             <RefreshCw size={16} color={colors.green} />
-            <Text style={styles.operationBtnText}>Flush Cache</Text>
+            <Text style={[styles.operationBtnText, isLight && styles.operationBtnTextLight]}>Flush Cache</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.operationBtn}
+            style={[styles.operationBtn, isLight && styles.operationBtnLight]}
             onPress={() => onNavigateTab && onNavigateTab('sessions')}
             activeOpacity={0.7}
           >
             <Zap size={16} color={colors.green} />
-            <Text style={styles.operationBtnText}>STDOUT Stream</Text>
+            <Text style={[styles.operationBtnText, isLight && styles.operationBtnTextLight]}>STDOUT Stream</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.operationBtn, { borderColor: colors.redBorder }]}
+            style={[styles.operationBtn, isLight && styles.operationBtnLight, { borderColor: colors.redBorder }]}
             onPress={() => Alert.alert('Restart Daemon', `Restart command dispatched to ${hostName}.`)}
             activeOpacity={0.7}
           >
@@ -1073,5 +1090,90 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  containerLight: {
+    backgroundColor: '#ffffff',
+  },
+  switchMachineBtnLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  switchMachineBtnTextLight: {
+    color: '#1f2328',
+  },
+  subBarLight: {
+    backgroundColor: '#ffffff',
+    borderBottomColor: '#d0d7de',
+  },
+  subBarTextLight: {
+    color: '#6e7681',
+  },
+  cardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  iconBoxLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  hostNameLight: {
+    color: '#1f2328',
+  },
+  hostSubLight: {
+    color: '#6e7681',
+  },
+  badgeCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  badgeCardLabelLight: {
+    color: '#6e7681',
+  },
+  badgeCardValueLight: {
+    color: '#1f2328',
+  },
+  sectionTitleLight: {
+    color: '#6e7681',
+  },
+  metricLabelLight: {
+    color: '#1f2328',
+  },
+  progressBarBgLight: {
+    backgroundColor: '#e1e4e8',
+  },
+  dividerLight: {
+    backgroundColor: '#e1e4e8',
+  },
+  pingPillLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  adapterIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  adapterNameLight: {
+    color: '#1f2328',
+  },
+  adapterPathLight: {
+    color: '#6e7681',
+  },
+  versionBadgeLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  readyBadgeLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  readyBadgeTextLight: {
+    color: '#6e7681',
+  },
+  operationBtnLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  operationBtnTextLight: {
+    color: '#1f2328',
   },
 });

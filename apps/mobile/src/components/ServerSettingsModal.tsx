@@ -34,6 +34,8 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
   visible,
   onClose,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
   const currentGatewayUrl = useDaemonStore((s) => s.gatewayUrl);
   const setServerEndpoints = useDaemonStore((s) => s.setServerEndpoints);
   const resetServerEndpoints = useDaemonStore((s) => s.resetServerEndpoints);
@@ -161,85 +163,85 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback onPress={() => {}}>
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
               {/* Header */}
-              <View style={styles.header}>
-                <View style={styles.headerIconBox}>
-                  <Globe size={18} color={colors.primary} />
+              <View style={[styles.header, isLight && styles.headerLight]}>
+                <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
+                  <Globe size={18} color={isLight ? '#0077b6' : colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.title}>Gateway Hub Endpoint</Text>
-                  <Text style={styles.subtitle}>
+                  <Text style={[styles.title, isLight && styles.titleLight]}>Gateway Hub Endpoint</Text>
+                  <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>
                     Unified server for authentication, machines, and real-time streaming
                   </Text>
                 </View>
                 <TouchableOpacity
-                  style={styles.closeBtn}
+                  style={[styles.closeBtn, isLight && styles.closeBtnLight]}
                   onPress={onClose}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <X size={16} color="#a3a3a3" />
+                  <X size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
                 </TouchableOpacity>
               </View>
 
               <ScrollView
-                style={styles.scrollArea}
+                style={[styles.scrollArea, isLight && { backgroundColor: '#ffffff' }]}
                 contentContainerStyle={styles.body}
                 keyboardShouldPersistTaps="handled"
               >
                 {/* Architecture Info Banner */}
-                <View style={styles.infoBanner}>
-                  <Radio size={14} color="#fafafa" style={{ marginTop: 2 }} />
-                  <Text style={styles.infoBannerText}>
+                <View style={[styles.infoBanner, isLight && styles.infoBannerLight]}>
+                  <Radio size={14} color={isLight ? '#0077b6' : '#fafafa'} style={{ marginTop: 2 }} />
+                  <Text style={[styles.infoBannerText, isLight && styles.infoBannerTextLight]}>
                     All mobile operations (Google OAuth, developer login, machine discovery, and WebRTC streaming) connect exclusively through this Gateway Hub.
                   </Text>
                 </View>
 
                 {/* Quick Presets */}
-                <Text style={styles.inputLabel}>QUICK PRESETS</Text>
+                <Text style={[styles.inputLabel, isLight && { color: '#6e7681' }]}>QUICK PRESETS</Text>
                 <View style={styles.presetRow}>
                   <TouchableOpacity
-                    style={styles.presetChip}
+                    style={[styles.presetChip, isLight && styles.presetChipLight]}
                     onPress={() => handleApplyPreset('https://gateway.cloud-agent.abhishekkkk.in')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.presetChipText}>Cloud Gateway</Text>
+                    <Text style={[styles.presetChipText, isLight && styles.presetChipTextLight]}>Cloud Gateway</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.presetChip}
+                    style={[styles.presetChip, isLight && styles.presetChipLight]}
                     onPress={() => handleApplyPreset('https://unushered-chantal-unpsychotic.ngrok-free.dev')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.presetChipText}>ngrok Tunnel</Text>
+                    <Text style={[styles.presetChipText, isLight && styles.presetChipTextLight]}>ngrok Tunnel</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.presetChip}
+                    style={[styles.presetChip, isLight && styles.presetChipLight]}
                     onPress={() => handleApplyPreset('http://127.0.0.1:8080')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.presetChipText}>Localhost (:8080)</Text>
+                    <Text style={[styles.presetChipText, isLight && styles.presetChipTextLight]}>Localhost (:8080)</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.presetChip}
+                    style={[styles.presetChip, isLight && styles.presetChipLight]}
                     onPress={() => handleApplyPreset('http://10.0.2.2:8080')}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.presetChipText}>Android Emulator</Text>
+                    <Text style={[styles.presetChipText, isLight && styles.presetChipTextLight]}>Android Emulator</Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Gateway URL Field */}
                 <View style={styles.fieldGroup}>
                   <View style={styles.fieldLabelRow}>
-                    <Database size={13} color="#fafafa" />
-                    <Text style={styles.fieldLabel}>Gateway Server URL</Text>
+                    <Database size={13} color={isLight ? '#0077b6' : '#fafafa'} />
+                    <Text style={[styles.fieldLabel, isLight && styles.fieldLabelLight]}>Gateway Server URL</Text>
                   </View>
-                  <View style={styles.inputContainer}>
+                  <View style={[styles.inputContainer, isLight && styles.inputContainerLight]}>
                     <TextInput
-                      style={styles.textInput}
+                      style={[styles.textInput, isLight && styles.textInputLight]}
                       value={inputGatewayUrl}
                       onChangeText={(t) => {
                         setInputGatewayUrl(t);
@@ -296,55 +298,69 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
 
                 {/* Test Connection Button */}
                 <TouchableOpacity
-                  style={styles.testButton}
+                  style={[styles.testButton, isLight && styles.testButtonLight]}
                   onPress={handleTest}
                   disabled={isTesting}
                   activeOpacity={0.7}
                 >
                   {isTesting ? (
-                    <ActivityIndicator size="small" color="#fafafa" />
+                    <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
                   ) : (
                     <>
-                      <Zap size={14} color="#fafafa" />
-                      <Text style={styles.testButtonText}>Test Connection</Text>
+                      <Zap size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+                      <Text style={[styles.testButtonText, isLight && styles.testButtonTextLight]}>Test Connection</Text>
                     </>
                   )}
                 </TouchableOpacity>
 
                 {/* Native Push Notification Channel & Test */}
-                <View style={styles.pushCard}>
+                <View style={[styles.pushCard, isLight && styles.pushCardLight]}>
                   <View style={styles.pushHeader}>
                     <View style={styles.pushTitleRow}>
-                      <Bell size={14} color="#fafafa" />
-                      <Text style={styles.pushTitle}>Native Push Notifications</Text>
+                      <Bell size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+                      <Text style={[styles.pushTitle, isLight && styles.pushTitleLight]}>Native Push Notifications</Text>
                     </View>
-                    <View style={[styles.statusPill, isPushRegistered ? styles.statusPillActive : styles.statusPillInactive]}>
-                      <Text style={[styles.statusPillText, isPushRegistered ? styles.statusPillTextActive : styles.statusPillTextInactive]}>
+                    <View style={[
+                      styles.statusPill,
+                      isPushRegistered
+                        ? (isLight ? styles.statusPillActiveLight : styles.statusPillActive)
+                        : (isLight ? styles.statusPillInactiveLight : styles.statusPillInactive)
+                    ]}>
+                      <Text style={[
+                        styles.statusPillText,
+                        isPushRegistered
+                          ? (isLight ? styles.statusPillTextActiveLight : styles.statusPillTextActive)
+                          : (isLight ? styles.statusPillTextInactiveLight : styles.statusPillTextInactive)
+                      ]}>
                         {isPushRegistered ? 'Active' : 'Standby'}
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.pushStatusText} numberOfLines={4}>
+                  <Text style={[styles.pushStatusText, isLight && styles.pushStatusTextLight]} numberOfLines={4}>
                     {pushStatus}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                     <TouchableOpacity
-                      style={[styles.testPushButton, { flex: 1, marginTop: 0 }, isSendingTestPush && { opacity: 0.6 }]}
+                      style={[styles.testPushButton, isLight && styles.testPushButtonLight, { flex: 1, marginTop: 0 }, isSendingTestPush && { opacity: 0.6 }]}
                       onPress={handleTestPush}
                       disabled={isSendingTestPush}
                       activeOpacity={0.7}
                     >
                       {isSendingTestPush ? (
-                        <ActivityIndicator size="small" color="#fafafa" />
+                        <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
                       ) : (
                         <>
-                          <Bell size={13} color="#fafafa" />
-                          <Text style={styles.testPushButtonText}>Send Test Push</Text>
+                          <Bell size={13} color={isLight ? '#0077b6' : '#fafafa'} />
+                          <Text style={[styles.testPushButtonText, isLight && styles.testPushButtonTextLight]}>Send Test Push</Text>
                         </>
                       )}
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.testPushButton, { marginTop: 0, backgroundColor: '#21262d', paddingHorizontal: 14 }]}
+                      style={[
+                        styles.testPushButton,
+                        isLight && styles.testPushButtonLight,
+                        { marginTop: 0, backgroundColor: isLight ? '#f6f8fa' : '#21262d', paddingHorizontal: 14 }
+                      ]}
                       onPress={async () => {
                         setIsSendingTestPush(true);
                         try {
@@ -356,33 +372,33 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                       disabled={isSendingTestPush}
                       activeOpacity={0.7}
                     >
-                      <RefreshCw size={13} color="#fafafa" />
-                      <Text style={styles.testPushButtonText}>Retry</Text>
+                      <RefreshCw size={13} color={isLight ? '#1f2328' : '#fafafa'} />
+                      <Text style={[styles.testPushButtonText, isLight && styles.testPushButtonTextLight]}>Retry</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 {/* Active Link Status Info */}
                 {activeMachine && (
-                  <View style={styles.activeMachineCard}>
-                    <View style={styles.machineDot} />
-                    <Text style={styles.activeMachineText}>
-                      Linked Host: <Text style={{ color: '#fafafa', fontWeight: '600' }}>{activeMachine.name}</Text> ({activeMachine.platform})
+                  <View style={[styles.activeMachineCard, isLight && styles.activeMachineCardLight]}>
+                    <View style={[styles.machineDot, isLight && { backgroundColor: '#0077b6' }]} />
+                    <Text style={[styles.activeMachineText, isLight && styles.activeMachineTextLight]}>
+                      Linked Host: <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '600' }}>{activeMachine.name}</Text> ({activeMachine.platform})
                     </Text>
                   </View>
                 )}
               </ScrollView>
 
               {/* Action Buttons Footer */}
-              <View style={styles.footer}>
+              <View style={[styles.footer, isLight && styles.footerLight]}>
                 <TouchableOpacity
-                  style={styles.resetBtn}
+                  style={[styles.resetBtn, isLight && styles.resetBtnLight]}
                   onPress={handleReset}
                   disabled={isSaving}
                   activeOpacity={0.7}
                 >
-                  <RefreshCw size={13} color="#a3a3a3" />
-                  <Text style={styles.resetBtnText}>Defaults</Text>
+                  <RefreshCw size={13} color={isLight ? '#6e7681' : '#a3a3a3'} />
+                  <Text style={[styles.resetBtnText, isLight && styles.resetBtnTextLight]}>Defaults</Text>
                 </TouchableOpacity>
 
                 <View style={{ flex: 1 }} />
@@ -392,19 +408,19 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   onPress={onClose}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.cancelBtnText}>Cancel</Text>
+                  <Text style={[styles.cancelBtnText, isLight && styles.cancelBtnTextLight]}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.saveBtn, isSaving && { opacity: 0.6 }]}
+                  style={[styles.saveBtn, isLight && styles.saveBtnLight, isSaving && { opacity: 0.6 }]}
                   onPress={handleSave}
                   disabled={isSaving}
                   activeOpacity={0.7}
                 >
                   {isSaving ? (
-                    <ActivityIndicator size="small" color="#0a0a0a" />
+                    <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
                   ) : (
-                    <Text style={styles.saveBtnText}>Save & Connect</Text>
+                    <Text style={[styles.saveBtnText, isLight && styles.saveBtnTextLight]}>Save & Connect</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -769,5 +785,114 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#0a0a0a',
     fontWeight: '600',
+  },
+  modalCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  headerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#d0d7de',
+  },
+  headerIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  titleLight: {
+    color: '#1f2328',
+  },
+  subtitleLight: {
+    color: '#6e7681',
+  },
+  closeBtnLight: {
+    backgroundColor: '#e1e4e8',
+  },
+  infoBannerLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  infoBannerTextLight: {
+    color: '#57606a',
+  },
+  presetChipLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  presetChipTextLight: {
+    color: '#1f2328',
+  },
+  fieldLabelLight: {
+    color: '#1f2328',
+  },
+  inputContainerLight: {},
+  textInputLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+    color: '#1f2328',
+  },
+  testButtonLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  testButtonTextLight: {
+    color: '#0077b6',
+  },
+  pushCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  pushTitleLight: {
+    color: '#1f2328',
+  },
+  statusPillActiveLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.12)',
+    borderColor: 'rgba(0, 119, 182, 0.3)',
+  },
+  statusPillInactiveLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  statusPillTextActiveLight: {
+    color: '#0077b6',
+  },
+  statusPillTextInactiveLight: {
+    color: '#6e7681',
+  },
+  pushStatusTextLight: {
+    color: '#6e7681',
+  },
+  testPushButtonLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  testPushButtonTextLight: {
+    color: '#1f2328',
+  },
+  activeMachineCardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  activeMachineTextLight: {
+    color: '#57606a',
+  },
+  footerLight: {
+    backgroundColor: '#ffffff',
+    borderTopColor: '#d0d7de',
+  },
+  resetBtnLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  resetBtnTextLight: {
+    color: '#6e7681',
+  },
+  cancelBtnTextLight: {
+    color: '#6e7681',
+  },
+  saveBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  saveBtnTextLight: {
+    color: '#ffffff',
   },
 });

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { FileCode, Copy, Check, ChevronDown, ChevronUp } from './Icons';
 import { colors, radii } from '../theme/tokens';
+import { useDaemonStore } from '../stores/useDaemonStore';
 
 export interface DiffLine {
   type: 'header' | 'hunk' | 'add' | 'delete' | 'normal';
@@ -121,6 +122,9 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
   collapsible = true,
   defaultExpanded = true,
 }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copied, setCopied] = useState(false);
 
@@ -169,21 +173,21 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
   const basename = filePath.split(/[\\/]/).pop() || filePath;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isLight && styles.containerLight]}>
       {/* File Diff Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isLight && styles.headerLight]}>
         <TouchableOpacity
           style={styles.headerLeft}
           activeOpacity={collapsible ? 0.7 : 1}
           onPress={collapsible ? () => setExpanded((prev) => !prev) : undefined}
         >
-          <FileCode size={14} color="#fafafa" />
+          <FileCode size={14} color={isLight ? '#0077b6' : '#fafafa'} />
           <View style={styles.titleColumn}>
-            <Text style={styles.basenameText} numberOfLines={1}>
+            <Text style={[styles.basenameText, isLight && styles.basenameTextLight]} numberOfLines={1}>
               {basename}
             </Text>
             {basename !== filePath ? (
-              <Text style={styles.fullPathText} numberOfLines={1}>
+              <Text style={[styles.fullPathText, isLight && styles.fullPathTextLight]} numberOfLines={1}>
                 {filePath}
               </Text>
             ) : null}
@@ -192,26 +196,26 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
 
         <View style={styles.headerRight}>
           {/* Stats Badge (+X -Y) */}
-          <View style={styles.statsBadge}>
+          <View style={[styles.statsBadge, isLight && styles.statsBadgeLight]}>
             {stats.adds > 0 ? (
-              <Text style={styles.statsAddText}>+{stats.adds}</Text>
+              <Text style={[styles.statsAddText, isLight && { color: '#1a7f37' }]}>+{stats.adds}</Text>
             ) : null}
             {stats.subs > 0 ? (
-              <Text style={styles.statsSubText}>-{stats.subs}</Text>
+              <Text style={[styles.statsSubText, isLight && { color: '#cf222e' }]}>-{stats.subs}</Text>
             ) : null}
           </View>
 
           {/* Copy Button */}
           <TouchableOpacity
-            style={styles.copyBtn}
+            style={[styles.copyBtn, isLight && styles.copyBtnLight]}
             onPress={handleCopy}
             activeOpacity={0.7}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             {copied ? (
-              <Check size={13} color={colors.green} />
+              <Check size={13} color={isLight ? '#1a7f37' : colors.green} />
             ) : (
-              <Copy size={13} color="#a3a3a3" />
+              <Copy size={13} color={isLight ? '#57606a' : '#a3a3a3'} />
             )}
           </TouchableOpacity>
 
@@ -223,9 +227,9 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
               hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               {expanded ? (
-                <ChevronUp size={16} color="#a3a3a3" />
+                <ChevronUp size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
               ) : (
-                <ChevronDown size={16} color="#a3a3a3" />
+                <ChevronDown size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
               )}
             </TouchableOpacity>
           ) : null}
@@ -237,7 +241,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.horizontalScroll}
+          style={[styles.horizontalScroll, isLight && styles.horizontalScrollLight]}
         >
           <ScrollView
             style={[styles.verticalScroll, maxHeight ? { maxHeight } : undefined]}
@@ -253,8 +257,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
 
                 if (isHunk) {
                   return (
-                    <View key={idx} style={styles.hunkRow}>
-                      <Text style={styles.hunkText}>{line.content}</Text>
+                    <View key={idx} style={[styles.hunkRow, isLight && styles.hunkRowLight]}>
+                      <Text style={[styles.hunkText, isLight && styles.hunkTextLight]}>{line.content}</Text>
                     </View>
                   );
                 }
@@ -262,7 +266,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                 if (isHeader) {
                   return (
                     <View key={idx} style={styles.metaRow}>
-                      <Text style={styles.metaText}>{line.content}</Text>
+                      <Text style={[styles.metaText, isLight && styles.metaTextLight]}>{line.content}</Text>
                     </View>
                   );
                 }
@@ -272,17 +276,29 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                     key={idx}
                     style={[
                       styles.diffRow,
-                      isAdd && styles.diffRowAdd,
-                      isSub && styles.diffRowSub,
+                      isAdd && (isLight ? styles.diffRowAddLight : styles.diffRowAdd),
+                      isSub && (isLight ? styles.diffRowSubLight : styles.diffRowSub),
                     ]}
                   >
                     {/* Old line number */}
-                    <Text style={[styles.gutterNum, isSub && styles.gutterNumSub]}>
+                    <Text
+                      style={[
+                        styles.gutterNum,
+                        isLight && styles.gutterNumLight,
+                        isSub && (isLight ? { color: '#cf222e' } : styles.gutterNumSub),
+                      ]}
+                    >
                       {line.oldLineNumber ?? ''}
                     </Text>
 
                     {/* New line number */}
-                    <Text style={[styles.gutterNum, isAdd && styles.gutterNumAdd]}>
+                    <Text
+                      style={[
+                        styles.gutterNum,
+                        isLight && styles.gutterNumLight,
+                        isAdd && (isLight ? { color: '#1a7f37' } : styles.gutterNumAdd),
+                      ]}
+                    >
                       {line.newLineNumber ?? ''}
                     </Text>
 
@@ -290,8 +306,9 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                     <Text
                       style={[
                         styles.signGutter,
-                        isAdd && styles.signAdd,
-                        isSub && styles.signSub,
+                        isLight && styles.signGutterLight,
+                        isAdd && (isLight ? { color: '#1a7f37' } : styles.signAdd),
+                        isSub && (isLight ? { color: '#cf222e' } : styles.signSub),
                       ]}
                     >
                       {isAdd ? '+' : isSub ? '-' : ' '}
@@ -301,8 +318,9 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                     <Text
                       style={[
                         styles.codeText,
-                        isAdd && styles.codeTextAdd,
-                        isSub && styles.codeTextSub,
+                        isLight && styles.codeTextLight,
+                        isAdd && (isLight ? styles.codeTextAddLight : styles.codeTextAdd),
+                        isSub && (isLight ? styles.codeTextSubLight : styles.codeTextSub),
                       ]}
                       selectable
                     >
@@ -490,5 +508,66 @@ const styles = StyleSheet.create({
   },
   codeTextSub: {
     color: '#e6edf3',
+  },
+
+  // Light Theme Overrides
+  containerLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  headerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#d0d7de',
+  },
+  basenameTextLight: {
+    color: '#1f2328',
+  },
+  fullPathTextLight: {
+    color: '#57606a',
+  },
+  statsBadgeLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  copyBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  horizontalScrollLight: {
+    backgroundColor: '#ffffff',
+  },
+  hunkRowLight: {
+    backgroundColor: '#f6f8fa',
+    borderLeftColor: '#0077b6',
+  },
+  hunkTextLight: {
+    color: '#57606a',
+  },
+  metaTextLight: {
+    color: '#6e7681',
+  },
+  diffRowAddLight: {
+    backgroundColor: 'rgba(46, 160, 67, 0.12)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#1a7f37',
+  },
+  diffRowSubLight: {
+    backgroundColor: 'rgba(248, 81, 73, 0.10)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#cf222e',
+  },
+  gutterNumLight: {
+    color: '#8c959f',
+  },
+  signGutterLight: {
+    color: '#8c959f',
+  },
+  codeTextLight: {
+    color: '#1f2328',
+  },
+  codeTextAddLight: {
+    color: '#1a7f37',
+  },
+  codeTextSubLight: {
+    color: '#cf222e',
   },
 });

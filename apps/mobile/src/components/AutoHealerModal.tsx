@@ -44,6 +44,8 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
   const approveAutoHealerProposal = useDaemonStore((s) => s.approveAutoHealerProposal);
   const postPrReviewToGitHub = useDaemonStore((s) => s.postPrReviewToGitHub);
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
 
   const [activeTab, setActiveTab] = useState<'diff' | 'tests' | 'details' | 'review'>('diff');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,29 +126,29 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-            <View style={styles.modalCard}>
+            <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
               {/* 1. Modal Header */}
-              <View style={styles.header}>
+              <View style={[styles.header, isLight && styles.headerLight]}>
                 <View style={styles.headerLeft}>
-                  <View style={styles.headerIconBox}>
+                  <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
                     {isPrReviewMode ? (
-                      <GitPullRequest size={18} color="#fafafa" />
+                      <GitPullRequest size={18} color={isLight ? '#0077b6' : '#fafafa'} />
                     ) : (
                       <Bug size={18} color="#f85149" />
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={styles.headerBadge}>
+                      <Text style={[styles.headerBadge, isLight && { color: '#0077b6' }]}>
                         {isPrReviewMode ? 'AUTONOMOUS PR REVIEW' : 'ON-CALL AUTO-HEALER'}
                       </Text>
                       {activeProposal?.source && (
-                        <View style={styles.sourcePill}>
-                          <Text style={styles.sourcePillText}>{activeProposal.source.toUpperCase()}</Text>
+                        <View style={[styles.sourcePill, isLight && { backgroundColor: '#e1e4e8' }]}>
+                          <Text style={[styles.sourcePillText, isLight && { color: '#57606a' }]}>{activeProposal.source.toUpperCase()}</Text>
                         </View>
                       )}
                     </View>
-                    <Text style={styles.headerTitle} numberOfLines={1}>
+                    <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]} numberOfLines={1}>
                       {currentTitle}
                     </Text>
                   </View>
@@ -158,14 +160,14 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                     onPress={handleShare}
                     activeOpacity={0.7}
                   >
-                    <Share2 size={16} color="#a3a3a3" />
+                    <Share2 size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.headerActionBtn}
                     onPress={onClose}
                     activeOpacity={0.7}
                   >
-                    <X size={18} color="#a3a3a3" />
+                    <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -195,14 +197,14 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
 
               {/* 2. Mode Specific Banners */}
               {!isPrReviewMode && activeProposal && (
-                <View style={styles.verificationBanner}>
-                  <ShieldCheck size={16} color="#fafafa" />
+                <View style={[styles.verificationBanner, isLight && styles.verificationBannerLight]}>
+                  <ShieldCheck size={16} color={activeProposal.testsPassed ? '#2ea043' : '#f85149'} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.verificationTitle}>
+                    <Text style={[styles.verificationTitle, isLight && { color: '#1f2328' }]}>
                       {activeProposal.testsPassed ? 'Fix Verified: Test Suite Passing' : 'Fix Applied: Manual Review Advised'}
                     </Text>
-                    <Text style={styles.verificationSubtitle}>
-                      Isolated Branch: <Text style={{ color: '#58a6ff', fontFamily: typography.mono }}>{activeProposal.branchName}</Text>
+                    <Text style={[styles.verificationSubtitle, isLight && { color: '#57606a' }]}>
+                      Isolated Branch: <Text style={{ color: '#0077b6', fontFamily: typography.mono }}>{activeProposal.branchName}</Text>
                     </Text>
                   </View>
                   <View style={[styles.testBadge, activeProposal.testsPassed ? styles.testBadgePass : styles.testBadgeFail]}>
@@ -214,16 +216,16 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
               )}
 
               {isPrReviewMode && activePrReview && (
-                <View style={styles.verdictBanner}>
+                <View style={[styles.verdictBanner, isLight && styles.verdictBannerLight]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {activePrReview.verdict === 'APPROVE' ? (
-                      <CheckCircle2 size={18} color="#fafafa" />
+                      <CheckCircle2 size={18} color="#2ea043" />
                     ) : (
                       <AlertCircle size={18} color="#f85149" />
                     )}
                     <View>
-                      <Text style={styles.verdictTitle}>Review Verdict: {activePrReview.verdict}</Text>
-                      <Text style={styles.verdictSubtitle}>
+                      <Text style={[styles.verdictTitle, isLight && { color: '#1f2328' }]}>Review Verdict: {activePrReview.verdict}</Text>
+                      <Text style={[styles.verdictSubtitle, isLight && { color: '#57606a' }]}>
                         {activePrReview.baseBranch} ← {activePrReview.headBranch} by @{activePrReview.author}
                       </Text>
                     </View>
@@ -251,7 +253,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
               )}
 
               {/* 3. Navigation Tabs */}
-              <View style={styles.tabBar}>
+              <View style={[styles.tabBar, isLight && styles.tabBarLight]}>
                 {!isPrReviewMode ? (
                   <>
                     <TouchableOpacity
@@ -396,11 +398,11 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
               </ScrollView>
 
               {/* 5. Action Footer */}
-              <View style={styles.footer}>
+              <View style={[styles.footer, isLight && styles.footerLight]}>
                 {!isPrReviewMode ? (
                   <>
                     <TouchableOpacity
-                      style={styles.discardBtn}
+                      style={[styles.discardBtn, isLight && styles.discardBtnLight]}
                       onPress={() => handleApproveAction('discard')}
                       disabled={isSubmitting}
                       activeOpacity={0.7}
@@ -410,27 +412,31 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.mergeBtn}
+                      style={[styles.mergeBtn, isLight && styles.mergeBtnLight]}
                       onPress={() => handleApproveAction('merge')}
                       disabled={isSubmitting}
                       activeOpacity={0.7}
                     >
-                      <GitMerge size={13} color="#d4d4d4" />
-                      <Text style={styles.mergeBtnText}>Merge Locally</Text>
+                      <GitMerge size={13} color={isLight ? '#0077b6' : '#d4d4d4'} />
+                      <Text style={[styles.mergeBtnText, isLight && { color: '#0077b6' }]}>Merge Locally</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.primaryActionBtn, isSubmitting && { opacity: 0.6 }]}
+                      style={[
+                        styles.primaryActionBtn,
+                        isLight && styles.primaryActionBtnLight,
+                        isSubmitting && { opacity: 0.6 }
+                      ]}
                       onPress={() => handleApproveAction('pr')}
                       disabled={isSubmitting}
                       activeOpacity={0.7}
                     >
                       {isSubmitting ? (
-                        <ActivityIndicator size="small" color="#0a0a0a" />
+                        <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
                       ) : (
                         <>
-                          <GitPullRequest size={14} color="#0a0a0a" />
-                          <Text style={styles.primaryActionBtnText}>Approve & PR</Text>
+                          <GitPullRequest size={14} color={isLight ? '#ffffff' : '#0a0a0a'} />
+                          <Text style={[styles.primaryActionBtnText, isLight && { color: '#ffffff' }]}>Approve & PR</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -438,26 +444,30 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                 ) : (
                   <>
                     <TouchableOpacity
-                      style={styles.discardBtn}
+                      style={[styles.discardBtn, isLight && styles.discardBtnLight]}
                       onPress={onClose}
                       disabled={isSubmitting}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.discardBtnText}>Dismiss</Text>
+                      <Text style={[styles.discardBtnText, isLight && { color: '#6e7681' }]}>Dismiss</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.primaryActionBtn, isSubmitting && { opacity: 0.6 }]}
+                      style={[
+                        styles.primaryActionBtn,
+                        isLight && styles.primaryActionBtnLight,
+                        isSubmitting && { opacity: 0.6 }
+                      ]}
                       onPress={handlePostReview}
                       disabled={isSubmitting}
                       activeOpacity={0.7}
                     >
                       {isSubmitting ? (
-                        <ActivityIndicator size="small" color="#0a0a0a" />
+                        <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
                       ) : (
                         <>
-                          <GitPullRequest size={14} color="#0a0a0a" />
-                          <Text style={styles.primaryActionBtnText}>Post to GitHub</Text>
+                          <GitPullRequest size={14} color={isLight ? '#ffffff' : '#0a0a0a'} />
+                          <Text style={[styles.primaryActionBtnText, isLight && { color: '#ffffff' }]}>Post to GitHub</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -821,5 +831,45 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#0a0a0a',
+  },
+  modalCardLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  headerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#d0d7de',
+  },
+  headerIconBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+  },
+  headerTitleLight: {
+    color: '#1f2328',
+  },
+  verificationBannerLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  verdictBannerLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  tabBarLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#d0d7de',
+  },
+  footerLight: {
+    backgroundColor: '#ffffff',
+    borderTopColor: '#d0d7de',
+  },
+  discardBtnLight: {
+    backgroundColor: '#ffebe9',
+  },
+  mergeBtnLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.3)',
+  },
+  primaryActionBtnLight: {
+    backgroundColor: '#0077b6',
   },
 });

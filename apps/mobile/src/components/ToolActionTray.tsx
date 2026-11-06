@@ -34,6 +34,7 @@ import {
 import { colors, radii, typography } from '../theme/tokens';
 import { MarkdownText, JsonViewer } from './MarkdownText';
 import { DiffViewer } from './DiffViewer';
+import { useDaemonStore } from '../stores/useDaemonStore';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
@@ -64,6 +65,9 @@ interface ToolActionTrayProps {
 }
 
 export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action, onClose }) => {
+  const theme = useDaemonStore((s) => s.theme);
+  const isLight = theme === 'light';
+
   const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [copiedInput, setCopiedInput] = useState(false);
@@ -194,20 +198,21 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
   }
 
   const renderCategoryIcon = (category: ActionStep['category'], size = 16) => {
+    const iconColor = isLight ? '#0077b6' : '#ffffff';
     switch (category) {
       case 'repo':
-        return <FolderGit2 size={size} color="#ffffff" />;
+        return <FolderGit2 size={size} color={iconColor} />;
       case 'mcp':
-        return <Link size={size} color="#ffffff" />;
+        return <Link size={size} color={iconColor} />;
       case 'skill':
-        return <GitFork size={size} color="#ffffff" />;
+        return <GitFork size={size} color={iconColor} />;
       case 'file':
-        return <FileText size={size} color="#ffffff" />;
+        return <FileText size={size} color={iconColor} />;
       case 'search':
-        return <Search size={size} color="#ffffff" />;
+        return <Search size={size} color={iconColor} />;
       case 'terminal':
       default:
-        return <Terminal size={size} color="#ffffff" />;
+        return <Terminal size={size} color={iconColor} />;
     }
   };
 
@@ -261,6 +266,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
         <Animated.View
           style={[
             styles.traySheet,
+            isLight && styles.traySheetLight,
             {
               transform: [{ translateY }],
             },
@@ -273,18 +279,18 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               activeOpacity={0.8}
               onPress={handleToggleExpand}
             >
-              <View style={styles.dragPill} />
+              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
             </TouchableOpacity>
 
             {/* Tray Header */}
-            <View style={styles.trayHeader}>
+            <View style={[styles.trayHeader, isLight && styles.trayHeaderLight]}>
               <View style={styles.trayHeaderLeft}>
-                <View style={styles.iconCircle}>
+                <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
                   {renderCategoryIcon(action.category, 18)}
                 </View>
                 <View style={styles.titleColumn}>
                   <View style={styles.titleRow}>
-                    <Text style={styles.toolNameText} numberOfLines={1}>
+                    <Text style={[styles.toolNameText, isLight && styles.toolNameTextLight]} numberOfLines={1}>
                       {toolName}
                     </Text>
                     {/* Status Pill */}
@@ -294,21 +300,27 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                         isRunning
                           ? styles.statusPillRunning
                           : isSuccess
-                          ? styles.statusPillSuccess
-                          : styles.statusPillError,
+                          ? (isLight ? styles.statusPillSuccessLight : styles.statusPillSuccess)
+                          : (isLight ? styles.statusPillErrorLight : styles.statusPillError),
                       ]}
                     >
                       {isRunning ? (
-                        <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.65 }] }} />
+                        <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.green} style={{ transform: [{ scale: 0.65 }] }} />
                       ) : isSuccess ? (
-                        <CheckCircle2 size={11} color={colors.green} />
+                        <CheckCircle2 size={11} color={isLight ? '#1a7f37' : colors.green} />
                       ) : (
-                        <XCircle size={11} color={colors.red} />
+                        <XCircle size={11} color={isLight ? '#cf222e' : colors.red} />
                       )}
                       <Text
                         style={[
                           styles.statusPillText,
-                          { color: isRunning ? colors.green : isSuccess ? colors.green : colors.red },
+                          {
+                            color: isRunning
+                              ? (isLight ? '#0077b6' : colors.green)
+                              : isSuccess
+                              ? (isLight ? '#1a7f37' : colors.green)
+                              : (isLight ? '#cf222e' : colors.red),
+                          },
                         ]}
                       >
                         {isRunning
@@ -321,30 +333,30 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.categorySubtext}>
+                  <Text style={[styles.categorySubtext, isLight && styles.categorySubtextLight]}>
                     {getCategoryLabel(action.category)}
                     {action.duration ? ` • ${action.duration}` : ''}
                   </Text>
                 </View>
               </View>
 
-              <TouchableOpacity style={styles.closeBtn} onPress={handleClose} activeOpacity={0.7}>
-                <X size={16} color={colors.textMuted} />
+              <TouchableOpacity style={[styles.closeBtn, isLight && styles.closeBtnLight]} onPress={handleClose} activeOpacity={0.7}>
+                <X size={16} color={isLight ? '#57606a' : colors.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Tray Scrollable Content */}
           <ScrollView
-            style={styles.trayScroll}
+            style={[styles.trayScroll, isLight && styles.trayScrollLight]}
             contentContainerStyle={styles.trayScrollContent}
             showsVerticalScrollIndicator={false}
           >
             {/* Tool Purpose / Summary */}
             {action.title ? (
-              <View style={styles.summaryBox}>
-                <Text style={styles.summaryLabel}>ACTION DESCRIPTION</Text>
-                <Text style={styles.summaryTitle}>{action.title}</Text>
+              <View style={[styles.summaryBox, isLight && styles.summaryBoxLight]}>
+                <Text style={[styles.summaryLabel, isLight && styles.summaryLabelLight]}>ACTION DESCRIPTION</Text>
+                <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight]}>{action.title}</Text>
               </View>
             ) : null}
 
@@ -353,37 +365,37 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <Terminal size={13} color="#ffffff" />
-                    <Text style={styles.sectionHeaderTitle}>COMMAND EXECUTED</Text>
+                    <Terminal size={13} color={isLight ? '#0077b6' : '#ffffff'} />
+                    <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>COMMAND EXECUTED</Text>
                   </View>
                   <TouchableOpacity
-                    style={styles.copySmallBtn}
+                    style={[styles.copySmallBtn, isLight && styles.copySmallBtnLight]}
                     onPress={() => handleCopyInput(commandLine)}
                     activeOpacity={0.7}
                   >
                     {copiedInput ? (
                       <>
-                        <Check size={11} color={colors.green} />
-                        <Text style={[styles.copySmallText, { color: colors.green }]}>Copied</Text>
+                        <Check size={11} color={isLight ? '#1a7f37' : colors.green} />
+                        <Text style={[styles.copySmallText, { color: isLight ? '#1a7f37' : colors.green }]}>Copied</Text>
                       </>
                     ) : (
                       <>
-                        <Copy size={11} color={colors.textMuted} />
-                        <Text style={styles.copySmallText}>Copy</Text>
+                        <Copy size={11} color={isLight ? '#57606a' : colors.textMuted} />
+                        <Text style={[styles.copySmallText, isLight && styles.copySmallTextLight]}>Copy</Text>
                       </>
                     )}
                   </TouchableOpacity>
                 </View>
-                <View style={styles.commandBox}>
-                  <Text style={styles.commandPromptPrefix}>$ </Text>
-                  <Text style={styles.commandText} selectable>
+                <View style={[styles.commandBox, isLight && styles.commandBoxLight]}>
+                  <Text style={[styles.commandPromptPrefix, isLight && styles.commandPromptPrefixLight]}>$ </Text>
+                  <Text style={[styles.commandText, isLight && styles.commandTextLight]} selectable>
                     {commandLine}
                   </Text>
                 </View>
                 {args.Cwd ? (
                   <View style={styles.cwdRow}>
-                    <Folder size={11} color={colors.textMuted} />
-                    <Text style={styles.cwdText}>cwd: {String(args.Cwd)}</Text>
+                    <Folder size={11} color={isLight ? '#57606a' : colors.textMuted} />
+                    <Text style={[styles.cwdText, isLight && styles.cwdTextLight]}>cwd: {String(args.Cwd)}</Text>
                   </View>
                 ) : null}
               </View>
@@ -394,16 +406,16 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <FileCode size={13} color="#ffffff" />
-                    <Text style={styles.sectionHeaderTitle}>TARGET FILE</Text>
+                    <FileCode size={13} color={isLight ? '#0077b6' : '#ffffff'} />
+                    <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>TARGET FILE</Text>
                   </View>
                 </View>
-                <View style={styles.filePathBox}>
-                  <Text style={styles.filePathText} selectable numberOfLines={2}>
+                <View style={[styles.filePathBox, isLight && styles.filePathBoxLight]}>
+                  <Text style={[styles.filePathText, isLight && styles.filePathTextLight]} selectable numberOfLines={2}>
                     {filePath}
                   </Text>
                   {args.StartLine || args.EndLine ? (
-                    <Text style={styles.fileLineRange}>
+                    <Text style={[styles.fileLineRange, isLight && styles.fileLineRangeLight]}>
                       Lines {args.StartLine ?? 1} - {args.EndLine ?? 'end'}
                     </Text>
                   ) : null}
@@ -428,7 +440,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
             {args && Object.keys(args).length > 0 && !hasCommandLine && !filePath ? (
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionHeaderTitle}>INPUT ARGUMENTS</Text>
+                  <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>INPUT ARGUMENTS</Text>
                 </View>
                 <JsonViewer data={args} title="Arguments" />
               </View>
@@ -438,23 +450,23 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
             <View style={styles.sectionBlock}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionHeaderLeft}>
-                  <Text style={styles.sectionHeaderTitle}>OUTPUT / RESULT</Text>
+                  <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>OUTPUT / RESULT</Text>
                 </View>
                 {rawOutputStr ? (
                   <TouchableOpacity
-                    style={styles.copySmallBtn}
+                    style={[styles.copySmallBtn, isLight && styles.copySmallBtnLight]}
                     onPress={() => handleCopyOutput(rawOutputStr)}
                     activeOpacity={0.7}
                   >
                     {copiedOutput ? (
                       <>
-                        <Check size={11} color={colors.green} />
-                        <Text style={[styles.copySmallText, { color: colors.green }]}>Copied</Text>
+                        <Check size={11} color={isLight ? '#1a7f37' : colors.green} />
+                        <Text style={[styles.copySmallText, { color: isLight ? '#1a7f37' : colors.green }]}>Copied</Text>
                       </>
                     ) : (
                       <>
-                        <Copy size={11} color={colors.textMuted} />
-                        <Text style={styles.copySmallText}>Copy Output</Text>
+                        <Copy size={11} color={isLight ? '#57606a' : colors.textMuted} />
+                        <Text style={[styles.copySmallText, isLight && styles.copySmallTextLight]}>Copy Output</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -466,21 +478,21 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                   <MarkdownText content={rawOutputStr} isUser={false} />
                 </View>
               ) : isRunning ? (
-                <View style={styles.runningOutputBox}>
-                  <ActivityIndicator size="small" color={colors.green} />
-                  <Text style={styles.runningOutputText}>Tool execution in progress...</Text>
+                <View style={[styles.runningOutputBox, isLight && styles.runningOutputBoxLight]}>
+                  <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.green} />
+                  <Text style={[styles.runningOutputText, isLight && styles.runningOutputTextLight]}>Tool execution in progress...</Text>
                 </View>
               ) : (
-                <View style={styles.emptyOutputBox}>
-                  <Check size={14} color={colors.green} />
-                  <Text style={styles.emptyOutputText}>Executed successfully with no terminal output.</Text>
+                <View style={[styles.emptyOutputBox, isLight && styles.emptyOutputBoxLight]}>
+                  <Check size={14} color={isLight ? '#1a7f37' : colors.green} />
+                  <Text style={[styles.emptyOutputText, isLight && styles.emptyOutputTextLight]}>Executed successfully with no terminal output.</Text>
                 </View>
               )}
             </View>
 
             {/* Bottom Dismiss Drag Hint */}
             <View style={styles.dragHintRow}>
-              <Text style={styles.dragHintText}>Swipe down to dismiss</Text>
+              <Text style={[styles.dragHintText, isLight && styles.dragHintTextLight]}>Swipe down to dismiss</Text>
             </View>
           </ScrollView>
         </Animated.View>
@@ -762,5 +774,103 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textDisabled,
     fontFamily: typography.mono,
+  },
+  dragHintTextLight: {
+    color: '#8c959f',
+  },
+
+  // Light Theme Overrides
+  traySheetLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+    shadowOpacity: 0.12,
+  },
+  dragPillLight: {
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  trayHeaderLight: {
+    borderBottomColor: '#e1e4e8',
+  },
+  iconCircleLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  toolNameTextLight: {
+    color: '#1f2328',
+  },
+  categorySubtextLight: {
+    color: '#6e7681',
+  },
+  closeBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  statusPillSuccessLight: {
+    backgroundColor: '#dafbe1',
+    borderWidth: 1,
+    borderColor: 'rgba(26, 127, 55, 0.25)',
+  },
+  statusPillErrorLight: {
+    backgroundColor: '#ffebe9',
+    borderWidth: 1,
+    borderColor: 'rgba(207, 34, 46, 0.25)',
+  },
+  trayScrollLight: {
+    backgroundColor: '#ffffff',
+  },
+  summaryBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#e1e4e8',
+  },
+  summaryLabelLight: {
+    color: '#6e7681',
+  },
+  summaryTitleLight: {
+    color: '#1f2328',
+  },
+  sectionHeaderTitleLight: {
+    color: '#6e7681',
+  },
+  copySmallBtnLight: {
+    backgroundColor: '#eaeef2',
+  },
+  copySmallTextLight: {
+    color: '#57606a',
+  },
+  commandBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  commandPromptPrefixLight: {
+    color: '#0077b6',
+  },
+  commandTextLight: {
+    color: '#1f2328',
+  },
+  cwdTextLight: {
+    color: '#6e7681',
+  },
+  filePathBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
+  },
+  filePathTextLight: {
+    color: '#0077b6',
+  },
+  fileLineRangeLight: {
+    color: '#6e7681',
+  },
+  runningOutputBoxLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  runningOutputTextLight: {
+    color: '#0077b6',
+  },
+  emptyOutputBoxLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#e1e4e8',
+  },
+  emptyOutputTextLight: {
+    color: '#57606a',
   },
 });
