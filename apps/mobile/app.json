@@ -15,7 +15,6 @@
     "android": {
       "package": "com.cloudagent.mobile",
       "versionCode": 1,
-      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#0a0a0a"
