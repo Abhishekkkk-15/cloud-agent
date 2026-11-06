@@ -11,7 +11,6 @@ import {
   registerForPushNotificationsAsync,
   triggerGatewayTestPush,
   getPushRegistrationState,
-  isRunningInExpoGo,
   emitInAppNotification,
   scheduleNotification,
   ensureNotificationChannelsAsync,
