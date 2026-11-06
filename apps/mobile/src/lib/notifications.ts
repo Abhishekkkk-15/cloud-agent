@@ -116,8 +116,44 @@ export function emitInAppNotification(payload: Omit<NotificationPayload, 'id' | 
 }
 
 /**
+ * Ensures Android Notification Channels are configured with MAX priority,
+ * sound, vibration, and lockscreen visibility. Must exist before notifications are delivered.
+ */
+export async function ensureNotificationChannelsAsync(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  const { isExpoGo, notifications } = getNativeModules();
+  if (isExpoGo || !notifications || !notifications.setNotificationChannelAsync) return;
+
+  try {
+    const channelConfig = {
+      importance: notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#0077b6',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+      lockscreenVisibility: notifications.AndroidNotificationVisibility.PUBLIC,
+      bypassDnd: true,
+    };
+
+    await notifications.setNotificationChannelAsync('agent-alerts', {
+      name: 'Cloud Agent Alerts',
+      ...channelConfig,
+    });
+
+    await notifications.setNotificationChannelAsync('default', {
+      name: 'Default Alerts',
+      ...channelConfig,
+    });
+  } catch (err) {
+    console.warn('[Notifications] Error setting up Android notification channels:', err);
+  }
+}
+
+/**
  * Registers device for real native push notifications.
- * Automatically configures Android notification channels and acquires the Expo Push Token.
+ * Automatically configures Android notification channels, requests runtime permissions,
+ * and retrieves the Expo Push Token if FCM is configured.
  */
 export async function registerForPushNotificationsAsync(options?: {
   gatewayUrl?: string;
@@ -157,42 +193,10 @@ export async function registerForPushNotificationsAsync(options?: {
   }
 
   try {
-    // 1. Android Notification Channel configuration (high priority with public lockscreen visibility)
-    if (Platform.OS === 'android' && notifications.setNotificationChannelAsync) {
-      const channelConfig = {
-        importance: notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#fafafa',
-        sound: 'default',
-        enableVibrate: true,
-        showBadge: true,
-        lockscreenVisibility: notifications.AndroidNotificationVisibility.PUBLIC,
-        bypassDnd: true,
-      };
+    // 1. Ensure high-importance notification channels exist on Android
+    await ensureNotificationChannelsAsync();
 
-      await notifications.setNotificationChannelAsync('agent-alerts', {
-        name: 'Cloud Agent Alerts',
-        ...channelConfig,
-      });
-
-      await notifications.setNotificationChannelAsync('default', {
-        name: 'Default Alerts',
-        ...channelConfig,
-      });
-    }
-
-    // 2. Verify physical device
-    if (device && !device.isDevice) {
-      registrationState = {
-        isSupported: false,
-        isRegistered: false,
-        pushToken: null,
-        statusMessage: 'Simulator detected (Remote push requires physical device)',
-      };
-      return null;
-    }
-
-    // 3. Request permissions
+    // 2. Request Android 13+ / iOS runtime permissions
     const { status: existingStatus } = await notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
@@ -206,23 +210,49 @@ export async function registerForPushNotificationsAsync(options?: {
         isSupported: true,
         isRegistered: false,
         pushToken: null,
-        statusMessage: 'Notification permissions denied by user',
+        statusMessage: 'Notification permissions denied in Android settings',
       };
       return null;
     }
 
-    // 4. Retrieve Expo Push Token
-    const projectId =
-      Constants?.expoConfig?.extra?.eas?.projectId ||
-      Constants?.easConfig?.projectId ||
-      'a3cb31cf-6c3f-4979-babe-45a2ea20a75e';
+    // 3. Verify physical device for remote push
+    if (device && !device.isDevice) {
+      registrationState = {
+        isSupported: true,
+        isRegistered: false,
+        pushToken: null,
+        statusMessage: 'Simulator detected (Remote push requires physical device)',
+      };
+      return null;
+    }
 
-    const tokenResponse = await notifications.getExpoPushTokenAsync({
-      projectId,
-    });
+    // 4. Retrieve Expo Push Token (FCM registration on Android)
+    let token: string | null = null;
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ||
+        Constants?.easConfig?.projectId ||
+        'a3cb31cf-6c3f-4979-babe-45a2ea20a75e';
 
-    const token = tokenResponse.data;
-    currentPushToken = token;
+      const tokenResponse = await notifications.getExpoPushTokenAsync({
+        projectId,
+      });
+      token = tokenResponse?.data || null;
+      currentPushToken = token;
+    } catch (tokenErr: any) {
+      console.warn('[Notifications] Remote push token unavailable (requires google-services.json + FCM v1):', tokenErr?.message);
+    }
+
+    // If remote push token is unavailable, local native OS alerts are still active
+    if (!token) {
+      registrationState = {
+        isSupported: true,
+        isRegistered: true,
+        pushToken: null,
+        statusMessage: 'Native local alerts active (Remote push requires google-services.json)',
+      };
+      return null;
+    }
 
     // 5. Register with Gateway Server if gatewayUrl is provided
     if (options?.gatewayUrl && token) {
@@ -257,7 +287,7 @@ export async function registerForPushNotificationsAsync(options?: {
     return token;
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.warn('[Notifications] Push token registration error:', errorMsg);
+    console.warn('[Notifications] Push setup error:', errorMsg);
     registrationState = {
       isSupported: false,
       isRegistered: false,

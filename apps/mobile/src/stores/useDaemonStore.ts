@@ -13,6 +13,8 @@ import {
   getPushRegistrationState,
   isRunningInExpoGo,
   emitInAppNotification,
+  scheduleNotification,
+  ensureNotificationChannelsAsync,
 } from '../lib/notifications';
 
 function getDefaultHost(): string {
@@ -631,29 +633,29 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   triggerTestPushNotification: async () => {
     const { gatewayUrl, token } = get();
     try {
-      const isExpoGo = isRunningInExpoGo();
+      // 1. Always schedule a native OS system notification on device
+      await scheduleNotification({
+        title: 'Cloud Agent • Notification Alert',
+        body: 'Native notification system is operational on your device!',
+        type: 'info',
+      });
+
       const pushState = getPushRegistrationState();
 
-      if (isExpoGo || !pushState.pushToken) {
-        // In Expo Go or when no remote push token is registered:
-        // Trigger simulated in-app notification banner directly so developer can verify notifications working
-        emitInAppNotification({
-          title: 'Cloud Agent • Notification Alert (Expo Go)',
-          body: 'In-app notification working! (Remote lock-screen push requires an APK development build via EAS).',
-          type: 'info',
-        });
+      if (pushState.pushToken) {
+        // 2. Also dispatch via Gateway to verify remote push delivery
+        const ok = await triggerGatewayTestPush(gatewayUrl, token || undefined);
         return {
-          success: true,
-          message: 'In-App notification banner verified! Note: Remote lock-screen push requires an APK development build.',
+          success: ok,
+          message: ok
+            ? 'Native alert displayed & Gateway push sent! Check your notification shade.'
+            : 'Native alert displayed. Gateway push failed.',
         };
       }
 
-      const ok = await triggerGatewayTestPush(gatewayUrl, token || undefined);
       return {
-        success: ok,
-        message: ok
-          ? 'Native push notification sent from Gateway! Check your lock-screen / notification shade.'
-          : 'Failed to send test push notification.',
+        success: true,
+        message: 'Native system notification displayed! Check your notification shade. (Remote push requires FCM credentials).',
       };
     } catch (e: any) {
       return {
@@ -675,6 +677,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   init: async () => {
     const { apiUrl, gatewayUrl } = get();
+
+    // Initialize notification channels and request permission immediately on app startup
+    get().registerPushNotifications().catch(() => {});
 
     // Subscribe to connection state
     mobileP2P.onStateChange((state) => {

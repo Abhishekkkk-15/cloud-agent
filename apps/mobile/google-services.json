@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "623026430088",
+    "project_id": "cloud-agent-app",
+    "storage_bucket": "cloud-agent-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:623026430088:android:25675ba4e308dac83fbf3d",
+        "android_client_info": {
+          "package_name": "com.cloudagent.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1gE8jnqbidxImDn3s0KHvJJWSa2bpO-I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
