@@ -92,6 +92,7 @@ export async function sendExpoPushNotifications(
     if (json.errors && json.errors.length > 0) {
       console.warn(`[ExpoPush] API errors:`, json.errors);
     }
+    console.log(`[ExpoPush] Sent push notification to ${payload.length} recipient(s). Result:`, JSON.stringify(json.data || json));
 
     return json.data || [];
   } catch (err: unknown) {

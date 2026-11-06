@@ -683,6 +683,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         get().fetchKnownWorkspaces();
         get().fetchMachines();
         get().reconcileActiveSession();
+        get().registerPushNotifications().catch(() => {});
       }
     });
 
@@ -1082,6 +1083,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       if (targetMachine) {
         set({ activeMachine: targetMachine });
         await mobileP2P.connect(gatewayUrl, token, targetMachine.machineId);
+        get().registerPushNotifications().catch(() => {});
       }
     } catch (err) {
       console.error('[DaemonStore] connectGateway error:', err);

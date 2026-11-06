@@ -24,7 +24,8 @@
         "ACCESS_NETWORK_STATE",
         "VIBRATE",
         "POST_NOTIFICATIONS",
-        "RECEIVE_BOOT_COMPLETED"
+        "RECEIVE_BOOT_COMPLETED",
+        "WAKE_LOCK"
       ],
       "androidNavigationBar": {
         "backgroundColor": "#0a0a0a",

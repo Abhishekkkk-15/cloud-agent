@@ -76,6 +76,8 @@ function getNativeModules() {
       nativeNotifications.setNotificationHandler({
         handleNotification: async () => ({
           shouldShowAlert: true,
+          shouldShowBanner: true,
+          shouldShowList: true,
           shouldPlaySound: true,
           shouldSetBadge: true,
         }),
@@ -155,16 +157,27 @@ export async function registerForPushNotificationsAsync(options?: {
   }
 
   try {
-    // 1. Android Notification Channel configuration
+    // 1. Android Notification Channel configuration (high priority with public lockscreen visibility)
     if (Platform.OS === 'android' && notifications.setNotificationChannelAsync) {
-      await notifications.setNotificationChannelAsync('agent-alerts', {
-        name: 'Cloud Agent Alerts',
+      const channelConfig = {
         importance: notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#fafafa',
         sound: 'default',
         enableVibrate: true,
         showBadge: true,
+        lockscreenVisibility: notifications.AndroidNotificationVisibility.PUBLIC,
+        bypassDnd: true,
+      };
+
+      await notifications.setNotificationChannelAsync('agent-alerts', {
+        name: 'Cloud Agent Alerts',
+        ...channelConfig,
+      });
+
+      await notifications.setNotificationChannelAsync('default', {
+        name: 'Default Alerts',
+        ...channelConfig,
       });
     }
 

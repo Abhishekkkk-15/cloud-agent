@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import fs from "node:fs";
+import path from "node:path";
 import { sendJson } from "./machines.js";
 import { verifyUserJwt, type AuthenticatedUser } from "../auth/jwt.js";
 import {
@@ -17,10 +19,45 @@ interface RegisteredDevice {
   lastActiveAt: string;
 }
 
-// In-memory token store (strictly adhering to Zero-DB Daemon & Gateway Invariant)
+// Token store with lightweight JSON file persistence to survive server restarts (Zero-DB compliant)
 const tokenRegistry = new Map<string, RegisteredDevice>(); // pushToken -> RegisteredDevice
 const userTokens = new Map<string, Set<string>>(); // userId -> Set<pushToken>
 const machineTokens = new Map<string, Set<string>>(); // machineId -> Set<pushToken>
+
+const TOKENS_CACHE_FILE = path.resolve(process.cwd(), ".tokens-registry.json");
+
+function loadTokensFromDisk(): void {
+  try {
+    if (fs.existsSync(TOKENS_CACHE_FILE)) {
+      const raw = fs.readFileSync(TOKENS_CACHE_FILE, "utf-8");
+      const list = JSON.parse(raw) as RegisteredDevice[];
+      for (const d of list) {
+        tokenRegistry.set(d.token, d);
+        if (!userTokens.has(d.userId)) userTokens.set(d.userId, new Set());
+        userTokens.get(d.userId)!.add(d.token);
+        if (d.machineId) {
+          if (!machineTokens.has(d.machineId)) machineTokens.set(d.machineId, new Set());
+          machineTokens.get(d.machineId)!.add(d.token);
+        }
+      }
+      console.log(`[PushRegistry] Restored ${list.length} push token(s) from persistent disk cache.`);
+    }
+  } catch (err) {
+    console.warn("[PushRegistry] Could not load tokens from disk cache:", err);
+  }
+}
+
+function saveTokensToDisk(): void {
+  try {
+    const list = Array.from(tokenRegistry.values());
+    fs.writeFileSync(TOKENS_CACHE_FILE, JSON.stringify(list, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[PushRegistry] Could not save tokens to disk cache:", err);
+  }
+}
+
+// Initial restore on gateway boot
+loadTokensFromDisk();
 
 export function registerPushToken(
   token: string,
@@ -58,6 +95,7 @@ export function registerPushToken(
     machineTokens.get(machineId)!.add(token);
   }
 
+  saveTokensToDisk();
   console.log(`[PushRegistry] Registered push token for user=${userId} machine=${machineId || "none"} (${token.slice(0, 24)}...)`);
 }
 
@@ -69,6 +107,7 @@ export function unregisterPushToken(token: string): void {
       machineTokens.get(record.machineId)?.delete(token);
     }
     tokenRegistry.delete(token);
+    saveTokensToDisk();
     console.log(`[PushRegistry] Unregistered push token: ${token.slice(0, 24)}...`);
   }
 }
@@ -114,11 +153,17 @@ export async function notifyMachineSubscribers(
     channelId?: string;
   }
 ): Promise<ExpoPushTicket[]> {
-  const tokens = Array.from(machineTokens.get(machineId) || []);
+  let tokens = Array.from(machineTokens.get(machineId) || []);
   if (tokens.length === 0) {
+    // Fallback: If no machine-specific subscription, broadcast to all registered devices on this gateway
+    tokens = Array.from(tokenRegistry.keys());
+  }
+  if (tokens.length === 0) {
+    console.log(`[PushRegistry] notifyMachineSubscribers: No registered devices found for machine=${machineId}`);
     return [];
   }
 
+  console.log(`[PushRegistry] Delivering push to ${tokens.length} device(s) for machine=${machineId}: "${message.title}"`);
   return sendExpoPushNotifications([
     {
       to: tokens,
@@ -212,6 +257,9 @@ export async function handlePushRoutes(
         targetTokens.push(token);
       } else if (user?.userId && userTokens.has(user.userId)) {
         targetTokens.push(...Array.from(userTokens.get(user.userId)!));
+      } else if (tokenRegistry.size > 0) {
+        // Fallback: Test dispatch to all registered devices on this gateway
+        targetTokens.push(...Array.from(tokenRegistry.keys()));
       }
 
       if (targetTokens.length === 0) {
@@ -252,6 +300,14 @@ export async function handlePushRoutes(
       registeredTokens: tokenRegistry.size,
       registeredUsers: userTokens.size,
       registeredMachines: machineTokens.size,
+      devices: Array.from(tokenRegistry.values()).map((d) => ({
+        tokenMasked: `${d.token.slice(0, 16)}...${d.token.slice(-6)}`,
+        userId: d.userId,
+        machineId: d.machineId || null,
+        platform: d.platform,
+        registeredAt: d.registeredAt,
+        lastActiveAt: d.lastActiveAt,
+      })),
     });
     return true;
   }
