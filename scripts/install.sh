@@ -120,13 +120,19 @@ pnpm --filter @cloud-agent/daemon build >/dev/null 2>&1 || true
 WRAPPER_FILE="$BIN_DIR/ca"
 cat << 'EOF' > "$WRAPPER_FILE"
 #!/usr/bin/env bash
-DAEMON_DIR="$HOME/.cloud-agent/runtime/apps/daemon"
+RUNTIME_DIR="$HOME/.cloud-agent/runtime"
+DAEMON_DIR="$RUNTIME_DIR/apps/daemon"
+TSX_CLI="$RUNTIME_DIR/node_modules/tsx/dist/cli.mjs"
 export NODE_ENV="${NODE_ENV:-production}"
 
 if [ -f "$DAEMON_DIR/dist/index.js" ]; then
   exec node "$DAEMON_DIR/dist/index.js" "$@"
+elif [ -f "$TSX_CLI" ]; then
+  exec node "$TSX_CLI" "$DAEMON_DIR/src/index.ts" "$@"
+elif [ -x "$RUNTIME_DIR/node_modules/.bin/tsx" ]; then
+  exec "$RUNTIME_DIR/node_modules/.bin/tsx" "$DAEMON_DIR/src/index.ts" "$@"
 else
-  exec node --loader tsx "$DAEMON_DIR/src/index.ts" "$@"
+  exec pnpm --dir "$RUNTIME_DIR" --filter @cloud-agent/daemon dev "$@"
 fi
 EOF
 

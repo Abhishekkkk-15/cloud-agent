@@ -21,6 +21,38 @@ function getDaemonEntryScript(): string {
   return path.resolve(process.cwd(), "dist", "index.js");
 }
 
+function getCaBinaryPath(): string {
+  const customBin = path.join(os.homedir(), ".cloud-agent", "bin", process.platform === "win32" ? "ca.cmd" : "ca");
+  if (fs.existsSync(customBin)) {
+    return customBin;
+  }
+  return "";
+}
+
+function getExecutionCommand(): { cmd: string; args: string[]; displayCmd: string } {
+  const caBin = getCaBinaryPath();
+  if (caBin) {
+    return { cmd: caBin, args: ["start"], displayCmd: `"${caBin}" start` };
+  }
+
+  const scriptPath = getDaemonEntryScript();
+  const nodePath = process.execPath;
+  if (scriptPath.endsWith(".js")) {
+    return { cmd: nodePath, args: [scriptPath, "start"], displayCmd: `"${nodePath}" "${scriptPath}" start` };
+  }
+
+  // Look for tsx runner in monorepo runtime root or daemon node_modules
+  const candidateTsx1 = path.resolve(path.dirname(scriptPath), "..", "..", "..", "node_modules", "tsx", "dist", "cli.mjs");
+  const candidateTsx2 = path.resolve(path.dirname(scriptPath), "..", "node_modules", "tsx", "dist", "cli.mjs");
+  const tsxCli = fs.existsSync(candidateTsx1) ? candidateTsx1 : fs.existsSync(candidateTsx2) ? candidateTsx2 : "";
+
+  if (tsxCli) {
+    return { cmd: nodePath, args: [tsxCli, scriptPath, "start"], displayCmd: `"${nodePath}" "${tsxCli}" "${scriptPath}" start` };
+  }
+
+  return { cmd: nodePath, args: [scriptPath, "start"], displayCmd: `"${nodePath}" "${scriptPath}" start` };
+}
+
 function getStoredPid(): number | null {
   try {
     if (fs.existsSync(PID_FILE)) {
@@ -66,14 +98,12 @@ function getLaunchdPath(): string {
 }
 
 export async function installService(): Promise<void> {
-  const nodePath = process.execPath;
-  const scriptPath = getDaemonEntryScript();
+  const execCmd = getExecutionCommand();
   const logPath = getLogFilePath();
 
   console.log(`\x1b[36mInstalling Cloud Agent background service...\x1b[0m`);
-  console.log(`  Node Executable : ${nodePath}`);
-  console.log(`  Daemon Script   : ${scriptPath}`);
-  console.log(`  Log File Path   : ${logPath}\n`);
+  console.log(`  Execution Command : ${execCmd.displayCmd}`);
+  console.log(`  Log File Path     : ${logPath}\n`);
 
   if (process.platform === "linux") {
     const serviceFile = getSystemdPath();
@@ -88,7 +118,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=${nodePath} ${scriptPath} start
+ExecStart=${execCmd.displayCmd}
 Restart=always
 RestartSec=5
 WorkingDirectory=${os.homedir()}
@@ -117,6 +147,10 @@ WantedBy=default.target
       fs.mkdirSync(plistDir, { recursive: true });
     }
 
+    const argsXml = [execCmd.cmd, ...execCmd.args]
+      .map((a) => `        <string>${a}</string>`)
+      .join("\n");
+
     const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -125,9 +159,7 @@ WantedBy=default.target
     <string>com.cloudagent.daemon</string>
     <key>ProgramArguments</key>
     <array>
-        <string>${nodePath}</string>
-        <string>${scriptPath}</string>
-        <string>start</string>
+${argsXml}
     </array>
     <key>RunAtLoad</key>
     <true/>
@@ -151,7 +183,8 @@ WantedBy=default.target
   } else if (process.platform === "win32") {
     try {
       const taskName = "CloudAgentDaemon";
-      const cmd = `schtasks /create /tn "${taskName}" /tr "\"${nodePath}\" \"${scriptPath}\" start" /sc onlogon /f`;
+      const escapedCmd = execCmd.displayCmd.replace(/"/g, '\\"');
+      const cmd = `schtasks /create /tn "${taskName}" /tr "${escapedCmd}" /sc onlogon /f`;
       execSync(cmd, { stdio: "ignore" });
       console.log(`\x1b[32m✔ Windows Scheduled Task '${taskName}' registered for auto-startup on login.\x1b[0m`);
     } catch {
@@ -190,12 +223,11 @@ export async function startService(): Promise<void> {
   }
 
   // Universal Detached Process Launcher
-  const nodePath = process.execPath;
-  const scriptPath = getDaemonEntryScript();
+  const execCmd = getExecutionCommand();
   const logPath = getLogFilePath();
   const outLog = fs.openSync(logPath, "a");
 
-  const child = spawn(nodePath, [scriptPath, "start"], {
+  const child = spawn(execCmd.cmd, execCmd.args, {
     detached: true,
     stdio: ["ignore", outLog, outLog],
     cwd: os.homedir(),

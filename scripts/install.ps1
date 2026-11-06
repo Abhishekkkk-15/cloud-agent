@@ -86,15 +86,23 @@ pnpm --filter @cloud-agent/daemon build | Out-Null
 Pop-Location
 
 # 7. Create batch wrappers: ca.cmd and cloud-agent-daemon.cmd
-$daemonEntry = Join-Path $runtimeDir "apps\daemon\dist\index.js"
-if (-not (Test-Path $daemonEntry)) {
-    $daemonEntry = Join-Path $runtimeDir "apps\daemon\src\index.ts"
-}
-
 $cmdContent = @"
 @echo off
+setlocal
+set "RUNTIME_DIR=$runtimeDir"
+set "DAEMON_DIR=%RUNTIME_DIR%\apps\daemon"
+set "TSX_CLI=%RUNTIME_DIR%\node_modules\tsx\dist\cli.mjs"
 set NODE_ENV=production
-node "$daemonEntry" %*
+
+if exist "%DAEMON_DIR%\dist\index.js" (
+  node "%DAEMON_DIR%\dist\index.js" %*
+) else if exist "%TSX_CLI%" (
+  node "%TSX_CLI%" "%DAEMON_DIR%\src\index.ts" %*
+) else if exist "%RUNTIME_DIR%\node_modules\.bin\tsx.cmd" (
+  call "%RUNTIME_DIR%\node_modules\.bin\tsx.cmd" "%DAEMON_DIR%\src\index.ts" %*
+) else (
+  call pnpm --dir "%RUNTIME_DIR%" --filter @cloud-agent/daemon dev %*
+)
 "@
 
 $caCmd = Join-Path $binDir "ca.cmd"

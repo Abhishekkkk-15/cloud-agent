@@ -473,6 +473,12 @@ Options:
       console.log(`Run 'cloud-agent-daemon help' for available commands.`);
       process.exit(1);
   }
+
+  // Ensure one-shot queries exit immediately without lingering event handles
+  const longRunningCommands = ["start", "pair", "expose", "tunnel"];
+  if (!longRunningCommands.includes(command) && !flags.follow && !flags.f) {
+    process.exit(0);
+  }
 }
 
 main().catch((err) => {

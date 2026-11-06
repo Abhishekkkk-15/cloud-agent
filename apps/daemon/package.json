@@ -22,6 +22,7 @@
     "@cloud-agent/cli-antigravity": "workspace:*",
     "@cloud-agent/cli-interface": "workspace:*",
     "qrcode-terminal": "^0.12.0",
+    "tsx": "^4.23.15",
     "werift": "^0.25.2"
   },
   "devDependencies": {
