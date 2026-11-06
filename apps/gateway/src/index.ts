@@ -7,6 +7,7 @@ import { handleAuthRoutes } from "./routes/auth.js";
 import { handlePushRoutes } from "./routes/push.js";
 import { handleWebhookRoutes } from "./routes/webhooks.js";
 import { handleTunnelRoutes } from "./routes/tunnel.js";
+import { handleInstallerRoutes } from "./routes/installer.js";
 import { setupWebSocketUpgrades } from "./routes/ws.js";
 import { daemonHub } from "./hub/daemon-hub.js";
 
@@ -67,6 +68,10 @@ async function main() {
       // Tunnel & Web Preview routes (/preview/*, /api/tunnel/*)
       const tunnelHandled = await handleTunnelRoutes(req, res, url);
       if (tunnelHandled) return;
+
+      // Installer script routes (/install.sh, /install, /install.ps1)
+      const installerHandled = await handleInstallerRoutes(req, res, url);
+      if (installerHandled) return;
 
       // 404
       sendJson(res, 404, { error: `Route not found: ${req.method} ${url.pathname}` });
