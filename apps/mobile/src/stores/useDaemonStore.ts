@@ -338,6 +338,7 @@ interface DaemonStoreState {
   loginWithDev: () => Promise<boolean>;
   loginWithGoogle: (credential: string) => Promise<boolean>;
   loginWithToken: (token: string, user?: any) => Promise<boolean>;
+  fetchUserProfile: () => Promise<UserProfile | null>;
   logout: () => void;
   execTerminalCommand: (command: string, cwd?: string) => Promise<{ exitCode: number }>;
   clearTerminal: () => void;
@@ -937,6 +938,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           apiUrl: effectiveApi,
           gatewayUrl: effectiveGateway,
         });
+        get().fetchUserProfile().catch(() => {});
         await get().connectGateway();
         get().registerPushNotifications().catch(() => {});
       } else {
@@ -1137,6 +1139,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         isAuthenticated: true,
         currentUser: user || null,
       });
+      get().fetchUserProfile().catch(() => {});
       await get().connectGateway();
       get().registerPushNotifications().catch(() => {});
       return true;
@@ -1144,6 +1147,32 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       console.error('[DaemonStore] loginWithToken error:', err);
       return false;
     }
+  },
+
+  fetchUserProfile: async () => {
+    const { gatewayUrl, token, currentUser } = get();
+    if (!token) return null;
+    try {
+      const res = await fetch(`${gatewayUrl}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data && (data.email || data.name)) {
+        const updatedUser: UserProfile = {
+          id: data.id || currentUser?.id || 'user',
+          name: data.name || currentUser?.name || 'User',
+          email: data.email || currentUser?.email || '',
+          avatarUrl: data.avatarUrl || data.avatar_url || currentUser?.avatarUrl,
+        };
+        set({ currentUser: updatedUser });
+        await setStorageItem(STORAGE_KEY_USER, JSON.stringify(updatedUser));
+        return updatedUser;
+      }
+    } catch (err) {
+      // Non-blocking background fetch
+    }
+    return null;
   },
 
   loginWithGoogle: async (credential: string) => {

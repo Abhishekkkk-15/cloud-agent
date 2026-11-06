@@ -13,6 +13,7 @@ import {
   TextInput,
   StatusBar,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -85,6 +86,18 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
   const [userToggledGroups, setUserToggledGroups] = useState<Record<string, boolean>>({});
   const [drawerSearch, setDrawerSearch] = useState<string>('');
+  const [avatarError, setAvatarError] = useState(false);
+
+  const avatarUri =
+    currentUser?.avatarUrl ||
+    (currentUser as any)?.avatar_url ||
+    (currentUser as any)?.picture ||
+    (currentUser as any)?.photoUrl ||
+    null;
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [avatarUri]);
 
   const toggleGroupCollapse = (groupName: string) => {
     const isCurrentlyActive = Boolean(
@@ -781,11 +794,20 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           </TouchableOpacity>
         </ScrollView>
 
-        {/* 7. Drawer Footer: User Profile & Status at Bottom (No tick mark) */}
+        {/* 7. Drawer Footer: User Profile */}
         <View style={styles.drawerBottomFooter}>
           <View style={styles.bottomProfileCard}>
             <View style={styles.avatarBox}>
-              <Text style={styles.avatarText}>{operatorInitial}</Text>
+              {avatarUri && !avatarError ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={styles.avatarImage}
+                  onError={() => setAvatarError(true)}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.avatarText}>{operatorInitial}</Text>
+              )}
             </View>
             <View style={styles.bottomProfileTextCol}>
               <Text style={styles.bottomProfileName} numberOfLines={1}>
@@ -804,11 +826,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             >
               <LogOut size={15} color={colors.textMuted} />
             </TouchableOpacity>
-          </View>
-          <View style={styles.bottomVpsRow}>
-            <Text style={styles.bottomVpsText}>
-              VPS Connected • {pingRtt || '18ms'}
-            </Text>
           </View>
         </View>
         </View>
@@ -925,6 +942,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   avatarText: {
     fontSize: 14,
@@ -933,7 +956,7 @@ const styles = StyleSheet.create({
   },
   drawerBottomFooter: {
     paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.08)',
@@ -942,7 +965,6 @@ const styles = StyleSheet.create({
   bottomProfileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingBottom: 8,
   },
   bottomProfileTextCol: {
     marginLeft: 10,
@@ -968,19 +990,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  bottomVpsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  bottomVpsText: {
-    fontSize: 10,
-    color: '#525252',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   drawerScroll: {
     flex: 1,

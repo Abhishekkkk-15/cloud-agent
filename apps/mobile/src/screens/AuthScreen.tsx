@@ -62,7 +62,11 @@ function parseAuthCallbackUrl(urlStr: string): {
       userId: url.searchParams.get('userId') || undefined,
       email: url.searchParams.get('email') || undefined,
       name: url.searchParams.get('name') || undefined,
-      avatarUrl: url.searchParams.get('avatarUrl') || undefined,
+      avatarUrl:
+        url.searchParams.get('avatarUrl') ||
+        url.searchParams.get('avatar_url') ||
+        url.searchParams.get('picture') ||
+        undefined,
       error: url.searchParams.get('error') || undefined,
     };
   } catch {
@@ -74,7 +78,11 @@ function parseAuthCallbackUrl(urlStr: string): {
       userId: params.get('userId') || undefined,
       email: params.get('email') || undefined,
       name: params.get('name') || undefined,
-      avatarUrl: params.get('avatarUrl') || undefined,
+      avatarUrl:
+        params.get('avatarUrl') ||
+        params.get('avatar_url') ||
+        params.get('picture') ||
+        undefined,
       error: params.get('error') || undefined,
     };
   }
