@@ -96,3 +96,4 @@ export const CheckSquare = wrapIcon(Lucide.CheckSquare);
 export const Camera = wrapIcon(Lucide.Camera);
 export const Sun = wrapIcon(Lucide.Sun);
 export const Moon = wrapIcon(Lucide.Moon);
+export const Cloud = wrapIcon(Lucide.Cloud);

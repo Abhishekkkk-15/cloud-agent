@@ -7,24 +7,80 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  StatusBar,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import {
-  Bot,
+  Sun,
+  Moon,
   Zap,
-  Lock,
-  ArrowRight,
   Globe,
+  Cloud,
 } from '../components/Icons';
-import { colors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const GoogleIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+/**
+ * Pixel-perfect Cloud Agent Logo matching the design brief:
+ * Outlined cloud shape with inner terminal prompt (> _) and sparkle star ✦ at top right.
+ */
+interface CloudAgentLogoProps {
+  color?: string;
+  size?: number;
+}
+
+export const CloudAgentLogo: React.FC<CloudAgentLogoProps> = ({
+  color = '#111827',
+  size = 130,
+}) => {
+  const width = size;
+  const height = (size * 100) / 130;
+
+  return (
+    <Svg width={width} height={height} viewBox="0 0 130 100" fill="none">
+      {/* Cloud Outline */}
+      <Path
+        d="M 40 68 L 82 68 C 93 68, 101 60, 101 49 C 101 39, 93 32, 83 32 C 82 32, 80 32, 79 33 C 76 21, 65 14, 53 14 C 40 14, 30 23, 28 35 C 27 35, 26 35, 25 35 C 16 35, 9 42, 9 51 C 9 60, 16 68, 26 68 Z"
+        stroke={color}
+        strokeWidth={4.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Terminal Prompt: > _ */}
+      <Path
+        d="M 44 45 L 51 51 L 44 57"
+        stroke={color}
+        strokeWidth={4.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M 58 57 L 70 57"
+        stroke={color}
+        strokeWidth={4.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Sparkle Star ✦ at top-right curve */}
+      <Path
+        d="M 98 12 Q 98 22 106 22 Q 98 22 98 32 Q 98 22 90 22 Q 98 22 98 12 Z"
+        fill={color}
+      />
+    </Svg>
+  );
+};
+
+/**
+ * Google 4-Color Flat Brand Mark
+ */
+const GoogleIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path
       fill="#4285F4"
@@ -44,6 +100,40 @@ const GoogleIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
     />
   </Svg>
 );
+
+/**
+ * Organic, soft cloud curves in backdrop (matching top-left & bottom-right billows)
+ */
+const BackgroundClouds: React.FC<{ isLight: boolean }> = ({ isLight }) => {
+  const primaryFill = isLight ? '#f3f5f8' : 'rgba(255, 255, 255, 0.035)';
+  const secondaryFill = isLight ? '#f9fafb' : 'rgba(255, 255, 255, 0.02)';
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="none">
+        {/* Top-left billow */}
+        <Path
+          d="M -60 260 C 20 260 70 200 90 140 C 110 50 170 30 250 20 C 280 15 310 -10 320 -40 L -60 -40 Z"
+          fill={primaryFill}
+        />
+        <Path
+          d="M -80 340 C 10 340 100 270 120 180 C 140 80 190 50 260 40 L -80 -40 Z"
+          fill={secondaryFill}
+        />
+
+        {/* Bottom-right billow */}
+        <Path
+          d="M 450 600 C 370 600 320 660 300 720 C 280 800 220 830 140 840 L 450 880 Z"
+          fill={primaryFill}
+        />
+        <Path
+          d="M 470 520 C 380 520 290 590 270 670 C 250 770 200 800 130 820 L 470 880 Z"
+          fill={secondaryFill}
+        />
+      </Svg>
+    </View>
+  );
+};
 
 function parseAuthCallbackUrl(urlStr: string): {
   token?: string;
@@ -93,9 +183,14 @@ interface AuthScreenProps {
 }
 
 export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
+  const insets = useSafeAreaInsets();
+  const theme = useDaemonStore((s) => s.theme);
+  const toggleTheme = useDaemonStore((s) => s.toggleTheme);
   const loginWithDev = useDaemonStore((s) => s.loginWithDev);
   const loginWithToken = useDaemonStore((s) => s.loginWithToken);
   const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
+
+  const isLight = theme === 'light';
 
   const [isLoadingDev, setIsLoadingDev] = useState(false);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
@@ -119,7 +214,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     try {
       setIsLoadingGoogle(true);
 
-      // Create return deep-link URL: cloud-agent://auth
+      // Deep-link callback URL: cloud-agent://auth
       const returnUrl = makeRedirectUri({ scheme: 'cloud-agent', path: 'auth' });
       const authUrl = `${gatewayUrl}/auth/google?returnUrl=${encodeURIComponent(returnUrl)}`;
 
@@ -165,94 +260,181 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Background Ambience */}
-      <View style={styles.ambientGlow} />
+    <View style={[styles.container, isLight ? styles.containerLight : styles.containerDark]}>
+      <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
 
-      <View style={styles.content}>
-        {/* Logo & Headline */}
-        <View style={styles.brandContainer}>
-          <View style={styles.logoBadge}>
-            <Bot size={34} color={colors.primary} />
-          </View>
-          <Text style={styles.title}>Cloud Agent</Text>
-          <Text style={styles.tagline}>
-            Autonomous Antigravity CLI controller for your pocket.
-          </Text>
-        </View>
+      {/* Ambient Organic Cloud Backdrop */}
+      <BackgroundClouds isLight={isLight} />
 
-        {/* Auth Action Card */}
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Lock size={16} color={colors.primary} />
-            <Text style={styles.cardTitle}>Authenticate Session</Text>
-          </View>
-          <Text style={styles.cardSubtitle}>
-            Sign in with your Google account or connect using developer mode.
-          </Text>
+      {/* Top Bar Actions: Theme Switcher & Gateway Modal */}
+      <View
+        style={[
+          styles.topBar,
+          { top: Math.max(insets.top, Platform.OS === 'ios' ? 12 : 16) },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.topBarBtn,
+            isLight ? styles.topBarBtnLight : styles.topBarBtnDark,
+          ]}
+          onPress={() => setShowServerSettings(true)}
+          activeOpacity={0.7}
+          accessibilityLabel="Server Endpoint Settings"
+        >
+          <Globe size={18} color={isLight ? '#57606a' : '#c9d1d9'} />
+        </TouchableOpacity>
 
-          {/* Primary Action: Google Sign-In via Gateway */}
-          <TouchableOpacity
-            style={[styles.googleBtn, isLoadingGoogle && styles.btnDisabled]}
-            onPress={handleGoogleLogin}
-            disabled={isLoadingGoogle || isLoadingDev}
-            activeOpacity={0.8}
-          >
-            {isLoadingGoogle ? (
-              <ActivityIndicator size="small" color="#1f2328" />
-            ) : (
-              <>
-                <GoogleIcon size={18} />
-                <Text style={styles.googleBtnText}>Sign in with Google</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Secondary Action: Developer Login */}
-          <TouchableOpacity
-            style={[styles.devBtn, isLoadingDev && styles.btnDisabled]}
-            onPress={handleDevLogin}
-            disabled={isLoadingDev || isLoadingGoogle}
-            activeOpacity={0.7}
-          >
-            {isLoadingDev ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <>
-                <Zap size={16} color={colors.primary} />
-                <Text style={styles.devBtnText}>Developer Quick Connect</Text>
-                <ArrowRight size={14} color="#a3a3a3" style={{ marginLeft: 'auto' }} />
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Telemetry / Status Footer */}
-        <View style={styles.footer}>
-          <TouchableOpacity
-            style={styles.serverPill}
-            onPress={() => setShowServerSettings(true)}
-            activeOpacity={0.7}
-          >
-            <Globe size={12} color="#fafafa" />
-            <Text style={styles.serverText}>
-              Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Server & Network Endpoints Modal */}
-        <ServerSettingsModal
-          visible={showServerSettings}
-          onClose={() => setShowServerSettings(false)}
-        />
+        <TouchableOpacity
+          style={[
+            styles.topBarBtn,
+            isLight ? styles.topBarBtnLight : styles.topBarBtnDark,
+          ]}
+          onPress={toggleTheme}
+          activeOpacity={0.7}
+          accessibilityLabel="Toggle Dark / Light Theme"
+        >
+          {isLight ? (
+            <Moon size={18} color="#111827" />
+          ) : (
+            <Sun size={18} color="#f0f6fc" />
+          )}
+        </TouchableOpacity>
       </View>
+
+      {/* Main Center Content */}
+      <View style={styles.centerSection}>
+        {/* Cloud Agent Outline Logo with Terminal Prompt & Sparkle */}
+        <View style={styles.logoWrapper}>
+          <CloudAgentLogo
+            color={isLight ? '#111827' : '#f0f6fc'}
+            size={136}
+          />
+        </View>
+
+        {/* Brand Headline */}
+        <Text style={[styles.title, isLight ? styles.titleLight : styles.titleDark]}>
+          Cloud Agent
+        </Text>
+
+        {/* Subtitle */}
+        <Text style={[styles.subtitle, isLight ? styles.subtitleLight : styles.subtitleDark]}>
+          Run your coding agent{'\n'}from anywhere.
+        </Text>
+
+        {/* Primary Action: Continue with Google Pill Button */}
+        <TouchableOpacity
+          style={[
+            styles.googlePillBtn,
+            isLight ? styles.googlePillBtnLight : styles.googlePillBtnDark,
+            (isLoadingGoogle || isLoadingDev) && styles.btnDisabled,
+          ]}
+          onPress={handleGoogleLogin}
+          disabled={isLoadingGoogle || isLoadingDev}
+          activeOpacity={0.8}
+        >
+          {isLoadingGoogle ? (
+            <ActivityIndicator size="small" color={isLight ? '#111827' : '#ffffff'} />
+          ) : (
+            <>
+              <GoogleIcon size={22} />
+              <View
+                style={[
+                  styles.btnDivider,
+                  isLight ? styles.btnDividerLight : styles.btnDividerDark,
+                ]}
+              />
+              <Text
+                style={[
+                  styles.googlePillText,
+                  isLight ? styles.googlePillTextLight : styles.googlePillTextDark,
+                ]}
+              >
+                Continue with Google
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {/* Cloud Line Separator */}
+        <View style={styles.cloudDividerRow}>
+          <View
+            style={[
+              styles.cloudDividerLine,
+              isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
+            ]}
+          />
+          <View style={styles.cloudIconBox}>
+            <Cloud
+              size={18}
+              color={isLight ? '#9ca3af' : '#6e7681'}
+            />
+          </View>
+          <View
+            style={[
+              styles.cloudDividerLine,
+              isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
+            ]}
+          />
+        </View>
+
+        {/* Secondary Action: Developer Connect & Endpoint Status */}
+        <TouchableOpacity
+          style={styles.devConnectRow}
+          onPress={handleDevLogin}
+          disabled={isLoadingDev || isLoadingGoogle}
+          activeOpacity={0.7}
+        >
+          {isLoadingDev ? (
+            <ActivityIndicator size="small" color="#0077b6" />
+          ) : (
+            <>
+              <Zap size={14} color={isLight ? '#0077b6' : '#48cae4'} />
+              <Text
+                style={[
+                  styles.devConnectText,
+                  isLight ? styles.devConnectTextLight : styles.devConnectTextDark,
+                ]}
+              >
+                Developer Quick Connect
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Gateway Endpoint Pill at Bottom */}
+      <View
+        style={[
+          styles.footerWrapper,
+          { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 20) },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.serverPill,
+            isLight ? styles.serverPillLight : styles.serverPillDark,
+          ]}
+          onPress={() => setShowServerSettings(true)}
+          activeOpacity={0.7}
+        >
+          <Globe size={12} color={isLight ? '#6e7681' : '#8b949e'} />
+          <Text
+            style={[
+              styles.serverText,
+              isLight ? styles.serverTextLight : styles.serverTextDark,
+            ]}
+          >
+            {gatewayUrl.replace(/^https?:\/\//, '')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Server & Network Endpoints Modal */}
+      <ServerSettingsModal
+        visible={showServerSettings}
+        onClose={() => setShowServerSettings(false)}
+      />
     </View>
   );
 };
@@ -260,151 +442,219 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
   },
-  ambientGlow: {
+  containerLight: {
+    backgroundColor: '#ffffff',
+  },
+  containerDark: {
+    backgroundColor: '#0a0a0a',
+  },
+
+  // Top Bar Actions
+  topBar: {
     position: 'absolute',
-    top: '15%',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    filter: Platform.OS === 'web' ? 'blur(80px)' : undefined,
-  },
-  content: {
-    width: '100%',
-    maxWidth: 400,
-    alignItems: 'center',
-    gap: 32,
-  },
-  brandContainer: {
+    right: 20,
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    zIndex: 50,
   },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+  topBarBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#fafafa',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
+    borderWidth: 1,
+  },
+  topBarBtnLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e5e7eb',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  topBarBtnDark: {
+    backgroundColor: '#161b22',
+    borderColor: '#30363d',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+
+  // Main Center Section
+  centerSection: {
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  logoWrapper: {
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
-    color: '#fafafa',
-    letterSpacing: -0.5,
-  },
-  tagline: {
-    fontSize: 13,
-    color: '#a3a3a3',
+    letterSpacing: -0.6,
+    marginBottom: 12,
     textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
   },
-  card: {
+  titleLight: {
+    color: '#111827',
+  },
+  titleDark: {
+    color: '#f0f6fc',
+  },
+  subtitle: {
+    fontSize: 16.5,
+    lineHeight: 24,
+    textAlign: 'center',
+    marginBottom: 44,
+  },
+  subtitleLight: {
+    color: '#4b5563',
+  },
+  subtitleDark: {
+    color: '#9ca3af',
+  },
+
+  // Google Pill Button
+  googlePillBtn: {
     width: '100%',
-    backgroundColor: '#161616',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    padding: 20,
-    gap: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    lineHeight: 17,
-  },
-  googleBtn: {
+    height: 54,
+    borderRadius: 999,
+    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 4,
+    paddingHorizontal: 22,
   },
-  googleBtnText: {
-    color: '#fafafa',
-    fontSize: 14,
+  googlePillBtnLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#111827',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  googlePillBtnDark: {
+    backgroundColor: '#161b22',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  btnDivider: {
+    width: 1,
+    height: 22,
+    marginHorizontal: 16,
+  },
+  btnDividerLight: {
+    backgroundColor: '#e5e7eb',
+  },
+  btnDividerDark: {
+    backgroundColor: '#30363d',
+  },
+  googlePillText: {
+    fontSize: 15.5,
     fontWeight: '600',
+    letterSpacing: -0.2,
   },
-  dividerRow: {
+  googlePillTextLight: {
+    color: '#111827',
+  },
+  googlePillTextDark: {
+    color: '#f0f6fc',
+  },
+  btnDisabled: {
+    opacity: 0.65,
+  },
+
+  // Cloud Line Divider
+  cloudDividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    width: '100%',
+    maxWidth: 240,
+    marginTop: 38,
+    marginBottom: 20,
   },
-  dividerLine: {
+  cloudDividerLine: {
     flex: 1,
     height: 1,
+  },
+  cloudDividerLineLight: {
+    backgroundColor: '#e5e7eb',
+  },
+  cloudDividerLineDark: {
     backgroundColor: '#262626',
   },
-  dividerText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#737373',
+  cloudIconBox: {
+    marginHorizontal: 12,
   },
-  devBtn: {
+
+  // Developer Quick Connect
+  devConnectRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#0a0a0a',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
   },
-  devBtnText: {
-    color: '#d4d4d4',
+  devConnectText: {
     fontSize: 13,
     fontWeight: '500',
   },
-  btnDisabled: {
-    opacity: 0.6,
+  devConnectTextLight: {
+    color: '#0077b6',
   },
-  footer: {
+  devConnectTextDark: {
+    color: '#48cae4',
+  },
+
+  // Footer Gateway Indicator
+  footerWrapper: {
+    position: 'absolute',
+    bottom: 0,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   serverPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#161616',
     borderWidth: 1,
-    borderColor: '#262626',
     borderRadius: 20,
-    paddingVertical: 6,
+    paddingVertical: 5,
     paddingHorizontal: 12,
+  },
+  serverPillLight: {
+    backgroundColor: '#f9fafb',
+    borderColor: '#e5e7eb',
+  },
+  serverPillDark: {
+    backgroundColor: '#161616',
+    borderColor: '#262626',
   },
   serverText: {
     fontSize: 11,
-    color: '#a3a3a3',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  serverTextLight: {
+    color: '#6e7681',
+  },
+  serverTextDark: {
+    color: '#8b949e',
   },
 });
