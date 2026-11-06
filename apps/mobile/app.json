@@ -15,7 +15,7 @@
     "android": {
       "package": "com.cloudagent.mobile",
       "versionCode": 1,
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",

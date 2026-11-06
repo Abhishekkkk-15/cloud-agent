@@ -775,7 +775,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           styles.scrollContent,
           {
             paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
-            paddingBottom: 100 + insets.bottom + keyboardHeight,
+            paddingBottom: 90 + insets.bottom + (Platform.OS === 'ios' ? keyboardHeight : 0),
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -1062,7 +1062,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         <View
           style={[
             styles.scrollFabContainer,
-            { bottom: 76 + Math.max(insets.bottom, 12) + keyboardHeight, pointerEvents: 'box-none' },
+            {
+              bottom: 76 + Math.max(insets.bottom, 12) + (Platform.OS === 'ios' ? keyboardHeight : 0),
+              pointerEvents: 'box-none',
+            },
           ]}
         >
           <TouchableOpacity
@@ -1086,10 +1089,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         style={[
           styles.chatInputWrapper,
           {
-            bottom: keyboardHeight,
+            bottom: Platform.OS === 'ios' ? keyboardHeight : 0,
             paddingBottom:
-              keyboardHeight > 0
-                ? (Platform.OS === 'android' ? 8 : 12)
+              Platform.OS === 'ios' && keyboardHeight > 0
+                ? 10
                 : Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12),
           },
         ]}
