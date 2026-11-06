@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from './theme/tokens';
 import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
 import { NotificationBanner } from './components/NotificationBanner';
+import { SplashScreenView } from './components/SplashScreenView';
 import { MachineHealthScreen } from './screens/MachineHealthScreen';
 import { ApprovalsScreen } from './screens/ApprovalsScreen';
 import { AgentTurnScreen } from './screens/AgentTurnScreen';
@@ -20,6 +21,10 @@ import { SessionsScreen } from './screens/SessionsScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { useDaemonStore } from './stores/useDaemonStore';
 import { mobileP2P } from './lib/p2p-client';
+import * as SplashScreen from 'expo-splash-screen';
+
+// Keep the native splash screen visible while fonts and auth credentials hydrate
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function MainApp() {
   // Default screen is Chat with the last opened session
@@ -41,6 +46,21 @@ function MainApp() {
       StatusBar.setBarStyle(isLight ? 'dark-content' : 'light-content');
     }
   }, [init, isLight]);
+
+  // Dismiss native splash screen once initial auth/session check resolves
+  useEffect(() => {
+    if (!isInitializingAuth) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isInitializingAuth]);
+
+  // Fallback safety timer: dismiss splash screen within 3s max
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Auto-reconnect and session reconciliation when app returns to foreground
   useEffect(() => {
@@ -197,9 +217,7 @@ function MainApp() {
       <ExpoStatusBar style={isLight ? "dark" : "light"} />
 
       {isInitializingAuth ? (
-        <View style={[styles.rootContainer, { alignItems: 'center', justifyContent: 'center' }]}>
-          <ActivityIndicator size="small" color={isLight ? "#0077b6" : "#fafafa"} />
-        </View>
+        <SplashScreenView />
       ) : !isAuthenticated && !token ? (
         <AuthScreen />
       ) : (
@@ -266,10 +284,10 @@ export default function App() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0d1117',
   },
   screenContainer: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: '#0d1117',
   },
 });
