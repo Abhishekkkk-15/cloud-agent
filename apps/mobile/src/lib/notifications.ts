@@ -25,21 +25,16 @@ let currentPushToken: string | null = null;
 
 /**
  * Checks if currently running inside the standard Expo Go client app.
- * In Expo Go, native push modules like expo-notifications are not registered
- * by the prebuilt binary and will crash with ExpoTopicSubscriptionModule errors.
- * Note: Only StoreClient execution environment or appOwnership === 'expo' represents Expo Go.
- * Standalone APK builds run as ExecutionEnvironment.Standalone or ExecutionEnvironment.Bare.
+ * In Expo Go, appOwnership is explicitly set to 'expo'.
+ * In standalone APKs, preview APKs, and custom dev builds, appOwnership is null or 'standalone'.
  */
 export function isRunningInExpoGo(): boolean {
   if (Platform.OS === 'web') return false;
   try {
-    if (Constants.executionEnvironment === ExecutionEnvironment.StoreClient) return true;
-    if ((Constants as any).appOwnership === 'expo') return true;
-    if (Boolean((Constants as any).expoGoConfig)) return true;
+    return (Constants as any).appOwnership === 'expo';
   } catch {
-    // fallback safe assumption
+    return false;
   }
-  return false;
 }
 
 // Early setup of Notification Handler for standalone / native builds
