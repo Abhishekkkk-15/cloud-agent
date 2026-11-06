@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts start",
+    "pair": "tsx src/index.ts pair",
     "test:rpc": "tsx src/test-rpc.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"

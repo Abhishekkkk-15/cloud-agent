@@ -123,7 +123,7 @@ function parseCliFlags(args: string[]): {
 
 async function pairMachine(flags: Record<string, string>) {
   const config = loadConfig();
-  const token = flags.token || config.token;
+  const token = flags.token;
   const name = flags.name || config.machineName || os.hostname();
   const gateway = flags.gateway || config.gatewayUrl;
 
@@ -135,10 +135,10 @@ async function pairMachine(flags: Record<string, string>) {
     const payload = `ca_pair://connect?token=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}&machineId=${encodeURIComponent(config.machineId)}&gateway=${encodeURIComponent(gateway)}`;
     console.log(`Scan this QR code with the Cloud Agent mobile app to pair instantly:\n`);
     try {
-      const qrcode = await import("qrcode-terminal");
-      const gen = (qrcode as any).default?.generate || (qrcode as any).generate;
-      if (typeof gen === "function") {
-        gen(payload, { small: true }, (qr: string) => {
+      const qrcodeModule = await import("qrcode-terminal");
+      const qrcode = (qrcodeModule as any).default || qrcodeModule;
+      if (typeof qrcode.generate === "function") {
+        qrcode.generate(payload, { small: true }, (qr: string) => {
           console.log(qr);
         });
       }
@@ -190,10 +190,10 @@ async function pairMachine(flags: Record<string, string>) {
 
     console.log(`\x1b[1mScan this QR code from your Cloud Agent mobile app to pair instantly:\x1b[0m\n`);
     try {
-      const qrcode = await import("qrcode-terminal");
-      const gen = (qrcode as any).default?.generate || (qrcode as any).generate;
-      if (typeof gen === "function") {
-        gen(initData.qrPayload, { small: true }, (qr: string) => {
+      const qrcodeModule = await import("qrcode-terminal");
+      const qrcode = (qrcodeModule as any).default || qrcodeModule;
+      if (typeof qrcode.generate === "function") {
+        qrcode.generate(initData.qrPayload, { small: true }, (qr: string) => {
           console.log(qr);
         });
       }
