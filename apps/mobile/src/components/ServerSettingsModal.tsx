@@ -324,24 +324,42 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.pushStatusText} numberOfLines={2}>
+                  <Text style={styles.pushStatusText} numberOfLines={4}>
                     {pushStatus}
                   </Text>
-                  <TouchableOpacity
-                    style={[styles.testPushButton, isSendingTestPush && { opacity: 0.6 }]}
-                    onPress={handleTestPush}
-                    disabled={isSendingTestPush}
-                    activeOpacity={0.7}
-                  >
-                    {isSendingTestPush ? (
-                      <ActivityIndicator size="small" color="#fafafa" />
-                    ) : (
-                      <>
-                        <Bell size={13} color="#fafafa" />
-                        <Text style={styles.testPushButtonText}>Send Test Push Notification</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={[styles.testPushButton, { flex: 1, marginTop: 0 }, isSendingTestPush && { opacity: 0.6 }]}
+                      onPress={handleTestPush}
+                      disabled={isSendingTestPush}
+                      activeOpacity={0.7}
+                    >
+                      {isSendingTestPush ? (
+                        <ActivityIndicator size="small" color="#fafafa" />
+                      ) : (
+                        <>
+                          <Bell size={13} color="#fafafa" />
+                          <Text style={styles.testPushButtonText}>Send Test Push</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.testPushButton, { marginTop: 0, backgroundColor: '#21262d', paddingHorizontal: 14 }]}
+                      onPress={async () => {
+                        setIsSendingTestPush(true);
+                        try {
+                          await registerPushNotifications();
+                        } finally {
+                          setIsSendingTestPush(false);
+                        }
+                      }}
+                      disabled={isSendingTestPush}
+                      activeOpacity={0.7}
+                    >
+                      <RefreshCw size={13} color="#fafafa" />
+                      <Text style={styles.testPushButtonText}>Retry</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 {/* Active Link Status Info */}

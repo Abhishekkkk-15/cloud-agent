@@ -249,6 +249,7 @@ export async function registerForPushNotificationsAsync(options?: {
 
     // 4. Retrieve Expo Push Token (FCM registration on Android)
     let token: string | null = null;
+    let tokenErrorDetails: string | null = null;
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ||
@@ -261,16 +262,19 @@ export async function registerForPushNotificationsAsync(options?: {
       token = tokenResponse?.data || null;
       currentPushToken = token;
     } catch (tokenErr: any) {
-      console.warn('[Notifications] Remote push token unavailable (requires google-services.json + FCM v1):', tokenErr?.message);
+      tokenErrorDetails = tokenErr?.message || String(tokenErr);
+      console.warn('[Notifications] Remote push token unavailable:', tokenErrorDetails);
     }
 
-    // If remote push token is unavailable, local native OS alerts are still active
+    // If remote push token is unavailable, report the exact reason
     if (!token) {
       registrationState = {
         isSupported: true,
-        isRegistered: true,
+        isRegistered: false,
         pushToken: null,
-        statusMessage: 'Native local alerts active (Remote push requires google-services.json)',
+        statusMessage: tokenErrorDetails
+          ? `Token error: ${tokenErrorDetails}`
+          : 'Push token unavailable from Firebase/Expo',
       };
       return null;
     }
@@ -285,17 +289,38 @@ export async function registerForPushNotificationsAsync(options?: {
         headers['Authorization'] = `Bearer ${options.userToken}`;
       }
 
-      await fetch(`${cleanUrl}/api/push/register`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          token,
-          machineId: options.machineId,
-          platform: Platform.OS,
-        }),
-      }).catch((err) => {
+      try {
+        const regRes = await fetch(`${cleanUrl}/api/push/register`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            token,
+            machineId: options.machineId,
+            platform: Platform.OS,
+          }),
+        });
+
+        if (!regRes.ok) {
+          const errText = await regRes.text();
+          console.warn('[Notifications] Gateway push registration non-200:', errText);
+          registrationState = {
+            isSupported: true,
+            isRegistered: false,
+            pushToken: token,
+            statusMessage: `Gateway sync failed (${regRes.status})`,
+          };
+          return token;
+        }
+      } catch (err: any) {
         console.warn('[Notifications] Failed to sync push token with gateway:', err);
-      });
+        registrationState = {
+          isSupported: true,
+          isRegistered: false,
+          pushToken: token,
+          statusMessage: `Gateway sync failed: ${err?.message || String(err)}`,
+        };
+        return token;
+      }
     }
 
     registrationState = {

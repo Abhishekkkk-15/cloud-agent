@@ -634,7 +634,12 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   triggerTestPushNotification: async () => {
     const { gatewayUrl, token } = get();
     try {
-      // 1. Always schedule a native OS system notification on device
+      // 1. If pushToken is missing, attempt to acquire and register it now
+      if (!get().pushToken) {
+        await get().registerPushNotifications();
+      }
+
+      // 2. Schedule a native OS system notification on device
       await scheduleNotification({
         title: 'Cloud Agent • Notification Alert',
         body: 'Native notification system is operational on your device!',
@@ -644,7 +649,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       const pushState = getPushRegistrationState();
 
       if (pushState.pushToken) {
-        // 2. Also dispatch via Gateway to verify remote push delivery
+        // 3. Dispatch via Gateway to verify remote push delivery
         const ok = await triggerGatewayTestPush(gatewayUrl, token || undefined);
         return {
           success: ok,
@@ -655,8 +660,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
 
       return {
-        success: true,
-        message: 'Native system notification displayed! Check your notification shade. (Remote push requires FCM credentials).',
+        success: false,
+        message: pushState.statusMessage || 'Push token unavailable. Check FCM setup in EAS.',
       };
     } catch (e: any) {
       return {
