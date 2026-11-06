@@ -130,30 +130,115 @@ async function pairMachine(flags: Record<string, string>) {
   console.log(`\x1b[1m\x1b[36mPairing Machine:\x1b[0m ${name} (${config.machineId})`);
   console.log(`\x1b[90mGateway: ${gateway}\x1b[0m\n`);
 
-  if (!token) {
-    console.warn(`\x1b[33m[!] No pairing token provided or stored in config.\x1b[0m`);
-    console.log(`Run with a token: cloud-agent-daemon pair --token "<ca_mach_...>"\n`);
+  // If token was explicitly supplied, display pre-authenticated QR code (backward compatibility)
+  if (token) {
+    const payload = `ca_pair://connect?token=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}&machineId=${encodeURIComponent(config.machineId)}&gateway=${encodeURIComponent(gateway)}`;
+    console.log(`Scan this QR code with the Cloud Agent mobile app to pair instantly:\n`);
+    try {
+      const qrcode = await import("qrcode-terminal");
+      const gen = (qrcode as any).default?.generate || (qrcode as any).generate;
+      if (typeof gen === "function") {
+        gen(payload, { small: true }, (qr: string) => {
+          console.log(qr);
+        });
+      }
+    } catch (err) {
+      console.warn(`Failed to render terminal QR code:`, err);
+    }
+    console.log(`\x1b[90mOr copy the start command:\x1b[0m`);
+    console.log(`\x1b[32mpnpm --filter @cloud-agent/daemon dev start --token "${token}"\x1b[0m\n`);
     return;
   }
 
-  // Format payload for mobile QR scanner
-  const payload = `ca_pair://connect?token=${encodeURIComponent(token)}&name=${encodeURIComponent(name)}&machineId=${encodeURIComponent(config.machineId)}&gateway=${encodeURIComponent(gateway)}`;
+  // --- Reverse Daemon-First Pairing Flow (Scan from Mobile & Done) ---
+  const httpGateway = (flags.gateway || config.gatewayUrl || "https://gateway.cloud-agent.abhishekkkk.in")
+    .replace(/^wss:\/\//i, "https://")
+    .replace(/^ws:\/\//i, "http://")
+    .replace(/\/daemon\/ws\/?$/, "");
 
-  console.log(`Scan this QR code with the Cloud Agent mobile app to pair instantly:\n`);
+  console.log(`\x1b[36mRequesting pairing session from Gateway (${httpGateway})...\x1b[0m`);
+
   try {
-    const qrcode = await import("qrcode-terminal");
-    const gen = (qrcode as any).default?.generate || (qrcode as any).generate;
-    if (typeof gen === "function") {
-      gen(payload, { small: true }, (qr: string) => {
-        console.log(qr);
-      });
-    }
-  } catch (err) {
-    console.warn(`Failed to render terminal QR code:`, err);
-  }
+    const initRes = await fetch(`${httpGateway}/api/machines/pair/init`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        machineName: name,
+        platform: os.platform(),
+        arch: os.arch(),
+      }),
+    });
 
-  console.log(`\x1b[90mOr copy the start command:\x1b[0m`);
-  console.log(`\x1b[32mpnpm --filter @cloud-agent/daemon dev start --token "${token}"\x1b[0m\n`);
+    if (!initRes.ok) {
+      throw new Error(`Gateway returned HTTP ${initRes.status}: ${await initRes.text()}`);
+    }
+
+    const initData = (await initRes.json()) as {
+      pairId: string;
+      pairCode: string;
+      secret: string;
+      qrPayload: string;
+      expiresAt: number;
+      machineName: string;
+    };
+
+    console.log(`\n\x1b[1m\x1b[32m════════════════════════════════════════════════════════════════\x1b[0m`);
+    console.log(`\x1b[1m  Cloud Agent — Instant Node Pairing\x1b[0m`);
+    console.log(`  Machine Name : \x1b[1m\x1b[37m${initData.machineName}\x1b[0m`);
+    console.log(`  Pairing Code : \x1b[1m\x1b[33m${initData.pairCode}\x1b[0m  (valid for 10 minutes)`);
+    console.log(`\x1b[1m\x1b[32m════════════════════════════════════════════════════════════════\x1b[0m\n`);
+
+    console.log(`\x1b[1mScan this QR code from your Cloud Agent mobile app to pair instantly:\x1b[0m\n`);
+    try {
+      const qrcode = await import("qrcode-terminal");
+      const gen = (qrcode as any).default?.generate || (qrcode as any).generate;
+      if (typeof gen === "function") {
+        gen(initData.qrPayload, { small: true }, (qr: string) => {
+          console.log(qr);
+        });
+      }
+    } catch (err) {
+      console.warn(`Could not render QR code in terminal:`, err);
+    }
+
+    console.log(`\n\x1b[90mOr enter this pairing code in Mobile -> Pair Machine:\x1b[0m \x1b[1m\x1b[33m${initData.pairCode}\x1b[0m\n`);
+    process.stdout.write(`\x1b[36mWaiting for mobile authorization...\x1b[0m `);
+
+    const startTime = Date.now();
+    const timeoutMs = 10 * 60 * 1000;
+
+    while (Date.now() - startTime < timeoutMs) {
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        const pollRes = await fetch(
+          `${httpGateway}/api/machines/pair/poll?id=${encodeURIComponent(initData.pairId)}&secret=${encodeURIComponent(initData.secret)}`
+        );
+        if (pollRes.ok) {
+          const pollData = (await pollRes.json()) as any;
+          if (pollData.status === "claimed" && pollData.token) {
+            console.log(`\n\n\x1b[1m\x1b[32m✔ Machine successfully authorized by mobile client!\x1b[0m`);
+            config.token = pollData.token;
+            if (pollData.machineId) config.machineId = pollData.machineId;
+            if (pollData.name) config.machineName = pollData.name;
+            saveConfig(config);
+            console.log(`\x1b[32m✔ Credentials saved to: ${getConfigPath()}\x1b[0m`);
+            console.log(`\x1b[36m✔ Connecting to Cloud Agent Gateway...\x1b[0m\n`);
+            await startDaemon(flags);
+            return;
+          }
+        }
+      } catch {
+        // Transient network delay, keep polling
+      }
+      process.stdout.write(`\x1b[33m.\x1b[0m`);
+    }
+
+    console.log(`\n\x1b[31m[!] Pairing session timed out. Run 'ca pair' to try again.\x1b[0m\n`);
+  } catch (err) {
+    console.error(`\x1b[31m[Error] Failed to initialize pairing session with Gateway:\x1b[0m`, (err as Error).message);
+    console.log(`\nFallback: Generate a token in Mobile -> Pair Node -> Terminal Command, then run:`);
+    console.log(`cloud-agent-daemon start --token "<ca_mach_...>"\n`);
+  }
 }
 
 async function startDaemon(flags: Record<string, string>) {
@@ -252,18 +337,19 @@ async function main() {
     case "help":
     case "--help":
     case "-h":
-      console.log(`Usage: cloud-agent-daemon [command] [options]
+      console.log(`Usage: cloud-agent-daemon [command] [options] (or: ca [command])
 
 Commands:
   start          Start daemon and connect to Cloud Gateway (default)
+  pair           Pair machine with mobile app (renders QR code in terminal)
   check          Check installed CLI adapters (antigravity, etc.)
   run <prompt>   Execute a live prompt via the CLI adapter
   sessions [ws]  List agent sessions from local storage
   config         Display daemon configuration
   help           Show this help message
 
-Options for 'start':
-  --token, -t <token>     Machine pairing token (e.g. ca_mach_...)
+Options for 'start' / 'pair':
+  --token, -t <token>     Machine pairing token (optional for pair)
   --gateway, -g <url>     Gateway WebSocket URL (default: wss://gateway.cloud-agent.abhishekkkk.in/daemon/ws)
   --name, -n <name>       Custom machine name override
 `);

@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "bin": {
-    "cloud-agent-daemon": "./dist/index.js"
+    "cloud-agent-daemon": "./dist/index.js",
+    "ca": "./dist/index.js"
   },
   "exports": {
     ".": "./src/index.ts"

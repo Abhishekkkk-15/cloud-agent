@@ -353,6 +353,7 @@ interface DaemonStoreState {
   selectMachine: (machine: MachineInfo) => Promise<void>;
   unpairMachine: (machineId: string) => Promise<boolean>;
   generateMachinePairingToken: (machineName?: string) => Promise<{ token: string; installCommand: string; instructions: string } | null>;
+  claimPairingSession: (codeOrPayload: string) => Promise<{ success: boolean; message: string; machine?: any }>;
   pairWithPayload: (payload: string) => Promise<{ success: boolean; message: string }>;
   renameSession: (sessionId: string, title: string) => Promise<boolean>;
   deleteSession: (sessionId: string) => Promise<boolean>;
@@ -1370,6 +1371,81 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }
   },
 
+  claimPairingSession: async (codeOrPayload: string) => {
+    const { gatewayUrl, token } = get();
+    if (!token) {
+      return { success: false, message: 'Must be logged in to pair a machine.' };
+    }
+
+    try {
+      const trimmed = codeOrPayload.trim();
+      let pairId = '';
+      let secret = '';
+      let code = '';
+      let machineName = '';
+
+      if (trimmed.startsWith('ca_pair://claim?')) {
+        const queryStr = trimmed.slice('ca_pair://claim?'.length);
+        const params = new URLSearchParams(queryStr);
+        pairId = params.get('id') || '';
+        secret = params.get('secret') || '';
+        code = params.get('code') || '';
+        machineName = params.get('name') || '';
+      } else if (trimmed.startsWith('ca_pair://connect?')) {
+        return get().pairWithPayload(trimmed);
+      } else {
+        code = trimmed.toUpperCase();
+        if (!code.startsWith('CA-') && /^\d{4}$/.test(code)) {
+          code = `CA-${code}`;
+        }
+      }
+
+      const res = await fetch(`${gatewayUrl}/api/machines/pair/claim`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          pairId: pairId || undefined,
+          secret: secret || undefined,
+          code: code || undefined,
+          name: machineName || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Claim failed (status ${res.status})`);
+      }
+
+      const data = await res.json();
+      await get().fetchMachines();
+
+      if (data.machine && (!get().activeMachine || !get().activeMachine?.isOnline)) {
+        const freshMachine: MachineInfo = {
+          machineId: data.machine.machineId,
+          name: data.machine.name,
+          platform: 'linux',
+          arch: 'x64',
+          isOnline: true,
+          status: 'online',
+        };
+        set({ activeMachine: freshMachine });
+        await get().connectGateway();
+      }
+
+      return {
+        success: true,
+        message: data.message || `Machine "${data.machine?.name || 'Node'}" paired successfully!`,
+        machine: data.machine,
+      };
+    } catch (err: any) {
+      console.error('[DaemonStore] claimPairingSession error:', err);
+      return { success: false, message: err?.message || 'Failed to claim machine.' };
+    }
+  },
+
   pairWithPayload: async (payload: string) => {
     try {
       let token = '';
@@ -1378,6 +1454,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       let gateway = get().gatewayUrl;
 
       const trimmed = payload.trim();
+      if (trimmed.startsWith('ca_pair://claim?') || /^CA-\d{4}$/i.test(trimmed)) {
+        return get().claimPairingSession(trimmed);
+      }
+
       if (trimmed.startsWith('ca_pair://connect?')) {
         const queryStr = trimmed.slice('ca_pair://connect?'.length);
         const params = new URLSearchParams(queryStr);

@@ -25,7 +25,8 @@
         "VIBRATE",
         "POST_NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "CAMERA"
       ],
       "androidNavigationBar": {
         "backgroundColor": "#0a0a0a",
