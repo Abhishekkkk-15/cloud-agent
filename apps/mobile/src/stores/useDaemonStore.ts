@@ -33,6 +33,7 @@ function getDefaultHost(): string {
 }
 
 const defaultHost = getDefaultHost();
+let activeSubscriptionSessionId: string | null = null;
 
 const STORAGE_KEY_TOKEN = 'cloud_agent_token';
 const STORAGE_KEY_USER = 'cloud_agent_user';
@@ -364,6 +365,7 @@ interface DaemonStoreState {
   createNewSession: () => void;
   loadOlderMessages: () => Promise<void>;
   reconcileActiveSession: () => Promise<void>;
+  subscribeToSessionStream: (sessionId: string) => Promise<void>;
   sendPrompt: (promptText: string) => Promise<void>;
   cancelPrompt: () => Promise<boolean>;
   respondApproval: (allowed: boolean) => Promise<void>;
@@ -724,7 +726,24 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           },
         });
         notifyApprovalRequired(tool, cmd).catch(() => {});
-      } else if (event.type === 'text_chunk') {
+      } else {
+        // Ensure session-scoped streaming events apply strictly to the active session
+        const activeSessionId = get().activeSession?.id;
+        if (
+          event.sessionId &&
+          activeSessionId &&
+          event.sessionId !== activeSessionId &&
+          (event.type === 'text_chunk' ||
+            event.type === 'thought' ||
+            event.type === 'tool_call' ||
+            event.type === 'tool_result' ||
+            event.type === 'status' ||
+            event.type === 'artifact')
+        ) {
+          return;
+        }
+
+        if (event.type === 'text_chunk') {
         const text = typeof event.data === 'string'
           ? event.data
           : event.data?.text ?? event.text ?? '';
@@ -900,7 +919,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           }));
         }
       }
-    });
+    }
+  });
 
     try {
       requestNotificationPermission().catch(() => {});
@@ -1715,6 +1735,23 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       } else {
         set({ sessionMessages: [], hasMoreMessages: false });
       }
+
+      // Check if the selected session has an active turn running on the daemon
+      try {
+        const statusRes = await mobileP2P.sendRpc<any>(
+          'agent.status',
+          { sessionId: session.id },
+          3000
+        );
+        if (statusRes?.isRunning) {
+          set({ isSendingPrompt: true });
+          get().subscribeToSessionStream(session.id);
+        } else {
+          set({ isSendingPrompt: false });
+        }
+      } catch {
+        // ignore status check failure
+      }
     } catch (err) {
       console.error('[DaemonStore] selectSession error:', err);
     } finally {
@@ -1789,13 +1826,52 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           hasMoreMessages: Boolean(resp?.hasMore),
           isSendingPrompt: isStillRunning,
         }));
+        if (isStillRunning) {
+          get().subscribeToSessionStream(activeSession.id);
+        }
       } else if (!isStillRunning && isSendingPrompt) {
         set({ isSendingPrompt: false });
+      } else if (isStillRunning) {
+        set({ isSendingPrompt: true });
+        get().subscribeToSessionStream(activeSession.id);
       }
 
       get().fetchSessionArtifacts();
     } catch (err) {
       console.warn('[DaemonStore] reconcileActiveSession error:', err);
+    }
+  },
+
+  subscribeToSessionStream: async (sessionId: string) => {
+    if (!sessionId) return;
+    if (activeSubscriptionSessionId === sessionId) {
+      return;
+    }
+    activeSubscriptionSessionId = sessionId;
+
+    try {
+      console.log(`[DaemonStore] Subscribing to live session stream: ${sessionId}`);
+      const res = await mobileP2P.sendRpc<any>(
+        'agent.subscribe',
+        { sessionId },
+        0
+      );
+
+      if (res?.completed || res?.done) {
+        if (get().activeSession?.id === sessionId) {
+          set({ isSendingPrompt: false });
+          get().reconcileActiveSession();
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[DaemonStore] subscribeToSessionStream error for ${sessionId}:`, err);
+      if (get().activeSession?.id === sessionId) {
+        set({ isSendingPrompt: false });
+      }
+    } finally {
+      if (activeSubscriptionSessionId === sessionId) {
+        activeSubscriptionSessionId = null;
+      }
     }
   },
 

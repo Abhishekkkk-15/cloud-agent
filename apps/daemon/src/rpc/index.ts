@@ -26,6 +26,7 @@ import {
   handleGithubSetToken,
   handleGithubRemoveToken,
 } from "./github.js";
+import { sessionStreamHub } from "./stream-hub.js";
 import type { CliEvent } from "@cloud-agent/cli-interface";
 
 const activeTerminalProcesses = new Map<string, ChildProcess>();
@@ -212,9 +213,10 @@ export class RpcDispatcher {
           if (!prompt) {
             throw new Error("Missing prompt param");
           }
+          const sessionId = params.options?.sessionId || params.sessionId || "default";
           const options = {
             prompt,
-            sessionId: params.options?.sessionId || params.sessionId,
+            sessionId,
             cwd: params.options?.cwd || params.cwd,
             ...(params.options || {}),
           };
@@ -223,6 +225,55 @@ export class RpcDispatcher {
             throw new Error("Streaming callback is required for agent.run");
           }
 
+          const adapter = registry.get(params.cli);
+
+          // If a turn is already running for this session, attach caller as live subscriber
+          if (typeof adapter.isTurnRunning === "function" && adapter.isTurnRunning(sessionId)) {
+            console.log(`[RpcDispatcher] Session ${sessionId} already has an active turn running. Attaching caller as live subscriber.`);
+
+            // 1. Replay current turn buffered events
+            const buffer = sessionStreamHub.getBufferedEvents(sessionId);
+            for (const event of buffer) {
+              onStream({ id: req.id, stream: true, event });
+            }
+
+            // 2. Stream until active turn finishes
+            return new Promise<RpcResponse>((resolve) => {
+              const unsub = sessionStreamHub.subscribe(sessionId, (chunk) => {
+                if (chunk.event) {
+                  onStream({ id: req.id, stream: true, event: chunk.event });
+                }
+                if (chunk.done) {
+                  unsub();
+                  resolve({
+                    id: req.id,
+                    result: { completed: true, sessionId, ...(chunk.result || {}) },
+                    done: true,
+                  });
+                }
+              });
+
+              if (typeof adapter.isTurnRunning === "function" && !adapter.isTurnRunning(sessionId)) {
+                unsub();
+                resolve({
+                  id: req.id,
+                  result: { completed: true, sessionId },
+                  done: true,
+                });
+              }
+            });
+          }
+
+          // Register new active turn in the stream hub
+          sessionStreamHub.startTurn(sessionId);
+
+          // Deliver directly to the primary caller
+          const unsubCaller = sessionStreamHub.subscribe(sessionId, (chunk) => {
+            if (chunk.event) {
+              onStream({ id: req.id, stream: true, event: chunk.event });
+            }
+          });
+
           // Stream execution chunks
           const stream = handleAgentRun({
             cli: params.cli,
@@ -230,10 +281,50 @@ export class RpcDispatcher {
           });
 
           let isCommand = false;
-          for await (const event of stream) {
-            if ((event as any).data?.isCommand) {
-              isCommand = true;
+          try {
+            for await (const event of stream) {
+              if ((event as any).data?.isCommand) {
+                isCommand = true;
+              }
+              if (!event.sessionId) {
+                event.sessionId = sessionId;
+              }
+              sessionStreamHub.broadcast(sessionId, event);
             }
+          } finally {
+            unsubCaller();
+            sessionStreamHub.endTurn(sessionId, { completed: true, isCommand, sessionId });
+          }
+
+          return {
+            id: req.id,
+            result: { completed: true, isCommand, sessionId },
+            done: true,
+          };
+        }
+
+        case "agent.subscribe":
+        case "sessions.subscribe": {
+          const sessionId = params.sessionId || params.options?.sessionId;
+          if (!sessionId) {
+            throw new Error("Missing sessionId param");
+          }
+
+          const adapter = registry.get(params.cli);
+          const isRunning = typeof adapter.isTurnRunning === "function" ? adapter.isTurnRunning(sessionId) : false;
+
+          if (!isRunning || !onStream) {
+            return {
+              id: req.id,
+              result: { sessionId, isRunning: false },
+            };
+          }
+
+          console.log(`[RpcDispatcher] Client subscribed to live session ${sessionId}`);
+
+          // 1. Replay buffered events of the active turn
+          const buffer = sessionStreamHub.getBufferedEvents(sessionId);
+          for (const event of buffer) {
             onStream({
               id: req.id,
               stream: true,
@@ -241,11 +332,36 @@ export class RpcDispatcher {
             });
           }
 
-          return {
-            id: req.id,
-            result: { completed: true, isCommand, sessionId: options.sessionId },
-            done: true,
-          };
+          // 2. Subscribe to subsequent live events until completion
+          return new Promise<RpcResponse>((resolve) => {
+            const unsub = sessionStreamHub.subscribe(sessionId, (chunk) => {
+              if (chunk.event) {
+                onStream({
+                  id: req.id,
+                  stream: true,
+                  event: chunk.event,
+                });
+              }
+              if (chunk.done) {
+                unsub();
+                resolve({
+                  id: req.id,
+                  result: { completed: true, sessionId, ...(chunk.result || {}) },
+                  done: true,
+                });
+              }
+            });
+
+            // Guard: in case turn already finished
+            if (typeof adapter.isTurnRunning === "function" && !adapter.isTurnRunning(sessionId)) {
+              unsub();
+              resolve({
+                id: req.id,
+                result: { completed: true, sessionId },
+                done: true,
+              });
+            }
+          });
         }
 
         case "agent.status": {

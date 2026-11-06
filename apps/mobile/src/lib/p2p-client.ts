@@ -272,7 +272,7 @@ export class MobileP2PClient {
       // Generous timeout for AI agent runs (3 minutes), 30s for standard RPCs
       const effectiveTimeout = timeoutMs !== undefined
         ? timeoutMs
-        : method === 'agent.run'
+        : (method === 'agent.run' || method === 'agent.subscribe' || method === 'sessions.subscribe')
         ? 180000
         : 30000;
 
