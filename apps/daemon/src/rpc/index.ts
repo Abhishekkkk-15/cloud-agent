@@ -13,6 +13,8 @@ import {
 } from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
 import { buildFileTree, readFileContent, writeFileContent, listDirectories } from "./fs.js";
+import { loadConfig } from "../config.js";
+import { proxyLocalHttp } from "../tunnel.js";
 import {
   handleAutoHealerTrigger,
   handleAutoHealerApprove,
@@ -448,11 +450,29 @@ export class RpcDispatcher {
         }
 
         case "workspaces.list": {
+          const config = loadConfig();
+          const configuredWorkspaces = config.allowedWorkspaces || [];
+
           // Query sessions from the adapter to gather unique recent workspaces
           const sessionsResult = await handleSessionsList({ cli: params.cli, limit: 100 });
           const workspacesMap = new Map<string, { path: string; name: string; lastUsed: string }>();
 
-          // Extract from existing sessions first
+          // Include configured allowed workspaces first
+          for (const wsPath of configuredWorkspaces) {
+            if (wsPath && wsPath.trim() !== "") {
+              const cleanPath = path.normalize(wsPath);
+              const key = cleanPath.toLowerCase();
+              if (!workspacesMap.has(key)) {
+                workspacesMap.set(key, {
+                  path: cleanPath,
+                  name: path.basename(cleanPath) || cleanPath,
+                  lastUsed: new Date().toISOString(),
+                });
+              }
+            }
+          }
+
+          // Extract from existing sessions
           for (const sess of sessionsResult.items) {
             if (sess.workspacePath && sess.workspacePath.trim() !== "") {
               const cleanPath = sess.workspacePath;
@@ -488,6 +508,21 @@ export class RpcDispatcher {
         case "fs.listDirs": {
           const targetPath = params.parentPath || params.path;
           const result = listDirectories(targetPath);
+          return { id: req.id, result };
+        }
+
+        case "tunnel.proxy_request": {
+          const port = parseInt(String(params.port), 10);
+          if (isNaN(port) || port < 1 || port > 65535) {
+            throw new Error(`Invalid local port: ${params.port}`);
+          }
+          const result = await proxyLocalHttp({
+            port,
+            method: params.method || "GET",
+            path: params.path || "/",
+            headers: params.headers || {},
+            bodyBase64: params.bodyBase64,
+          });
           return { id: req.id, result };
         }
 

@@ -6,6 +6,7 @@ import { handleMachinesRoutes, sendJson } from "./routes/machines.js";
 import { handleAuthRoutes } from "./routes/auth.js";
 import { handlePushRoutes } from "./routes/push.js";
 import { handleWebhookRoutes } from "./routes/webhooks.js";
+import { handleTunnelRoutes } from "./routes/tunnel.js";
 import { setupWebSocketUpgrades } from "./routes/ws.js";
 import { daemonHub } from "./hub/daemon-hub.js";
 
@@ -62,6 +63,10 @@ async function main() {
       // Webhook API routes (/webhooks/*)
       const webhookHandled = await handleWebhookRoutes(req, res, url);
       if (webhookHandled) return;
+
+      // Tunnel & Web Preview routes (/preview/*, /api/tunnel/*)
+      const tunnelHandled = await handleTunnelRoutes(req, res, url);
+      if (tunnelHandled) return;
 
       // 404
       sendJson(res, 404, { error: `Route not found: ${req.method} ${url.pathname}` });

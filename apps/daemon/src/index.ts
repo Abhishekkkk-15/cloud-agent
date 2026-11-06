@@ -3,6 +3,18 @@ import os from "node:os";
 import { loadConfig, saveConfig, getConfigPath } from "./config.js";
 import { registry } from "./registry.js";
 import { GatewayConnection } from "./connection.js";
+import { initDaemonLogger, tailLogs } from "./logger.js";
+import { addWorkspace, listWorkspaces, removeWorkspace } from "./workspace.js";
+import {
+  installService,
+  startService,
+  stopService,
+  restartService,
+  statusService,
+  uninstallService,
+} from "./service.js";
+import { exposePort } from "./tunnel.js";
+import { showDaemonStatus, runDoctor } from "./doctor.js";
 
 async function printBanner() {
   console.log(`
@@ -109,6 +121,21 @@ function parseCliFlags(args: string[]): {
       i += 2;
     } else if (arg.startsWith("--name=")) {
       flags.name = arg.slice(7);
+      i++;
+    } else if (arg === "--follow" || arg === "-f") {
+      flags.follow = "true";
+      i++;
+    } else if (arg === "--lines") {
+      flags.lines = args[i + 1] || "50";
+      i += 2;
+    } else if (arg.startsWith("--lines=")) {
+      flags.lines = arg.slice(8);
+      i++;
+    } else if (arg === "--port" || arg === "-p") {
+      flags.port = args[i + 1] || "";
+      i += 2;
+    } else if (arg.startsWith("--port=")) {
+      flags.port = arg.slice(7);
       i++;
     } else if (arg.startsWith("-")) {
       i++;
@@ -242,6 +269,7 @@ async function pairMachine(flags: Record<string, string>) {
 }
 
 async function startDaemon(flags: Record<string, string>) {
+  initDaemonLogger();
   const config = loadConfig();
 
   // Apply CLI flag overrides
@@ -329,6 +357,66 @@ async function main() {
       await listSessions(positionals[0]);
       break;
 
+    case "workspace":
+    case "workspaces": {
+      const sub = positionals[0]?.toLowerCase();
+      if (sub === "add") {
+        addWorkspace(positionals[1]);
+      } else if (sub === "remove" || sub === "rm" || sub === "del") {
+        removeWorkspace(positionals[1]);
+      } else {
+        listWorkspaces();
+      }
+      break;
+    }
+
+    case "service": {
+      const sub = positionals[0]?.toLowerCase() || "status";
+      if (sub === "install") {
+        await installService();
+      } else if (sub === "start") {
+        await startService();
+      } else if (sub === "stop") {
+        await stopService();
+      } else if (sub === "restart") {
+        await restartService();
+      } else if (sub === "uninstall") {
+        await uninstallService();
+      } else {
+        await statusService();
+      }
+      break;
+    }
+
+    case "logs":
+    case "log": {
+      await tailLogs({
+        lines: flags.lines ? parseInt(flags.lines, 10) : 50,
+        follow: flags.follow === "true",
+      });
+      break;
+    }
+
+    case "expose":
+    case "tunnel": {
+      const port = positionals[0] || flags.port;
+      if (!port) {
+        console.error(`\x1b[31mError: Please specify the local port to expose.\x1b[0m`);
+        console.log(`Example: ca expose 3000 (or 'ca expose 5173')`);
+        process.exit(1);
+      }
+      await exposePort(port, { name: flags.name, gateway: flags.gateway });
+      break;
+    }
+
+    case "status":
+      await showDaemonStatus();
+      break;
+
+    case "doctor":
+      await runDoctor();
+      break;
+
     case "config":
       console.log(`Config path: ${getConfigPath()}\n`);
       console.log(JSON.stringify(loadConfig(), null, 2));
@@ -339,19 +427,44 @@ async function main() {
     case "-h":
       console.log(`Usage: cloud-agent-daemon [command] [options] (or: ca [command])
 
-Commands:
-  start          Start daemon and connect to Cloud Gateway (default)
-  pair           Pair machine with mobile app (renders QR code in terminal)
-  check          Check installed CLI adapters (antigravity, etc.)
-  run <prompt>   Execute a live prompt via the CLI adapter
-  sessions [ws]  List agent sessions from local storage
-  config         Display daemon configuration
-  help           Show this help message
+Core Commands:
+  start                     Start daemon in foreground (connects to Gateway)
+  pair                      Pair machine with mobile app (terminal QR & code)
+  status                    Display connection & machine status summary
+  doctor                    Run diagnostic check on runtime, adapters & network
 
-Options for 'start' / 'pair':
-  --token, -t <token>     Machine pairing token (optional for pair)
-  --gateway, -g <url>     Gateway WebSocket URL (default: wss://gateway.cloud-agent.abhishekkkk.in/daemon/ws)
-  --name, -n <name>       Custom machine name override
+Workspace Commands (P1):
+  workspace list            List all registered workspaces and git status
+  workspace add [path]      Register a workspace (defaults to current dir)
+  workspace remove <path>   Unlink a workspace from mobile fleet list
+
+Background Service Commands (P1):
+  service install           Register daemon as systemd, launchd, or background service
+  service start             Launch daemon in background
+  service stop              Stop background daemon process
+  service restart           Restart background daemon process
+  service status            Show background service running state and PID
+  service uninstall         Unregister system service
+
+Log Streaming Commands (P2):
+  logs [-f] [--lines=N]     Inspect and follow live daemon output (~/.cloud-agent/daemon.log)
+
+Port Forwarding & Web Preview (P3):
+  expose <port>             Expose local dev server (port 3000, 5173, etc.) with preview URL & QR
+
+Diagnostic & Execution:
+  check                     Check installed CLI adapters (antigravity, etc.)
+  run <prompt>              Execute a live prompt via the CLI adapter
+  sessions [ws]             List agent sessions from local storage
+  config                    Display raw daemon configuration JSON
+  help                      Show this help message
+
+Options:
+  --token, -t <token>       Machine pairing token
+  --gateway, -g <url>       Gateway WebSocket URL
+  --name, -n <name>         Custom machine name override
+  --follow, -f              Follow log stream in real time ('ca logs -f')
+  --lines <num>             Number of lines to read ('ca logs --lines=100')
 `);
       break;
 
