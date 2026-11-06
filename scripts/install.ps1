@@ -78,6 +78,13 @@ if (Test-Path (Join-Path $runtimeDir ".git")) {
     git clone --depth=1 $repoUrl $runtimeDir | Out-Null
 }
 
+# Self-update delegation: hand off to local authoritative script if piped from web
+if (-not $env:CA_INSTALLER_INTERNAL -and (Test-Path "$runtimeDir\scripts\install.ps1")) {
+    $env:CA_INSTALLER_INTERNAL = "1"
+    & "$runtimeDir\scripts\install.ps1"
+    exit $LASTEXITCODE
+}
+
 # 6. Install dependencies and build daemon
 Write-Host "Building Cloud Agent Daemon dependencies..." -ForegroundColor Cyan
 Push-Location $runtimeDir

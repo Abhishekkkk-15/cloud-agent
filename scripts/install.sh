@@ -111,6 +111,12 @@ else
   cd "$RUNTIME_DIR"
 fi
 
+# Self-update delegation: hand off to local authoritative script if piped from curl
+if [ -z "$CA_INSTALLER_INTERNAL" ] && [ -f "$RUNTIME_DIR/scripts/install.sh" ]; then
+  export CA_INSTALLER_INTERNAL=1
+  exec bash "$RUNTIME_DIR/scripts/install.sh" "$@"
+fi
+
 # 5. Build Daemon Package
 echo -e "${CYAN}Building Cloud Agent Daemon dependencies...${RESET}"
 pnpm install --frozen-lockfile >/dev/null 2>&1 || pnpm install >/dev/null 2>&1
