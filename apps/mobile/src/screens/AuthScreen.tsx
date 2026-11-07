@@ -16,9 +16,9 @@ import { makeRedirectUri } from 'expo-auth-session';
 import {
   Sun,
   Moon,
-  Zap,
   Globe,
-  Cloud,
+  WifiOff,
+  RefreshCw,
 } from '../components/Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
@@ -186,31 +186,29 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const insets = useSafeAreaInsets();
   const theme = useDaemonStore((s) => s.theme);
   const toggleTheme = useDaemonStore((s) => s.toggleTheme);
-  const loginWithDev = useDaemonStore((s) => s.loginWithDev);
   const loginWithToken = useDaemonStore((s) => s.loginWithToken);
   const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
+  const isNetworkOnline = useDaemonStore((s) => s.isNetworkOnline);
+  const checkNetwork = useDaemonStore((s) => s.checkNetwork);
 
   const isLight = theme === 'light';
 
-  const [isLoadingDev, setIsLoadingDev] = useState(false);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
   const [showServerSettings, setShowServerSettings] = useState(false);
 
-  const handleDevLogin = async () => {
-    setIsLoadingDev(true);
-    const ok = await loginWithDev();
-    setIsLoadingDev(false);
-    if (ok) {
-      if (onSuccess) onSuccess();
-    } else {
-      Alert.alert(
-        'Connection Error',
-        `Unable to reach Gateway at ${gatewayUrl}. Ensure services are running.`
-      );
-    }
-  };
-
   const handleGoogleLogin = async () => {
+    if (!isNetworkOnline) {
+      Alert.alert(
+        'No Internet Connection',
+        'You are currently offline. Please check your internet connection before signing in.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Retry', onPress: () => checkNetwork() },
+        ]
+      );
+      return;
+    }
+
     try {
       setIsLoadingGoogle(true);
 
@@ -327,10 +325,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           style={[
             styles.googlePillBtn,
             isLight ? styles.googlePillBtnLight : styles.googlePillBtnDark,
-            (isLoadingGoogle || isLoadingDev) && styles.btnDisabled,
+            isLoadingGoogle && styles.btnDisabled,
           ]}
           onPress={handleGoogleLogin}
-          disabled={isLoadingGoogle || isLoadingDev}
+          disabled={isLoadingGoogle}
           activeOpacity={0.8}
         >
           {isLoadingGoogle ? (
@@ -356,78 +354,43 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           )}
         </TouchableOpacity>
 
-        {/* Cloud Line Separator */}
-        <View style={styles.cloudDividerRow}>
+        {/* Offline Warning Notice */}
+        {!isNetworkOnline && (
           <View
             style={[
-              styles.cloudDividerLine,
-              isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
-            ]}
-          />
-          <View style={styles.cloudIconBox}>
-            <Cloud
-              size={18}
-              color={isLight ? '#9ca3af' : '#6e7681'}
-            />
-          </View>
-          <View
-            style={[
-              styles.cloudDividerLine,
-              isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
-            ]}
-          />
-        </View>
-
-        {/* Secondary Action: Developer Connect & Endpoint Status */}
-        <TouchableOpacity
-          style={styles.devConnectRow}
-          onPress={handleDevLogin}
-          disabled={isLoadingDev || isLoadingGoogle}
-          activeOpacity={0.7}
-        >
-          {isLoadingDev ? (
-            <ActivityIndicator size="small" color="#0077b6" />
-          ) : (
-            <>
-              <Zap size={14} color={isLight ? '#0077b6' : '#48cae4'} />
-              <Text
-                style={[
-                  styles.devConnectText,
-                  isLight ? styles.devConnectTextLight : styles.devConnectTextDark,
-                ]}
-              >
-                Developer Quick Connect
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Gateway Endpoint Pill at Bottom */}
-      <View
-        style={[
-          styles.footerWrapper,
-          { paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 16 : 20) },
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.serverPill,
-            isLight ? styles.serverPillLight : styles.serverPillDark,
-          ]}
-          onPress={() => setShowServerSettings(true)}
-          activeOpacity={0.7}
-        >
-          <Globe size={12} color={isLight ? '#6e7681' : '#8b949e'} />
-          <Text
-            style={[
-              styles.serverText,
-              isLight ? styles.serverTextLight : styles.serverTextDark,
+              styles.offlineCard,
+              isLight ? styles.offlineCardLight : styles.offlineCardDark,
             ]}
           >
-            {gatewayUrl.replace(/^https?:\/\//, '')}
-          </Text>
-        </TouchableOpacity>
+            <WifiOff size={14} color="#f85149" />
+            <Text
+              style={[
+                styles.offlineText,
+                isLight ? styles.offlineTextLight : styles.offlineTextDark,
+              ]}
+            >
+              No internet connection
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.offlineRetryBtn,
+                isLight ? styles.offlineRetryBtnLight : styles.offlineRetryBtnDark,
+              ]}
+              onPress={() => checkNetwork()}
+              activeOpacity={0.7}
+            >
+              <RefreshCw size={12} color={isLight ? '#0077b6' : '#48cae4'} />
+              <Text
+                style={[
+                  styles.offlineRetryText,
+                  isLight ? styles.offlineRetryTextLight : styles.offlineRetryTextDark,
+                ]}
+              >
+                Retry
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Server & Network Endpoints Modal */}
@@ -581,80 +544,58 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
 
-  // Cloud Line Divider
-  cloudDividerRow: {
+  // Offline Warning Notice
+  offlineCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    maxWidth: 240,
-    marginTop: 38,
-    marginBottom: 20,
-  },
-  cloudDividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  cloudDividerLineLight: {
-    backgroundColor: '#e5e7eb',
-  },
-  cloudDividerLineDark: {
-    backgroundColor: '#262626',
-  },
-  cloudIconBox: {
-    marginHorizontal: 12,
-  },
-
-  // Developer Quick Connect
-  devConnectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
+    gap: 8,
+    marginTop: 20,
+    paddingVertical: 10,
     paddingHorizontal: 14,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  devConnectText: {
-    fontSize: 13,
+  offlineCardLight: {
+    backgroundColor: '#fff8f7',
+    borderColor: '#ffc1be',
+  },
+  offlineCardDark: {
+    backgroundColor: 'rgba(248, 81, 73, 0.1)',
+    borderColor: 'rgba(248, 81, 73, 0.3)',
+  },
+  offlineText: {
+    fontSize: 12.5,
     fontWeight: '500',
   },
-  devConnectTextLight: {
-    color: '#0077b6',
+  offlineTextLight: {
+    color: '#cf222e',
   },
-  devConnectTextDark: {
-    color: '#48cae4',
+  offlineTextDark: {
+    color: '#f85149',
   },
-
-  // Footer Gateway Indicator
-  footerWrapper: {
-    position: 'absolute',
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  serverPill: {
+  offlineRetryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginLeft: 4,
   },
-  serverPillLight: {
-    backgroundColor: '#f9fafb',
-    borderColor: '#e5e7eb',
+  offlineRetryBtnLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.1)',
   },
-  serverPillDark: {
-    backgroundColor: '#161616',
-    borderColor: '#262626',
+  offlineRetryBtnDark: {
+    backgroundColor: 'rgba(0, 119, 182, 0.2)',
   },
-  serverText: {
-    fontSize: 11,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  offlineRetryText: {
+    fontSize: 11.5,
+    fontWeight: '600',
   },
-  serverTextLight: {
-    color: '#6e7681',
+  offlineRetryTextLight: {
+    color: '#0077b6',
   },
-  serverTextDark: {
-    color: '#8b949e',
+  offlineRetryTextDark: {
+    color: '#48cae4',
   },
 });

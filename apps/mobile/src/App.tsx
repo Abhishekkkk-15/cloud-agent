@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from './theme/tokens';
 import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
 import { NotificationBanner } from './components/NotificationBanner';
+import { OfflineBanner } from './components/OfflineBanner';
 import { MachineHealthScreen } from './screens/MachineHealthScreen';
 import { ApprovalsScreen } from './screens/ApprovalsScreen';
 import { AgentTurnScreen } from './screens/AgentTurnScreen';
@@ -252,6 +253,9 @@ function MainApp() {
 
       {/* Global In-App Notification Toast (Mounted across All Screens, Auth & Modals) */}
       <NotificationBanner onNavigate={(screen) => setCurrentScreen(screen)} />
+
+      {/* Global Network Offline Banner */}
+      <OfflineBanner />
     </View>
   );
 }

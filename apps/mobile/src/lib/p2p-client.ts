@@ -1,3 +1,5 @@
+import { networkMonitor } from './network';
+
 export type ConnectionState = 'disconnected' | 'connecting' | 'signaling' | 'connected' | 'error';
 
 export interface RpcResponse<T = any> {
@@ -138,6 +140,7 @@ export class MobileP2PClient {
     this.lastToken = token;
     this.machineId = machineId;
     this.isExplicitlyDisconnected = false;
+    networkMonitor.setGatewayUrl(gatewayUrl);
     this.setState('connecting');
 
     try {
@@ -281,6 +284,7 @@ export class MobileP2PClient {
       console.error('[MobileP2PClient] Connection error:', err);
       this.stopHeartbeat();
       this.setState('error');
+      networkMonitor.checkConnectivity().catch(() => {});
       if (!this.isExplicitlyDisconnected) {
         this.scheduleReconnect();
       }

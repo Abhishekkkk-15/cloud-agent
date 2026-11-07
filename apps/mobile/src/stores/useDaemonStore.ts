@@ -1,8 +1,9 @@
 import { create } from 'zustand';
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CliArtifact } from '@cloud-agent/cli-interface';
 import { mobileP2P, ConnectionState, DaemonStatusResult } from '../lib/p2p-client';
+import { networkMonitor } from '../lib/network';
 import {
   requestNotificationPermission,
   notifyTurnComplete,
@@ -281,6 +282,7 @@ interface DaemonStoreState {
   machines: MachineInfo[];
   isLoadingMachines: boolean;
   connectionState: ConnectionState;
+  isNetworkOnline: boolean;
   daemonStatus: DaemonStatusResult | null;
   pingRtt: string;
   sessions: RealSessionItem[];
@@ -384,6 +386,7 @@ interface DaemonStoreState {
   setServerEndpoints: (urls: { apiUrl: string; gatewayUrl: string }) => Promise<void>;
   resetServerEndpoints: () => Promise<void>;
   testServerEndpoints: (apiUrl: string, gatewayUrl: string) => Promise<EndpointTestResult>;
+  checkNetwork: () => Promise<boolean>;
 }
 
 export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
@@ -397,6 +400,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   machines: [],
   isLoadingMachines: false,
   connectionState: 'disconnected',
+  isNetworkOnline: networkMonitor.getIsOnline(),
   daemonStatus: null,
   pingRtt: '14ms',
   sessions: [],
@@ -719,6 +723,21 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
     // Initialize notification channels and request permission immediately on app startup
     get().registerPushNotifications().catch(() => {});
+
+    // Subscribe to network connectivity state
+    networkMonitor.subscribe((isOnline) => {
+      const prev = get().isNetworkOnline;
+      set({ isNetworkOnline: isOnline });
+      if (!prev && isOnline) {
+        console.log('[DaemonStore] Network connectivity recovered. Reconnecting...');
+        mobileP2P.reconnectNow();
+        if (get().token) {
+          get().refreshStatus();
+          get().fetchSessions();
+          get().reconcileActiveSession();
+        }
+      }
+    });
 
     // Subscribe to connection state
     mobileP2P.onStateChange((state) => {
@@ -2018,6 +2037,15 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   sendPrompt: async (promptText: string) => {
     if (!promptText.trim()) return;
+
+    if (!get().isNetworkOnline) {
+      Alert.alert(
+        'No Internet Connection',
+        'Cannot send prompt while offline. Please check your network connection and try again.'
+      );
+      return;
+    }
+
     const { activeSession, targetWorkspacePath, sessionConfig } = get();
     const effectiveCwd = activeSession?.workspacePath || targetWorkspacePath || undefined;
 
@@ -2323,4 +2351,6 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       gatewayError,
     };
   },
+
+  checkNetwork: () => networkMonitor.checkConnectivity(),
 }));

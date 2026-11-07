@@ -99,6 +99,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const isLoadingOlderMessages = useDaemonStore((s) => s.isLoadingOlderMessages);
   const isLoadingMessages = useDaemonStore((s) => s.isLoadingMessages);
   const connectionState = useDaemonStore((s) => s.connectionState);
+  const isNetworkOnline = useDaemonStore((s) => s.isNetworkOnline);
   const loadOlderMessages = useDaemonStore((s) => s.loadOlderMessages);
   const pendingApproval = useDaemonStore((s) => s.pendingApproval);
   const respondApproval = useDaemonStore((s) => s.respondApproval);
@@ -346,6 +347,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   const handleSendPrompt = async () => {
     if (!promptInput.trim() || isSendingPrompt) return;
+
+    if (!isNetworkOnline) {
+      Alert.alert(
+        'No Internet Connection',
+        'Cannot send message while offline. Please check your network connection.'
+      );
+      return;
+    }
+
     const text = promptInput;
     const trimmed = text.trim();
     const lower = trimmed.toLowerCase();
@@ -1187,7 +1197,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           {/* Clean Text Input with Dynamic Multiline Expansion */}
           <TextInput
             style={[styles.composerTextInput, isLight && { color: '#1f2328' }]}
-            placeholder={isDictating ? 'Listening... speak your prompt' : 'Type a message...'}
+            placeholder={
+              !isNetworkOnline
+                ? 'Offline — waiting for connection...'
+                : isDictating
+                ? 'Listening... speak your prompt'
+                : 'Type a message...'
+            }
             placeholderTextColor={isDictating ? '#ef4444' : (isLight ? '#8c959f' : '#737373')}
             value={promptInput}
             onChangeText={handleInputChange}
