@@ -48,6 +48,18 @@
     "plugins": [
       "expo-dev-client",
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0d1117",
+          "image": "./assets/splash-icon.png",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0d1117"
+          },
+          "imageWidth": 200
+        }
+      ],
+      [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
