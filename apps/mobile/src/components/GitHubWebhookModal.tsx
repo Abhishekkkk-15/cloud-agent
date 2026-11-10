@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   ScrollView,
   Platform,
+  Switch,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import {
   X,
   Key,
@@ -22,9 +24,15 @@ import {
   GitPullRequest,
   ExternalLink,
   ShieldAlert,
+  Eye,
+  EyeOff,
+  User,
+  Mail,
+  Github,
+  GitBranch,
 } from './Icons';
 import { colors, radii } from '../theme/tokens';
-import { useDaemonStore } from '../stores/useDaemonStore';
+import { useDaemonStore, type GithubTestResult } from '../stores/useDaemonStore';
 
 interface GitHubWebhookModalProps {
   visible: boolean;
@@ -37,22 +45,33 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
 }) => {
   const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const daemonStatus = useDaemonStore((s) => s.daemonStatus);
   const githubStatus = useDaemonStore((s) => s.githubStatus);
   const isCheckingGithub = useDaemonStore((s) => s.isCheckingGithub);
   const isSavingGithubToken = useDaemonStore((s) => s.isSavingGithubToken);
   const fetchGithubStatus = useDaemonStore((s) => s.fetchGithubStatus);
-  const saveGithubToken = useDaemonStore((s) => s.saveGithubToken);
+  const configureGithub = useDaemonStore((s) => s.configureGithub);
+  const testGithubConnection = useDaemonStore((s) => s.testGithubConnection);
   const removeGithubToken = useDaemonStore((s) => s.removeGithubToken);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
   const [tokenInput, setTokenInput] = useState('');
+  const [userNameInput, setUserNameInput] = useState('');
+  const [emailInput, setEmailInput] = useState('');
+  const [showToken, setShowToken] = useState(false);
+  const [configureGitCredentials, setConfigureGitCredentials] = useState(true);
+
   const [saveFeedback, setSaveFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [testResult, setTestResult] = useState<GithubTestResult | null>(null);
+
   const [copiedGithub, setCopiedGithub] = useState(false);
   const [copiedSentry, setCopiedSentry] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pat' | 'webhooks'>('pat');
+  const [activeTab, setActiveTab] = useState<'git' | 'webhooks'>('git');
 
   const machineId = activeMachine?.machineId || 'your-machine-id';
+  const machineName = activeMachine?.name || daemonStatus?.hostname || 'Host Machine';
   const cleanGatewayUrl = gatewayUrl.replace(/\/+$/, '');
   const githubWebhookUrl = `${cleanGatewayUrl}/webhooks/github/${machineId}`;
   const sentryWebhookUrl = `${cleanGatewayUrl}/webhooks/sentry/${machineId}`;
@@ -61,34 +80,83 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
     if (visible) {
       fetchGithubStatus().catch(() => {});
       setSaveFeedback(null);
-      setTokenInput('');
+      setTestResult(null);
     }
   }, [visible]);
 
-  const handleSaveToken = async () => {
-    if (!tokenInput.trim()) {
-      setSaveFeedback({ type: 'error', text: 'Please enter a valid GitHub token (e.g. ghp_...)' });
+  // Synchronize initial input fields from fetched host git config
+  useEffect(() => {
+    if (visible && githubStatus) {
+      if (!userNameInput && githubStatus.gitUserName) {
+        setUserNameInput(githubStatus.gitUserName);
+      } else if (!userNameInput && githubStatus.name) {
+        setUserNameInput(githubStatus.name);
+      }
+
+      if (!emailInput && githubStatus.gitUserEmail) {
+        setEmailInput(githubStatus.gitUserEmail);
+      } else if (!emailInput && githubStatus.email) {
+        setEmailInput(githubStatus.email);
+      }
+    }
+  }, [visible, githubStatus]);
+
+  const handleOpenGithubPatPage = () => {
+    const url = `https://github.com/settings/tokens/new?scopes=repo,read:user,user:email&description=Cloud%20Agent%20(${encodeURIComponent(machineName)})`;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    } else {
+      WebBrowser.openBrowserAsync(url).catch(() => {});
+    }
+  };
+
+  const handleSaveConfiguration = async () => {
+    const tokenToUse = tokenInput.trim();
+    if (!tokenToUse && !githubStatus?.authenticated) {
+      setSaveFeedback({ type: 'error', text: 'Please enter a valid GitHub Personal Access Token (e.g. ghp_...)' });
       return;
     }
+
     setSaveFeedback(null);
-    const res = await saveGithubToken(tokenInput.trim());
+    setTestResult(null);
+
+    const res = await configureGithub({
+      token: tokenToUse,
+      userName: userNameInput.trim() || undefined,
+      email: emailInput.trim() || undefined,
+      configureGitCredentials,
+    });
+
     if (res.success) {
       setTokenInput('');
       setSaveFeedback({
         type: 'success',
-        text: `Successfully authenticated as @${res.username}!`,
+        text: `Configured on ${machineName}! Authenticated as @${res.username}${res.gitUserName ? ` • Git Author: ${res.gitUserName}` : ''}`,
       });
     } else {
       setSaveFeedback({
         type: 'error',
-        text: res.error || 'Failed to verify GitHub token',
+        text: res.error || 'Failed to configure GitHub & Git on host system',
       });
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
+    setTestResult(null);
+    try {
+      const res = await testGithubConnection();
+      setTestResult(res);
+    } finally {
+      setIsTestingConnection(false);
     }
   };
 
   const handleDisconnect = async () => {
     await removeGithubToken();
-    setSaveFeedback(null);
+    setSaveFeedback({ type: 'success', text: `Cleared GitHub and Git credentials from ${machineName}.` });
+    setTestResult(null);
+    setTokenInput('');
   };
 
   const handleCopyGithubWebhook = () => {
@@ -121,12 +189,22 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
               {/* Header */}
               <View style={[styles.header, isLight && styles.headerLight]}>
                 <View style={styles.headerTitleRow}>
-                  <Key size={18} color={isLight ? '#0077b6' : '#fafafa'} />
-                  <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>GitHub Credentials & Webhooks</Text>
+                  <Github size={18} color={isLight ? '#0077b6' : '#fafafa'} />
+                  <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>
+                    GitHub & Git Host Configuration
+                  </Text>
                 </View>
                 <TouchableOpacity onPress={onClose} style={[styles.closeBtn, isLight && styles.closeBtnLight]} activeOpacity={0.7}>
                   <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
                 </TouchableOpacity>
+              </View>
+
+              {/* Target Machine Pill */}
+              <View style={[styles.machineBanner, isLight && styles.machineBannerLight]}>
+                <View style={styles.machineDot} />
+                <Text style={[styles.machineBannerText, isLight && styles.machineBannerTextLight]}>
+                  Target Host: <Text style={{ fontWeight: '700' }}>{machineName}</Text>
+                </Text>
               </View>
 
               {/* Tabs */}
@@ -134,18 +212,18 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.tabButton,
-                    activeTab === 'pat' && (isLight ? styles.tabButtonActiveLight : styles.tabButtonActive)
+                    activeTab === 'git' && (isLight ? styles.tabButtonActiveLight : styles.tabButtonActive)
                   ]}
-                  onPress={() => setActiveTab('pat')}
+                  onPress={() => setActiveTab('git')}
                   activeOpacity={0.7}
                 >
-                  <Key size={13} color={activeTab === 'pat' ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#6e7681' : '#a3a3a3')} />
+                  <Key size={13} color={activeTab === 'git' ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#6e7681' : '#a3a3a3')} />
                   <Text style={[
                     styles.tabButtonText,
                     isLight && { color: '#6e7681' },
-                    activeTab === 'pat' && (isLight ? styles.tabButtonTextActiveLight : styles.tabButtonTextActive)
+                    activeTab === 'git' && (isLight ? styles.tabButtonTextActiveLight : styles.tabButtonTextActive)
                   ]}>
-                    GitHub PAT (Option B)
+                    Git & GitHub Identity
                   </Text>
                 </TouchableOpacity>
 
@@ -172,18 +250,20 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                 style={[styles.scroll, isLight && { backgroundColor: '#ffffff' }]}
                 contentContainerStyle={styles.scrollContent}
               >
-                {activeTab === 'pat' ? (
-                  /* Option B: Personal Access Token Section */
+                {activeTab === 'git' ? (
                   <View style={styles.section}>
-                    {/* Status Card */}
+                    {/* 1. Host Status Card */}
                     <View style={[styles.card, isLight && styles.cardLight]}>
                       <View style={styles.cardHeaderRow}>
-                        <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>CURRENT AUTHENTICATION</Text>
+                        <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>
+                          HOST SYSTEM STATUS
+                        </Text>
                         <TouchableOpacity
                           onPress={() => fetchGithubStatus()}
                           disabled={isCheckingGithub}
                           style={styles.refreshIconBtn}
                           activeOpacity={0.7}
+                          accessibilityLabel="Refresh GitHub Status"
                         >
                           <RefreshCw
                             size={12}
@@ -196,65 +276,178 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                       {isCheckingGithub ? (
                         <View style={styles.loadingRow}>
                           <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
-                          <Text style={[styles.loadingText, isLight && { color: '#6e7681' }]}>Checking GitHub credentials on host...</Text>
+                          <Text style={[styles.loadingText, isLight && { color: '#6e7681' }]}>
+                            Inspecting git configuration on {machineName}...
+                          </Text>
                         </View>
                       ) : githubStatus?.authenticated ? (
-                        <View style={styles.authSuccessBox}>
-                          <View style={styles.authSuccessLeft}>
-                            <CheckCircle2 size={16} color="#2ea043" />
-                            <View>
-                              <Text style={[styles.authUsername, isLight && { color: '#1f2328' }]}>
-                                @{githubStatus.username || 'Authenticated'}
+                        <View>
+                          <View style={styles.authSuccessBox}>
+                            <View style={styles.authSuccessLeft}>
+                              <CheckCircle2 size={16} color="#2ea043" />
+                              <View>
+                                <Text style={[styles.authUsername, isLight && { color: '#1f2328' }]}>
+                                  @{githubStatus.username || 'Authenticated'}
+                                </Text>
+                                <Text style={[styles.authSource, isLight && { color: '#57606a' }]}>
+                                  {githubStatus.source === 'token'
+                                    ? 'Personal Access Token'
+                                    : 'Host GitHub CLI Session'}
+                                </Text>
+                              </View>
+                            </View>
+
+                            <TouchableOpacity
+                              style={[styles.disconnectBtn, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}
+                              onPress={handleDisconnect}
+                              activeOpacity={0.7}
+                            >
+                              <Text style={[styles.disconnectBtnText, isLight && { color: '#57606a' }]}>Clear</Text>
+                            </TouchableOpacity>
+                          </View>
+
+                          {/* OAuth Scopes Pill */}
+                          {githubStatus.scopes && (
+                            <View style={[styles.scopesRow, isLight && styles.scopesRowLight]}>
+                              <Text style={[styles.scopesLabel, isLight && { color: '#57606a' }]}>OAuth Scopes:</Text>
+                              <Text style={[styles.scopesValue, isLight && { color: '#1f2328' }]}>{githubStatus.scopes}</Text>
+                            </View>
+                          )}
+
+                          {/* Git Author Info Strip */}
+                          <View style={[styles.gitIdentityStrip, isLight && styles.gitIdentityStripLight]}>
+                            <View style={styles.gitIdentityItem}>
+                              <Text style={[styles.gitIdentityLabel, isLight && { color: '#6e7681' }]}>user.name</Text>
+                              <Text style={[styles.gitIdentityValue, isLight && { color: '#1f2328' }]} numberOfLines={1}>
+                                {githubStatus.gitUserName || 'Not Set ⚠️'}
                               </Text>
-                              <Text style={[styles.authSource, isLight && { color: '#57606a' }]}>
-                                {githubStatus.source === 'token'
-                                  ? 'Personal Access Token (Option B)'
-                                  : 'Host GitHub CLI session'}
+                            </View>
+                            <View style={[styles.gitIdentityDivider, isLight && { backgroundColor: '#d0d7de' }]} />
+                            <View style={styles.gitIdentityItem}>
+                              <Text style={[styles.gitIdentityLabel, isLight && { color: '#6e7681' }]}>user.email</Text>
+                              <Text style={[styles.gitIdentityValue, isLight && { color: '#1f2328' }]} numberOfLines={1}>
+                                {githubStatus.gitUserEmail || 'Not Set ⚠️'}
                               </Text>
                             </View>
                           </View>
-
-                          <TouchableOpacity
-                            style={[styles.disconnectBtn, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}
-                            onPress={handleDisconnect}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[styles.disconnectBtnText, isLight && { color: '#57606a' }]}>Clear</Text>
-                          </TouchableOpacity>
                         </View>
                       ) : (
                         <View style={[styles.authStandbyBox, isLight && styles.authStandbyBoxLight]}>
                           <ShieldAlert size={16} color={isLight ? '#0077b6' : '#a3a3a3'} />
                           <View style={{ flex: 1 }}>
-                            <Text style={[styles.authStandbyTitle, isLight && styles.authStandbyTitleLight]}>No GitHub Token Configured</Text>
+                            <Text style={[styles.authStandbyTitle, isLight && styles.authStandbyTitleLight]}>
+                              No GitHub Token Configured
+                            </Text>
                             <Text style={[styles.authStandbySub, isLight && styles.authStandbySubLight]}>
-                              Add a Personal Access Token below so the daemon can push branches, create PRs, and post code reviews.
+                              Configure a token and git identity below so autonomous agents and terminal commands can push branches, commit code, and create PRs.
                             </Text>
                           </View>
                         </View>
                       )}
                     </View>
 
-                    {/* Token Input Card */}
+                    {/* 2. Configure Form Card */}
                     <View style={[styles.card, isLight && styles.cardLight, { marginTop: 12 }]}>
-                      <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>CONFIGURE PERSONAL ACCESS TOKEN</Text>
-                      <Text style={[styles.tokenHint, isLight && { color: '#57606a' }]}>
-                        Create a classic PAT with <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '700' }}>repo</Text> scope at GitHub → Settings → Developer Settings → Personal access tokens.
-                      </Text>
+                      <View style={styles.cardHeaderRow}>
+                        <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>
+                          CONFIGURE GITHUB & GIT IDENTITY
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.patLinkBtn}
+                          onPress={handleOpenGithubPatPage}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={styles.patLinkText}>Create PAT on GitHub</Text>
+                          <ExternalLink size={12} color="#0077b6" />
+                        </TouchableOpacity>
+                      </View>
 
+                      {/* Field 1: GitHub PAT */}
+                      <Text style={[styles.inputLabel, isLight && styles.inputLabelLight]}>
+                        GITHUB PERSONAL ACCESS TOKEN
+                      </Text>
                       <View style={[styles.inputContainer, isLight && styles.inputContainerLight]}>
+                        <Key size={14} color={isLight ? '#57606a' : '#8b949e'} style={{ marginRight: 8 }} />
                         <TextInput
                           style={[styles.textInput, isLight && styles.textInputLight]}
-                          placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                          placeholder={githubStatus?.authenticated ? '•••••••••••••••••••••••••••••••• (Active)' : 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
                           placeholderTextColor={isLight ? '#8c959f' : '#737373'}
                           value={tokenInput}
                           onChangeText={setTokenInput}
-                          secureTextEntry
+                          secureTextEntry={!showToken}
                           autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                        <TouchableOpacity
+                          onPress={() => setShowToken(!showToken)}
+                          style={styles.eyeBtn}
+                          activeOpacity={0.7}
+                        >
+                          {showToken ? (
+                            <EyeOff size={16} color={isLight ? '#57606a' : '#8b949e'} />
+                          ) : (
+                            <Eye size={16} color={isLight ? '#57606a' : '#8b949e'} />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={[styles.fieldHint, isLight && { color: '#6e7681' }]}>
+                        Requires <Text style={{ fontWeight: '700' }}>repo</Text>, <Text style={{ fontWeight: '700' }}>read:user</Text>, and <Text style={{ fontWeight: '700' }}>user:email</Text> scopes.
+                      </Text>
+
+                      {/* Field 2: Git Author Name */}
+                      <Text style={[styles.inputLabel, isLight && styles.inputLabelLight, { marginTop: 14 }]}>
+                        GIT AUTHOR NAME (git config --global user.name)
+                      </Text>
+                      <View style={[styles.inputContainer, isLight && styles.inputContainerLight]}>
+                        <User size={14} color={isLight ? '#57606a' : '#8b949e'} style={{ marginRight: 8 }} />
+                        <TextInput
+                          style={[styles.textInput, isLight && styles.textInputLight]}
+                          placeholder="e.g. Abhishek Jangid"
+                          placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+                          value={userNameInput}
+                          onChangeText={setUserNameInput}
+                          autoCapitalize="words"
                           autoCorrect={false}
                         />
                       </View>
 
+                      {/* Field 3: Git Author Email */}
+                      <Text style={[styles.inputLabel, isLight && styles.inputLabelLight, { marginTop: 14 }]}>
+                        GIT AUTHOR EMAIL (git config --global user.email)
+                      </Text>
+                      <View style={[styles.inputContainer, isLight && styles.inputContainerLight]}>
+                        <Mail size={14} color={isLight ? '#57606a' : '#8b949e'} style={{ marginRight: 8 }} />
+                        <TextInput
+                          style={[styles.textInput, isLight && styles.textInputLight]}
+                          placeholder="e.g. dev@example.com"
+                          placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+                          value={emailInput}
+                          onChangeText={setEmailInput}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                          keyboardType="email-address"
+                        />
+                      </View>
+
+                      {/* Option: Git Credential Helper Switch */}
+                      <View style={[styles.switchRow, isLight && styles.switchRowLight]}>
+                        <View style={{ flex: 1, marginRight: 12 }}>
+                          <Text style={[styles.switchTitle, isLight && styles.switchTitleLight]}>
+                            Configure Git Credential Storage
+                          </Text>
+                          <Text style={[styles.switchSubtitle, isLight && { color: '#6e7681' }]}>
+                            Enables non-interactive git push & clone via gh CLI or Git credential store.
+                          </Text>
+                        </View>
+                        <Switch
+                          value={configureGitCredentials}
+                          onValueChange={setConfigureGitCredentials}
+                          trackColor={{ false: '#30363d', true: '#0077b6' }}
+                          thumbColor="#ffffff"
+                        />
+                      </View>
+
+                      {/* Feedback Banner */}
                       {saveFeedback && (
                         <View
                           style={[
@@ -263,9 +456,9 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           ]}
                         >
                           {saveFeedback.type === 'success' ? (
-                            <CheckCircle2 size={13} color="#2ea043" />
+                            <CheckCircle2 size={14} color="#2ea043" />
                           ) : (
-                            <XCircle size={13} color="#f85149" />
+                            <XCircle size={14} color="#f85149" />
                           )}
                           <Text
                             style={[
@@ -279,38 +472,85 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         </View>
                       )}
 
-                      <TouchableOpacity
-                        style={[
-                          styles.saveBtn,
-                          isLight && styles.saveBtnLight,
-                          isSavingGithubToken && { opacity: 0.7 }
-                        ]}
-                        onPress={handleSaveToken}
-                        disabled={isSavingGithubToken}
-                        activeOpacity={0.7}
-                      >
-                        {isSavingGithubToken ? (
-                          <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
-                        ) : (
-                          <>
-                            <Key size={14} color={isLight ? '#ffffff' : '#0a0a0a'} />
-                            <Text style={[styles.saveBtnText, isLight && { color: '#ffffff' }]}>Verify & Save Token</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    </View>
+                      {/* Action Buttons */}
+                      <View style={styles.actionRow}>
+                        <TouchableOpacity
+                          style={[
+                            styles.saveBtn,
+                            isLight && styles.saveBtnLight,
+                            isSavingGithubToken && { opacity: 0.7 }
+                          ]}
+                          onPress={handleSaveConfiguration}
+                          disabled={isSavingGithubToken}
+                          activeOpacity={0.7}
+                        >
+                          {isSavingGithubToken ? (
+                            <ActivityIndicator size="small" color="#ffffff" />
+                          ) : (
+                            <>
+                              <GitBranch size={14} color="#ffffff" />
+                              <Text style={styles.saveBtnText}>Save & Configure Host</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
 
-                    {/* Terminal Alternative Instructions */}
-                    <View style={[styles.card, isLight && styles.cardLight, { marginTop: 12, backgroundColor: isLight ? '#f6f8fa' : '#121212' }]}>
-                      <Text style={[styles.cardSectionLabel, isLight ? { color: '#6e7681' } : { color: '#737373' }]}>
-                        OR EXPORT IN TERMINAL
-                      </Text>
-                      <Text style={[styles.codeText, isLight && { color: '#1f2328' }]}>
-                        export GITHUB_TOKEN="ghp_xxx"
-                      </Text>
-                      <Text style={[styles.codeText, isLight && { color: '#6e7681' }, { marginTop: 4 }]}>
-                        # Stored in ~/.cloud-agent/daemon.json
-                      </Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.testBtn,
+                            isLight && styles.testBtnLight,
+                            isTestingConnection && { opacity: 0.7 }
+                          ]}
+                          onPress={handleTestConnection}
+                          disabled={isTestingConnection}
+                          activeOpacity={0.7}
+                        >
+                          {isTestingConnection ? (
+                            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+                          ) : (
+                            <>
+                              <RefreshCw size={13} color={isLight ? '#0077b6' : '#fafafa'} />
+                              <Text style={[styles.testBtnText, isLight && { color: '#0077b6' }]}>Test Connection</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Diagnostic Test Result Box */}
+                      {testResult && (
+                        <View style={[
+                          styles.testResultBox,
+                          testResult.success ? styles.testResultSuccess : styles.testResultError,
+                          isLight && (testResult.success ? styles.testResultSuccessLight : styles.testResultErrorLight)
+                        ]}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            {testResult.success ? (
+                              <CheckCircle2 size={14} color="#2ea043" />
+                            ) : (
+                              <XCircle size={14} color="#f85149" />
+                            )}
+                            <Text style={[
+                              styles.testResultTitle,
+                              testResult.success ? styles.testResultTitleSuccess : styles.testResultTitleError,
+                              isLight && { color: testResult.success ? '#1a7f37' : '#cf222e' }
+                            ]}>
+                              {testResult.success ? 'Diagnostic Check Passed' : 'Diagnostic Check Failed'}
+                            </Text>
+                          </View>
+                          <Text style={[styles.testResultMessage, isLight && { color: '#1f2328' }]}>
+                            {testResult.message}
+                          </Text>
+                          {testResult.rateLimitRemaining && (
+                            <Text style={[styles.testResultSub, isLight && { color: '#6e7681' }]}>
+                              API Rate Limit Remaining: {testResult.rateLimitRemaining} requests
+                            </Text>
+                          )}
+                          {testResult.gitVersion && (
+                            <Text style={[styles.testResultSub, isLight && { color: '#6e7681' }]}>
+                              Git Engine: {testResult.gitVersion}
+                            </Text>
+                          )}
+                        </View>
+                      )}
                     </View>
                   </View>
                 ) : (
@@ -420,13 +660,17 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    maxWidth: 520,
-    maxHeight: '85%',
-    backgroundColor: '#161616',
+    maxWidth: 540,
+    maxHeight: '88%',
+    backgroundColor: '#161b22',
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderColor: '#30363d',
     overflow: 'hidden',
+  },
+  modalContentLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
   },
   header: {
     flexDirection: 'row',
@@ -435,7 +679,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#262626',
+    borderBottomColor: '#21262d',
+  },
+  headerLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#d0d7de',
   },
   headerTitleRow: {
     flexDirection: 'row',
@@ -443,20 +691,57 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerTitle: {
-    color: '#fafafa',
+    color: '#f0f6fc',
     fontSize: 15,
     fontWeight: '700',
   },
+  headerTitleLight: {
+    color: '#1f2328',
+  },
   closeBtn: {
-    padding: 6,
-    borderRadius: 8,
-    backgroundColor: '#262626',
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  closeBtnLight: {
+    backgroundColor: '#e1e4e8',
+  },
+  machineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 119, 182, 0.15)',
+  },
+  machineBannerLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.06)',
+    borderBottomColor: 'rgba(0, 119, 182, 0.12)',
+  },
+  machineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#0077b6',
+  },
+  machineBannerText: {
+    fontSize: 11.5,
+    color: '#48cae4',
+  },
+  machineBannerTextLight: {
+    color: '#0077b6',
   },
   tabRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    backgroundColor: '#0a0a0a',
+    borderBottomColor: '#21262d',
+    backgroundColor: '#0d1117',
+  },
+  tabRowLight: {
+    backgroundColor: '#f6f8fa',
+    borderBottomColor: '#d0d7de',
   },
   tabButton: {
     flex: 1,
@@ -464,48 +749,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
   tabButtonActive: {
-    borderBottomColor: '#fafafa',
+    borderBottomColor: '#0077b6',
+  },
+  tabButtonActiveLight: {
+    borderBottomColor: '#0077b6',
   },
   tabButtonText: {
-    color: '#a3a3a3',
-    fontSize: 12,
+    color: '#8b949e',
+    fontSize: 12.5,
     fontWeight: '600',
   },
   tabButtonTextActive: {
-    color: '#fafafa',
+    color: '#f0f6fc',
+  },
+  tabButtonTextActiveLight: {
+    color: '#0077b6',
   },
   scroll: {
-    maxHeight: 520,
+    flex: 1,
   },
   scrollContent: {
     padding: 16,
   },
   section: {
-    gap: 4,
+    gap: 12,
   },
   card: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: 10,
+    backgroundColor: '#0d1117',
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#262626',
+    borderColor: '#30363d',
     padding: 14,
   },
-  cardSectionLabel: {
-    color: '#a3a3a3',
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+  cardLight: {
+    backgroundColor: '#f6f8fa',
+    borderColor: '#d0d7de',
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: 10,
+  },
+  cardSectionLabel: {
+    color: '#8b949e',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  cardSectionLabelLight: {
+    color: '#6e7681',
+  },
+  patLinkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  patLinkText: {
+    fontSize: 11,
+    color: '#0077b6',
+    fontWeight: '600',
   },
   refreshIconBtn: {
     padding: 4,
@@ -517,116 +827,212 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   loadingText: {
-    color: '#a3a3a3',
     fontSize: 12,
+    color: '#8b949e',
   },
   authSuccessBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(63, 185, 80, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(63, 185, 80, 0.25)',
-    borderRadius: 8,
-    padding: 10,
+    paddingVertical: 6,
   },
   authSuccessLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flex: 1,
   },
   authUsername: {
-    color: '#fafafa',
-    fontSize: 13,
+    color: '#f0f6fc',
+    fontSize: 14,
     fontWeight: '700',
   },
   authSource: {
-    color: '#a3a3a3',
+    color: '#8b949e',
     fontSize: 11,
-    marginTop: 1,
+    marginTop: 2,
   },
   disconnectBtn: {
-    paddingHorizontal: 8,
     paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: 6,
-    backgroundColor: '#262626',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderColor: '#30363d',
   },
   disconnectBtnText: {
-    color: '#a3a3a3',
     fontSize: 11,
+    color: '#f85149',
     fontWeight: '600',
+  },
+  scopesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#21262d',
+  },
+  scopesRowLight: {
+    borderTopColor: '#d0d7de',
+  },
+  scopesLabel: {
+    fontSize: 10.5,
+    color: '#8b949e',
+    fontWeight: '600',
+  },
+  scopesValue: {
+    fontSize: 11,
+    color: '#f0f6fc',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  gitIdentityStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#21262d',
+  },
+  gitIdentityStripLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  gitIdentityItem: {
+    flex: 1,
+  },
+  gitIdentityDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#30363d',
+    marginHorizontal: 10,
+  },
+  gitIdentityLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#8b949e',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  gitIdentityValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#f0f6fc',
+    marginTop: 2,
   },
   authStandbyBox: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: 'rgba(139, 148, 158, 0.08)',
-    borderWidth: 1,
-    borderColor: '#262626',
-    borderRadius: 8,
     padding: 10,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  authStandbyBoxLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
   },
   authStandbyTitle: {
-    color: '#fafafa',
-    fontSize: 12,
-    fontWeight: '600',
+    color: '#f0f6fc',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  authStandbyTitleLight: {
+    color: '#1f2328',
   },
   authStandbySub: {
-    color: '#a3a3a3',
-    fontSize: 11,
-    lineHeight: 15,
-    marginTop: 2,
-  },
-  tokenHint: {
-    color: '#a3a3a3',
+    color: '#8b949e',
     fontSize: 11,
     lineHeight: 16,
-    marginTop: 6,
-    marginBottom: 10,
+    marginTop: 3,
+  },
+  authStandbySubLight: {
+    color: '#57606a',
+  },
+  inputLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#8b949e',
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  inputLabelLight: {
+    color: '#6e7681',
   },
   inputContainer: {
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  textInput: {
-    color: '#fafafa',
-    fontSize: 13,
-    padding: 0,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#fafafa',
-    borderRadius: 8,
-    paddingVertical: 10,
-    marginTop: 12,
+    backgroundColor: '#161b22',
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: '#30363d',
+    paddingHorizontal: 12,
+    height: 40,
   },
-  saveBtnText: {
-    color: '#0a0a0a',
-    fontSize: 13,
+  inputContainerLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  textInput: {
+    flex: 1,
+    color: '#f0f6fc',
+    fontSize: 12.5,
+    paddingVertical: 0,
+  },
+  textInputLight: {
+    color: '#1f2328',
+  },
+  eyeBtn: {
+    padding: 6,
+  },
+  fieldHint: {
+    fontSize: 10.5,
+    color: '#8b949e',
+    marginTop: 4,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#21262d',
+  },
+  switchRowLight: {
+    borderTopColor: '#d0d7de',
+  },
+  switchTitle: {
+    fontSize: 12,
     fontWeight: '600',
+    color: '#f0f6fc',
+  },
+  switchTitleLight: {
+    color: '#1f2328',
+  },
+  switchSubtitle: {
+    fontSize: 10.5,
+    color: '#8b949e',
+    marginTop: 2,
+    lineHeight: 14,
   },
   feedbackBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginTop: 12,
+    padding: 10,
     borderRadius: 8,
-    padding: 8,
-    marginTop: 10,
     borderWidth: 1,
   },
   feedbackSuccess: {
-    backgroundColor: 'rgba(63, 185, 80, 0.1)',
-    borderColor: 'rgba(63, 185, 80, 0.3)',
+    backgroundColor: 'rgba(46, 160, 67, 0.1)',
+    borderColor: 'rgba(46, 160, 67, 0.3)',
   },
   feedbackError: {
     backgroundColor: 'rgba(248, 81, 73, 0.1)',
@@ -634,61 +1040,153 @@ const styles = StyleSheet.create({
   },
   feedbackText: {
     fontSize: 12,
+    fontWeight: '500',
     flex: 1,
   },
   feedbackSuccessText: {
-    color: '#fafafa',
+    color: '#2ea043',
   },
   feedbackErrorText: {
     color: '#f85149',
   },
-  codeText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#d4d4d4',
-    fontSize: 11,
-    marginTop: 6,
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+  },
+  saveBtn: {
+    flex: 1.3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 42,
+    borderRadius: radii.sm,
+    backgroundColor: '#0077b6',
+  },
+  saveBtnLight: {
+    backgroundColor: '#0077b6',
+  },
+  saveBtnText: {
+    color: '#ffffff',
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  testBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 42,
+    borderRadius: radii.sm,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#30363d',
+  },
+  testBtnLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  testBtnText: {
+    color: '#f0f6fc',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  testResultBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  testResultSuccess: {
+    backgroundColor: 'rgba(46, 160, 67, 0.08)',
+    borderColor: 'rgba(46, 160, 67, 0.25)',
+  },
+  testResultSuccessLight: {
+    backgroundColor: '#f6fdf8',
+    borderColor: '#a8dab5',
+  },
+  testResultError: {
+    backgroundColor: 'rgba(248, 81, 73, 0.08)',
+    borderColor: 'rgba(248, 81, 73, 0.25)',
+  },
+  testResultErrorLight: {
+    backgroundColor: '#fff8f7',
+    borderColor: '#ffc1be',
+  },
+  testResultTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  testResultTitleSuccess: {
+    color: '#2ea043',
+  },
+  testResultTitleError: {
+    color: '#f85149',
+  },
+  testResultMessage: {
+    fontSize: 11.5,
+    color: '#c9d1d9',
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  testResultSub: {
+    fontSize: 10.5,
+    color: '#8b949e',
+    marginTop: 4,
   },
   webhookIntro: {
-    color: '#a3a3a3',
     fontSize: 12,
+    color: '#8b949e',
     lineHeight: 17,
-    marginTop: 4,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   urlBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#161616',
+    backgroundColor: '#161b22',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 8,
+    borderColor: '#30363d',
+    borderRadius: radii.sm,
     padding: 10,
     gap: 8,
   },
+  urlBoxLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
   urlText: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    color: '#fafafa',
-    fontSize: 11,
     flex: 1,
+    color: '#f0f6fc',
+    fontSize: 11,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  urlTextLight: {
+    color: '#1f2328',
   },
   copyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(0, 119, 182, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
+    borderColor: 'rgba(0, 119, 182, 0.35)',
+    paddingVertical: 5,
+    paddingHorizontal: 9,
+    borderRadius: 6,
+  },
+  copyBtnLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
   },
   copyBtnDone: {
-    backgroundColor: 'rgba(63, 185, 80, 0.15)',
-    borderColor: 'rgba(63, 185, 80, 0.35)',
+    backgroundColor: 'rgba(46, 160, 67, 0.15)',
+    borderColor: 'rgba(46, 160, 67, 0.35)',
   },
   copyBtnText: {
-    color: '#fafafa',
+    color: '#48cae4',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -696,86 +1194,24 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#262626',
+    borderTopColor: '#21262d',
     gap: 4,
-  },
-  checkTitle: {
-    color: '#fafafa',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  checkItem: {
-    color: '#a3a3a3',
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  modalContentLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  headerLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#d0d7de',
-  },
-  headerTitleLight: {
-    color: '#1f2328',
-  },
-  closeBtnLight: {
-    backgroundColor: '#e1e4e8',
-  },
-  tabRowLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#d0d7de',
-  },
-  tabButtonActiveLight: {
-    borderBottomColor: '#0077b6',
-  },
-  tabButtonTextActiveLight: {
-    color: '#0077b6',
-  },
-  cardLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  cardSectionLabelLight: {
-    color: '#6e7681',
-  },
-  authStandbyBoxLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  authStandbyTitleLight: {
-    color: '#1f2328',
-  },
-  authStandbySubLight: {
-    color: '#57606a',
-  },
-  inputContainerLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  textInputLight: {
-    color: '#1f2328',
-  },
-  saveBtnLight: {
-    backgroundColor: '#0077b6',
-  },
-  urlBoxLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  urlTextLight: {
-    color: '#1f2328',
-  },
-  copyBtnLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-    borderColor: 'rgba(0, 119, 182, 0.25)',
   },
   checklistLight: {
     borderTopColor: '#d0d7de',
   },
+  checkTitle: {
+    color: '#f0f6fc',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   checkTitleLight: {
     color: '#1f2328',
+  },
+  checkItem: {
+    color: '#8b949e',
+    fontSize: 11,
+    lineHeight: 16,
   },
 });

@@ -265,10 +265,38 @@ export interface GithubAuthStatus {
   source?: 'token' | 'cli' | 'none';
   username?: string;
   name?: string;
+  email?: string;
   avatarUrl?: string;
   scopes?: string;
   error?: string;
   message?: string;
+  gitUserName?: string;
+  gitUserEmail?: string;
+  gitCredentialHelper?: string;
+  hasGhCli?: boolean;
+  ghCliAuthenticated?: boolean;
+}
+
+export interface GithubConfigureParams {
+  token: string;
+  userName?: string;
+  email?: string;
+  configureGitCredentials?: boolean;
+}
+
+export interface GithubTestResult {
+  success: boolean;
+  githubApiOk: boolean;
+  username?: string;
+  scopes?: string;
+  rateLimitRemaining?: string;
+  gitInstalled: boolean;
+  gitVersion?: string;
+  gitUserName?: string;
+  gitUserEmail?: string;
+  credentialHelper?: string;
+  message: string;
+  error?: string;
 }
 
 interface DaemonStoreState {
@@ -343,6 +371,14 @@ interface DaemonStoreState {
   postPrReviewToGitHub: (prNumber: number, verdict: string, body?: string) => Promise<{ success: boolean; message: string }>;
   fetchGithubStatus: () => Promise<void>;
   saveGithubToken: (token: string) => Promise<{ success: boolean; username?: string; error?: string }>;
+  configureGithub: (params: GithubConfigureParams) => Promise<{
+    success: boolean;
+    username?: string;
+    gitUserName?: string;
+    gitUserEmail?: string;
+    error?: string;
+  }>;
+  testGithubConnection: () => Promise<GithubTestResult>;
   removeGithubToken: () => Promise<void>;
   connectGateway: () => Promise<void>;
   loginWithDev: () => Promise<boolean>;
@@ -612,18 +648,42 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   saveGithubToken: async (token: string) => {
+    return get().configureGithub({ token, configureGitCredentials: true });
+  },
+
+  configureGithub: async (params: GithubConfigureParams) => {
     set({ isSavingGithubToken: true });
     try {
-      const res: any = await mobileP2P.sendRpc('github.setToken', { token });
+      const res: any = await mobileP2P.sendRpc('github.configure', { ...params });
       if (res?.success) {
         await get().fetchGithubStatus();
-        return { success: true, username: res.username };
+        return {
+          success: true,
+          username: res.username,
+          gitUserName: res.gitUserName,
+          gitUserEmail: res.gitUserEmail,
+        };
       }
-      return { success: false, error: res?.error || 'Failed to save token' };
+      return { success: false, error: res?.error || 'Failed to configure GitHub' };
     } catch (err: any) {
-      return { success: false, error: err?.message || 'Token verification error' };
+      return { success: false, error: err?.message || 'Configuration error' };
     } finally {
       set({ isSavingGithubToken: false });
+    }
+  },
+
+  testGithubConnection: async () => {
+    try {
+      const res: any = await mobileP2P.sendRpc('github.testConnection', {});
+      return res;
+    } catch (err: any) {
+      return {
+        success: false,
+        githubApiOk: false,
+        gitInstalled: false,
+        message: err?.message || 'Connection test failed',
+        error: err?.message || 'Connection test failed',
+      };
     }
   },
 

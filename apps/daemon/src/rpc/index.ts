@@ -23,7 +23,9 @@ import {
 } from "./auto-healer.js";
 import {
   handleGithubStatus,
+  handleGithubConfigure,
   handleGithubSetToken,
+  handleGithubTestConnection,
   handleGithubRemoveToken,
 } from "./github.js";
 import { sessionStreamHub } from "./stream-hub.js";
@@ -457,11 +459,34 @@ export class RpcDispatcher {
           return { id: req.id, result };
         }
 
+        case "github.configure": {
+          if (!params.token || typeof params.token !== "string") {
+            throw new Error("Missing or invalid token parameter for github.configure");
+          }
+          const result = await handleGithubConfigure({
+            token: params.token,
+            userName: typeof params.userName === "string" ? params.userName : undefined,
+            email: typeof params.email === "string" ? params.email : undefined,
+            configureGitCredentials: params.configureGitCredentials !== false,
+          });
+          return { id: req.id, result };
+        }
+
         case "github.setToken": {
           if (!params.token || typeof params.token !== "string") {
             throw new Error("Missing or invalid token parameter for github.setToken");
           }
-          const result = await handleGithubSetToken(params.token);
+          const result = await handleGithubConfigure({
+            token: params.token,
+            userName: typeof params.userName === "string" ? params.userName : undefined,
+            email: typeof params.email === "string" ? params.email : undefined,
+            configureGitCredentials: params.configureGitCredentials !== false,
+          });
+          return { id: req.id, result };
+        }
+
+        case "github.testConnection": {
+          const result = await handleGithubTestConnection();
           return { id: req.id, result };
         }
 

@@ -30,6 +30,7 @@ import {
   GitPullRequest,
   Sparkles,
   Key,
+  Github,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -616,9 +617,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
             activeOpacity={0.7}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Key size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+              <Github size={14} color={isLight ? '#0077b6' : '#fafafa'} />
               <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '600' }}>
-                GitHub PAT & Webhooks
+                GitHub & Git Identity
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -627,7 +628,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
                 fontSize: 11,
                 fontWeight: '600'
               }}>
-                {githubStatus?.authenticated ? `@${githubStatus.username}` : 'Configure (Option B)'}
+                {githubStatus?.authenticated
+                  ? `@${githubStatus.username}${githubStatus.gitUserName ? ` • Git: ${githubStatus.gitUserName}` : ''}`
+                  : 'Configure on Host'}
               </Text>
               <ChevronRight size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
             </View>

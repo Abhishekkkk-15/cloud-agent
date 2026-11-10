@@ -99,3 +99,7 @@ export const Moon = wrapIcon(Lucide.Moon);
 export const Cloud = wrapIcon(Lucide.Cloud);
 export const Wifi = wrapIcon(Lucide.Wifi);
 export const WifiOff = wrapIcon(Lucide.WifiOff);
+export const Eye = wrapIcon(Lucide.Eye);
+export const EyeOff = wrapIcon(Lucide.EyeOff);
+export const Github = wrapIcon(Lucide.Github);
+export const Mail = wrapIcon(Lucide.Mail);
