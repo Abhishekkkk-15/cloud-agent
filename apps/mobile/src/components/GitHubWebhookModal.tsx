@@ -11,6 +11,7 @@ import {
   ScrollView,
   Platform,
   Switch,
+  KeyboardAvoidingView,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -131,7 +132,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
       setTokenInput('');
       setSaveFeedback({
         type: 'success',
-        text: `Configured on ${machineName}! Authenticated as @${res.username}${res.gitUserName ? ` • Git Author: ${res.gitUserName}` : ''}`,
+        text: `Configured on ${machineName}! Authenticated as @${res.username}${res.gitUserName ? ` • Git: ${res.gitUserName}` : ''}`,
       });
     } else {
       setSaveFeedback({
@@ -154,7 +155,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
 
   const handleDisconnect = async () => {
     await removeGithubToken();
-    setSaveFeedback({ type: 'success', text: `Cleared GitHub and Git credentials from ${machineName}.` });
+    setSaveFeedback({ type: 'success', text: `Cleared credentials from ${machineName}.` });
     setTestResult(null);
     setTokenInput('');
   };
@@ -175,6 +176,11 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
     setTimeout(() => setCopiedSentry(false), 2000);
   };
 
+  const scopesList = (githubStatus?.scopes || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   return (
     <Modal
       visible={visible}
@@ -185,26 +191,34 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
           <TouchableWithoutFeedback>
-            <View style={[styles.modalContent, isLight && styles.modalContentLight]}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+              style={[styles.modalContent, isLight && styles.modalContentLight]}
+            >
               {/* Header */}
               <View style={[styles.header, isLight && styles.headerLight]}>
-                <View style={styles.headerTitleRow}>
-                  <Github size={18} color={isLight ? '#0077b6' : '#fafafa'} />
-                  <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>
-                    GitHub & Git Host Configuration
-                  </Text>
+                <View style={styles.headerLeft}>
+                  <View style={[styles.headerIconCircle, isLight && styles.headerIconCircleLight]}>
+                    <Github size={18} color={isLight ? '#0077b6' : '#48cae4'} />
+                  </View>
+                  <View style={styles.headerTextCol}>
+                    <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>
+                      GitHub & Git Identity
+                    </Text>
+                    <Text style={[styles.headerSubtitle, isLight && styles.headerSubtitleLight]} numberOfLines={1}>
+                      Host credentials for {machineName}
+                    </Text>
+                  </View>
                 </View>
-                <TouchableOpacity onPress={onClose} style={[styles.closeBtn, isLight && styles.closeBtnLight]} activeOpacity={0.7}>
-                  <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={[styles.closeBtn, isLight && styles.closeBtnLight]}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityLabel="Close"
+                >
+                  <X size={17} color={isLight ? '#57606a' : '#8b949e'} />
                 </TouchableOpacity>
-              </View>
-
-              {/* Target Machine Pill */}
-              <View style={[styles.machineBanner, isLight && styles.machineBannerLight]}>
-                <View style={styles.machineDot} />
-                <Text style={[styles.machineBannerText, isLight && styles.machineBannerTextLight]}>
-                  Target Host: <Text style={{ fontWeight: '700' }}>{machineName}</Text>
-                </Text>
               </View>
 
               {/* Tabs */}
@@ -212,36 +226,46 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                 <TouchableOpacity
                   style={[
                     styles.tabButton,
-                    activeTab === 'git' && (isLight ? styles.tabButtonActiveLight : styles.tabButtonActive)
+                    activeTab === 'git' && (isLight ? styles.tabButtonActiveLight : styles.tabButtonActive),
                   ]}
                   onPress={() => setActiveTab('git')}
                   activeOpacity={0.7}
                 >
-                  <Key size={13} color={activeTab === 'git' ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#6e7681' : '#a3a3a3')} />
-                  <Text style={[
-                    styles.tabButtonText,
-                    isLight && { color: '#6e7681' },
-                    activeTab === 'git' && (isLight ? styles.tabButtonTextActiveLight : styles.tabButtonTextActive)
-                  ]}>
-                    Git & GitHub Identity
+                  <Key
+                    size={13}
+                    color={activeTab === 'git' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#6e7681' : '#8b949e')}
+                  />
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      isLight && styles.tabButtonTextLight,
+                      activeTab === 'git' && (isLight ? styles.tabButtonTextActiveLight : styles.tabButtonTextActive),
+                    ]}
+                  >
+                    Git Credentials
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[
                     styles.tabButton,
-                    activeTab === 'webhooks' && (isLight ? styles.tabButtonActiveLight : styles.tabButtonActive)
+                    activeTab === 'webhooks' && (isLight ? styles.tabButtonActiveLight : styles.tabButtonActive),
                   ]}
                   onPress={() => setActiveTab('webhooks')}
                   activeOpacity={0.7}
                 >
-                  <GitPullRequest size={13} color={activeTab === 'webhooks' ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#6e7681' : '#a3a3a3')} />
-                  <Text style={[
-                    styles.tabButtonText,
-                    isLight && { color: '#6e7681' },
-                    activeTab === 'webhooks' && (isLight ? styles.tabButtonTextActiveLight : styles.tabButtonTextActive)
-                  ]}>
-                    Webhook URLs
+                  <GitPullRequest
+                    size={13}
+                    color={activeTab === 'webhooks' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#6e7681' : '#8b949e')}
+                  />
+                  <Text
+                    style={[
+                      styles.tabButtonText,
+                      isLight && styles.tabButtonTextLight,
+                      activeTab === 'webhooks' && (isLight ? styles.tabButtonTextActiveLight : styles.tabButtonTextActive),
+                    ]}
+                  >
+                    Webhooks & Events
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -249,6 +273,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
               <ScrollView
                 style={[styles.scroll, isLight && { backgroundColor: '#ffffff' }]}
                 contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
               >
                 {activeTab === 'git' ? (
                   <View style={styles.section}>
@@ -256,18 +281,19 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                     <View style={[styles.card, isLight && styles.cardLight]}>
                       <View style={styles.cardHeaderRow}>
                         <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>
-                          HOST SYSTEM STATUS
+                          HOST STATUS
                         </Text>
                         <TouchableOpacity
                           onPress={() => fetchGithubStatus()}
                           disabled={isCheckingGithub}
                           style={styles.refreshIconBtn}
                           activeOpacity={0.7}
-                          accessibilityLabel="Refresh GitHub Status"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Refresh Status"
                         >
                           <RefreshCw
                             size={12}
-                            color={isLight ? '#57606a' : '#a3a3a3'}
+                            color={isLight ? '#57606a' : '#8b949e'}
                             style={isCheckingGithub ? { transform: [{ rotate: '45deg' }] } : undefined}
                           />
                         </TouchableOpacity>
@@ -277,7 +303,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         <View style={styles.loadingRow}>
                           <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
                           <Text style={[styles.loadingText, isLight && { color: '#6e7681' }]}>
-                            Inspecting git configuration on {machineName}...
+                            Inspecting git credentials on {machineName}...
                           </Text>
                         </View>
                       ) : githubStatus?.authenticated ? (
@@ -285,8 +311,8 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           <View style={styles.authSuccessBox}>
                             <View style={styles.authSuccessLeft}>
                               <CheckCircle2 size={16} color="#2ea043" />
-                              <View>
-                                <Text style={[styles.authUsername, isLight && { color: '#1f2328' }]}>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.authUsername, isLight && { color: '#1f2328' }]} numberOfLines={1}>
                                   @{githubStatus.username || 'Authenticated'}
                                 </Text>
                                 <Text style={[styles.authSource, isLight && { color: '#57606a' }]}>
@@ -298,19 +324,27 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                             </View>
 
                             <TouchableOpacity
-                              style={[styles.disconnectBtn, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}
+                              style={[styles.disconnectBtn, isLight && styles.disconnectBtnLight]}
                               onPress={handleDisconnect}
                               activeOpacity={0.7}
                             >
-                              <Text style={[styles.disconnectBtnText, isLight && { color: '#57606a' }]}>Clear</Text>
+                              <Text style={styles.disconnectBtnText}>Clear</Text>
                             </TouchableOpacity>
                           </View>
 
-                          {/* OAuth Scopes Pill */}
-                          {githubStatus.scopes && (
+                          {/* OAuth Scopes Wrapped Chips */}
+                          {scopesList.length > 0 && (
                             <View style={[styles.scopesRow, isLight && styles.scopesRowLight]}>
-                              <Text style={[styles.scopesLabel, isLight && { color: '#57606a' }]}>OAuth Scopes:</Text>
-                              <Text style={[styles.scopesValue, isLight && { color: '#1f2328' }]}>{githubStatus.scopes}</Text>
+                              <Text style={[styles.scopesLabel, isLight && { color: '#57606a' }]}>Scopes:</Text>
+                              <View style={styles.scopeChipsWrap}>
+                                {scopesList.map((scope) => (
+                                  <View key={scope} style={[styles.scopeChip, isLight && styles.scopeChipLight]}>
+                                    <Text style={[styles.scopeChipText, isLight && styles.scopeChipTextLight]}>
+                                      {scope}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
                             </View>
                           )}
 
@@ -319,27 +353,27 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                             <View style={styles.gitIdentityItem}>
                               <Text style={[styles.gitIdentityLabel, isLight && { color: '#6e7681' }]}>user.name</Text>
                               <Text style={[styles.gitIdentityValue, isLight && { color: '#1f2328' }]} numberOfLines={1}>
-                                {githubStatus.gitUserName || 'Not Set ⚠️'}
+                                {githubStatus.gitUserName || 'Not Set'}
                               </Text>
                             </View>
                             <View style={[styles.gitIdentityDivider, isLight && { backgroundColor: '#d0d7de' }]} />
                             <View style={styles.gitIdentityItem}>
                               <Text style={[styles.gitIdentityLabel, isLight && { color: '#6e7681' }]}>user.email</Text>
                               <Text style={[styles.gitIdentityValue, isLight && { color: '#1f2328' }]} numberOfLines={1}>
-                                {githubStatus.gitUserEmail || 'Not Set ⚠️'}
+                                {githubStatus.gitUserEmail || 'Not Set'}
                               </Text>
                             </View>
                           </View>
                         </View>
                       ) : (
                         <View style={[styles.authStandbyBox, isLight && styles.authStandbyBoxLight]}>
-                          <ShieldAlert size={16} color={isLight ? '#0077b6' : '#a3a3a3'} />
+                          <ShieldAlert size={16} color={isLight ? '#0077b6' : '#48cae4'} />
                           <View style={{ flex: 1 }}>
                             <Text style={[styles.authStandbyTitle, isLight && styles.authStandbyTitleLight]}>
                               No GitHub Token Configured
                             </Text>
                             <Text style={[styles.authStandbySub, isLight && styles.authStandbySubLight]}>
-                              Configure a token and git identity below so autonomous agents and terminal commands can push branches, commit code, and create PRs.
+                              Provide a Personal Access Token below so agents can commit, push branches, and open pull requests on this host.
                             </Text>
                           </View>
                         </View>
@@ -347,18 +381,17 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                     </View>
 
                     {/* 2. Configure Form Card */}
-                    <View style={[styles.card, isLight && styles.cardLight, { marginTop: 12 }]}>
+                    <View style={[styles.card, isLight && styles.cardLight]}>
                       <View style={styles.cardHeaderRow}>
                         <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>
-                          CONFIGURE GITHUB & GIT IDENTITY
+                          CONFIGURE CREDENTIALS
                         </Text>
                         <TouchableOpacity
                           style={styles.patLinkBtn}
                           onPress={handleOpenGithubPatPage}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.patLinkText}>Create PAT on GitHub</Text>
-                          <ExternalLink size={12} color="#0077b6" />
+                          <Text style={styles.patLinkText}>Generate PAT ↗</Text>
                         </TouchableOpacity>
                       </View>
 
@@ -371,7 +404,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         <TextInput
                           style={[styles.textInput, isLight && styles.textInputLight]}
                           placeholder={githubStatus?.authenticated ? '•••••••••••••••••••••••••••••••• (Active)' : 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
-                          placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+                          placeholderTextColor={isLight ? '#8c959f' : '#6e7681'}
                           value={tokenInput}
                           onChangeText={setTokenInput}
                           secureTextEntry={!showToken}
@@ -391,36 +424,39 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         </TouchableOpacity>
                       </View>
                       <Text style={[styles.fieldHint, isLight && { color: '#6e7681' }]}>
-                        Requires <Text style={{ fontWeight: '700' }}>repo</Text>, <Text style={{ fontWeight: '700' }}>read:user</Text>, and <Text style={{ fontWeight: '700' }}>user:email</Text> scopes.
+                        Recommended scopes: <Text style={{ fontWeight: '700' }}>repo</Text>, <Text style={{ fontWeight: '700' }}>workflow</Text>, <Text style={{ fontWeight: '700' }}>read:user</Text>, and <Text style={{ fontWeight: '700' }}>user:email</Text>.
                       </Text>
 
                       {/* Field 2: Git Author Name */}
-                      <Text style={[styles.inputLabel, isLight && styles.inputLabelLight, { marginTop: 14 }]}>
-                        GIT AUTHOR NAME (git config --global user.name)
+                      <Text style={[styles.inputLabel, isLight && styles.inputLabelLight, { marginTop: 12 }]}>
+                        GIT AUTHOR NAME
                       </Text>
                       <View style={[styles.inputContainer, isLight && styles.inputContainerLight]}>
                         <User size={14} color={isLight ? '#57606a' : '#8b949e'} style={{ marginRight: 8 }} />
                         <TextInput
                           style={[styles.textInput, isLight && styles.textInputLight]}
                           placeholder="e.g. Abhishek Jangid"
-                          placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+                          placeholderTextColor={isLight ? '#8c959f' : '#6e7681'}
                           value={userNameInput}
                           onChangeText={setUserNameInput}
                           autoCapitalize="words"
                           autoCorrect={false}
                         />
                       </View>
+                      <Text style={[styles.fieldHint, isLight && { color: '#6e7681' }]}>
+                        Configures host git user.name
+                      </Text>
 
                       {/* Field 3: Git Author Email */}
-                      <Text style={[styles.inputLabel, isLight && styles.inputLabelLight, { marginTop: 14 }]}>
-                        GIT AUTHOR EMAIL (git config --global user.email)
+                      <Text style={[styles.inputLabel, isLight && styles.inputLabelLight, { marginTop: 12 }]}>
+                        GIT AUTHOR EMAIL
                       </Text>
                       <View style={[styles.inputContainer, isLight && styles.inputContainerLight]}>
                         <Mail size={14} color={isLight ? '#57606a' : '#8b949e'} style={{ marginRight: 8 }} />
                         <TextInput
                           style={[styles.textInput, isLight && styles.textInputLight]}
                           placeholder="e.g. dev@example.com"
-                          placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+                          placeholderTextColor={isLight ? '#8c959f' : '#6e7681'}
                           value={emailInput}
                           onChangeText={setEmailInput}
                           autoCapitalize="none"
@@ -428,21 +464,24 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           keyboardType="email-address"
                         />
                       </View>
+                      <Text style={[styles.fieldHint, isLight && { color: '#6e7681' }]}>
+                        Configures host git user.email
+                      </Text>
 
                       {/* Option: Git Credential Helper Switch */}
                       <View style={[styles.switchRow, isLight && styles.switchRowLight]}>
                         <View style={{ flex: 1, marginRight: 12 }}>
                           <Text style={[styles.switchTitle, isLight && styles.switchTitleLight]}>
-                            Configure Git Credential Storage
+                            Git Credential Storage
                           </Text>
                           <Text style={[styles.switchSubtitle, isLight && { color: '#6e7681' }]}>
-                            Enables non-interactive git push & clone via gh CLI or Git credential store.
+                            Enables non-interactive git push via Git credential helper
                           </Text>
                         </View>
                         <Switch
                           value={configureGitCredentials}
                           onValueChange={setConfigureGitCredentials}
-                          trackColor={{ false: '#30363d', true: '#0077b6' }}
+                          trackColor={{ false: '#21262d', true: '#0077b6' }}
                           thumbColor="#ffffff"
                         />
                       </View>
@@ -472,13 +511,13 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                         </View>
                       )}
 
-                      {/* Action Buttons */}
-                      <View style={styles.actionRow}>
+                      {/* Action Buttons (Stacked for complete mobile responsiveness) */}
+                      <View style={styles.actionColumn}>
                         <TouchableOpacity
                           style={[
                             styles.saveBtn,
                             isLight && styles.saveBtnLight,
-                            isSavingGithubToken && { opacity: 0.7 }
+                            isSavingGithubToken && { opacity: 0.7 },
                           ]}
                           onPress={handleSaveConfiguration}
                           disabled={isSavingGithubToken}
@@ -498,7 +537,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           style={[
                             styles.testBtn,
                             isLight && styles.testBtnLight,
-                            isTestingConnection && { opacity: 0.7 }
+                            isTestingConnection && { opacity: 0.7 },
                           ]}
                           onPress={handleTestConnection}
                           disabled={isTestingConnection}
@@ -508,8 +547,10 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                             <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
                           ) : (
                             <>
-                              <RefreshCw size={13} color={isLight ? '#0077b6' : '#fafafa'} />
-                              <Text style={[styles.testBtnText, isLight && { color: '#0077b6' }]}>Test Connection</Text>
+                              <RefreshCw size={13} color={isLight ? '#0077b6' : '#48cae4'} />
+                              <Text style={[styles.testBtnText, isLight && { color: '#0077b6' }]}>
+                                Test Connection & Rate Limit
+                              </Text>
                             </>
                           )}
                         </TouchableOpacity>
@@ -517,23 +558,27 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
 
                       {/* Diagnostic Test Result Box */}
                       {testResult && (
-                        <View style={[
-                          styles.testResultBox,
-                          testResult.success ? styles.testResultSuccess : styles.testResultError,
-                          isLight && (testResult.success ? styles.testResultSuccessLight : styles.testResultErrorLight)
-                        ]}>
+                        <View
+                          style={[
+                            styles.testResultBox,
+                            testResult.success ? styles.testResultSuccess : styles.testResultError,
+                            isLight && (testResult.success ? styles.testResultSuccessLight : styles.testResultErrorLight),
+                          ]}
+                        >
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                             {testResult.success ? (
                               <CheckCircle2 size={14} color="#2ea043" />
                             ) : (
                               <XCircle size={14} color="#f85149" />
                             )}
-                            <Text style={[
-                              styles.testResultTitle,
-                              testResult.success ? styles.testResultTitleSuccess : styles.testResultTitleError,
-                              isLight && { color: testResult.success ? '#1a7f37' : '#cf222e' }
-                            ]}>
-                              {testResult.success ? 'Diagnostic Check Passed' : 'Diagnostic Check Failed'}
+                            <Text
+                              style={[
+                                styles.testResultTitle,
+                                testResult.success ? styles.testResultTitleSuccess : styles.testResultTitleError,
+                                isLight && { color: testResult.success ? '#1a7f37' : '#cf222e' },
+                              ]}
+                            >
+                              {testResult.success ? 'Diagnostic Passed' : 'Diagnostic Failed'}
                             </Text>
                           </View>
                           <Text style={[styles.testResultMessage, isLight && { color: '#1f2328' }]}>
@@ -541,7 +586,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           </Text>
                           {testResult.rateLimitRemaining && (
                             <Text style={[styles.testResultSub, isLight && { color: '#6e7681' }]}>
-                              API Rate Limit Remaining: {testResult.rateLimitRemaining} requests
+                              API Rate Limit: {testResult.rateLimitRemaining} requests remaining
                             </Text>
                           )}
                           {testResult.gitVersion && (
@@ -559,7 +604,9 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                     {/* GitHub Webhook Card */}
                     <View style={[styles.card, isLight && styles.cardLight]}>
                       <View style={styles.cardHeaderRow}>
-                        <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>GITHUB REPOSITORY WEBHOOK</Text>
+                        <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>
+                          GITHUB REPOSITORY WEBHOOK
+                        </Text>
                       </View>
 
                       <Text style={[styles.webhookIntro, isLight && { color: '#57606a' }]}>
@@ -574,7 +621,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           style={[
                             styles.copyBtn,
                             isLight && styles.copyBtnLight,
-                            copiedGithub && styles.copyBtnDone
+                            copiedGithub && styles.copyBtnDone,
                           ]}
                           onPress={handleCopyGithubWebhook}
                           activeOpacity={0.7}
@@ -596,20 +643,30 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                       {/* GitHub Setup Instructions Checklist */}
                       <View style={[styles.checklist, isLight && styles.checklistLight]}>
                         <Text style={[styles.checkTitle, isLight && styles.checkTitleLight]}>Setup in GitHub Repository:</Text>
-                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>1. Go to repo <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '600' }}>Settings → Webhooks → Add webhook</Text></Text>
-                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>2. Payload URL: <Text style={{ color: isLight ? '#1f2328' : '#fafafa' }}>Paste URL above</Text></Text>
-                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>3. Content type: <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '700' }}>application/json</Text></Text>
-                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>4. Events: Check <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '600' }}>Pull requests</Text> and <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '600' }}>Issues</Text></Text>
+                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>
+                          1. Repo <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '600' }}>Settings → Webhooks → Add webhook</Text>
+                        </Text>
+                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>
+                          2. Payload URL: <Text style={{ color: isLight ? '#1f2328' : '#fafafa' }}>Paste the URL above</Text>
+                        </Text>
+                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>
+                          3. Content type: <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '700' }}>application/json</Text>
+                        </Text>
+                        <Text style={[styles.checkItem, isLight && { color: '#57606a' }]}>
+                          4. Events: Select <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '600' }}>Pull requests</Text> and <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontWeight: '600' }}>Issues</Text>
+                        </Text>
                       </View>
                     </View>
 
                     {/* Sentry Webhook Card */}
-                    <View style={[styles.card, isLight && styles.cardLight, { marginTop: 12 }]}>
+                    <View style={[styles.card, isLight && styles.cardLight]}>
                       <View style={styles.cardHeaderRow}>
-                        <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>SENTRY CRASH WEBHOOK</Text>
+                        <Text style={[styles.cardSectionLabel, isLight && styles.cardSectionLabelLight]}>
+                          SENTRY CRASH WEBHOOK
+                        </Text>
                       </View>
                       <Text style={[styles.webhookIntro, isLight && { color: '#57606a' }]}>
-                        Posts error stack traces and culprits to trigger automated on-call code fixes:
+                        Receives runtime error alerts to trigger automated on-call investigations:
                       </Text>
 
                       <View style={[styles.urlBox, isLight && styles.urlBoxLight]}>
@@ -620,7 +677,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                           style={[
                             styles.copyBtn,
                             isLight && styles.copyBtnLight,
-                            copiedSentry && styles.copyBtnDone
+                            copiedSentry && styles.copyBtnDone,
                           ]}
                           onPress={handleCopySentryWebhook}
                           activeOpacity={0.7}
@@ -642,7 +699,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                   </View>
                 )}
               </ScrollView>
-            </View>
+            </KeyboardAvoidingView>
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
@@ -656,14 +713,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 14,
   },
   modalContent: {
     width: '100%',
-    maxWidth: 540,
-    maxHeight: '88%',
+    maxWidth: 520,
+    maxHeight: '90%',
     backgroundColor: '#161b22',
-    borderRadius: radii.lg,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#30363d',
     overflow: 'hidden',
@@ -680,15 +737,35 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#21262d',
+    backgroundColor: '#161b22',
   },
   headerLight: {
     backgroundColor: '#f6f8fa',
     borderBottomColor: '#d0d7de',
   },
-  headerTitleRow: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    flex: 1,
+    marginRight: 10,
+  },
+  headerIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 119, 182, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerIconCircleLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    borderColor: 'rgba(0, 119, 182, 0.25)',
+  },
+  headerTextCol: {
+    flex: 1,
   },
   headerTitle: {
     color: '#f0f6fc',
@@ -698,40 +775,24 @@ const styles = StyleSheet.create({
   headerTitleLight: {
     color: '#1f2328',
   },
+  headerSubtitle: {
+    color: '#8b949e',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  headerSubtitleLight: {
+    color: '#57606a',
+  },
   closeBtn: {
-    padding: 4,
-    borderRadius: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   closeBtnLight: {
     backgroundColor: '#e1e4e8',
-  },
-  machineBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 119, 182, 0.15)',
-  },
-  machineBannerLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.06)',
-    borderBottomColor: 'rgba(0, 119, 182, 0.12)',
-  },
-  machineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#0077b6',
-  },
-  machineBannerText: {
-    fontSize: 11.5,
-    color: '#48cae4',
-  },
-  machineBannerTextLight: {
-    color: '#0077b6',
   },
   tabRow: {
     flexDirection: 'row',
@@ -749,7 +810,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 11,
+    paddingVertical: 12,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -764,17 +825,22 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '600',
   },
+  tabButtonTextLight: {
+    color: '#6e7681',
+  },
   tabButtonTextActive: {
     color: '#f0f6fc',
+    fontWeight: '700',
   },
   tabButtonTextActiveLight: {
     color: '#0077b6',
+    fontWeight: '700',
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 14,
   },
   section: {
     gap: 12,
@@ -806,14 +872,11 @@ const styles = StyleSheet.create({
     color: '#6e7681',
   },
   patLinkBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     paddingVertical: 2,
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
   },
   patLinkText: {
-    fontSize: 11,
+    fontSize: 11.5,
     color: '#0077b6',
     fontWeight: '600',
   },
@@ -834,13 +897,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   authSuccessLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     flex: 1,
+    marginRight: 8,
   },
   authUsername: {
     color: '#f0f6fc',
@@ -850,15 +914,19 @@ const styles = StyleSheet.create({
   authSource: {
     color: '#8b949e',
     fontSize: 11,
-    marginTop: 2,
+    marginTop: 1,
   },
   disconnectBtn: {
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: 'rgba(248, 81, 73, 0.1)',
     borderWidth: 1,
-    borderColor: '#30363d',
+    borderColor: 'rgba(248, 81, 73, 0.3)',
+  },
+  disconnectBtnLight: {
+    backgroundColor: '#fff5f5',
+    borderColor: '#ffc1be',
   },
   disconnectBtnText: {
     fontSize: 11,
@@ -867,7 +935,7 @@ const styles = StyleSheet.create({
   },
   scopesRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 6,
     marginTop: 8,
     paddingTop: 8,
@@ -878,14 +946,36 @@ const styles = StyleSheet.create({
     borderTopColor: '#d0d7de',
   },
   scopesLabel: {
-    fontSize: 10.5,
+    fontSize: 11,
     color: '#8b949e',
     fontWeight: '600',
+    marginTop: 2,
   },
-  scopesValue: {
-    fontSize: 11,
+  scopeChipsWrap: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  scopeChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: '#161b22',
+    borderWidth: 1,
+    borderColor: '#30363d',
+  },
+  scopeChipLight: {
+    backgroundColor: '#ffffff',
+    borderColor: '#d0d7de',
+  },
+  scopeChipText: {
+    fontSize: 10,
     color: '#f0f6fc',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  scopeChipTextLight: {
+    color: '#1f2328',
   },
   gitIdentityStrip: {
     flexDirection: 'row',
@@ -972,7 +1062,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#30363d',
     paddingHorizontal: 12,
-    height: 40,
+    height: 42,
   },
   inputContainerLight: {
     backgroundColor: '#ffffff',
@@ -1049,18 +1139,17 @@ const styles = StyleSheet.create({
   feedbackErrorText: {
     color: '#f85149',
   },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 10,
+  actionColumn: {
+    gap: 8,
     marginTop: 14,
   },
   saveBtn: {
-    flex: 1.3,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 42,
+    height: 44,
     borderRadius: radii.sm,
     backgroundColor: '#0077b6',
   },
@@ -1069,16 +1158,16 @@ const styles = StyleSheet.create({
   },
   saveBtnText: {
     color: '#ffffff',
-    fontSize: 12.5,
+    fontSize: 13,
     fontWeight: '700',
   },
   testBtn: {
-    flex: 1,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    height: 42,
+    height: 40,
     borderRadius: radii.sm,
     backgroundColor: '#161b22',
     borderWidth: 1,

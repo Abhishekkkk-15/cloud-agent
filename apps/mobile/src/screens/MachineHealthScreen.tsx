@@ -31,6 +31,9 @@ import {
   Sparkles,
   Key,
   Github,
+  GitBranch,
+  User,
+  Mail,
 } from '../components/Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { HeaderBar } from '../components/HeaderBar';
@@ -599,43 +602,173 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
               )}
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* GitHub Credentials & Webhook Setup Row */}
-          <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: isLight ? '#f6f8fa' : '#0a0a0a',
-              borderWidth: 1,
-              borderColor: isLight ? '#d0d7de' : '#262626',
-              borderRadius: 8,
-              padding: 10,
-              marginTop: 4,
-            }}
-            onPress={() => setShowGithubModal(true)}
-            activeOpacity={0.7}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Github size={14} color={isLight ? '#0077b6' : '#fafafa'} />
-              <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '600' }}>
-                GitHub & Git Identity
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Text style={{
-                color: githubStatus?.authenticated ? (isLight ? '#1f2328' : '#fafafa') : '#6e7681',
-                fontSize: 11,
-                fontWeight: '600'
-              }}>
-                {githubStatus?.authenticated
-                  ? `@${githubStatus.username}${githubStatus.gitUserName ? ` • Git: ${githubStatus.gitUserName}` : ''}`
-                  : 'Configure on Host'}
-              </Text>
-              <ChevronRight size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
-            </View>
+        {/* Dedicated GitHub & Git Host Identity Section */}
+        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
+          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>GITHUB & GIT IDENTITY</Text>
+          <TouchableOpacity onPress={() => setShowGithubModal(true)} activeOpacity={0.7}>
+            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>
+              {githubStatus?.authenticated ? 'Manage →' : 'Configure →'}
+            </Text>
           </TouchableOpacity>
         </View>
+
+        <TouchableOpacity
+          style={[styles.card, isLight && styles.cardLight, { padding: 14 }]}
+          onPress={() => setShowGithubModal(true)}
+          activeOpacity={0.8}
+        >
+          {/* Header Row: Icon, Title, Status Pill */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
+              <View style={{
+                width: 34,
+                height: 34,
+                borderRadius: 8,
+                backgroundColor: isLight ? 'rgba(0, 119, 182, 0.1)' : 'rgba(0, 119, 182, 0.15)',
+                borderWidth: 1,
+                borderColor: isLight ? 'rgba(0, 119, 182, 0.25)' : 'rgba(0, 119, 182, 0.35)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Github size={17} color={isLight ? '#0077b6' : '#48cae4'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: isLight ? '#1f2328' : '#f0f6fc', fontSize: 13, fontWeight: '700' }}>
+                  GitHub & Git Identity
+                </Text>
+                <Text style={{ color: isLight ? '#57606a' : '#8b949e', fontSize: 11, marginTop: 1 }} numberOfLines={1}>
+                  {githubStatus?.authenticated
+                    ? `Authenticated as @${githubStatus.username}`
+                    : 'Personal Access Token & Git author profile'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 5,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 12,
+              backgroundColor: githubStatus?.authenticated
+                ? (isLight ? 'rgba(46, 160, 67, 0.1)' : 'rgba(46, 160, 67, 0.15)')
+                : (isLight ? '#eaeef2' : 'rgba(255, 255, 255, 0.06)'),
+              borderWidth: 1,
+              borderColor: githubStatus?.authenticated
+                ? (isLight ? 'rgba(46, 160, 67, 0.3)' : 'rgba(46, 160, 67, 0.35)')
+                : (isLight ? '#d0d7de' : '#30363d'),
+            }}>
+              <View style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: githubStatus?.authenticated ? '#2ea043' : '#6e7681',
+              }} />
+              <Text style={{
+                color: githubStatus?.authenticated
+                  ? (isLight ? '#1a7f37' : '#2ea043')
+                  : (isLight ? '#6e7681' : '#8b949e'),
+                fontSize: 10.5,
+                fontWeight: '600',
+              }}>
+                {githubStatus?.authenticated ? 'Active' : 'Standby'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Git identity metadata pill row if authenticated */}
+          {githubStatus?.authenticated && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 6,
+              marginTop: 10,
+              paddingTop: 8,
+              borderTopWidth: 1,
+              borderTopColor: isLight ? '#e1e4e8' : '#21262d',
+            }}>
+              {githubStatus.gitUserName ? (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: isLight ? '#ffffff' : '#0d1117',
+                  borderWidth: 1,
+                  borderColor: isLight ? '#d0d7de' : '#21262d',
+                  borderRadius: 6,
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                }}>
+                  <User size={11} color={isLight ? '#57606a' : '#8b949e'} />
+                  <Text style={{ color: isLight ? '#1f2328' : '#c9d1d9', fontSize: 11, fontWeight: '500' }}>
+                    {githubStatus.gitUserName}
+                  </Text>
+                </View>
+              ) : null}
+
+              {githubStatus.gitUserEmail ? (
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  backgroundColor: isLight ? '#ffffff' : '#0d1117',
+                  borderWidth: 1,
+                  borderColor: isLight ? '#d0d7de' : '#21262d',
+                  borderRadius: 6,
+                  paddingHorizontal: 7,
+                  paddingVertical: 2,
+                }}>
+                  <Mail size={11} color={isLight ? '#57606a' : '#8b949e'} />
+                  <Text style={{ color: isLight ? '#1f2328' : '#c9d1d9', fontSize: 11, fontWeight: '500' }}>
+                    {githubStatus.gitUserEmail}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                backgroundColor: isLight ? 'rgba(0, 119, 182, 0.08)' : 'rgba(0, 119, 182, 0.12)',
+                borderWidth: 1,
+                borderColor: isLight ? 'rgba(0, 119, 182, 0.2)' : 'rgba(0, 119, 182, 0.3)',
+                borderRadius: 6,
+                paddingHorizontal: 7,
+                paddingVertical: 2,
+              }}>
+                <GitBranch size={11} color={isLight ? '#0077b6' : '#48cae4'} />
+                <Text style={{ color: isLight ? '#0077b6' : '#48cae4', fontSize: 11, fontWeight: '600' }}>
+                  {githubStatus.source === 'token' ? 'PAT Token' : 'Host gh'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Bottom Host Target & Action Link */}
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 8,
+            paddingTop: 8,
+            borderTopWidth: 1,
+            borderTopColor: isLight ? '#e1e4e8' : '#21262d',
+          }}>
+            <Text style={{ color: isLight ? '#6e7681' : '#8b949e', fontSize: 11 }}>
+              Host: <Text style={{ color: isLight ? '#1f2328' : '#f0f6fc', fontWeight: '600' }}>{activeMachine?.name || daemonStatus?.hostname || 'Remote Node'}</Text>
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 11.5, fontWeight: '600' }}>
+                Configure Host Identity
+              </Text>
+              <ChevronRight size={13} color={isLight ? '#0077b6' : colors.primary} />
+            </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Daemon Operations */}
         <View style={[styles.sectionHeader, { marginTop: 18 }]}>
