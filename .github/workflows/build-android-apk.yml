@@ -1,0 +1,139 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build Type (release or debug)'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+      gateway_url:
+        description: 'Gateway URL to bake into APK'
+        required: false
+        default: 'https://gateway.cloud-agent.abhishekkkk.in'
+        type: string
+      create_release:
+        description: 'Create GitHub Release with direct APK download?'
+        required: false
+        default: false
+        type: boolean
+      release_tag:
+        description: 'Release Tag name (if creating release, e.g. v1.0.1)'
+        required: false
+        default: ''
+        type: string
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build Standalone Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      EXPO_PUBLIC_GATEWAY_URL: ${{ inputs.gateway_url || 'https://gateway.cloud-agent.abhishekkkk.in' }}
+      EXPO_PUBLIC_API_URL: ${{ inputs.gateway_url || 'https://gateway.cloud-agent.abhishekkkk.in' }}
+      CI: 'true'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Monorepo Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Expo Prebuild (Generate Native Android Project)
+        run: |
+          cd apps/mobile
+          npx expo prebuild --platform android --clean --no-install
+
+      - name: Build Android APK with Gradle
+        run: |
+          cd apps/mobile/android
+          chmod +x gradlew
+          if [ "${{ inputs.build_type }}" = "debug" ]; then
+            echo "Building Debug APK..."
+            ./gradlew assembleDebug --no-daemon
+          else
+            echo "Building Release APK..."
+            ./gradlew assembleRelease --no-daemon
+          fi
+
+      - name: Locate & Prepare APK
+        id: locate_apk
+        run: |
+          APK_FILE=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo "Error: No APK file generated!"
+            exit 1
+          fi
+          echo "Found generated APK: $APK_FILE"
+          cp "$APK_FILE" apps/mobile/cloud-agent.apk
+          echo "apk_path=apps/mobile/cloud-agent.apk" >> $GITHUB_OUTPUT
+          ls -lh apps/mobile/cloud-agent.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-agent-android-apk
+          path: apps/mobile/cloud-agent.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Determine Release Tag
+        if: ${{ inputs.create_release == true || startsWith(github.ref, 'refs/tags/v') }}
+        id: release_info
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v1.0.0-build-$(date +%Y%m%d%H%M)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Publish GitHub Release (Direct Download)
+        if: ${{ inputs.create_release == true || startsWith(github.ref, 'refs/tags/v') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag }}
+          name: Cloud Agent Mobile ${{ steps.release_info.outputs.tag }}
+          files: apps/mobile/cloud-agent.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
