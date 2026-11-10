@@ -162,12 +162,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const initialContainerHeight = useRef(0);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
-        setKeyboardHeight(e.endCoordinates.height);
+        setKeyboardHeight(e.endCoordinates ? e.endCoordinates.height : 0);
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: true });
         }, 60);
@@ -184,6 +186,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       hideSub.remove();
     };
   }, []);
+
+  // Adaptive keyboard displacement: If Android native window shrank, don't double shift.
+  // If Android native window did NOT shrink (translucent status/nav bars / edge-to-edge), apply full keyboardHeight.
+  const nativeResizeDelta =
+    Platform.OS === 'android' && initialContainerHeight.current > 0 && containerHeight > 0
+      ? Math.max(0, initialContainerHeight.current - containerHeight)
+      : 0;
+
+  const bottomOffset =
+    Platform.OS === 'ios'
+      ? keyboardHeight
+      : Math.max(0, keyboardHeight - nativeResizeDelta);
 
   const handleSaveRename = async () => {
     if (!activeSession || !renameTitle.trim() || isSavingRename) return;
@@ -583,7 +597,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   return (
-    <View style={[styles.container, isLight && { backgroundColor: '#f6f8fa' }]}>
+    <View
+      style={[styles.container, isLight && { backgroundColor: '#f6f8fa' }]}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0) {
+          if (!initialContainerHeight.current || keyboardHeight === 0) {
+            initialContainerHeight.current = h;
+          }
+          setContainerHeight(h);
+        }
+      }}
+    >
       {/* 1. Floating Capsule Header */}
       <View
         style={[
@@ -822,7 +847,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           styles.scrollContent,
           {
             paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
-            paddingBottom: 90 + insets.bottom + (Platform.OS === 'ios' ? keyboardHeight : 0),
+            paddingBottom: 90 + insets.bottom + bottomOffset,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -1117,7 +1142,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           style={[
             styles.scrollFabContainer,
             {
-              bottom: 76 + Math.max(insets.bottom, 12) + (Platform.OS === 'ios' ? keyboardHeight : 0),
+              bottom: 76 + Math.max(insets.bottom, 12) + bottomOffset,
               pointerEvents: 'box-none',
             },
           ]}
@@ -1143,10 +1168,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         style={[
           styles.chatInputWrapper,
           {
-            bottom: Platform.OS === 'ios' ? keyboardHeight : 0,
+            bottom: bottomOffset,
             paddingBottom:
-              Platform.OS === 'ios' && keyboardHeight > 0
-                ? 10
+              bottomOffset > 0
+                ? (Platform.OS === 'android' ? 8 : 10)
                 : Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12),
           },
         ]}
