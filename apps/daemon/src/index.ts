@@ -12,6 +12,8 @@ import {
   restartService,
   statusService,
   uninstallService,
+  savePid,
+  removePid,
 } from "./service.js";
 import { exposePort } from "./tunnel.js";
 import { showDaemonStatus, runDoctor } from "./doctor.js";
@@ -248,10 +250,25 @@ async function pairMachine(flags: Record<string, string>) {
             if (pollData.machineId) config.machineId = pollData.machineId;
             if (pollData.name) config.machineName = pollData.name;
             saveConfig(config);
-            console.log(`\x1b[32m✔ Credentials saved to: ${getConfigPath()}\x1b[0m`);
-            console.log(`\x1b[36m✔ Connecting to Cloud Agent Gateway...\x1b[0m\n`);
-            await startDaemon(flags);
-            return;
+            console.log(`\x1b[32m✔ Credentials saved to: ${getConfigPath()}\x1b[0m\n`);
+
+            if (flags.foreground || flags["fg"]) {
+              console.log(`\x1b[36m✔ Connecting to Cloud Agent Gateway in foreground...\x1b[0m\n`);
+              await startDaemon(flags);
+              return;
+            }
+
+            console.log(`\x1b[36m✔ Configuring Cloud Agent as a persistent 24/7 background service...\x1b[0m`);
+            await installService();
+            await startService();
+            console.log(`\n\x1b[1m\x1b[32m════════════════════════════════════════════════════════════════\x1b[0m`);
+            console.log(`\x1b[1m\x1b[32m✔ Cloud Agent is now running 24/7 in the background!\x1b[0m`);
+            console.log(`  It will stay alive across terminal exits and system restarts.`);
+            console.log(`  • View live logs : \x1b[35mca logs -f\x1b[0m`);
+            console.log(`  • Check status   : \x1b[36mca service status\x1b[0m`);
+            console.log(`  • Stop service   : \x1b[90mca service stop\x1b[0m`);
+            console.log(`\x1b[1m\x1b[32m════════════════════════════════════════════════════════════════\x1b[0m\n`);
+            process.exit(0);
           }
         }
       } catch {
@@ -310,19 +327,30 @@ async function startDaemon(flags: Record<string, string>) {
 
   await checkAdapters();
 
+  savePid(process.pid);
+
   const connection = new GatewayConnection(config);
   connection.start();
 
+  const cleanup = () => {
+    removePid();
+    connection.stop();
+  };
+
   process.on("SIGINT", () => {
     console.log("\n[Daemon] Stopping daemon...");
-    connection.stop();
+    cleanup();
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
     console.log("\n[Daemon] Terminating daemon...");
-    connection.stop();
+    cleanup();
     process.exit(0);
+  });
+
+  process.on("exit", () => {
+    removePid();
   });
 }
 

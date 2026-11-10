@@ -26,19 +26,37 @@ function getCaBinaryPath(): string {
   if (fs.existsSync(customBin)) {
     return customBin;
   }
+  const localBin = path.join(os.homedir(), ".local", "bin", process.platform === "win32" ? "ca.cmd" : "ca");
+  if (fs.existsSync(localBin)) {
+    return localBin;
+  }
+  try {
+    const whichCmd = process.platform === "win32" ? "where ca" : "which ca";
+    const found = execSync(whichCmd, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim().split("\n")[0].trim();
+    if (found && fs.existsSync(found)) {
+      return found;
+    }
+  } catch {}
   return "";
 }
 
-function getExecutionCommand(): { cmd: string; args: string[]; displayCmd: string } {
+function formatExecCmd(cmd: string, args: string[]): { cmd: string; args: string[]; displayCmd: string; execStart: string } {
+  const formattedCmd = cmd.includes(" ") ? `"${cmd}"` : cmd;
+  const formattedArgs = args.map((arg) => (arg.includes(" ") ? `"${arg}"` : arg));
+  const fullCmd = [formattedCmd, ...formattedArgs].join(" ");
+  return { cmd, args, displayCmd: fullCmd, execStart: fullCmd };
+}
+
+function getExecutionCommand(): { cmd: string; args: string[]; displayCmd: string; execStart: string } {
   const caBin = getCaBinaryPath();
   if (caBin) {
-    return { cmd: caBin, args: ["start"], displayCmd: `"${caBin}" start` };
+    return formatExecCmd(caBin, ["start"]);
   }
 
   const scriptPath = getDaemonEntryScript();
   const nodePath = process.execPath;
   if (scriptPath.endsWith(".js")) {
-    return { cmd: nodePath, args: [scriptPath, "start"], displayCmd: `"${nodePath}" "${scriptPath}" start` };
+    return formatExecCmd(nodePath, [scriptPath, "start"]);
   }
 
   // Look for tsx runner in monorepo runtime root or daemon node_modules
@@ -47,13 +65,13 @@ function getExecutionCommand(): { cmd: string; args: string[]; displayCmd: strin
   const tsxCli = fs.existsSync(candidateTsx1) ? candidateTsx1 : fs.existsSync(candidateTsx2) ? candidateTsx2 : "";
 
   if (tsxCli) {
-    return { cmd: nodePath, args: [tsxCli, scriptPath, "start"], displayCmd: `"${nodePath}" "${tsxCli}" "${scriptPath}" start` };
+    return formatExecCmd(nodePath, [tsxCli, scriptPath, "start"]);
   }
 
-  return { cmd: nodePath, args: [scriptPath, "start"], displayCmd: `"${nodePath}" "${scriptPath}" start` };
+  return formatExecCmd(nodePath, [scriptPath, "start"]);
 }
 
-function getStoredPid(): number | null {
+export function getStoredPid(): number | null {
   try {
     if (fs.existsSync(PID_FILE)) {
       const raw = fs.readFileSync(PID_FILE, "utf8").trim();
@@ -66,19 +84,19 @@ function getStoredPid(): number | null {
   return null;
 }
 
-function savePid(pid: number): void {
+export function savePid(pid: number): void {
   const dir = path.dirname(PID_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(PID_FILE, String(pid), "utf8");
 }
 
-function removePid(): void {
+export function removePid(): void {
   try {
     if (fs.existsSync(PID_FILE)) fs.unlinkSync(PID_FILE);
   } catch {}
 }
 
-function isPidAlive(pid: number): boolean {
+export function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
@@ -112,17 +130,45 @@ export async function installService(): Promise<void> {
       fs.mkdirSync(serviceDir, { recursive: true });
     }
 
+    const username = os.userInfo().username || process.env.USER || "root";
+    const nodeDir = path.dirname(process.execPath);
+    const caBinDir = path.join(os.homedir(), ".cloud-agent", "bin");
+    const localBinDir = path.join(os.homedir(), ".local", "bin");
+    const rawPath = process.env.PATH || "/usr/local/bin:/usr/bin:/bin";
+    const pathSegments = [
+      caBinDir,
+      localBinDir,
+      nodeDir,
+      ...rawPath.split(path.delimiter),
+      "/usr/local/bin",
+      "/usr/bin",
+      "/bin",
+    ].filter(Boolean);
+    const seen = new Set<string>();
+    const deduplicatedSegments: string[] = [];
+    for (const seg of pathSegments) {
+      if (!seen.has(seg)) {
+        seen.add(seg);
+        deduplicatedSegments.push(seg);
+      }
+    }
+    const finalPath = deduplicatedSegments.join(path.delimiter);
+
     const unitContent = `[Unit]
 Description=Cloud Agent Daemon
-After=network.target
+After=network.target network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${execCmd.displayCmd}
+ExecStart=${execCmd.execStart}
 Restart=always
 RestartSec=5
 WorkingDirectory=${os.homedir()}
-Environment=NODE_ENV=production
+Environment="NODE_ENV=production"
+Environment="HOME=${os.homedir()}"
+Environment="USER=${username}"
+Environment="PATH=${finalPath}"
 StandardOutput=append:${logPath}
 StandardError=append:${logPath}
 
@@ -135,10 +181,24 @@ WantedBy=default.target
       execSync("systemctl --user daemon-reload", { stdio: "ignore" });
       execSync("systemctl --user enable cloud-agent.service", { stdio: "ignore" });
       console.log(`\x1b[32m✔ Systemd user unit installed and enabled:\x1b[0m ${serviceFile}`);
-      console.log(`  Run \x1b[1mca service start\x1b[0m to launch the background service.`);
     } catch (e: any) {
       console.log(`\x1b[33mUnit file created at ${serviceFile}\x1b[0m`);
       console.log(`To enable: systemctl --user daemon-reload && systemctl --user enable cloud-agent.service`);
+    }
+
+    // Enable user lingering so user unit runs 24/7 across reboots and terminal exits
+    try {
+      if (username) {
+        execSync(`loginctl enable-linger "${username}"`, { stdio: "ignore" });
+        console.log(`\x1b[32m✔ Persistent user lingering enabled (survives logout and system reboots).\x1b[0m`);
+      }
+    } catch {
+      try {
+        execSync("loginctl enable-linger", { stdio: "ignore" });
+        console.log(`\x1b[32m✔ Persistent user lingering enabled.\x1b[0m`);
+      } catch {
+        console.log(`\x1b[33mNote: Run 'loginctl enable-linger ${username}' if daemon stops after closing terminal.\x1b[0m`);
+      }
     }
   } else if (process.platform === "darwin") {
     const plistFile = getLaunchdPath();
@@ -196,23 +256,42 @@ ${argsXml}
 }
 
 export async function startService(): Promise<void> {
-  // Check if already running
-  const currentPid = getStoredPid();
-  if (currentPid && isPidAlive(currentPid)) {
-    console.log(`\x1b[33mCloud Agent Daemon is already running (PID: ${currentPid})\x1b[0m`);
-    console.log(`Run 'ca service status' or 'ca logs -f' to inspect.`);
-    return;
-  }
-
   if (process.platform === "linux") {
+    const serviceFile = getSystemdPath();
+    if (!fs.existsSync(serviceFile)) {
+      console.log(`\x1b[36mSystemd service unit not installed yet. Installing now...\x1b[0m`);
+      await installService();
+    }
+
+    // Check if systemd service is already running
     try {
-      execSync("systemctl --user start cloud-agent.service", { stdio: "inherit" });
-      console.log(`\x1b[32m✔ Systemd background service started.\x1b[0m`);
+      const activeState = execSync("systemctl --user is-active cloud-agent.service", {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim();
+      if (activeState === "active") {
+        console.log(`\x1b[33mCloud Agent Daemon is already running as a systemd service.\x1b[0m`);
+        console.log(`Run 'ca service status' or 'ca logs -f' to inspect.`);
+        return;
+      }
+    } catch {}
+
+    try {
+      execSync("systemctl --user restart cloud-agent.service", { stdio: "inherit" });
+      console.log(`\n\x1b[1m\x1b[32m✔ Cloud Agent Daemon background service started!\x1b[0m`);
+      console.log(`  Tail Logs: \x1b[35mca logs -f\x1b[0m`);
+      console.log(`  Status   : \x1b[36mca service status\x1b[0m`);
+      console.log(`  Stop     : \x1b[90mca service stop\x1b[0m\n`);
       return;
-    } catch {
-      // Fallback to detached process
+    } catch (e: any) {
+      console.warn(`\x1b[33mCould not start via systemctl --user, falling back to process launcher...\x1b[0m`);
     }
   } else if (process.platform === "darwin") {
+    const plistFile = getLaunchdPath();
+    if (!fs.existsSync(plistFile)) {
+      console.log(`\x1b[36mLaunchAgent not installed yet. Installing now...\x1b[0m`);
+      await installService();
+    }
     try {
       execSync("launchctl start com.cloudagent.daemon", { stdio: "inherit" });
       console.log(`\x1b[32m✔ macOS launchd background service started.\x1b[0m`);
@@ -220,6 +299,14 @@ export async function startService(): Promise<void> {
     } catch {
       // Fallback to detached process
     }
+  }
+
+  // Check stored PID for fallback detached runner
+  const currentPid = getStoredPid();
+  if (currentPid && isPidAlive(currentPid)) {
+    console.log(`\x1b[33mCloud Agent Daemon is already running (PID: ${currentPid})\x1b[0m`);
+    console.log(`Run 'ca service status' or 'ca logs -f' to inspect.`);
+    return;
   }
 
   // Universal Detached Process Launcher
@@ -299,14 +386,17 @@ export async function statusService(): Promise<void> {
   console.log(`\n\x1b[1m\x1b[36mCloud Agent Daemon Service Status:\x1b[0m\n`);
 
   if (process.platform === "linux") {
-    try {
-      const out = execSync("systemctl --user status cloud-agent.service", { encoding: "utf8" });
-      console.log(out);
-      return;
-    } catch (e: any) {
-      if (e.stdout) {
-        console.log(e.stdout);
+    const serviceFile = getSystemdPath();
+    if (fs.existsSync(serviceFile)) {
+      try {
+        const out = execSync("systemctl --user status cloud-agent.service --no-pager", { encoding: "utf8" });
+        console.log(out);
         return;
+      } catch (e: any) {
+        if (e.stdout) {
+          console.log(e.stdout);
+          return;
+        }
       }
     }
   }

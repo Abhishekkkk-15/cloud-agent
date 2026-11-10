@@ -130,6 +130,17 @@ RUNTIME_DIR="$HOME/.cloud-agent/runtime"
 DAEMON_DIR="$RUNTIME_DIR/apps/daemon"
 TSX_CLI="$RUNTIME_DIR/node_modules/tsx/dist/cli.mjs"
 export NODE_ENV="${NODE_ENV:-production}"
+export PATH="$HOME/.local/bin:$HOME/.cloud-agent/bin:$PATH"
+
+# Resolve node from nvm/fnm if not present in current environment
+if ! command -v node >/dev/null 2>&1; then
+  if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    export NVM_DIR="$HOME/.nvm"
+    # shellcheck disable=SC1091
+    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" --no-use
+    [ -s "$NVM_DIR/alias/default" ] && export PATH="$NVM_DIR/versions/node/$(cat "$NVM_DIR/alias/default")/bin:$PATH"
+  fi
+fi
 
 if [ -f "$DAEMON_DIR/dist/index.js" ]; then
   exec node "$DAEMON_DIR/dist/index.js" "$@"
