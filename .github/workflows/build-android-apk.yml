@@ -40,6 +40,9 @@ jobs:
     timeout-minutes: 60
 
     env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m"
       EXPO_PUBLIC_GATEWAY_URL: ${{ inputs.gateway_url || 'https://gateway.cloud-agent.abhishekkkk.in' }}
       EXPO_PUBLIC_API_URL: ${{ inputs.gateway_url || 'https://gateway.cloud-agent.abhishekkkk.in' }}
       CI: 'true'
@@ -65,10 +68,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
-      - name: Setup Gradle Cache
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install Monorepo Dependencies
@@ -94,7 +98,10 @@ jobs:
       - name: Locate & Prepare APK
         id: locate_apk
         run: |
-          APK_FILE=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          APK_FILE=$(find apps/mobile/android/app/build/outputs/apk -name "*release*.apk" ! -name "*unsigned*" ! -name "*unaligned*" | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            APK_FILE=$(find apps/mobile/android/app/build/outputs/apk -name "*.apk" ! -name "*unaligned*" | head -n 1)
+          fi
           if [ -z "$APK_FILE" ]; then
             echo "Error: No APK file generated!"
             exit 1
