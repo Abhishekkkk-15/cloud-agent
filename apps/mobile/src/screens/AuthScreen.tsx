@@ -19,9 +19,12 @@ import {
   Globe,
   WifiOff,
   RefreshCw,
+  Zap,
+  Cloud,
 } from '../components/Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
+import { isRunningInExpoGo } from '../lib/notifications';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -187,14 +190,36 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const theme = useDaemonStore((s) => s.theme);
   const toggleTheme = useDaemonStore((s) => s.toggleTheme);
   const loginWithToken = useDaemonStore((s) => s.loginWithToken);
+  const loginWithDev = useDaemonStore((s) => s.loginWithDev);
   const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
   const isNetworkOnline = useDaemonStore((s) => s.isNetworkOnline);
   const checkNetwork = useDaemonStore((s) => s.checkNetwork);
 
   const isLight = theme === 'light';
+  const isExpoGo = isRunningInExpoGo();
 
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
+  const [isLoadingDev, setIsLoadingDev] = useState(false);
   const [showServerSettings, setShowServerSettings] = useState(false);
+
+  const handleDevLogin = async () => {
+    try {
+      setIsLoadingDev(true);
+      const ok = await loginWithDev();
+      if (ok) {
+        if (onSuccess) onSuccess();
+      } else {
+        Alert.alert(
+          'Dev Login Error',
+          `Could not connect to Gateway at ${gatewayUrl}. Please ensure gateway server is running.`
+        );
+      }
+    } catch (err: any) {
+      Alert.alert('Dev Login Error', err?.message || 'Dev login failed.');
+    } finally {
+      setIsLoadingDev(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     if (!isNetworkOnline) {
@@ -325,10 +350,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           style={[
             styles.googlePillBtn,
             isLight ? styles.googlePillBtnLight : styles.googlePillBtnDark,
-            isLoadingGoogle && styles.btnDisabled,
+            (isLoadingGoogle || isLoadingDev) && styles.btnDisabled,
           ]}
           onPress={handleGoogleLogin}
-          disabled={isLoadingGoogle}
+          disabled={isLoadingGoogle || isLoadingDev}
           activeOpacity={0.8}
         >
           {isLoadingGoogle ? (
@@ -353,6 +378,73 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
             </>
           )}
         </TouchableOpacity>
+
+        {/* Developer / Test Account Login (Exclusively visible when running inside Expo Go client) */}
+        {isExpoGo && (
+          <View style={styles.expoGoDevSection}>
+            <View style={styles.cloudDividerRow}>
+              <View
+                style={[
+                  styles.cloudDividerLine,
+                  isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
+                ]}
+              />
+              <View style={styles.cloudIconBox}>
+                <Cloud
+                  size={15}
+                  color={isLight ? '#9ca3af' : '#6e7681'}
+                />
+              </View>
+              <View
+                style={[
+                  styles.cloudDividerLine,
+                  isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
+                ]}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.devConnectRow,
+                (isLoadingDev || isLoadingGoogle) && styles.btnDisabled,
+              ]}
+              onPress={handleDevLogin}
+              disabled={isLoadingDev || isLoadingGoogle}
+              activeOpacity={0.7}
+            >
+              {isLoadingDev ? (
+                <ActivityIndicator size="small" color="#0077b6" />
+              ) : (
+                <>
+                  <Zap size={14} color={isLight ? '#0077b6' : '#48cae4'} />
+                  <Text
+                    style={[
+                      styles.devConnectText,
+                      isLight ? styles.devConnectTextLight : styles.devConnectTextDark,
+                    ]}
+                  >
+                    Expo Go Test / Developer Account
+                  </Text>
+                  <View
+                    style={[
+                      styles.devBadge,
+                      isLight ? styles.devBadgeLight : styles.devBadgeDark,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.devBadgeText,
+                        isLight ? styles.devBadgeTextLight : styles.devBadgeTextDark,
+                      ]}
+                    >
+                      Dev Only
+                    </Text>
+                  </View>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Offline Warning Notice */}
         {!isNetworkOnline && (
@@ -596,6 +688,76 @@ const styles = StyleSheet.create({
     color: '#0077b6',
   },
   offlineRetryTextDark: {
+    color: '#48cae4',
+  },
+
+  // Expo Go Developer Section
+  expoGoDevSection: {
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 6,
+  },
+  cloudDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 240,
+    marginTop: 20,
+    marginBottom: 16,
+  },
+  cloudDividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  cloudDividerLineLight: {
+    backgroundColor: '#e5e7eb',
+  },
+  cloudDividerLineDark: {
+    backgroundColor: '#262626',
+  },
+  cloudIconBox: {
+    marginHorizontal: 12,
+  },
+  devConnectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+  },
+  devConnectText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  devConnectTextLight: {
+    color: '#0077b6',
+  },
+  devConnectTextDark: {
+    color: '#48cae4',
+  },
+  devBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  devBadgeLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: 'rgba(0, 119, 182, 0.2)',
+  },
+  devBadgeDark: {
+    backgroundColor: 'rgba(0, 119, 182, 0.15)',
+    borderColor: 'rgba(0, 119, 182, 0.35)',
+  },
+  devBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  devBadgeTextLight: {
+    color: '#0077b6',
+  },
+  devBadgeTextDark: {
     color: '#48cae4',
   },
 });

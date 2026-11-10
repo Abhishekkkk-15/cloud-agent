@@ -433,9 +433,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
   if (!isRendered && !isOpen) return null;
 
-  const operatorInitial = currentUser?.name ? currentUser.name[0].toUpperCase() : 'O';
-  const operatorName = currentUser?.name || 'Local Operator';
-  const operatorEmail = currentUser?.email || 'local@cloud-agent.internal';
+  const operatorInitial = currentUser?.name
+    ? currentUser.name[0].toUpperCase()
+    : currentUser?.email
+      ? currentUser.email[0].toUpperCase()
+      : 'U';
+  const operatorName = currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'User');
+  const operatorEmail = currentUser?.email || '';
 
   const cpuCores = daemonStatus?.telemetry?.cpu?.cores || 8;
   const ramGb = daemonStatus?.telemetry?.ram?.totalGb || 32;

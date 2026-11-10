@@ -193,7 +193,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                 <View style={[styles.infoBanner, isLight && styles.infoBannerLight]}>
                   <Radio size={14} color={isLight ? '#0077b6' : '#fafafa'} style={{ marginTop: 2 }} />
                   <Text style={[styles.infoBannerText, isLight && styles.infoBannerTextLight]}>
-                    All mobile operations (Google OAuth, developer login, machine discovery, and WebRTC streaming) connect exclusively through this Gateway Hub.
+                    All mobile operations (Google OAuth, machine discovery, and WebRTC streaming) connect exclusively through this Gateway Hub.
                   </Text>
                 </View>
 
