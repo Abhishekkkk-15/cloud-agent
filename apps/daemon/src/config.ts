@@ -84,3 +84,12 @@ export function clearGithubToken(): void {
   delete cfg.githubToken;
   saveConfig(cfg);
 }
+
+export function removeConfig(): void {
+  const filePath = getConfigPath();
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch {}
+  }
+}

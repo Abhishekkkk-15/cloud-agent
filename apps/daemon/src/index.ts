@@ -17,6 +17,7 @@ import {
 } from "./service.js";
 import { exposePort } from "./tunnel.js";
 import { showDaemonStatus, runDoctor } from "./doctor.js";
+import { resetConfiguration } from "./reset.js";
 
 async function printBanner() {
   console.log(`
@@ -409,10 +410,27 @@ async function main() {
       } else if (sub === "restart") {
         await restartService();
       } else if (sub === "uninstall") {
-        await uninstallService();
+        if (flags.all === "true" || flags.purge === "true") {
+          await resetConfiguration({ purge: true });
+        } else {
+          await uninstallService();
+        }
       } else {
         await statusService();
       }
+      break;
+    }
+
+    case "reset":
+    case "unpair":
+    case "clean": {
+      const isPurge = flags.purge === "true" || flags.all === "true" || flags.full === "true";
+      await resetConfiguration({ purge: isPurge });
+      break;
+    }
+
+    case "purge": {
+      await resetConfiguration({ purge: true });
       break;
     }
 
@@ -459,6 +477,8 @@ Core Commands:
   start                     Start daemon in foreground (connects to Gateway)
   pair                      Pair machine with mobile app (terminal QR & code)
   status                    Display connection & machine status summary
+  reset                     Stop service and clear pairing & machine config (ready to re-pair)
+  purge                     Completely remove all Cloud Agent files, services & configs
   doctor                    Run diagnostic check on runtime, adapters & network
 
 Workspace Commands (P1):
