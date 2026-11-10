@@ -15,6 +15,7 @@ import {
   StatusBar,
   Modal,
 } from 'react-native';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Check,
@@ -223,6 +224,34 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const lastScrollTimeRef = useRef<number>(0);
   const scrollTimeoutRef = useRef<any>(null);
 
+  // Vercel v0 Pattern: Dynamic Floating Composer Height & Upward Expansion Auto-Scroll
+  const [composerMeasuredHeight, setComposerMeasuredHeight] = useState<number>(64);
+  const prevComposerHeightRef = useRef<number>(64);
+  const isNearBottomRef = useRef<boolean>(true);
+  const currentScrollYRef = useRef<number>(0);
+
+  // Vercel v0 Pattern: User Prompt Top-Pinning Invariant
+  const userJustSubmittedRef = useRef<boolean>(false);
+  const activePromptTurnIndexRef = useRef<number>(-1);
+  const activePromptLayoutYRef = useRef<number>(0);
+
+  const handleComposerLayout = (event: any) => {
+    const newHeight = Math.round(event.nativeEvent.layout.height);
+    if (newHeight > 0 && Math.abs(newHeight - prevComposerHeightRef.current) > 2) {
+      const delta = newHeight - prevComposerHeightRef.current;
+      prevComposerHeightRef.current = newHeight;
+      setComposerMeasuredHeight(newHeight);
+
+      // Vercel v0 Pattern: If user is reading near the bottom, compensate scroll offset so content never gets covered
+      if (isNearBottomRef.current && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({
+          y: Math.max(0, currentScrollYRef.current + delta),
+          animated: true,
+        });
+      }
+    }
+  };
+
   const pauseAutoScroll = () => {
     if (isSendingPrompt && !isAutoScrollPausedRef.current) {
       isAutoScrollPausedRef.current = true;
@@ -263,12 +292,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   const handleScroll = (event: any) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    currentScrollYRef.current = contentOffset.y;
     const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
+    const isNear = distanceFromBottom <= 45;
+    isNearBottomRef.current = isNear;
+
     const isScrolledUp = distanceFromBottom > 140 && contentOffset.y > 60;
     setShowScrollToBottom(isScrolledUp);
 
     // If user scrolled back down near the bottom (within 45px), resume auto-scroll
-    if (distanceFromBottom <= 45) {
+    if (isNear) {
       resumeAutoScroll();
     } else if (distanceFromBottom > 80 && isSendingPrompt) {
       // User scrolled up away from the bottom while agent is writing
@@ -391,12 +424,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       return;
     }
 
+    // Vercel v0 Pattern: Activate user prompt top-pinning on the new turn
+    userJustSubmittedRef.current = true;
+    activePromptTurnIndexRef.current = displayedTurns.length;
+
     setPromptInput('');
     resumeAutoScroll();
     await sendPrompt(text);
-    setTimeout(() => {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
-    }, 150);
   };
 
   const formatTimeAgo = (isoDate?: string) => {
@@ -847,7 +881,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           styles.scrollContent,
           {
             paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
-            paddingBottom: 90 + insets.bottom + bottomOffset,
+            paddingBottom: composerMeasuredHeight + Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) + bottomOffset + 18,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -905,7 +939,20 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           </View>
         ) : (
           displayedTurns.map((turn, turnIdx) => (
-            <View key={turn.id || turnIdx} style={styles.turnCardContainer}>
+            <View
+              key={turn.id || turnIdx}
+              style={styles.turnCardContainer}
+              onLayout={(e) => {
+                if (turnIdx === activePromptTurnIndexRef.current && userJustSubmittedRef.current) {
+                  userJustSubmittedRef.current = false;
+                  const turnY = e.nativeEvent.layout.y;
+                  activePromptLayoutYRef.current = turnY;
+                  // Vercel v0 Pattern: Smoothly anchor the user prompt comfortably below the header
+                  const targetY = Math.max(0, turnY - (topInset + 52));
+                  scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
+                }
+              }}
+            >
               {/* User Prompt: Paradev OutgoingBubble */}
               {turn.userMessage?.content ? (
                 <View style={styles.userBubbleWrapper}>
@@ -1142,7 +1189,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           style={[
             styles.scrollFabContainer,
             {
-              bottom: 76 + Math.max(insets.bottom, 12) + bottomOffset,
+              bottom: composerMeasuredHeight + Math.max(insets.bottom, 12) + bottomOffset + 12,
               pointerEvents: 'box-none',
             },
           ]}
@@ -1165,6 +1212,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       {/* 7. Chat Input Bar: Floating Capsule */}
       <View
+        onLayout={handleComposerLayout}
         style={[
           styles.chatInputWrapper,
           {
@@ -1177,6 +1225,36 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         ]}
         pointerEvents="box-none"
       >
+        {/* Vercel v0 Pattern: Liquid Glass Dissolve Gradient Mask */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: -26,
+            left: 0,
+            right: 0,
+            height: 26,
+          }}
+        >
+          <Svg width="100%" height="100%">
+            <Defs>
+              <LinearGradient id="composerDissolve" x1="0" y1="0" x2="0" y2="1">
+                <Stop
+                  offset="0"
+                  stopColor={isLight ? '#f6f8fa' : '#0d1117'}
+                  stopOpacity="0"
+                />
+                <Stop
+                  offset="1"
+                  stopColor={isLight ? '#f6f8fa' : '#0d1117'}
+                  stopOpacity={isLight ? 0.95 : 0.9}
+                />
+              </LinearGradient>
+            </Defs>
+            <Rect width="100%" height="100%" fill="url(#composerDissolve)" />
+          </Svg>
+        </View>
+
         {/* Autocomplete Slash Command Picker Overlay */}
         <SlashCommandPicker
           visible={showCommandPicker}
@@ -1203,7 +1281,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           />
         )}
 
-        {/* Paradev Inset Composer Card */}
+        {/* Floating Capsule Composer Card */}
         <View style={[styles.composerCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de', shadowOpacity: 0.08 }]}>
           {/* Circular '+' Button on Left */}
           <TouchableOpacity
@@ -1255,11 +1333,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             </TouchableOpacity>
           ) : promptInput.trim().length > 0 && !isDictating ? (
             <TouchableOpacity
-              style={[styles.composerSendBtn, isLight && { backgroundColor: '#0077b6' }]}
+              style={[styles.composerSendBtn, { backgroundColor: '#0077b6' }]}
               onPress={handleSendPrompt}
               activeOpacity={0.85}
             >
-              <ArrowUp size={16} color={isLight ? '#ffffff' : '#0a0a0a'} />
+              <ArrowUp size={16} color="#ffffff" />
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -2036,19 +2114,19 @@ const styles = StyleSheet.create({
   composerCard: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#161616',
+    backgroundColor: '#161b22',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     borderRadius: 26,
     minHeight: 52,
     maxHeight: 140,
     paddingHorizontal: 8,
     paddingVertical: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 0,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
   },
   composerPlusBtn: {
     width: 34,
