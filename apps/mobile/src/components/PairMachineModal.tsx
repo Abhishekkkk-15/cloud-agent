@@ -3,6 +3,7 @@ import {
   View,
   ScrollView,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import {
@@ -39,6 +40,10 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
 }) => {
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+
+  const { height: windowHeight } = useWindowDimensions();
+  const modalHeight = Math.min(680, Math.round(windowHeight * 0.85));
+
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const connectionState = useDaemonStore((s) => s.connectionState);
   const generateMachinePairingToken = useDaemonStore((s) => s.generateMachinePairingToken);
@@ -189,7 +194,10 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
 
   return (
     <Dialog open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <Dialog.Content className="w-full max-w-md bg-popover border border-border p-0 overflow-hidden rounded-2xl">
+      <Dialog.Content
+        className="w-full max-w-md bg-popover border border-border p-0 overflow-hidden rounded-2xl flex-col"
+        style={{ maxHeight: modalHeight }}
+      >
         {/* Header */}
         <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
           <View className="flex-row items-center gap-2.5 flex-1 mr-2">
@@ -231,9 +239,9 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
           </View>
         ) : (
           <ScrollView
-            className="max-h-[75vh]"
+            style={{ maxHeight: modalHeight - 90 }}
             contentContainerClassName="p-4"
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
             keyboardShouldPersistTaps="handled"
           >
             {/* Tabs */}

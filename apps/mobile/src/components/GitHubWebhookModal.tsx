@@ -4,6 +4,7 @@ import {
   ScrollView,
   Platform,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -71,6 +72,9 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
   const [copiedGithub, setCopiedGithub] = useState(false);
   const [copiedSentry, setCopiedSentry] = useState(false);
   const [activeTab, setActiveTab] = useState<'git' | 'webhooks'>('git');
+
+  const { height: windowHeight } = useWindowDimensions();
+  const modalHeight = Math.min(680, Math.round(windowHeight * 0.85));
 
   const machineId = activeMachine?.machineId || 'your-machine-id';
   const machineName = activeMachine?.name || daemonStatus?.hostname || 'Host Machine';
@@ -184,7 +188,10 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
 
   return (
     <Dialog open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <Dialog.Content className="w-full max-w-lg bg-popover border border-border p-0 overflow-hidden rounded-2xl max-h-[88vh]">
+      <Dialog.Content
+        className="w-full max-w-lg bg-popover border border-border p-0 overflow-hidden rounded-2xl flex-col"
+        style={{ height: modalHeight }}
+      >
         {/* Header */}
         <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
           <View className="flex-row items-center gap-2.5 flex-1 mr-2">
@@ -246,9 +253,10 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
 
         {/* Scroll Body */}
         <ScrollView
-          className="flex-1 px-4 py-3"
-          contentContainerClassName="pb-4 gap-3.5"
-          showsVerticalScrollIndicator={false}
+          className="flex-1"
+          style={{ flex: 1 }}
+          contentContainerClassName="p-4 pb-6 gap-3.5"
+          showsVerticalScrollIndicator={true}
           keyboardShouldPersistTaps="handled"
         >
           {activeTab === 'git' ? (

@@ -4,6 +4,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Share,
+  useWindowDimensions,
 } from 'react-native';
 import {
   Dialog,
@@ -48,6 +49,9 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+
+  const { height: windowHeight } = useWindowDimensions();
+  const modalHeight = Math.min(680, Math.round(windowHeight * 0.85));
 
   const [activeTab, setActiveTab] = useState<'diff' | 'tests' | 'details' | 'review'>('diff');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -118,7 +122,10 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
 
   return (
     <Dialog open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <Dialog.Content className="w-full max-w-lg bg-popover border border-border p-0 overflow-hidden rounded-2xl max-h-[88vh]">
+      <Dialog.Content
+        className="w-full max-w-lg bg-popover border border-border p-0 overflow-hidden rounded-2xl flex-col"
+        style={{ height: modalHeight }}
+      >
         {/* 1. Modal Header */}
         <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
           <View className="flex-row items-center gap-2.5 flex-1 mr-2">
@@ -304,9 +311,10 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
 
         {/* 4. Tab Contents */}
         <ScrollView
-          className="flex-1 px-4 py-3"
-          contentContainerClassName="pb-4"
-          showsVerticalScrollIndicator={false}
+          className="flex-1"
+          style={{ flex: 1 }}
+          contentContainerClassName="p-4 pb-6"
+          showsVerticalScrollIndicator={true}
         >
           {/* Tab: Changes Diff */}
           {!isPrReviewMode && activeTab === 'diff' && activeProposal && (
