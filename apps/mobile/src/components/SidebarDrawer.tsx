@@ -359,16 +359,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                       key={session.id}
                       onPress={() => handleSelectSession(session)}
                       className={cn(
-                        'flex-row items-center justify-between py-2 px-2.5 rounded-lg my-0.5',
+                        'flex-row items-center justify-between py-2.5 px-3 rounded-xl my-0.5',
                         isActive ? 'bg-secondary' : 'hover:bg-secondary/40'
                       )}
                       activeOpacity={0.7}
                     >
                       <View className="flex-row items-center flex-1 mr-2">
-                        <Pin size={11} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 6 }} />
+                        <Pin size={13} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 8 }} />
                         <Text
                           className={cn(
-                            'text-sm flex-1',
+                            'text-[15px] flex-1 leading-snug',
                             isActive ? 'font-semibold text-foreground' : 'text-foreground'
                           )}
                           numberOfLines={1}
@@ -379,9 +379,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                       <TouchableOpacity
                         onPress={() => setActionSession(session)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        className="p-1"
+                        className="p-1.5"
                       >
-                        <MoreVertical size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                        <MoreVertical size={15} color={isLight ? '#686868' : '#a3a3a3'} />
                       </TouchableOpacity>
                     </TouchableOpacity>
                   );
@@ -429,23 +429,23 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                     const isGroupExpanded = displayedExpanded.includes(group.name);
                     return (
                       <Tree.Item key={group.name} value={group.name}>
-                        <Tree.Trigger className="py-2 px-2.5 rounded-lg flex-row items-center justify-between">
+                        <Tree.Trigger className="py-2.5 px-3 rounded-xl flex-row items-center justify-between">
                           <Tree.Indicator />
                           {/* Workspace folder icon: closed / open based on state */}
-                          <Tree.Icon className="mr-2">
+                          <Tree.Icon className="mr-2.5">
                             {isGroupExpanded ? (
-                              <FolderOpen size={17} color={isLight ? '#262626' : '#f5f5f5'} />
+                              <FolderOpen size={19} color={isLight ? '#262626' : '#f5f5f5'} />
                             ) : (
-                              <Folder size={17} color={isLight ? '#686868' : '#a3a3a3'} />
+                              <Folder size={19} color={isLight ? '#686868' : '#a3a3a3'} />
                             )}
                           </Tree.Icon>
-                          <Tree.Label className="text-[15px] font-semibold text-foreground flex-1 tracking-tight" numberOfLines={1}>
+                          <Tree.Label className="text-[16px] font-semibold text-foreground flex-1 tracking-tight" numberOfLines={1}>
                             {group.name}
                           </Tree.Label>
                           {group.items.length > 0 && (
                             <Tree.Actions>
-                              <View className="px-1.5 py-0.5 rounded-full bg-secondary/80">
-                                <Text className="text-xs font-medium text-muted-foreground font-mono">
+                              <View className="px-2 py-0.5 rounded-full bg-secondary">
+                                <Text className="text-xs font-semibold text-muted-foreground font-mono">
                                   {group.items.length}
                                 </Text>
                               </View>
@@ -462,27 +462,27 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                                 <Tree.Trigger
                                   onPress={() => handleSelectSession(session)}
                                   className={cn(
-                                    'py-2 px-2.5 rounded-lg flex-row items-center justify-between',
+                                    'py-2.5 px-3 rounded-xl flex-row items-center justify-between my-0.5',
                                     isSessionActive && 'bg-secondary'
                                   )}
                                 >
                                   {/* Sessions have NO icon, matching clean tree standard */}
                                   <Tree.Label
                                     className={cn(
-                                      'text-sm flex-1',
+                                      'text-[15px] flex-1 leading-snug',
                                       isSessionActive
-                                        ? 'font-medium text-foreground'
+                                        ? 'font-semibold text-foreground'
                                         : 'text-muted-foreground'
                                     )}
                                     numberOfLines={1}
                                   >
                                     {session.title}
                                   </Tree.Label>
-                                  <Tree.Actions className="flex-row items-center gap-1">
+                                  <Tree.Actions className="flex-row items-center gap-1.5">
                                     {session.pinned && (
-                                      <Pin size={12} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 2 }} />
+                                      <Pin size={13} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 2 }} />
                                     )}
-                                    <SessionDropdownMenu session={session} iconSize={13} triggerClassName="p-1" />
+                                    <SessionDropdownMenu session={session} iconSize={15} triggerClassName="p-1.5" />
                                   </Tree.Actions>
                                 </Tree.Trigger>
                               </Tree.Item>
@@ -492,11 +492,11 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                           {/* Quick create inside workspace */}
                           <TouchableOpacity
                             onPress={() => handleStartSessionInWorkspace(group.path || group.name)}
-                            className="flex-row items-center py-2 px-2.5 rounded-lg mt-0.5"
+                            className="flex-row items-center py-2.5 px-3 rounded-xl mt-1"
                             activeOpacity={0.7}
                           >
-                            <Plus size={13} color={isLight ? '#686868' : '#a3a3a3'} style={{ marginRight: 6 }} />
-                            <Text className="text-sm text-muted-foreground font-medium">New Session</Text>
+                            <Plus size={15} color={isLight ? '#686868' : '#a3a3a3'} style={{ marginRight: 8 }} />
+                            <Text className="text-[14px] text-muted-foreground font-medium">New Session</Text>
                           </TouchableOpacity>
                         </Tree.Group>
                       </Tree.Item>
@@ -507,29 +507,29 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             </View>
 
             {/* 6. Management & Navigation Links (PanelUI Item) */}
-            <View className="pt-1.5 mt-0.5 border-t border-border mb-1">
-              <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-1">
+            <View className="pt-3 mt-2 border-t border-border mb-2">
+              <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
                 Management & Tools
               </Text>
 
               {/* Theme Toggle */}
               <Item
                 variant="default"
-                size="xs"
-                className="px-2 py-1.5 rounded-lg my-0"
+                size="sm"
+                className="px-2.5 py-2 rounded-xl my-0.5"
                 onPress={toggleTheme}
               >
                 <Item.Media variant="icon">
-                  {isLight ? <Sun size={15} color="#262626" /> : <Moon size={15} color="#f5f5f5" />}
+                  {isLight ? <Sun size={18} color="#262626" /> : <Moon size={18} color="#f5f5f5" />}
                 </Item.Media>
                 <Item.Content>
-                  <Item.Title className="text-sm text-foreground">
+                  <Item.Title className="text-[15px] font-medium text-foreground">
                     {isLight ? 'Theme: White' : 'Theme: Dark'}
                   </Item.Title>
                 </Item.Content>
                 <Item.Actions>
-                  <Badge variant="outline" size="sm" className="px-1.5 py-0">
-                    <Text className="text-[11px] font-medium text-foreground">{isLight ? 'White' : 'Dark'}</Text>
+                  <Badge variant="outline" size="sm" className="px-2 py-0.5">
+                    <Text className="text-xs font-medium text-foreground">{isLight ? 'White' : 'Dark'}</Text>
                   </Badge>
                 </Item.Actions>
               </Item>
@@ -537,25 +537,25 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               {/* Security Approvals */}
               <Item
                 variant="default"
-                size="xs"
+                size="sm"
                 className={cn(
-                  'px-2 py-1.5 rounded-lg my-0',
+                  'px-2.5 py-2 rounded-xl my-0.5',
                   currentScreen === 'approvals' && 'bg-secondary'
                 )}
                 onPress={() => handleNavScreen('approvals')}
               >
                 <Item.Media variant="icon">
-                  <ShieldAlert size={15} color={pendingApproval ? '#ef4444' : (isLight ? '#686868' : '#a3a3a3')} />
+                  <ShieldAlert size={18} color={pendingApproval ? '#ef4444' : (isLight ? '#686868' : '#a3a3a3')} />
                 </Item.Media>
                 <Item.Content>
-                  <Item.Title className={cn('text-sm', currentScreen === 'approvals' ? 'text-foreground font-semibold' : 'text-foreground')}>
+                  <Item.Title className={cn('text-[15px]', currentScreen === 'approvals' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
                     Command Approvals
                   </Item.Title>
                 </Item.Content>
                 <Item.Actions>
                   {pendingApproval ? (
-                    <Badge variant="destructive" size="sm" className="px-1.5 py-0">
-                      <Text className="text-[11px] font-semibold text-destructive-foreground">1 Action</Text>
+                    <Badge variant="destructive" size="sm" className="px-2 py-0.5">
+                      <Text className="text-xs font-semibold text-destructive-foreground">1 Action</Text>
                     </Badge>
                   ) : null}
                 </Item.Actions>
@@ -564,18 +564,18 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               {/* Machine Health & Telemetry */}
               <Item
                 variant="default"
-                size="xs"
+                size="sm"
                 className={cn(
-                  'px-2 py-1.5 rounded-lg my-0',
+                  'px-2.5 py-2 rounded-xl my-0.5',
                   currentScreen === 'health' && 'bg-secondary'
                 )}
                 onPress={() => handleNavScreen('health')}
               >
                 <Item.Media variant="icon">
-                  <Activity size={15} color={currentScreen === 'health' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
+                  <Activity size={18} color={currentScreen === 'health' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
                 </Item.Media>
                 <Item.Content>
-                  <Item.Title className={cn('text-sm', currentScreen === 'health' ? 'text-foreground font-semibold' : 'text-foreground')}>
+                  <Item.Title className={cn('text-[15px]', currentScreen === 'health' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
                     Machine Health & Fleet
                   </Item.Title>
                 </Item.Content>
@@ -584,18 +584,18 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               {/* Workspace & Fleets Screen */}
               <Item
                 variant="default"
-                size="xs"
+                size="sm"
                 className={cn(
-                  'px-2 py-1.5 rounded-lg my-0',
+                  'px-2.5 py-2 rounded-xl my-0.5',
                   currentScreen === 'sessions' && 'bg-secondary'
                 )}
                 onPress={() => handleNavScreen('sessions')}
               >
                 <Item.Media variant="icon">
-                  <Layers size={15} color={currentScreen === 'sessions' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
+                  <Layers size={18} color={currentScreen === 'sessions' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
                 </Item.Media>
                 <Item.Content>
-                  <Item.Title className={cn('text-sm', currentScreen === 'sessions' ? 'text-foreground font-semibold' : 'text-foreground')}>
+                  <Item.Title className={cn('text-[15px]', currentScreen === 'sessions' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
                     Workspace & Fleet Tree
                   </Item.Title>
                 </Item.Content>
@@ -604,40 +604,40 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               {/* Remote Folder Picker */}
               <Item
                 variant="default"
-                size="xs"
-                className="px-2 py-1.5 rounded-lg my-0"
+                size="sm"
+                className="px-2.5 py-2 rounded-xl my-0.5"
                 onPress={() => setShowDirectFolderPicker(true)}
               >
                 <Item.Media variant="icon">
-                  <Folder size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+                  <Folder size={18} color={isLight ? '#686868' : '#a3a3a3'} />
                 </Item.Media>
                 <Item.Content>
-                  <Item.Title className="text-sm text-foreground">
+                  <Item.Title className="text-[15px] font-medium text-foreground">
                     Browse Node Folders
                   </Item.Title>
                 </Item.Content>
                 <Item.Actions>
-                  <ChevronRight size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                  <ChevronRight size={15} color={isLight ? '#686868' : '#a3a3a3'} />
                 </Item.Actions>
               </Item>
 
               {/* Server & Notifications Settings */}
               <Item
                 variant="default"
-                size="xs"
-                className="px-2 py-1.5 rounded-lg my-0"
+                size="sm"
+                className="px-2.5 py-2 rounded-xl my-0.5"
                 onPress={() => setShowServerSettings(true)}
               >
                 <Item.Media variant="icon">
-                  <Bell size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+                  <Bell size={18} color={isLight ? '#686868' : '#a3a3a3'} />
                 </Item.Media>
                 <Item.Content>
-                  <Item.Title className="text-sm text-foreground">
+                  <Item.Title className="text-[15px] font-medium text-foreground">
                     Push & Server Settings
                   </Item.Title>
                 </Item.Content>
                 <Item.Actions>
-                  <ChevronRight size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                  <ChevronRight size={15} color={isLight ? '#686868' : '#a3a3a3'} />
                 </Item.Actions>
               </Item>
             </View>
