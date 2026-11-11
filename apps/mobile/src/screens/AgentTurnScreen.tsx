@@ -326,7 +326,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   const handleScroll = (event: any) => {
-    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const { contentOffset, layoutMeasurement, contentSize } = event?.nativeEvent || event || {};
+    if (!contentOffset || !layoutMeasurement || !contentSize) return;
     currentScrollYRef.current = contentOffset.y;
     const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
     const isNear = distanceFromBottom <= 45;
@@ -744,21 +745,21 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   return (
     <View style={[styles.container, isLight && { backgroundColor: '#ffffff' }]}>
-      {/* 0. Top Notch & Sticky Header Bar Background Surface */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: topInset + (Platform.OS === 'ios' ? 52 : 54),
-          backgroundColor: isLight ? '#ffffff' : '#141414',
-          borderBottomWidth: StyleSheet.hairlineWidth,
-          borderBottomColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
-          zIndex: 15,
-        }}
-        pointerEvents="none"
-      />
+      {/* 0. Top Notch Background (Covers physical notch/status bar while keeping the header transparent without borders) */}
+      {topInset > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topInset,
+            backgroundColor: isLight ? '#ffffff' : '#141414',
+            zIndex: 15,
+          }}
+          pointerEvents="none"
+        />
+      )}
 
       {/* 1. Floating Capsule Header */}
       <View
@@ -799,9 +800,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           accessibilityLabel="Open Session Parameters"
         >
           {connectionState !== 'connected' ? (
-            <ThinkingOrb state="searching" size={14} />
+            <ActivityIndicator size="small" color="#f85149" style={{ transform: [{ scale: 0.7 }] }} />
           ) : isSendingPrompt ? (
-            <ThinkingOrb state="working" size={14} />
+            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#58a6ff'} style={{ transform: [{ scale: 0.7 }] }} />
           ) : null}
           <Text
             style={[
@@ -1027,7 +1028,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               activeOpacity={0.7}
             >
               {isLoadingOlderMessages ? (
-                <ThinkingOrb state="searching" size={14} />
+                <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.primaryLight} />
               ) : (
                 <>
                   <ArrowUp size={13} color={isLight ? '#0077b6' : colors.primaryLight} />
@@ -1042,7 +1043,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {isLoadingMessages ? (
           <View style={styles.sessionLoadingBox}>
             <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
-              <ThinkingOrb state="searching" size={20} />
+              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
               <Text style={[styles.sessionLoadingText, isLight && { color: '#57606a' }]}>Loading session transcript...</Text>
             </View>
           </View>
@@ -1185,9 +1186,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
                               <View style={styles.flatToolRight}>
                                 {action.status === 'running' && (
-                                  <ThinkingOrb
-                                    state={action.category === 'search' ? 'searching' : 'working'}
-                                    size={15}
+                                  <ActivityIndicator
+                                    size="small"
+                                    color={isLight ? '#0077b6' : '#a3a3a3'}
+                                    style={{ transform: [{ scale: 0.65 }], marginRight: 2 }}
                                   />
                                 )}
                                 <ChevronRight size={14} color={isLight ? '#8c959f' : '#6e7681'} />
@@ -1360,7 +1362,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             />
           )}
 
-          {/* PanelUI Native AI Composer */}
+          {/* PanelUI Native AI Composer — Vercel v0 Floating Liquid Glass Pattern */}
           <AIInput
             value={promptInput}
             onValueChange={handleInputChange}
@@ -1371,6 +1373,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             avoidKeyboard={false}
             size="lg"
             className="w-full"
+            style={[
+              styles.floatingComposerCapsule,
+              isLight ? styles.floatingComposerLight : styles.floatingComposerDark,
+            ]}
           >
             <AIInput.Row>
               <AIInput.Action
@@ -2052,7 +2058,28 @@ const styles = StyleSheet.create({
   chatInputWrapper: {
     width: '100%',
     backgroundColor: 'transparent',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
+  },
+  // Vercel v0 Liquid Glass Floating Composer Capsule
+  floatingComposerCapsule: {
+    borderRadius: 28,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  floatingComposerDark: {
+    backgroundColor: 'rgba(25, 25, 25, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  floatingComposerLight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
   },
   composerCard: {
     flexDirection: 'row',
