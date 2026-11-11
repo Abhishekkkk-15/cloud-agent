@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import {
   Card,
@@ -13,6 +12,7 @@ import {
   Item,
   Text,
   ScrollHeader,
+  Spinner,
   toast,
   cn,
 } from 'panelui-native';
@@ -180,7 +180,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
                 className="flex-1 flex-row items-center justify-center gap-1.5"
               >
                 {isDenying ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
+                  <Spinner size="sm" color="#ffffff" />
                 ) : (
                   <>
                     <X size={14} color="#ffffff" />
@@ -197,7 +197,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
                 className="flex-1 flex-row items-center justify-center gap-1.5"
               >
                 {isAuthorizing ? (
-                  <ActivityIndicator size="small" color={isLight ? '#fafafa' : '#262626'} />
+                  <Spinner size="sm" color={isLight ? '#fafafa' : '#262626'} />
                 ) : (
                   <>
                     <Check size={14} color={isLight ? '#fafafa' : '#262626'} />

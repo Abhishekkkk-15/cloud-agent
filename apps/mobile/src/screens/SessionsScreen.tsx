@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import {
   Card,
@@ -13,6 +12,7 @@ import {
   Text,
   GridItem,
   ScrollHeader,
+  Spinner,
   cn,
 } from 'panelui-native';
 import {
@@ -186,11 +186,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
               accessibilityLabel="Refresh sessions"
             >
               {isLoadingSessions ? (
-                <ActivityIndicator
-                  size="small"
-                  color={isLight ? '#1f2328' : '#fafafa'}
-                  style={{ transform: [{ scale: 0.75 }] }}
-                />
+                <Spinner size="sm" />
               ) : (
                 <RefreshCw size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
               )}
@@ -352,7 +348,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         {/* 4. Repository Fleets Tree */}
         {isLoadingSessions && sessions.length === 0 ? (
           <View className="py-12 items-center justify-center gap-2">
-            <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+            <Spinner size="sm" />
             <Text className="text-xs text-muted-foreground">Loading workspace tree...</Text>
           </View>
         ) : workspaceGroups.length === 0 ? (

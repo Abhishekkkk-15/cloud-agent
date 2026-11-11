@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import {
   Card,
@@ -14,6 +13,7 @@ import {
   Text,
   GridItem,
   ScrollHeader,
+  Spinner,
   toast,
   cn,
 } from 'panelui-native';
@@ -171,11 +171,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
               accessibilityLabel="Refresh status"
             >
               {isRefreshing ? (
-                <ActivityIndicator
-                  size="small"
-                  color={isLight ? '#1f2328' : '#fafafa'}
-                  style={{ transform: [{ scale: 0.75 }] }}
-                />
+                <Spinner size="sm" />
               ) : (
                 <RefreshCw size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
               )}
@@ -589,7 +585,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
             >
               <GridItem.Media variant="icon">
                 {isPinging ? (
-                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} style={{ transform: [{ scale: 0.75 }] }} />
+                  <Spinner size="sm" />
                 ) : (
                   <Radio size={16} color={isLight ? '#262626' : '#f5f5f5'} />
                 )}

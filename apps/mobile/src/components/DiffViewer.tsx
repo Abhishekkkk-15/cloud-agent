@@ -1,14 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Platform,
 } from 'react-native';
+import { Card, Badge, Button, Text, cn } from 'panelui-native';
 import { FileCode, Copy, Check, ChevronDown, ChevronUp } from './Icons';
-import { colors, radii } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
 export interface DiffLine {
@@ -62,54 +59,62 @@ function computeTargetReplacementDiff(target: string, replacement: string): Diff
 }
 
 /**
- * Parses raw unified patch / diff text into structured lines.
+ * Parses a standard git diff patch string into typed lines with line numbers.
  */
-function parseUnifiedDiff(rawDiff: string): DiffLine[] {
-  const rawLines = rawDiff.split(/\r?\n/);
-  const diffLines: DiffLine[] = [];
+function parseUnifiedDiff(diff: string): DiffLine[] {
+  const lines = diff.split(/\r?\n/);
+  const result: DiffLine[] = [];
 
-  let oldCounter = 1;
-  let newCounter = 1;
+  let oldCounter = 0;
+  let newCounter = 0;
 
-  for (const line of rawLines) {
-    if (line.startsWith('--- ') || line.startsWith('+++ ')) {
-      diffLines.push({
+  for (const line of lines) {
+    if (line.startsWith('diff --git') || line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++')) {
+      result.push({
         type: 'header',
         content: line,
       });
-    } else if (line.startsWith('@@')) {
-      const match = /@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
-      if (match) {
-        oldCounter = parseInt(match[1], 10);
-        newCounter = parseInt(match[2], 10);
-      }
-      diffLines.push({
+      continue;
+    }
+
+    const hunkMatch = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/.exec(line);
+    if (hunkMatch) {
+      oldCounter = parseInt(hunkMatch[1], 10);
+      newCounter = parseInt(hunkMatch[2], 10);
+      result.push({
         type: 'hunk',
         content: line,
       });
-    } else if (line.startsWith('+')) {
-      diffLines.push({
+      continue;
+    }
+
+    if (line.startsWith('+')) {
+      result.push({
         type: 'add',
         newLineNumber: newCounter++,
         content: line,
       });
-    } else if (line.startsWith('-')) {
-      diffLines.push({
+      continue;
+    }
+
+    if (line.startsWith('-')) {
+      result.push({
         type: 'delete',
         oldLineNumber: oldCounter++,
         content: line,
       });
-    } else {
-      diffLines.push({
-        type: 'normal',
-        oldLineNumber: oldCounter++,
-        newLineNumber: newCounter++,
-        content: line.startsWith(' ') ? line : ` ${line}`,
-      });
+      continue;
     }
+
+    result.push({
+      type: 'normal',
+      oldLineNumber: oldCounter++,
+      newLineNumber: newCounter++,
+      content: line.startsWith(' ') ? line : ` ${line}`,
+    });
   }
 
-  return diffLines;
+  return result;
 }
 
 export const DiffViewer: React.FC<DiffViewerProps> = ({
@@ -173,65 +178,70 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
   const basename = filePath.split(/[\\/]/).pop() || filePath;
 
   return (
-    <View style={[styles.container, isLight && styles.containerLight]}>
+    <Card className="my-2 p-0 bg-surface border border-border rounded-xl overflow-hidden shadow-sm">
       {/* File Diff Header */}
-      <View style={[styles.header, isLight && styles.headerLight]}>
+      <View className="px-3 py-2 bg-surface-secondary border-b border-border flex-row items-center justify-between">
         <TouchableOpacity
-          style={styles.headerLeft}
+          className="flex-row items-center gap-2 flex-1 mr-2"
           activeOpacity={collapsible ? 0.7 : 1}
           onPress={collapsible ? () => setExpanded((prev) => !prev) : undefined}
         >
-          <FileCode size={14} color={isLight ? '#0077b6' : '#fafafa'} />
-          <View style={styles.titleColumn}>
-            <Text style={[styles.basenameText, isLight && styles.basenameTextLight]} numberOfLines={1}>
+          <FileCode size={14} color={isLight ? '#262626' : '#f5f5f5'} />
+          <View className="flex-1">
+            <Text className="text-xs font-mono font-semibold text-foreground" numberOfLines={1}>
               {basename}
             </Text>
             {basename !== filePath ? (
-              <Text style={[styles.fullPathText, isLight && styles.fullPathTextLight]} numberOfLines={1}>
+              <Text className="text-[10px] font-mono text-muted-foreground" numberOfLines={1}>
                 {filePath}
               </Text>
             ) : null}
           </View>
         </TouchableOpacity>
 
-        <View style={styles.headerRight}>
+        <View className="flex-row items-center gap-2">
           {/* Stats Badge (+X -Y) */}
-          <View style={[styles.statsBadge, isLight && styles.statsBadgeLight]}>
+          <View className="flex-row items-center gap-1">
             {stats.adds > 0 ? (
-              <Text style={[styles.statsAddText, isLight && { color: '#1a7f37' }]}>+{stats.adds}</Text>
+              <Badge variant="outline" size="sm" className="px-1.5 py-0 bg-success/10 border-success/30">
+                <Text className="text-[10px] font-mono font-bold text-success">+{stats.adds}</Text>
+              </Badge>
             ) : null}
             {stats.subs > 0 ? (
-              <Text style={[styles.statsSubText, isLight && { color: '#cf222e' }]}>-{stats.subs}</Text>
+              <Badge variant="outline" size="sm" className="px-1.5 py-0 bg-destructive/10 border-destructive/30">
+                <Text className="text-[10px] font-mono font-bold text-destructive">-{stats.subs}</Text>
+              </Badge>
             ) : null}
           </View>
 
           {/* Copy Button */}
-          <TouchableOpacity
-            style={[styles.copyBtn, isLight && styles.copyBtnLight]}
+          <Button
+            variant="ghost"
+            size="xs"
+            className="w-7 h-7 p-0 items-center justify-center rounded-lg"
             onPress={handleCopy}
-            activeOpacity={0.7}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             {copied ? (
-              <Check size={13} color={isLight ? '#1a7f37' : colors.green} />
+              <Check size={12} color="#10b981" />
             ) : (
-              <Copy size={13} color={isLight ? '#57606a' : '#a3a3a3'} />
+              <Copy size={12} color={isLight ? '#686868' : '#a3a3a3'} />
             )}
-          </TouchableOpacity>
+          </Button>
 
           {/* Collapse Chevron */}
           {collapsible ? (
-            <TouchableOpacity
+            <Button
+              variant="ghost"
+              size="xs"
+              className="w-7 h-7 p-0 items-center justify-center rounded-lg"
               onPress={() => setExpanded((prev) => !prev)}
-              activeOpacity={0.7}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
             >
               {expanded ? (
-                <ChevronUp size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <ChevronUp size={14} color={isLight ? '#686868' : '#a3a3a3'} />
               ) : (
-                <ChevronDown size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <ChevronDown size={14} color={isLight ? '#686868' : '#a3a3a3'} />
               )}
-            </TouchableOpacity>
+            </Button>
           ) : null}
         </View>
       </View>
@@ -241,14 +251,14 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={[styles.horizontalScroll, isLight && styles.horizontalScrollLight]}
+          className="bg-background"
         >
           <ScrollView
-            style={[styles.verticalScroll, maxHeight ? { maxHeight } : undefined]}
+            style={maxHeight ? { maxHeight } : undefined}
             showsVerticalScrollIndicator={false}
             nestedScrollEnabled
           >
-            <View style={styles.diffTable}>
+            <View className="py-1">
               {parsedLines.map((line, idx) => {
                 const isAdd = line.type === 'add';
                 const isSub = line.type === 'delete';
@@ -257,16 +267,16 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
 
                 if (isHunk) {
                   return (
-                    <View key={idx} style={[styles.hunkRow, isLight && styles.hunkRowLight]}>
-                      <Text style={[styles.hunkText, isLight && styles.hunkTextLight]}>{line.content}</Text>
+                    <View key={idx} className="px-2.5 py-1 bg-surface-secondary border-y border-border">
+                      <Text className="text-[11px] font-mono text-muted-foreground">{line.content}</Text>
                     </View>
                   );
                 }
 
                 if (isHeader) {
                   return (
-                    <View key={idx} style={styles.metaRow}>
-                      <Text style={[styles.metaText, isLight && styles.metaTextLight]}>{line.content}</Text>
+                    <View key={idx} className="px-2.5 py-0.5">
+                      <Text className="text-[11px] font-mono text-muted-foreground">{line.content}</Text>
                     </View>
                   );
                 }
@@ -274,54 +284,52 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
                 return (
                   <View
                     key={idx}
-                    style={[
-                      styles.diffRow,
-                      isAdd && (isLight ? styles.diffRowAddLight : styles.diffRowAdd),
-                      isSub && (isLight ? styles.diffRowSubLight : styles.diffRowSub),
-                    ]}
+                    className={cn(
+                      'flex-row items-center px-2 py-0.5 min-w-full',
+                      isAdd && 'bg-success/10',
+                      isSub && 'bg-destructive/10'
+                    )}
                   >
                     {/* Old line number */}
                     <Text
-                      style={[
-                        styles.gutterNum,
-                        isLight && styles.gutterNumLight,
-                        isSub && (isLight ? { color: '#cf222e' } : styles.gutterNumSub),
-                      ]}
+                      className={cn(
+                        'w-8 text-[11px] font-mono text-right pr-2 select-none',
+                        isSub ? 'text-destructive font-semibold' : 'text-muted-foreground/50'
+                      )}
                     >
                       {line.oldLineNumber ?? ''}
                     </Text>
 
                     {/* New line number */}
                     <Text
-                      style={[
-                        styles.gutterNum,
-                        isLight && styles.gutterNumLight,
-                        isAdd && (isLight ? { color: '#1a7f37' } : styles.gutterNumAdd),
-                      ]}
+                      className={cn(
+                        'w-8 text-[11px] font-mono text-right pr-2 select-none',
+                        isAdd ? 'text-success font-semibold' : 'text-muted-foreground/50'
+                      )}
                     >
                       {line.newLineNumber ?? ''}
                     </Text>
 
                     {/* Prefix sign (+ / - / space) */}
                     <Text
-                      style={[
-                        styles.signGutter,
-                        isLight && styles.signGutterLight,
-                        isAdd && (isLight ? { color: '#1a7f37' } : styles.signAdd),
-                        isSub && (isLight ? { color: '#cf222e' } : styles.signSub),
-                      ]}
+                      className={cn(
+                        'w-4 text-[11px] font-mono font-bold text-center',
+                        isAdd && 'text-success',
+                        isSub && 'text-destructive',
+                        !isAdd && !isSub && 'text-muted-foreground/40'
+                      )}
                     >
                       {isAdd ? '+' : isSub ? '-' : ' '}
                     </Text>
 
                     {/* Code content */}
                     <Text
-                      style={[
-                        styles.codeText,
-                        isLight && styles.codeTextLight,
-                        isAdd && (isLight ? styles.codeTextAddLight : styles.codeTextAdd),
-                        isSub && (isLight ? styles.codeTextSubLight : styles.codeTextSub),
-                      ]}
+                      className={cn(
+                        'text-xs font-mono pr-4 flex-1',
+                        isAdd && 'text-foreground',
+                        isSub && 'text-foreground',
+                        !isAdd && !isSub && 'text-foreground'
+                      )}
                       selectable
                     >
                       {line.content.replace(/^[+-]/, '')}
@@ -333,241 +341,6 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
           </ScrollView>
         </ScrollView>
       ) : null}
-    </View>
+    </Card>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#121212',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    overflow: 'hidden',
-    marginVertical: 6,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#161616',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-    marginRight: 8,
-  },
-  titleColumn: {
-    flex: 1,
-  },
-  basenameText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fafafa',
-    letterSpacing: -0.1,
-  },
-  fullPathText: {
-    fontSize: 10,
-    color: '#a3a3a3',
-    marginTop: 1,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#0a0a0a',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: '#262626',
-  },
-  statsAddText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#3fb950',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  statsSubText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#f85149',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  copyBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#262626',
-  },
-
-  horizontalScroll: {
-    backgroundColor: '#121212',
-  },
-  verticalScroll: {
-    minWidth: '100%',
-  },
-  diffTable: {
-    paddingVertical: 4,
-  },
-
-  // Row variants
-  diffRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 2,
-    minHeight: 20,
-    paddingRight: 16,
-  },
-  diffRowAdd: {
-    backgroundColor: 'rgba(46, 160, 67, 0.15)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#2ea043',
-  },
-  diffRowSub: {
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#da3633',
-  },
-  hunkRow: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginVertical: 2,
-    borderLeftWidth: 3,
-    borderLeftColor: 'rgba(255, 255, 255, 0.35)',
-  },
-  hunkText: {
-    fontSize: 11,
-    color: '#fafafa',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  metaRow: {
-    paddingHorizontal: 12,
-    paddingVertical: 2,
-  },
-  metaText: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-
-  // Gutters
-  gutterNum: {
-    width: 32,
-    fontSize: 11,
-    color: '#737373',
-    textAlign: 'right',
-    paddingRight: 6,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  gutterNumAdd: {
-    color: '#3fb950',
-  },
-  gutterNumSub: {
-    color: '#f85149',
-  },
-  signGutter: {
-    width: 14,
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#a3a3a3',
-    textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  signAdd: {
-    color: '#3fb950',
-  },
-  signSub: {
-    color: '#f85149',
-  },
-
-  // Code
-  codeText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#fafafa',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    lineHeight: 18,
-  },
-  codeTextAdd: {
-    color: '#e6edf3',
-  },
-  codeTextSub: {
-    color: '#e6edf3',
-  },
-
-  // Light Theme Overrides
-  containerLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  headerLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#d0d7de',
-  },
-  basenameTextLight: {
-    color: '#1f2328',
-  },
-  fullPathTextLight: {
-    color: '#57606a',
-  },
-  statsBadgeLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  copyBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  horizontalScrollLight: {
-    backgroundColor: '#ffffff',
-  },
-  hunkRowLight: {
-    backgroundColor: '#f6f8fa',
-    borderLeftColor: '#0077b6',
-  },
-  hunkTextLight: {
-    color: '#57606a',
-  },
-  metaTextLight: {
-    color: '#6e7681',
-  },
-  diffRowAddLight: {
-    backgroundColor: 'rgba(46, 160, 67, 0.12)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#1a7f37',
-  },
-  diffRowSubLight: {
-    backgroundColor: 'rgba(248, 81, 73, 0.10)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#cf222e',
-  },
-  gutterNumLight: {
-    color: '#8c959f',
-  },
-  signGutterLight: {
-    color: '#8c959f',
-  },
-  codeTextLight: {
-    color: '#1f2328',
-  },
-  codeTextAddLight: {
-    color: '#1a7f37',
-  },
-  codeTextSubLight: {
-    color: '#cf222e',
-  },
-});

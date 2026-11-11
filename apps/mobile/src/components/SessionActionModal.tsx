@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import {
   Dialog,
@@ -10,6 +9,7 @@ import {
   Input,
   Item,
   Text,
+  Spinner,
 } from 'panelui-native';
 import { Pin, Pencil, Trash2, X } from './Icons';
 import { useDaemonStore, type RealSessionItem } from '../stores/useDaemonStore';
@@ -142,7 +142,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
                   disabled={isLoading || !newTitle.trim()}
                 >
                   {isLoading ? (
-                    <ActivityIndicator size="small" color={isLight ? '#fafafa' : '#262626'} />
+                    <Spinner size="sm" color={isLight ? '#fafafa' : '#262626'} />
                   ) : (
                     'Save'
                   )}

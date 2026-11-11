@@ -1,14 +1,7 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { View } from 'react-native';
+import { Card, Badge, Button, Spinner, Text, cn } from 'panelui-native';
 import { ShieldAlert, Check, X, Terminal } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore, type ApprovalRequest } from '../stores/useDaemonStore';
 
 interface LiveApprovalCardProps {
@@ -27,268 +20,98 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
+  const riskLevel = approval.riskLevel ? approval.riskLevel.toUpperCase() : 'PRIVILEGED';
+  const isHighRisk = riskLevel === 'PRIVILEGED' || riskLevel === 'ELEVATED' || riskLevel === 'CRITICAL';
+
   return (
-    <View style={[styles.cardContainer, isLight && styles.cardContainerLight]}>
-      {/* Top Header Pill Row */}
-      <View style={styles.headerRow}>
-        <View style={[styles.askerBadge, isLight && styles.askerBadgeLight]}>
-          <Text style={[styles.askerBadgeText, isLight && styles.askerBadgeTextLight]}>
+    <Card className="my-2 p-3.5 bg-surface border border-border rounded-2xl shadow-sm">
+      {/* Top Header Row */}
+      <View className="flex-row items-center justify-between mb-2.5">
+        <Badge variant="outline" size="sm" className="px-2 py-0.5">
+          <Text className="text-[11px] font-mono font-medium text-muted-foreground">
             {approval.caller || 'Antigravity'} • {approval.targetNode || 'Host Daemon'}
           </Text>
-        </View>
-        <View style={styles.riskBadge}>
-          <Text style={styles.riskBadgeText}>
-            {approval.riskLevel ? approval.riskLevel.toUpperCase() : 'PRIVILEGED'}
+        </Badge>
+        <Badge
+          variant={isHighRisk ? 'destructive' : 'secondary'}
+          size="sm"
+          className="px-2 py-0.5"
+        >
+          <Text
+            className={cn(
+              'text-[10px] font-bold tracking-wider',
+              isHighRisk ? 'text-destructive-foreground' : 'text-foreground'
+            )}
+          >
+            {riskLevel}
           </Text>
-        </View>
+        </Badge>
       </View>
 
       {/* Title & Icon */}
-      <View style={styles.titleRow}>
-        <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
-          <ShieldAlert size={15} color={isLight ? '#cf222e' : '#fafafa'} />
+      <View className="flex-row items-center gap-2 mb-1.5">
+        <View className="w-6 h-6 rounded-md bg-destructive/10 border border-destructive/25 items-center justify-center">
+          <ShieldAlert size={14} color="#ef4444" />
         </View>
-        <Text style={[styles.titleText, isLight && styles.titleTextLight]}>Action Confirmation Required</Text>
+        <Text className="text-sm font-semibold text-foreground flex-1">
+          Action Confirmation Required
+        </Text>
       </View>
 
       {/* Description */}
       {approval.description ? (
-        <Text style={[styles.descriptionText, isLight && styles.descriptionTextLight]} numberOfLines={2}>
+        <Text className="text-xs text-muted-foreground leading-relaxed mb-2.5" numberOfLines={2}>
           {approval.description}
         </Text>
       ) : null}
 
-      {/* Code / Command Preview Box (Paradev Inset Box) */}
-      <View style={[styles.codeBox, isLight && styles.codeBoxLight]}>
-        <View style={[styles.codeHeader, isLight && styles.codeHeaderLight]}>
-          <Terminal size={12} color={isLight ? '#57606a' : '#a3a3a3'} />
-          <Text style={[styles.codeToolName, isLight && styles.codeToolNameLight]}>tool: {approval.tool || 'bash'}</Text>
+      {/* Code / Command Preview Box */}
+      <View className="p-2.5 rounded-xl bg-surface-secondary border border-border mb-3">
+        <View className="flex-row items-center gap-1.5 mb-1.5 pb-1 border-b border-border">
+          <Terminal size={12} color={isLight ? '#262626' : '#a3a3a3'} />
+          <Text className="text-[11px] font-mono text-muted-foreground">
+            tool: {approval.tool || 'bash'}
+          </Text>
         </View>
-        <Text style={[styles.codeContent, isLight && styles.codeContentLight]} selectable numberOfLines={4}>
+        <Text
+          className="text-xs font-mono text-foreground leading-relaxed select-all"
+          selectable
+          numberOfLines={4}
+        >
           {approval.command || 'No command details available.'}
         </Text>
       </View>
 
       {/* Decision Action Buttons */}
-      <View style={styles.actionsRow}>
-        <TouchableOpacity
-          style={[styles.denyBtn, isLight && styles.denyBtnLight, isResponding && styles.btnDisabled]}
+      <View className="flex-row items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 border-destructive/30 bg-destructive/5 flex-row items-center justify-center gap-1.5 py-2"
           onPress={onDeny}
           disabled={isResponding}
-          activeOpacity={0.75}
         >
           <X size={14} color="#ef4444" />
-          <Text style={styles.denyBtnText}>Deny</Text>
-        </TouchableOpacity>
+          <Text className="text-xs font-semibold text-destructive">Deny</Text>
+        </Button>
 
-        <TouchableOpacity
-          style={[styles.authorizeBtn, isLight && styles.authorizeBtnLight, isResponding && styles.btnDisabled]}
+        <Button
+          variant="primary"
+          size="sm"
+          className="flex-1 flex-row items-center justify-center gap-1.5 py-2"
           onPress={onAuthorize}
           disabled={isResponding}
-          activeOpacity={0.85}
         >
           {isResponding ? (
-            <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
+            <Spinner size="sm" color={isLight ? '#fafafa' : '#262626'} />
           ) : (
             <>
-              <Check size={14} color={isLight ? '#ffffff' : '#0a0a0a'} />
-              <Text style={[styles.authorizeBtnText, isLight && styles.authorizeBtnTextLight]}>Authorize</Text>
+              <Check size={14} color={isLight ? '#fafafa' : '#262626'} />
+              <Text className="text-xs font-semibold text-primary-foreground">Authorize</Text>
             </>
           )}
-        </TouchableOpacity>
+        </Button>
       </View>
-    </View>
+    </Card>
   );
 };
-
-const styles = StyleSheet.create({
-  cardContainer: {
-    backgroundColor: '#1C1C1C', // Paradev ApprovalCard background
-    borderRadius: radii.card,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    padding: 13,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 4,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  askerBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  askerBadgeText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-    color: '#a3a3a3',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  riskBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.35)',
-  },
-  riskBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#ef4444',
-    letterSpacing: 0.5,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
-  },
-  iconCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  descriptionText: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    lineHeight: 17,
-    marginBottom: 8,
-  },
-  codeBox: {
-    backgroundColor: '#121212',
-    borderRadius: radii.btn,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  codeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#161616',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  codeToolName: {
-    fontSize: 10.5,
-    color: '#737373',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  codeContent: {
-    padding: 8,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 11.5,
-    color: '#fafafa',
-    lineHeight: 16,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  denyBtn: {
-    flex: 1,
-    height: 36,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: radii.btn,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-  },
-  denyBtnText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#ef4444',
-  },
-  authorizeBtn: {
-    flex: 1,
-    height: 36,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: radii.btn,
-    backgroundColor: '#fafafa',
-  },
-  authorizeBtnText: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#0a0a0a',
-  },
-  btnDisabled: {
-    opacity: 0.5,
-  },
-
-  // Light Theme Overrides
-  cardContainerLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    shadowOpacity: 0.1,
-  },
-  askerBadgeLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  askerBadgeTextLight: {
-    color: '#57606a',
-  },
-  iconCircleLight: {
-    backgroundColor: '#ffebe9',
-  },
-  titleTextLight: {
-    color: '#1f2328',
-  },
-  descriptionTextLight: {
-    color: '#57606a',
-  },
-  codeBoxLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  codeHeaderLight: {
-    backgroundColor: '#eaeef2',
-    borderBottomColor: '#d0d7de',
-  },
-  codeToolNameLight: {
-    color: '#57606a',
-  },
-  codeContentLight: {
-    color: '#1f2328',
-  },
-  denyBtnLight: {
-    backgroundColor: '#ffebe9',
-    borderColor: 'rgba(207, 34, 46, 0.25)',
-  },
-  authorizeBtnLight: {
-    backgroundColor: '#0077b6',
-  },
-  authorizeBtnTextLight: {
-    color: '#ffffff',
-  },
-});

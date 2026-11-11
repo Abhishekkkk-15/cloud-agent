@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import {
@@ -12,6 +11,8 @@ import {
   Badge,
   Text,
   GridItem,
+  Spinner,
+  toast,
   cn,
 } from 'panelui-native';
 import {
@@ -79,7 +80,17 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
           onPress: async () => {
             const ok = await unpairMachine(machine.machineId);
             if (!ok) {
-              Alert.alert('Error', 'Failed to unpair machine from Gateway.');
+              toast.show({
+                variant: 'destructive',
+                label: 'Unpair Failed',
+                description: 'Failed to unpair machine from Gateway.',
+              });
+            } else {
+              toast.show({
+                variant: 'default',
+                label: 'Machine Unpaired',
+                description: `Disconnected ${machine.name}.`,
+              });
             }
           },
         },
@@ -143,7 +154,7 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
         >
           {isLoadingMachines && machines.length === 0 ? (
             <View className="py-8 items-center justify-center">
-              <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+              <Spinner size="sm" />
               <Text className="text-xs text-muted-foreground mt-2">Fetching paired nodes...</Text>
             </View>
           ) : machines.length === 0 ? (
@@ -191,7 +202,7 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
 
                     <View className="flex-row items-center gap-1.5 shrink-0">
                       {isSwitchingThis ? (
-                        <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+                        <Spinner size="sm" />
                       ) : !isActive ? (
                         <Button
                           variant="outline"

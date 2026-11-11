@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
-  ActivityIndicator,
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import {
   Badge,
   Item,
   Text,
+  Spinner,
   cn,
 } from 'panelui-native';
 import {
@@ -397,7 +397,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                   Workspaces
                 </Text>
                 {isLoadingSessions ? (
-                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} style={{ transform: [{ scale: 0.65 }] }} />
+                  <Spinner size="sm" />
                 ) : (
                   <Text className="text-xs text-muted-foreground">
                     {workspaceGroups.length} {workspaceGroups.length === 1 ? 'folder' : 'folders'}
@@ -407,7 +407,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 
               {isLoadingSessions && workspaceGroups.length === 0 ? (
                 <View className="py-4 items-center justify-center">
-                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Spinner size="sm" />
                   <Text className="text-xs text-muted-foreground mt-2">Loading workspaces...</Text>
                 </View>
               ) : workspaceGroups.length === 0 ? (

@@ -179,7 +179,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       },
       onError: (err) => {
         setIsDictating(false);
-        Alert.alert('Voice Dictation', err);
+        toast.show({
+          variant: 'destructive',
+          label: 'Voice Dictation Error',
+          description: err,
+        });
       },
       onEnd: () => {
         setIsDictating(false);
@@ -486,10 +490,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     if (!promptInput.trim() || isSendingPrompt) return;
 
     if (!isNetworkOnline) {
-      Alert.alert(
-        'No Internet Connection',
-        'Cannot send message while offline. Please check your network connection.'
-      );
+      toast.show({
+        variant: 'warning',
+        label: 'Network Offline',
+        description: 'Cannot send message while offline. Please check your network connection.',
+      });
       return;
     }
 

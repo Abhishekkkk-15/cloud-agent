@@ -1,26 +1,18 @@
 import React, { useMemo } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
   ScrollView,
-  Platform,
+  TouchableOpacity,
 } from 'react-native';
+import { Card, Badge, Button, Text } from 'panelui-native';
 import {
   Terminal,
   Brain,
   Sparkles,
-  Clock,
-  Compass,
-  Wrench,
-  Search,
+  Command,
   X,
   Play,
-  Command,
-  Zap,
 } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
 export interface SlashCommandItem {
@@ -58,112 +50,72 @@ export const ANTIGRAVITY_COMMANDS: SlashCommandItem[] = [
   {
     command: '/grill-me',
     category: 'workflow',
-    title: 'Interactive Interview',
-    description: 'Agent asks targeted questions to resolve architectural trade-offs',
+    title: 'Grill Me',
+    description: 'Interactive interview to resolve design decisions',
     template: '/grill-me ',
+  },
+  {
+    command: '/learn',
+    category: 'workflow',
+    title: 'Learn Memory',
+    description: 'Persist architectural corrections into project AGENTS.md rules',
+    template: '/learn ',
   },
   {
     command: '/teamwork',
     category: 'workflow',
-    title: 'Multi-Agent Team',
-    description: 'Coordinate a team of specialized subagents on large tasks',
+    title: 'Team Swarm',
+    description: 'Deploy coordinator and autonomous specialist workers',
     template: '/teamwork ',
   },
-  {
-    command: '/browser',
-    category: 'workflow',
-    title: 'Browser Automation',
-    description: 'Drive web navigation, search, and page interaction',
-    template: '/browser ',
-  },
 
-  // 2. Context & Learning
-  {
-    command: '/artifact',
-    category: 'context',
-    title: 'Artifacts & Plans',
-    description: 'Browse, preview & inspect session artifacts, plans, and reports',
-    template: '/artifact',
-    immediate: true,
-  },
-  {
-    command: '/artifacts',
-    category: 'context',
-    title: 'All Artifacts',
-    description: 'View all session artifacts, plans, diffs, and generated documents',
-    template: '/artifacts',
-    immediate: true,
-  },
+  // 2. Context & Diagnostics
   {
     command: '/compact',
     category: 'context',
-    title: 'Compact Context',
-    description: 'Summarize transcript history to reclaim context window space',
+    title: 'Compact Transcript',
+    description: 'Summarize transcript and free up LLM context window tokens',
     template: '/compact',
     immediate: true,
   },
   {
-    command: '/learn',
-    category: 'context',
-    title: 'Persist Learnings',
-    description: 'Record user instructions & setup rules for future turns',
-    template: '/learn ',
-  },
-  {
     command: '/schedule',
     category: 'context',
-    title: 'Schedule Timer/Cron',
-    description: 'Set a one-time timer or recurring cron background job',
+    title: 'Schedule Timer',
+    description: 'Schedule one-shot timer or recurring cron check',
     template: '/schedule ',
   },
+  {
+    command: '/browser',
+    category: 'context',
+    title: 'Web Browser',
+    description: 'Search documentation or interact with external services',
+    template: '/browser ',
+  },
+  {
+    command: '/artifacts',
+    category: 'context',
+    title: 'Artifacts Browser',
+    description: 'View implementation plans, diffs, and walkthrough documents',
+    template: '/artifacts',
+    immediate: true,
+  },
 
-  // 3. CLI Utilities & Information
+  // 3. Command Line & Runtime
   {
-    command: '/skills',
+    command: '/terminal',
     category: 'cli',
-    title: 'List Skills',
-    description: 'Display all installed & loaded agent skills',
-    template: '/skills',
+    title: 'Interactive Terminal',
+    description: 'Open full-screen host bash console with ANSI streaming',
+    template: '/terminal',
     immediate: true,
   },
   {
-    command: '/models',
+    command: '/healer',
     category: 'cli',
-    title: 'Available Models',
-    description: 'List accessible AI models (Gemini, Claude, GPT)',
-    template: '/models',
-    immediate: true,
-  },
-  {
-    command: '/mcp',
-    category: 'cli',
-    title: 'MCP Servers',
-    description: 'List active Model Context Protocol server integrations',
-    template: '/mcp list',
-    immediate: true,
-  },
-  {
-    command: '/usage',
-    category: 'cli',
-    title: 'Quota & Usage',
-    description: 'View current token consumption and remaining limits',
-    template: '/usage',
-    immediate: true,
-  },
-  {
-    command: '/help',
-    category: 'cli',
-    title: 'Help & Commands',
-    description: 'Show all available Antigravity CLI commands and shortcuts',
-    template: '/help',
-    immediate: true,
-  },
-  {
-    command: '/changelog',
-    category: 'cli',
-    title: 'Changelog',
-    description: 'View latest Antigravity CLI release notes',
-    template: '/changelog',
+    title: 'Auto-Healer',
+    description: 'Inspect auto-healing proposals and patch review',
+    template: '/healer',
     immediate: true,
   },
 ];
@@ -184,7 +136,7 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
-  // Filter commands by search query (Hooks must ALWAYS run unconditionally)
+  // Filter commands by search query
   const filteredCommands = useMemo(() => {
     if (!visible) return ANTIGRAVITY_COMMANDS;
     const rawQuery = searchQuery.trim().toLowerCase();
@@ -205,7 +157,7 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   if (!visible) return null;
 
   const renderIcon = (cmd: SlashCommandItem) => {
-    const iconColor = isLight ? '#0077b6' : '#ffffff';
+    const iconColor = isLight ? '#262626' : '#f5f5f5';
     switch (cmd.category) {
       case 'workflow':
         return <Sparkles size={14} color={iconColor} />;
@@ -218,244 +170,88 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   };
 
   return (
-    <View style={[styles.container, isLight && styles.containerLight]}>
+    <Card className="absolute left-3 right-3 bottom-20 z-50 bg-popover border border-border p-0 rounded-2xl overflow-hidden shadow-2xl">
       {/* Header Bar */}
-      <View style={[styles.header, isLight && styles.headerLight]}>
-        <View style={styles.headerLeft}>
-          <Command size={13} color={isLight ? '#0077b6' : colors.green} />
-          <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>ANTIGRAVITY COMMANDS</Text>
-          <View style={[styles.countBadge, isLight && styles.countBadgeLight]}>
-            <Text style={[styles.countBadgeText, isLight && styles.countBadgeTextLight]}>{filteredCommands.length}</Text>
-          </View>
+      <View className="px-3.5 py-2.5 bg-surface border-b border-border flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <Command size={13} color={isLight ? '#262626' : '#f5f5f5'} />
+          <Text className="text-xs font-semibold text-foreground tracking-wider uppercase">
+            Commands
+          </Text>
+          <Badge variant="outline" size="sm" className="px-1.5 py-0">
+            <Text className="text-[10px] font-mono text-muted-foreground">
+              {filteredCommands.length}
+            </Text>
+          </Badge>
         </View>
 
-        <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
-          <X size={14} color={isLight ? '#57606a' : colors.textMuted} />
-        </TouchableOpacity>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-6 h-6 p-0 items-center justify-center rounded-lg"
+          onPress={onClose}
+        >
+          <X size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+        </Button>
       </View>
 
       {/* Commands List */}
       <ScrollView
-        style={[styles.listScroll, isLight && styles.listScrollLight]}
-        contentContainerStyle={styles.listContent}
+        style={{ maxHeight: 240 }}
+        contentContainerStyle={{ padding: 6 }}
         keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={false}
       >
         {filteredCommands.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <Text style={[styles.emptyText, isLight && styles.emptyTextLight]}>No matching Antigravity commands</Text>
+          <View className="py-6 items-center justify-center">
+            <Text className="text-xs text-muted-foreground">
+              No matching commands
+            </Text>
           </View>
         ) : (
           filteredCommands.map((item) => (
             <TouchableOpacity
               key={item.command}
-              style={[styles.itemRow, isLight && styles.itemRowLight]}
+              className="px-2.5 py-2 rounded-xl flex-row items-center gap-2.5 my-0.5 active:bg-surface-secondary"
               activeOpacity={0.7}
               onPress={() => onSelect(item, false)}
             >
               {/* Category Icon */}
-              <View style={[styles.iconBox, isLight && styles.iconBoxLight]}>{renderIcon(item)}</View>
+              <View className="w-7 h-7 rounded-lg bg-surface-secondary border border-border items-center justify-center">
+                {renderIcon(item)}
+              </View>
 
               {/* Command Info */}
-              <View style={styles.infoCol}>
-                <View style={styles.nameRow}>
-                  <Text style={[styles.commandTag, isLight && styles.commandTagLight]}>{item.command}</Text>
-                  <Text style={[styles.titleText, isLight && styles.titleTextLight]}>{item.title}</Text>
+              <View className="flex-1 mr-1">
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-xs font-mono font-bold text-foreground">
+                    {item.command}
+                  </Text>
+                  <Text className="text-xs font-medium text-muted-foreground">
+                    {item.title}
+                  </Text>
                 </View>
-                <Text style={[styles.descText, isLight && styles.descTextLight]} numberOfLines={1}>
+                <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
                   {item.description}
                 </Text>
               </View>
 
-              {/* Immediate Run Action (if self-contained command) */}
+              {/* Run Immediately Button */}
               {item.immediate ? (
-                <TouchableOpacity
-                  style={[styles.runNowBtn, isLight && styles.runNowBtnLight]}
-                  activeOpacity={0.8}
+                <Button
+                  variant="primary"
+                  size="xs"
+                  className="px-2 py-0.5 h-6 flex-row items-center gap-1"
                   onPress={() => onSelect(item, true)}
                 >
-                  <Play size={10} color="#ffffff" />
-                  <Text style={styles.runNowText}>Run</Text>
-                </TouchableOpacity>
+                  <Play size={9} color={isLight ? '#fafafa' : '#262626'} />
+                  <Text className="text-[10px] font-semibold text-primary-foreground">Run</Text>
+                </Button>
               ) : null}
             </TouchableOpacity>
           ))
         )}
       </ScrollView>
-    </View>
+    </Card>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.lg,
-    maxHeight: 250,
-    marginBottom: 8,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -3 },
-        shadowOpacity: 0.35,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderMuted,
-    backgroundColor: colors.bgCanvasInset,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerTitle: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-    letterSpacing: 0.5,
-  },
-  countBadge: {
-    backgroundColor: colors.bgHover,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: radii.full,
-  },
-  countBadgeText: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontFamily: typography.mono,
-  },
-  closeBtn: {
-    padding: 2,
-  },
-  listScroll: {
-    maxHeight: 210,
-  },
-  listContent: {
-    paddingVertical: 4,
-  },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(33, 38, 45, 0.4)',
-  },
-  iconBox: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bgHover,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  infoCol: {
-    flex: 1,
-    marginRight: 8,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  commandTag: {
-    fontSize: 12.5,
-    fontWeight: '700',
-    color: colors.green,
-    fontFamily: typography.mono,
-  },
-  titleText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  descText: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  runNowBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.greenBg,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-  },
-  runNowText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  emptyBox: {
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-
-  // Light Theme Overrides
-  containerLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    shadowOpacity: 0.12,
-  },
-  headerLight: {
-    borderBottomColor: '#e1e4e8',
-    backgroundColor: '#f6f8fa',
-  },
-  headerTitleLight: {
-    color: '#6e7681',
-  },
-  countBadgeLight: {
-    backgroundColor: '#eaeef2',
-  },
-  countBadgeTextLight: {
-    color: '#57606a',
-  },
-  listScrollLight: {
-    backgroundColor: '#ffffff',
-  },
-  itemRowLight: {
-    borderBottomColor: '#f0f2f5',
-  },
-  iconBoxLight: {
-    backgroundColor: '#f6f8fa',
-  },
-  commandTagLight: {
-    color: '#0077b6',
-  },
-  titleTextLight: {
-    color: '#1f2328',
-  },
-  descTextLight: {
-    color: '#6e7681',
-  },
-  runNowBtnLight: {
-    backgroundColor: '#0077b6',
-  },
-  emptyTextLight: {
-    color: '#6e7681',
-  },
-});

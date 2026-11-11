@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import {
   BottomSheet,
@@ -13,6 +12,7 @@ import {
   Item,
   Text,
   Badge,
+  Spinner,
   cn,
 } from 'panelui-native';
 import {
@@ -251,7 +251,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
         >
           {isLoading ? (
             <View className="py-12 items-center justify-center">
-              <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+              <Spinner size="sm" />
               <Text className="text-xs text-muted-foreground mt-2">Loading directory contents...</Text>
             </View>
           ) : filteredDirs.length === 0 ? (
