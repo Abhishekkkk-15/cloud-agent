@@ -302,6 +302,7 @@ class PersistentWorker {
         if (parsed.event === "result") {
           this.isTurnRunning = false;
           this.resetIdleTimer();
+          this.checkTranscriptForThoughts();
           this.pushItem({ done: true });
         }
       } catch {
@@ -369,9 +370,86 @@ class PersistentWorker {
     });
   }
 
+  private lastCheckedTranscriptLine = 0;
+
+  private checkTranscriptForThoughts(): void {
+    try {
+      const brainDir = getBrainDir();
+      const transcriptPath = path.join(
+        brainDir,
+        this.sessionId,
+        ".system_generated",
+        "logs",
+        "transcript.jsonl"
+      );
+
+      if (!fs.existsSync(transcriptPath)) return;
+      const raw = fs.readFileSync(transcriptPath, "utf-8");
+      const lines = raw.trim().split("\n");
+      if (lines.length > this.lastCheckedTranscriptLine) {
+        for (let i = this.lastCheckedTranscriptLine; i < lines.length; i++) {
+          const l = lines[i]?.trim();
+          if (!l) continue;
+          try {
+            const parsed = JSON.parse(l);
+            if (
+              parsed.type === "PLANNER_RESPONSE" &&
+              typeof parsed.thinking === "string" &&
+              parsed.thinking.trim().length > 0
+            ) {
+              this.pushItem({
+                event: {
+                  type: "thought",
+                  sessionId: this.sessionId,
+                  timestamp: parsed.created_at || new Date().toISOString(),
+                  data: {
+                    thought: parsed.thinking,
+                    delta: false,
+                  },
+                },
+              });
+            }
+          } catch {
+            // ignore partial line parsing
+          }
+        }
+        this.lastCheckedTranscriptLine = lines.length;
+      }
+    } catch {
+      // ignore read error
+    }
+  }
+
   async *executeTurn(prompt: string): AsyncIterable<CliEvent> {
     this.isTurnRunning = true;
     this.resetIdleTimer();
+
+    // Initialize transcript cursor for new turn
+    try {
+      const brainDir = getBrainDir();
+      const transcriptPath = path.join(
+        brainDir,
+        this.sessionId,
+        ".system_generated",
+        "logs",
+        "transcript.jsonl"
+      );
+      if (fs.existsSync(transcriptPath)) {
+        const raw = fs.readFileSync(transcriptPath, "utf-8");
+        this.lastCheckedTranscriptLine = raw.trim().split("\n").length;
+      } else {
+        this.lastCheckedTranscriptLine = 0;
+      }
+    } catch {
+      this.lastCheckedTranscriptLine = 0;
+    }
+
+    // Periodically inspect transcript during turn so thinking traces stream live
+    const transcriptPollTimer = setInterval(() => {
+      if (this.isTurnRunning) {
+        this.checkTranscriptForThoughts();
+      }
+    }, 200);
 
     // Clear queue of any stale items
     this.queue = [];
@@ -386,6 +464,7 @@ class PersistentWorker {
 
       this.child.stdin?.write(turnPayload);
     } catch (writeErr) {
+      clearInterval(transcriptPollTimer);
       this.isTurnRunning = false;
       yield {
         type: "error",
@@ -397,23 +476,28 @@ class PersistentWorker {
     }
 
     // Async generator consumption loop
-    while (true) {
-      while (this.queue.length > 0) {
-        const item = this.queue.shift()!;
-        if (item.error) {
-          throw item.error;
+    try {
+      while (true) {
+        while (this.queue.length > 0) {
+          const item = this.queue.shift()!;
+          if (item.error) {
+            throw item.error;
+          }
+          if (item.event) {
+            yield item.event;
+          }
+          if (item.done) {
+            return;
+          }
         }
-        if (item.event) {
-          yield item.event;
-        }
-        if (item.done) {
-          return;
-        }
-      }
 
-      await new Promise<void>((res) => {
-        this.resolveWait = res;
-      });
+        await new Promise<void>((res) => {
+          this.resolveWait = res;
+        });
+      }
+    } finally {
+      clearInterval(transcriptPollTimer);
+      this.checkTranscriptForThoughts();
     }
   }
 

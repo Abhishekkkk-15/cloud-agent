@@ -86,25 +86,23 @@ export function mapAntigravityStreamEvent(
       }
 
       // Thought / reasoning delta
-      if (typeof su.thought_delta === "string" && su.thought_delta.length > 0) {
+      const thoughtText =
+        (typeof su.thought_delta === "string" && su.thought_delta) ||
+        (typeof su.thinking_delta === "string" && su.thinking_delta) ||
+        (typeof su.reasoning_delta === "string" && su.reasoning_delta) ||
+        (typeof su.thinking === "string" && su.thinking) ||
+        (typeof su.thought === "string" && su.thought) ||
+        (typeof su.reasoning === "string" && su.reasoning) ||
+        "";
+      if (thoughtText.length > 0) {
+        const isDelta =
+          su.thought_delta !== undefined ||
+          su.thinking_delta !== undefined ||
+          su.reasoning_delta !== undefined;
         events.push(
           createCliEvent<ThoughtEventData>("thought", convId, {
-            thought: su.thought_delta,
-            delta: true,
-          })
-        );
-      } else if (typeof su.thinking === "string" && su.thinking.length > 0) {
-        events.push(
-          createCliEvent<ThoughtEventData>("thought", convId, {
-            thought: su.thinking,
-            delta: false,
-          })
-        );
-      } else if (typeof su.thought === "string" && su.thought.length > 0) {
-        events.push(
-          createCliEvent<ThoughtEventData>("thought", convId, {
-            thought: su.thought,
-            delta: true,
+            thought: thoughtText,
+            delta: isDelta,
           })
         );
       }
@@ -256,12 +254,17 @@ export function mapAntigravityStreamEvent(
     );
   }
 
-  // Thought
-  if (typeof raw.thought === "string" && raw.thought.length > 0) {
+  // Thought / Reasoning fallback
+  const fallbackThought =
+    (typeof raw.thought === "string" && raw.thought) ||
+    (typeof raw.thinking === "string" && raw.thinking) ||
+    (typeof raw.reasoning === "string" && raw.reasoning) ||
+    "";
+  if (fallbackThought.length > 0) {
     events.push(
       createCliEvent<ThoughtEventData>("thought", sessionId, {
-        thought: raw.thought,
-        delta: true,
+        thought: fallbackThought,
+        delta: raw.delta === true,
       })
     );
   }

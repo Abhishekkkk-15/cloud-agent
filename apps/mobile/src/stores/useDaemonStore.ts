@@ -900,13 +900,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       } else if (event.type === 'thought') {
         const thought = event.data?.thought || event.thought || '';
         if (!thought) return;
+        const isDelta =
+          typeof event.data === 'object' && event.data !== null && 'delta' in event.data
+            ? (event.data as any).delta
+            : false;
         set((state) => {
           const msgs = [...state.sessionMessages];
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.role === 'assistant') {
             msgs[msgs.length - 1] = {
               ...lastMsg,
-              reasoning: (lastMsg.reasoning || '') + thought,
+              reasoning: isDelta ? (lastMsg.reasoning || '') + thought : thought,
             };
             return { sessionMessages: msgs };
           } else {
@@ -2171,8 +2175,22 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             timestamp: m.timestamp || new Date().toISOString(),
             toolCalls: m.toolCalls,
           }));
-          // Guard: Only replace if disk has at least as many messages as local state
+          // Merge reasoning and ensure messages reflect disk state accurately
           set((state) => {
+            const lastDiskMsg = msgs[msgs.length - 1];
+            const currentMsgs = [...state.sessionMessages];
+            const lastCurrentMsg = currentMsgs[currentMsgs.length - 1];
+            if (
+              lastDiskMsg &&
+              lastCurrentMsg &&
+              lastDiskMsg.role === 'assistant' &&
+              lastCurrentMsg.role === 'assistant' &&
+              lastDiskMsg.reasoning &&
+              !lastCurrentMsg.reasoning
+            ) {
+              lastCurrentMsg.reasoning = lastDiskMsg.reasoning;
+            }
+
             if (msgs.length >= state.sessionMessages.length) {
               return {
                 sessionMessages: msgs,
@@ -2180,7 +2198,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
                 hasMoreMessages: Boolean(resp?.hasMore),
               };
             }
-            return state;
+            return { sessionMessages: currentMsgs };
           });
         }
       } else {

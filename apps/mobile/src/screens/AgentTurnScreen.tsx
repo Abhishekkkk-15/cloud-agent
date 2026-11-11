@@ -24,6 +24,8 @@ import AnimatedReanimated, {
   useAnimatedStyle,
   withTiming,
   Easing as ReanimatedEasing,
+  FadeIn,
+  FadeInDown,
 } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1089,32 +1091,38 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         }
 
                         return (
-                          <Reasoning
+                          <AnimatedReanimated.View
                             key={element.id}
-                            isStreaming={isCurrentlyThinking}
-                            defaultOpen={isCurrentlyThinking}
-                            className="my-1.5"
+                            entering={FadeInDown.duration(240).springify().damping(20)}
                           >
-                            <Reasoning.Trigger
-                              label={(isStreaming) =>
-                                isStreaming ? (
-                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <ThinkingOrb state="solving" size={13} />
-                                    <Shimmer textClassName={isLight ? 'text-xs text-[#0077b6] font-medium' : 'text-xs text-[#58a6ff] font-medium'}>
-                                      Thinking…
-                                    </Shimmer>
-                                  </View>
-                                ) : (
-                                  <Text style={[{ fontSize: 12 }, isLight ? { color: '#57606a' } : { color: '#8b949e' }]}>
-                                    Thought
-                                  </Text>
-                                )
-                              }
-                            />
-                            <Reasoning.Content>
-                              {element.text.trim()}
-                            </Reasoning.Content>
-                          </Reasoning>
+                            <Reasoning
+                              isStreaming={isCurrentlyThinking}
+                              className="my-1.5"
+                            >
+                              <Reasoning.Trigger
+                                label={(isStreaming, duration) =>
+                                  isStreaming ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                      <ThinkingOrb state="solving" size={13} />
+                                      <Shimmer textClassName={isLight ? 'text-xs text-[#0077b6] font-medium' : 'text-xs text-[#58a6ff] font-medium'}>
+                                        Thinking…
+                                      </Shimmer>
+                                    </View>
+                                  ) : (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                      <Sparkles size={13} color={isLight ? '#57606a' : '#8b949e'} />
+                                      <Text style={[{ fontSize: 12 }, isLight ? { color: '#57606a' } : { color: '#8b949e' }]}>
+                                        {duration === undefined ? 'Thought' : `Thought for ${duration}s`}
+                                      </Text>
+                                    </View>
+                                  )
+                                }
+                              />
+                              <Reasoning.Content>
+                                {element.text.trim()}
+                              </Reasoning.Content>
+                            </Reasoning>
+                          </AnimatedReanimated.View>
                         );
                       }
 
@@ -1173,11 +1181,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       if (element.type === 'content') {
                         const isLastTurn = turnIdx === displayedTurns.length - 1;
                         return (
-                          <View key={element.id} style={styles.resolutionContainer}>
+                          <AnimatedReanimated.View
+                            key={element.id}
+                            entering={FadeInDown.duration(280).springify().damping(22)}
+                            style={styles.resolutionContainer}
+                          >
                             <Response isStreaming={isSendingPrompt && isLastTurn}>
                               {element.text}
                             </Response>
-                          </View>
+                            {isSendingPrompt && isLastTurn && (
+                              <AnimatedReanimated.View
+                                entering={FadeIn.duration(150)}
+                                style={styles.streamingCaretContainer}
+                              >
+                                <View style={[styles.streamingDot, isLight && { backgroundColor: '#0077b6' }]} />
+                              </AnimatedReanimated.View>
+                            )}
+                          </AnimatedReanimated.View>
                         );
                       }
 
@@ -1187,11 +1207,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     // Fallback if elements not yet populated
                     <>
                       {turn.assistant.content ? (
-                        <View style={styles.resolutionContainer}>
+                        <AnimatedReanimated.View
+                          entering={FadeInDown.duration(280).springify().damping(22)}
+                          style={styles.resolutionContainer}
+                        >
                           <Response isStreaming={isSendingPrompt && turnIdx === displayedTurns.length - 1}>
                             {turn.assistant.content}
                           </Response>
-                        </View>
+                        </AnimatedReanimated.View>
                       ) : null}
                     </>
                   )}
@@ -1785,6 +1808,19 @@ const styles = StyleSheet.create({
   // Resolution summary container
   resolutionContainer: {
     paddingTop: 2,
+  },
+  streamingCaretContainer: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 2,
+  },
+  streamingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#58a6ff',
+    opacity: 0.85,
   },
 
   // Paradev AgentMessage Footer Action Row
