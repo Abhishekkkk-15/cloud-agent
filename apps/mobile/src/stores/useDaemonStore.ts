@@ -2084,12 +2084,16 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           toolCalls: m.toolCalls,
         }));
 
-        set((state) => ({
-          sessionMessages: [...olderMsgs, ...state.sessionMessages],
-          messagesOffset: state.messagesOffset + rawList.length,
-          hasMoreMessages: Boolean(resp?.hasMore),
-          isLoadingOlderMessages: false,
-        }));
+        set((state) => {
+          const existingIds = new Set(state.sessionMessages.map((m) => m.id).filter(Boolean));
+          const filteredOlder = olderMsgs.filter((m) => !m.id || !existingIds.has(m.id));
+          return {
+            sessionMessages: [...filteredOlder, ...state.sessionMessages],
+            messagesOffset: state.messagesOffset + rawList.length,
+            hasMoreMessages: Boolean(resp?.hasMore),
+            isLoadingOlderMessages: false,
+          };
+        });
       } else {
         set({ hasMoreMessages: false, isLoadingOlderMessages: false });
       }

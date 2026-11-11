@@ -272,9 +272,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const activePromptLayoutYRef = useRef<number>(0);
 
   // Infinite Scroll Refs
-  const prevContentHeightRef = useRef<number>(0);
+  const prevScrollHeightRef = useRef<number>(0);
+  const prevScrollYRef = useRef<number>(0);
+  const prependedAnchorMsgIdRef = useRef<string | null>(null);
   const isFetchingOlderRef = useRef<boolean>(false);
-  const isPrependingOlderRef = useRef<boolean>(false);
+  const needsScrollAdjustmentRef = useRef<boolean>(false);
   const hasInitialScrolledRef = useRef<string | null>(null);
 
   // Initial scroll to bottom when session messages load
@@ -288,6 +290,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       }
     }
   }, [activeSession?.id, sessionMessages.length, isLoadingMessages]);
+
+  // When older messages are successfully prepended to sessionMessages, flag for scroll compensation
+  useEffect(() => {
+    if (
+      prependedAnchorMsgIdRef.current &&
+      sessionMessages.length > 0 &&
+      sessionMessages[0]?.id !== prependedAnchorMsgIdRef.current
+    ) {
+      needsScrollAdjustmentRef.current = true;
+    }
+  }, [sessionMessages]);
 
   const handleComposerLayout = (event: any) => {
     const newHeight = Math.round(event.nativeEvent.layout.height);
@@ -363,21 +376,22 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       pauseAutoScroll();
     }
 
-    // Infinite scroll: when user scrolls near the top (< 140px from top) and there are older messages
+    // Infinite scroll: when user scrolls near the top (< 120px from top) and there are older messages
     if (
-      contentOffset.y <= 140 &&
+      contentOffset.y <= 120 &&
       hasMoreMessages &&
       !isLoadingOlderMessages &&
       !isFetchingOlderRef.current &&
       contentSize.height > layoutMeasurement.height
     ) {
       isFetchingOlderRef.current = true;
-      isPrependingOlderRef.current = true;
-      prevContentHeightRef.current = contentSize.height;
+      prependedAnchorMsgIdRef.current = sessionMessages[0]?.id || null;
+      prevScrollHeightRef.current = contentSize.height;
+      prevScrollYRef.current = contentOffset.y;
       loadOlderMessages().finally(() => {
         setTimeout(() => {
           isFetchingOlderRef.current = false;
-        }, 350);
+        }, 400);
       });
     }
   };
@@ -572,13 +586,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             ? asstObj.reasoning + '\n' + msg.reasoning
             : msg.reasoning;
 
-          const lastEl = asstObj.elements[asstObj.elements.length - 1];
-          if (lastEl && lastEl.type === 'reasoning') {
-            lastEl.text = msg.reasoning;
+          const existingReasoning = asstObj.elements.find(
+            (el) => el.type === 'reasoning' && el.id.startsWith(`${msg.id || i}_reasoning`)
+          );
+          if (existingReasoning && existingReasoning.type === 'reasoning') {
+            existingReasoning.text = msg.reasoning;
           } else {
             asstObj.elements.push({
               type: 'reasoning',
-              id: `${msg.id || i}_reasoning`,
+              id: `${msg.id || i}_reasoning_${asstObj.elements.length}`,
               text: msg.reasoning,
             });
           }
@@ -715,7 +731,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             } else {
               asstObj.elements.push({
                 type: 'action',
-                id: actionStep.id,
+                id: `${actionStep.id}_${asstObj.elements.length}`,
                 action: actionStep,
               });
             }
@@ -728,13 +744,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             ? asstObj.content + '\n' + msg.content
             : msg.content;
 
-          const lastEl = asstObj.elements[asstObj.elements.length - 1];
-          if (lastEl && lastEl.type === 'content') {
-            lastEl.text = msg.content;
+          const existingContent = asstObj.elements.find(
+            (el) => el.type === 'content' && el.id.startsWith(`${msg.id || i}_content`)
+          );
+          if (existingContent && existingContent.type === 'content') {
+            existingContent.text = msg.content;
           } else {
             asstObj.elements.push({
               type: 'content',
-              id: `${msg.id || i}_content`,
+              id: `${msg.id || i}_content_${asstObj.elements.length}`,
               text: msg.content,
             });
           }
@@ -972,18 +990,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         keyboardDismissMode="interactive"
         onTouchStart={pauseAutoScroll}
         onScrollBeginDrag={pauseAutoScroll}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 1,
+          autoscrollToTopThreshold: 10,
+        }}
         onContentSizeChange={(_w, h) => {
-          if (isPrependingOlderRef.current && prevContentHeightRef.current > 0) {
-            const heightDelta = h - prevContentHeightRef.current;
+          if (needsScrollAdjustmentRef.current && prevScrollHeightRef.current > 0) {
+            const heightDelta = h - prevScrollHeightRef.current;
             if (heightDelta > 0) {
+              const targetY = prevScrollYRef.current + heightDelta;
               scrollViewRef.current?.scrollTo({
-                y: currentScrollYRef.current + heightDelta,
+                y: targetY,
                 animated: false,
               });
+              currentScrollYRef.current = targetY;
             }
-            isPrependingOlderRef.current = false;
+            needsScrollAdjustmentRef.current = false;
+            prependedAnchorMsgIdRef.current = null;
           }
-          prevContentHeightRef.current = h;
+          prevScrollHeightRef.current = h;
 
           if (isSendingPrompt && !isAutoScrollPausedRef.current) {
             triggerAutoScroll();
