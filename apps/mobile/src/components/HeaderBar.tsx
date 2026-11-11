@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Platform, StatusBar, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, cn } from 'panelui-native';
 import { ChevronLeft, Menu, MoreVertical, Search } from './Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { getGlossyHeaderTokens } from '../theme/tokens';
 
 export interface HeaderBarProps {
   title: string;
@@ -30,6 +31,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   return (
     <View
@@ -42,19 +44,20 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       <View className="flex-row items-center flex-1 mr-2 overflow-hidden">
         {onBack && (
           <TouchableOpacity
-            className={cn(
-              'w-10 h-10 rounded-full items-center justify-center mr-2.5 active:opacity-70',
-              isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-            )}
+            style={[
+              { width: 44, height: 44, borderRadius: 22 },
+              glossyHeader.containerStyle,
+            ]}
+            className="items-center justify-center mr-2.5 active:opacity-70"
             onPress={onBack}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel={leftIcon === 'menu' ? 'Open navigation menu' : 'Go back'}
           >
             {leftIcon === 'menu' ? (
-              <Menu size={22} color={isLight ? '#1f2328' : '#fafafa'} />
+              <Menu size={24} color={glossyHeader.iconColor} />
             ) : (
-              <ChevronLeft size={22} color={isLight ? '#1f2328' : '#fafafa'} />
+              <ChevronLeft size={24} color={glossyHeader.iconColor} />
             )}
           </TouchableOpacity>
         )}
@@ -83,16 +86,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       <View className="flex-row items-center gap-2 shrink-0">
         {onSearch && (
           <TouchableOpacity
-            className={cn(
-              'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
-              isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-            )}
+            style={[
+              { width: 44, height: 44, borderRadius: 22 },
+              glossyHeader.containerStyle,
+            ]}
+            className="items-center justify-center active:opacity-70"
             onPress={onSearch}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Search"
           >
-            <Search size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+            <Search size={22} color={glossyHeader.iconColor} />
           </TouchableOpacity>
         )}
 
@@ -100,16 +104,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
         {onMore && (
           <TouchableOpacity
-            className={cn(
-              'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
-              isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-            )}
+            style={[
+              { width: 44, height: 44, borderRadius: 22 },
+              glossyHeader.containerStyle,
+            ]}
+            className="items-center justify-center active:opacity-70"
             onPress={onMore}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="More options"
           >
-            <MoreVertical size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+            <MoreVertical size={22} color={glossyHeader.iconColor} />
           </TouchableOpacity>
         )}
       </View>

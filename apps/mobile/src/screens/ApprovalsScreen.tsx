@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -29,6 +29,7 @@ import {
   Bell,
 } from '../components/Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { getGlossyHeaderTokens } from '../theme/tokens';
 
 interface ApprovalsScreenProps {
   onBack?: () => void;
@@ -43,6 +44,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [rememberRule, setRememberRule] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -94,13 +96,17 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
       <ScrollHeader.Bar divider={false} surface="blur">
         {onBack && (
           <TouchableOpacity
-            className="w-10 h-10 rounded-full bg-surface items-center justify-center active:opacity-70"
+            style={[
+              { width: 44, height: 44, borderRadius: 22 },
+              glossyHeader.containerStyle,
+            ]}
+            className="items-center justify-center mr-2.5 active:opacity-70"
             onPress={onBack}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityLabel="Go back"
           >
-            <ChevronLeft size={22} color={isLight ? '#262626' : '#f5f5f5'} />
+            <ChevronLeft size={24} color={glossyHeader.iconColor} />
           </TouchableOpacity>
         )}
         <ScrollHeader.Title className="text-base font-semibold text-foreground">

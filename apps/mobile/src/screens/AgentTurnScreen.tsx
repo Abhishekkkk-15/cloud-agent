@@ -62,7 +62,7 @@ import {
   GitBranch,
   BookOpen,
 } from '../components/Icons';
-import { colors, radii, typography, getThemeColors } from '../theme/tokens';
+import { colors, radii, typography, getThemeColors, getGlossyHeaderTokens } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import {
   Menu,
@@ -142,6 +142,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [promptInput, setPromptInput] = useState('');
   const [showCommandPicker, setShowCommandPicker] = useState(false);
@@ -876,7 +877,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         <TouchableOpacity
           style={[
             styles.cleanCircleBtn,
-            isLight && { backgroundColor: '#f2f2f2' },
+            glossyHeader.containerStyle,
           ]}
           onPress={() => {
             if (onOpenDrawer) {
@@ -889,7 +890,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Open Menu Drawer"
         >
-          <MenuIcon size={24} color={isLight ? '#1f2328' : '#fafafa'} />
+          <MenuIcon size={24} color={glossyHeader.iconColor} />
         </TouchableOpacity>
 
         {/* Center: Clean Title (No pill container, no borders) */}
@@ -912,13 +913,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             <TouchableOpacity
               style={[
                 styles.cleanCircleBtn,
-                isLight && { backgroundColor: '#f2f2f2' },
+                glossyHeader.containerStyle,
               ]}
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityLabel="Session Actions"
             >
-              <MoreVertical size={24} color={isLight ? '#1f2328' : '#fafafa'} />
+              <MoreVertical size={24} color={glossyHeader.iconColor} />
             </TouchableOpacity>
           </Menu.Trigger>
 
@@ -1657,11 +1658,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   cleanCircleBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1e1e1e',
-    borderWidth: 0,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

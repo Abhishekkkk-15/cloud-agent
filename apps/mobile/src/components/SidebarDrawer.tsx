@@ -48,6 +48,7 @@ import { SessionDropdownMenu } from './SessionDropdownMenu';
 import { ServerSettingsModal } from './ServerSettingsModal';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { CloudAgentLogo } from '../screens/AuthScreen';
+import { getGlossyHeaderTokens } from '../theme/tokens';
 
 export type AppScreen = 'agent' | 'health' | 'approvals' | 'sessions';
 
@@ -90,6 +91,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const toggleTheme = useDaemonStore((s) => s.toggleTheme);
   const isLight = theme === 'light';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [drawerSearch, setDrawerSearch] = useState<string>('');
   const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
@@ -264,8 +266,14 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 className="flex-row items-center justify-between mb-3 h-10"
               >
                 <View className="flex-row items-center gap-2.5">
-                  <View className="w-8 h-8 rounded-lg bg-surface border border-border items-center justify-center">
-                    <CloudAgentLogo color={isLight ? '#262626' : '#f5f5f5'} size={24} />
+                  <View
+                    style={[
+                      { width: 38, height: 38, borderRadius: 12 },
+                      glossyHeader.containerStyle,
+                    ]}
+                    className="items-center justify-center"
+                  >
+                    <CloudAgentLogo color={glossyHeader.iconColor} size={26} />
                   </View>
                   <Text className="text-[17px] font-bold text-foreground tracking-tight">
                     Cloud Agent
@@ -273,12 +281,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 </View>
 
                 <TouchableOpacity
-                  className="w-9 h-9 rounded-full bg-surface border border-border items-center justify-center active:opacity-70"
+                  style={[
+                    { width: 40, height: 40, borderRadius: 20 },
+                    glossyHeader.containerStyle,
+                  ]}
+                  className="items-center justify-center active:opacity-70"
                   onPress={() => setIsSearchActive(true)}
                   activeOpacity={0.7}
                   accessibilityLabel="Search sessions and workspaces"
                 >
-                  <Search size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Search size={19} color={glossyHeader.iconColor} />
                 </TouchableOpacity>
               </Animated.View>
             ) : (

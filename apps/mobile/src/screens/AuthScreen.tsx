@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   TouchableOpacity,
@@ -30,6 +30,7 @@ import {
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 import { isRunningInExpoGo } from '../lib/notifications';
+import { getGlossyHeaderTokens } from '../theme/tokens';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -201,6 +202,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const checkNetwork = useDaemonStore((s) => s.checkNetwork);
 
   const isLight = theme === 'light';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
   const isExpoGo = isRunningInExpoGo();
 
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
@@ -327,30 +329,38 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       {/* Ambient Organic Cloud Backdrop */}
       <BackgroundClouds isLight={isLight} />
 
-      {/* Top Bar Actions: 40x40 Circular Buttons */}
+      {/* Top Bar Actions: 44x44 Circular Buttons */}
       <View
-        className="absolute right-5 flex-row items-center gap-2.5 z-50"
+        className="absolute right-5 flex-row items-center gap-3 z-50"
         style={{ top: topInset }}
       >
         <TouchableOpacity
-          className="w-10 h-10 rounded-full bg-surface border border-border items-center justify-center active:opacity-70"
+          style={[
+            { width: 44, height: 44, borderRadius: 22 },
+            glossyHeader.containerStyle,
+          ]}
+          className="items-center justify-center active:opacity-70"
           onPress={() => setShowServerSettings(true)}
           activeOpacity={0.7}
           accessibilityLabel="Server & Push Settings"
         >
-          <Globe size={18} color={isLight ? '#262626' : '#f5f5f5'} />
+          <Globe size={22} color={glossyHeader.iconColor} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          className="w-10 h-10 rounded-full bg-surface border border-border items-center justify-center active:opacity-70"
+          style={[
+            { width: 44, height: 44, borderRadius: 22 },
+            glossyHeader.containerStyle,
+          ]}
+          className="items-center justify-center active:opacity-70"
           onPress={toggleTheme}
           activeOpacity={0.7}
           accessibilityLabel="Toggle Dark / Light Theme"
         >
           {isLight ? (
-            <Moon size={18} color="#262626" />
+            <Moon size={22} color="#0077b6" />
           ) : (
-            <Sun size={18} color="#f5f5f5" />
+            <Sun size={22} color="#38bdf8" />
           )}
         </TouchableOpacity>
       </View>

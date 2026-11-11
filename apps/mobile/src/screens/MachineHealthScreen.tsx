@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -39,6 +39,7 @@ import {
 } from '../components/Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
+import { getGlossyHeaderTokens } from '../theme/tokens';
 import { PairMachineModal } from '../components/PairMachineModal';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 import { AutoHealerModal } from '../components/AutoHealerModal';
@@ -71,6 +72,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
   const githubStatus = useDaemonStore((s) => s.githubStatus);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [isPinging, setIsPinging] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -141,16 +143,17 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
         <ScrollHeader.Bar divider={false} surface="blur">
           {onBack && (
             <TouchableOpacity
-              className={cn(
-                'w-10 h-10 rounded-full items-center justify-center mr-2.5 active:opacity-70',
-                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-              )}
+              style={[
+                { width: 44, height: 44, borderRadius: 22 },
+                glossyHeader.containerStyle,
+              ]}
+              className="items-center justify-center mr-2.5 active:opacity-70"
               onPress={onBack}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Go back"
             >
-              <ChevronLeft size={22} color={isLight ? '#1f2328' : '#fafafa'} />
+              <ChevronLeft size={24} color={glossyHeader.iconColor} />
             </TouchableOpacity>
           )}
 
@@ -160,10 +163,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
 
           <ScrollHeader.Actions>
             <TouchableOpacity
-              className={cn(
-                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
-                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-              )}
+              style={[
+                { width: 44, height: 44, borderRadius: 22 },
+                glossyHeader.containerStyle,
+              ]}
+              className="items-center justify-center active:opacity-70"
               onPress={handleRefresh}
               disabled={isRefreshing}
               activeOpacity={0.7}
@@ -173,21 +177,22 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
               {isRefreshing ? (
                 <Spinner size="sm" />
               ) : (
-                <RefreshCw size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <RefreshCw size={22} color={glossyHeader.iconColor} />
               )}
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={cn(
-                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
-                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-              )}
+              style={[
+                { width: 44, height: 44, borderRadius: 22 },
+                glossyHeader.containerStyle,
+              ]}
+              className="items-center justify-center active:opacity-70"
               onPress={() => setShowMachineSwitcher(true)}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Switch machine"
             >
-              <Server size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+              <Server size={22} color={glossyHeader.iconColor} />
             </TouchableOpacity>
           </ScrollHeader.Actions>
         </ScrollHeader.Bar>

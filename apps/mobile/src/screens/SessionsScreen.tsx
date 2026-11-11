@@ -34,6 +34,7 @@ import {
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { SessionActionModal } from '../components/SessionActionModal';
 import { SessionDropdownMenu } from '../components/SessionDropdownMenu';
+import { getGlossyHeaderTokens } from '../theme/tokens';
 
 interface SessionsScreenProps {
   onBack?: () => void;
@@ -62,6 +63,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const deleteSession = useDaemonStore((s) => s.deleteSession);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
@@ -156,16 +158,17 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         <ScrollHeader.Bar divider={false} surface="blur">
           {onBack && (
             <TouchableOpacity
-              className={cn(
-                'w-10 h-10 rounded-full items-center justify-center mr-2.5 active:opacity-70',
-                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-              )}
+              style={[
+                { width: 44, height: 44, borderRadius: 22 },
+                glossyHeader.containerStyle,
+              ]}
+              className="items-center justify-center mr-2.5 active:opacity-70"
               onPress={onBack}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               accessibilityLabel="Go back"
             >
-              <ChevronLeft size={22} color={isLight ? '#1f2328' : '#fafafa'} />
+              <ChevronLeft size={24} color={glossyHeader.iconColor} />
             </TouchableOpacity>
           )}
 
@@ -175,10 +178,11 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
 
           <ScrollHeader.Actions>
             <TouchableOpacity
-              className={cn(
-                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
-                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
-              )}
+              style={[
+                { width: 44, height: 44, borderRadius: 22 },
+                glossyHeader.containerStyle,
+              ]}
+              className="items-center justify-center active:opacity-70"
               onPress={fetchSessions}
               disabled={isLoadingSessions}
               activeOpacity={0.7}
@@ -188,7 +192,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
               {isLoadingSessions ? (
                 <Spinner size="sm" />
               ) : (
-                <RefreshCw size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <RefreshCw size={22} color={glossyHeader.iconColor} />
               )}
             </TouchableOpacity>
 

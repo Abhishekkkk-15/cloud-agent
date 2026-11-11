@@ -223,3 +223,23 @@ export const radii = {
 export const typography = {
   mono: 'monospace',
 };
+
+/**
+ * Glossy Header Action Button & Icon Design Tokens
+ */
+export function getGlossyHeaderTokens(isLight: boolean) {
+  return {
+    iconColor: isLight ? '#0077b6' : '#38bdf8',
+    containerStyle: {
+      backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.08)',
+      borderWidth: 1,
+      borderColor: isLight ? 'rgba(0, 119, 182, 0.22)' : 'rgba(255, 255, 255, 0.14)',
+      borderTopColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.35)',
+      shadowColor: isLight ? 'rgba(0, 119, 182, 0.35)' : '#0077b6',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isLight ? 0.12 : 0.32,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+  };
+}
