@@ -14,6 +14,10 @@ import {
   Keyboard,
   StatusBar,
   Modal,
+  Animated,
+  Easing,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,6 +94,166 @@ interface ChatTurn {
     elements: AssistantTurnElement[];
   };
 }
+
+interface FlatReasoningBlockProps {
+  id: string;
+  text: string;
+  isCurrentlyThinking: boolean;
+  isLight: boolean;
+}
+
+const FlatReasoningBlock: React.FC<FlatReasoningBlockProps> = ({
+  id,
+  text,
+  isCurrentlyThinking,
+  isLight,
+}) => {
+  // Closed by default when chat is opened; open while actively thinking
+  const [isOpen, setIsOpen] = useState(isCurrentlyThinking);
+  const [contentHeight, setContentHeight] = useState(120);
+  const animValue = useRef(new Animated.Value(isCurrentlyThinking ? 1 : 0)).current;
+  const wasThinkingRef = useRef(isCurrentlyThinking);
+  const userManuallyInteractedRef = useRef(false);
+
+  useEffect(() => {
+    if (isCurrentlyThinking) {
+      userManuallyInteractedRef.current = false;
+      setIsOpen(true);
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 220,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    } else if (wasThinkingRef.current && !isCurrentlyThinking) {
+      // Transition from thinking to completed (end of thought) -> smooth animated auto-close
+      if (!userManuallyInteractedRef.current) {
+        const timer = setTimeout(() => {
+          if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+            try {
+              UIManager.setLayoutAnimationEnabledExperimental(true);
+            } catch {}
+          }
+          try {
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          } catch {}
+
+          Animated.timing(animValue, {
+            toValue: 0,
+            duration: 320,
+            easing: Easing.inOut(Easing.cubic),
+            useNativeDriver: false,
+          }).start(() => {
+            setIsOpen(false);
+          });
+        }, 300);
+
+        return () => clearTimeout(timer);
+      }
+    }
+    wasThinkingRef.current = isCurrentlyThinking;
+  }, [isCurrentlyThinking]);
+
+  const handleToggle = () => {
+    userManuallyInteractedRef.current = true;
+    try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    } catch {}
+
+    if (isOpen) {
+      Animated.timing(animValue, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: false,
+      }).start(() => {
+        setIsOpen(false);
+      });
+    } else {
+      setIsOpen(true);
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }).start();
+    }
+  };
+
+  return (
+    <View style={styles.flatReasoningBlock}>
+      <TouchableOpacity
+        style={styles.flatReasoningHeader}
+        onPress={handleToggle}
+        activeOpacity={0.7}
+      >
+        <Brain
+          size={13}
+          color={
+            isCurrentlyThinking
+              ? (isLight ? '#0077b6' : '#58a6ff')
+              : (isLight ? '#8c959f' : '#6e7681')
+          }
+        />
+        <Text
+          style={[
+            styles.flatReasoningHeaderTitle,
+            isLight && styles.flatReasoningHeaderTitleLight,
+            isCurrentlyThinking && (isLight ? { color: '#0077b6' } : { color: '#58a6ff' }),
+          ]}
+        >
+          {isCurrentlyThinking ? 'Thinking...' : 'Thought'}
+        </Text>
+        {isCurrentlyThinking ? (
+          <ActivityIndicator
+            size="small"
+            color={isLight ? '#0077b6' : '#58a6ff'}
+            style={{ transform: [{ scale: 0.6 }], marginLeft: 2 }}
+          />
+        ) : null}
+        <View style={{ marginLeft: 2 }}>
+          {isOpen ? (
+            <ChevronUp size={12} color={isLight ? '#8c959f' : '#6e7681'} />
+          ) : (
+            <ChevronDown size={12} color={isLight ? '#8c959f' : '#6e7681'} />
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {isOpen && (
+        <Animated.View
+          style={{
+            opacity: animValue,
+            maxHeight: animValue.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, Math.max(contentHeight + 20, 800)],
+            }),
+            overflow: 'hidden',
+          }}
+        >
+          <View
+            onLayout={(e) => {
+              const h = e.nativeEvent.layout.height;
+              if (h > 0 && Math.abs(h - contentHeight) > 4) {
+                setContentHeight(h);
+              }
+            }}
+          >
+            <Text
+              style={[
+                styles.flatReasoningText,
+                isLight && styles.flatReasoningTextLight,
+              ]}
+              selectable
+            >
+              {text.trim()}
+            </Text>
+          </View>
+        </Animated.View>
+      )}
+    </View>
+  );
+};
 
 export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   onBack,
@@ -171,17 +335,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const initialContainerHeight = useRef(0);
 
   useEffect(() => {
     const showSub = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
       (e) => {
         setKeyboardHeight(e.endCoordinates ? e.endCoordinates.height : 0);
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 60);
+        if (isNearBottomRef.current) {
+          setTimeout(() => {
+            scrollViewRef.current?.scrollToEnd({ animated: true });
+          }, 80);
+        }
       }
     );
     const hideSub = Keyboard.addListener(
@@ -196,17 +360,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     };
   }, []);
 
-  // Adaptive keyboard displacement: If Android native window shrank, don't double shift.
-  // If Android native window did NOT shrink (translucent status/nav bars / edge-to-edge), apply full keyboardHeight.
-  const nativeResizeDelta =
-    Platform.OS === 'android' && initialContainerHeight.current > 0 && containerHeight > 0
-      ? Math.max(0, initialContainerHeight.current - containerHeight)
-      : 0;
-
-  const bottomOffset =
-    Platform.OS === 'ios'
-      ? keyboardHeight
-      : Math.max(0, keyboardHeight - nativeResizeDelta);
+  const isKeyboardActive = keyboardHeight > 0;
 
   const handleSaveRename = async () => {
     if (!activeSession || !renameTitle.trim() || isSavingRename) return;
@@ -220,7 +374,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   const [openTurnAccordions, setOpenTurnAccordions] = useState<Record<string, boolean>>({});
-  const [openReasoningAccordions, setOpenReasoningAccordions] = useState<Record<string, boolean>>({});
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState<boolean>(false);
@@ -352,15 +505,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     setOpenTurnAccordions((prev) => ({
       ...prev,
       [turnId]: !isTurnOpen(turnId),
-    }));
-  };
-
-  const isReasoningOpen = (id: string) => openReasoningAccordions[id] ?? true;
-
-  const toggleReasoningAccordion = (id: string) => {
-    setOpenReasoningAccordions((prev) => ({
-      ...prev,
-      [id]: !isReasoningOpen(id),
     }));
   };
 
@@ -725,18 +869,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   return (
-    <View
-      style={[styles.container, isLight && { backgroundColor: '#f6f8fa' }]}
-      onLayout={(e) => {
-        const h = e.nativeEvent.layout.height;
-        if (h > 0) {
-          if (!initialContainerHeight.current || keyboardHeight === 0) {
-            initialContainerHeight.current = h;
-          }
-          setContainerHeight(h);
-        }
-      }}
-    >
+    <View style={[styles.container, isLight && { backgroundColor: '#f6f8fa' }]}>
       {/* 1. Floating Capsule Header */}
       <View
         style={[
@@ -975,7 +1108,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           styles.scrollContent,
           {
             paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
-            paddingBottom: composerMeasuredHeight + Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) + bottomOffset + 18,
+            paddingBottom:
+              composerMeasuredHeight +
+              Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) +
+              (Platform.OS === 'ios' && isKeyboardActive ? keyboardHeight : 0) +
+              18,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -1084,44 +1221,32 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   {turn.assistant.elements && turn.assistant.elements.length > 0 ? (
                     turn.assistant.elements.map((element) => {
                       if (element.type === 'reasoning') {
-                        const isOpen = isReasoningOpen(element.id);
-                        return (
-                          <View key={element.id} style={styles.flatReasoningBlock}>
-                            <TouchableOpacity
-                              style={styles.flatReasoningHeader}
-                              onPress={() => toggleReasoningAccordion(element.id)}
-                              activeOpacity={0.7}
-                            >
-                              <Brain size={13} color={isLight ? '#8c959f' : '#6e7681'} />
-                              <Text
-                                style={[
-                                  styles.flatReasoningHeaderTitle,
-                                  isLight && styles.flatReasoningHeaderTitleLight,
-                                ]}
-                              >
-                                {isSendingPrompt && turnIdx === displayedTurns.length - 1
-                                  ? 'Thinking...'
-                                  : 'Thought'}
-                              </Text>
-                              {isOpen ? (
-                                <ChevronUp size={12} color={isLight ? '#8c959f' : '#6e7681'} />
-                              ) : (
-                                <ChevronDown size={12} color={isLight ? '#8c959f' : '#6e7681'} />
-                              )}
-                            </TouchableOpacity>
+                        const isLastTurn = turnIdx === displayedTurns.length - 1;
+                        let isCurrentlyThinking = false;
+                        if (isSendingPrompt && isLastTurn && turn.assistant?.elements) {
+                          // Check if any action or content follows this element in elements
+                          let hasFollowingActionOrContent = false;
+                          const elIdx = turn.assistant.elements.indexOf(element);
+                          if (elIdx >= 0) {
+                            for (let k = elIdx + 1; k < turn.assistant.elements.length; k++) {
+                              const nextEl = turn.assistant.elements[k];
+                              if (nextEl.type === 'action' || nextEl.type === 'content') {
+                                hasFollowingActionOrContent = true;
+                                break;
+                              }
+                            }
+                          }
+                          isCurrentlyThinking = !hasFollowingActionOrContent;
+                        }
 
-                            {isOpen && (
-                              <Text
-                                style={[
-                                  styles.flatReasoningText,
-                                  isLight && styles.flatReasoningTextLight,
-                                ]}
-                                selectable
-                              >
-                                {element.text.trim()}
-                              </Text>
-                            )}
-                          </View>
+                        return (
+                          <FlatReasoningBlock
+                            key={element.id}
+                            id={element.id}
+                            text={element.text}
+                            isCurrentlyThinking={isCurrentlyThinking}
+                            isLight={isLight}
+                          />
                         );
                       }
 
@@ -1253,7 +1378,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           style={[
             styles.scrollFabContainer,
             {
-              bottom: composerMeasuredHeight + Math.max(insets.bottom, 12) + bottomOffset + 12,
+              bottom:
+                composerMeasuredHeight +
+                Math.max(insets.bottom, 12) +
+                (Platform.OS === 'ios' && isKeyboardActive ? keyboardHeight : 0) +
+                12,
               pointerEvents: 'box-none',
             },
           ]}
@@ -1274,21 +1403,26 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         </View>
       )}
 
-      {/* 7. Chat Input Bar: Floating Capsule */}
-      <View
-        onLayout={handleComposerLayout}
-        style={[
-          styles.chatInputWrapper,
-          {
-            bottom: bottomOffset,
-            paddingBottom:
-              bottomOffset > 0
-                ? (Platform.OS === 'android' ? 8 : 10)
-                : Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12),
-          },
-        ]}
+      {/* 7. Chat Input Bar: Wrapped in KeyboardAvoidingView to prevent keyboard overlap */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+        style={styles.keyboardAvoidingInputWrapper}
         pointerEvents="box-none"
       >
+        <View
+          onLayout={handleComposerLayout}
+          style={[
+            styles.chatInputWrapper,
+            {
+              paddingBottom:
+                isKeyboardActive
+                  ? (Platform.OS === 'android' ? 8 : 6)
+                  : Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12),
+            },
+          ]}
+          pointerEvents="box-none"
+        >
         {/* Vercel v0 Pattern: Liquid Glass Dissolve Gradient Mask */}
         <View
           pointerEvents="none"
@@ -1419,6 +1553,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           )}
         </View>
       </View>
+    </KeyboardAvoidingView>
 
       {/* 8. Draggable Tool Slide Tray */}
       <ToolActionTray
@@ -2090,16 +2225,18 @@ const styles = StyleSheet.create({
     borderColor: '#161616',
   },
 
-  // Chat Input Bar: Paradev Floating Capsule
-  chatInputWrapper: {
+  // Chat Input Bar: KeyboardAvoidingView container + Capsule Wrapper
+  keyboardAvoidingInputWrapper: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    zIndex: 30,
+  },
+  chatInputWrapper: {
+    width: '100%',
     backgroundColor: 'transparent',
     paddingHorizontal: 14,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 14,
-    zIndex: 30,
   },
   composerCard: {
     flexDirection: 'row',
