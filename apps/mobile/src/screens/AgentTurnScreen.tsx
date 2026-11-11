@@ -56,7 +56,12 @@ import {
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
-import { MarkdownText } from '../components/MarkdownText';
+import {
+  Reasoning,
+  Response,
+  ThinkingOrb,
+  Shimmer,
+} from 'panelui-native';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
 import { SessionConfigSheet } from '../components/SessionConfigSheet';
@@ -94,166 +99,6 @@ interface ChatTurn {
     elements: AssistantTurnElement[];
   };
 }
-
-interface FlatReasoningBlockProps {
-  id: string;
-  text: string;
-  isCurrentlyThinking: boolean;
-  isLight: boolean;
-}
-
-const FlatReasoningBlock: React.FC<FlatReasoningBlockProps> = ({
-  id,
-  text,
-  isCurrentlyThinking,
-  isLight,
-}) => {
-  // Closed by default when chat is opened; open while actively thinking
-  const [isOpen, setIsOpen] = useState(isCurrentlyThinking);
-  const [contentHeight, setContentHeight] = useState(120);
-  const animValue = useRef(new Animated.Value(isCurrentlyThinking ? 1 : 0)).current;
-  const wasThinkingRef = useRef(isCurrentlyThinking);
-  const userManuallyInteractedRef = useRef(false);
-
-  useEffect(() => {
-    if (isCurrentlyThinking) {
-      userManuallyInteractedRef.current = false;
-      setIsOpen(true);
-      Animated.timing(animValue, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    } else if (wasThinkingRef.current && !isCurrentlyThinking) {
-      // Transition from thinking to completed (end of thought) -> smooth animated auto-close
-      if (!userManuallyInteractedRef.current) {
-        const timer = setTimeout(() => {
-          if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-            try {
-              UIManager.setLayoutAnimationEnabledExperimental(true);
-            } catch {}
-          }
-          try {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          } catch {}
-
-          Animated.timing(animValue, {
-            toValue: 0,
-            duration: 320,
-            easing: Easing.inOut(Easing.cubic),
-            useNativeDriver: false,
-          }).start(() => {
-            setIsOpen(false);
-          });
-        }, 300);
-
-        return () => clearTimeout(timer);
-      }
-    }
-    wasThinkingRef.current = isCurrentlyThinking;
-  }, [isCurrentlyThinking]);
-
-  const handleToggle = () => {
-    userManuallyInteractedRef.current = true;
-    try {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    } catch {}
-
-    if (isOpen) {
-      Animated.timing(animValue, {
-        toValue: 0,
-        duration: 260,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }).start(() => {
-        setIsOpen(false);
-      });
-    } else {
-      setIsOpen(true);
-      Animated.timing(animValue, {
-        toValue: 1,
-        duration: 260,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    }
-  };
-
-  return (
-    <View style={styles.flatReasoningBlock}>
-      <TouchableOpacity
-        style={styles.flatReasoningHeader}
-        onPress={handleToggle}
-        activeOpacity={0.7}
-      >
-        <Brain
-          size={13}
-          color={
-            isCurrentlyThinking
-              ? (isLight ? '#0077b6' : '#58a6ff')
-              : (isLight ? '#8c959f' : '#6e7681')
-          }
-        />
-        <Text
-          style={[
-            styles.flatReasoningHeaderTitle,
-            isLight && styles.flatReasoningHeaderTitleLight,
-            isCurrentlyThinking && (isLight ? { color: '#0077b6' } : { color: '#58a6ff' }),
-          ]}
-        >
-          {isCurrentlyThinking ? 'Thinking...' : 'Thought'}
-        </Text>
-        {isCurrentlyThinking ? (
-          <ActivityIndicator
-            size="small"
-            color={isLight ? '#0077b6' : '#58a6ff'}
-            style={{ transform: [{ scale: 0.6 }], marginLeft: 2 }}
-          />
-        ) : null}
-        <View style={{ marginLeft: 2 }}>
-          {isOpen ? (
-            <ChevronUp size={12} color={isLight ? '#8c959f' : '#6e7681'} />
-          ) : (
-            <ChevronDown size={12} color={isLight ? '#8c959f' : '#6e7681'} />
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {isOpen && (
-        <Animated.View
-          style={{
-            opacity: animValue,
-            maxHeight: animValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, Math.max(contentHeight + 20, 800)],
-            }),
-            overflow: 'hidden',
-          }}
-        >
-          <View
-            onLayout={(e) => {
-              const h = e.nativeEvent.layout.height;
-              if (h > 0 && Math.abs(h - contentHeight) > 4) {
-                setContentHeight(h);
-              }
-            }}
-          >
-            <Text
-              style={[
-                styles.flatReasoningText,
-                isLight && styles.flatReasoningTextLight,
-              ]}
-              selectable
-            >
-              {text.trim()}
-            </Text>
-          </View>
-        </Animated.View>
-      )}
-    </View>
-  );
-};
 
 export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   onBack,
@@ -908,13 +753,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           activeOpacity={0.75}
           accessibilityLabel="Open Session Parameters"
         >
-          {connectionState !== 'connected' && (
-            <ActivityIndicator
-              size="small"
-              color={isLight ? '#0077b6' : '#a3a3a3'}
-              style={{ transform: [{ scale: 0.75 }], marginRight: 6 }}
-            />
-          )}
+          {connectionState !== 'connected' ? (
+            <ThinkingOrb state="searching" size={14} />
+          ) : isSendingPrompt ? (
+            <ThinkingOrb state="working" size={14} />
+          ) : null}
           <Text
             style={[
               styles.floatingPillTitle,
@@ -1139,7 +982,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               activeOpacity={0.7}
             >
               {isLoadingOlderMessages ? (
-                <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.primaryLight} />
+                <ThinkingOrb state="searching" size={14} />
               ) : (
                 <>
                   <ArrowUp size={13} color={isLight ? '#0077b6' : colors.primaryLight} />
@@ -1154,7 +997,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {isLoadingMessages ? (
           <View style={styles.sessionLoadingBox}>
             <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
-              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+              <ThinkingOrb state="searching" size={20} />
               <Text style={[styles.sessionLoadingText, isLight && { color: '#57606a' }]}>Loading session transcript...</Text>
             </View>
           </View>
@@ -1240,13 +1083,32 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         }
 
                         return (
-                          <FlatReasoningBlock
+                          <Reasoning
                             key={element.id}
-                            id={element.id}
-                            text={element.text}
-                            isCurrentlyThinking={isCurrentlyThinking}
-                            isLight={isLight}
-                          />
+                            isStreaming={isCurrentlyThinking}
+                            defaultOpen={isCurrentlyThinking}
+                            className="my-1.5"
+                          >
+                            <Reasoning.Trigger
+                              label={(isStreaming) =>
+                                isStreaming ? (
+                                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <ThinkingOrb state="solving" size={13} />
+                                    <Shimmer textClassName={isLight ? 'text-xs text-[#0077b6] font-medium' : 'text-xs text-[#58a6ff] font-medium'}>
+                                      Thinking…
+                                    </Shimmer>
+                                  </View>
+                                ) : (
+                                  <Text style={[{ fontSize: 12 }, isLight ? { color: '#57606a' } : { color: '#8b949e' }]}>
+                                    Thought
+                                  </Text>
+                                )
+                              }
+                            />
+                            <Reasoning.Content>
+                              {element.text.trim()}
+                            </Reasoning.Content>
+                          </Reasoning>
                         );
                       }
 
@@ -1278,10 +1140,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
                               <View style={styles.flatToolRight}>
                                 {action.status === 'running' && (
-                                  <ActivityIndicator
-                                    size="small"
-                                    color={isLight ? '#0077b6' : '#a3a3a3'}
-                                    style={{ transform: [{ scale: 0.65 }], marginRight: 2 }}
+                                  <ThinkingOrb
+                                    state={action.category === 'search' ? 'searching' : 'working'}
+                                    size={15}
                                   />
                                 )}
                                 <ChevronRight size={14} color={isLight ? '#8c959f' : '#6e7681'} />
@@ -1303,9 +1164,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       }
 
                       if (element.type === 'content') {
+                        const isLastTurn = turnIdx === displayedTurns.length - 1;
                         return (
                           <View key={element.id} style={styles.resolutionContainer}>
-                            <MarkdownText content={element.text} isUser={false} />
+                            <Response isStreaming={isSendingPrompt && isLastTurn}>
+                              {element.text}
+                            </Response>
                           </View>
                         );
                       }
@@ -1317,7 +1181,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     <>
                       {turn.assistant.content ? (
                         <View style={styles.resolutionContainer}>
-                          <MarkdownText content={turn.assistant.content} isUser={false} />
+                          <Response isStreaming={isSendingPrompt && turnIdx === displayedTurns.length - 1}>
+                            {turn.assistant.content}
+                          </Response>
                         </View>
                       ) : null}
                     </>
@@ -1366,7 +1232,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {/* 5. Streaming Live Indicator */}
         {isSendingPrompt && (
           <View style={styles.streamingIndicatorRow}>
-            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#a3a3a3'} />
+            <ThinkingOrb state="working" size={20} />
             <Text style={[styles.streamingText, isLight && { color: '#57606a' }]}>Agent is thinking and executing...</Text>
           </View>
         )}
@@ -1548,7 +1414,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               onPress={handleToggleDictation}
               accessibilityLabel={isDictating ? 'Stop voice dictation' : 'Start voice dictation'}
             >
-              <Mic size={17} color={isDictating ? '#ffffff' : (isLight ? '#57606a' : '#737373')} />
+              {isDictating ? (
+                <ThinkingOrb state="listening" size={16} />
+              ) : (
+                <Mic size={17} color={isLight ? '#57606a' : '#737373'} />
+              )}
             </TouchableOpacity>
           )}
         </View>
@@ -2012,38 +1882,6 @@ const styles = StyleSheet.create({
   assistantTurnWrapper: {
     width: '100%',
     marginBottom: 16,
-  },
-
-  // Flat Reasoning Flow (Borderless, natural order)
-  flatReasoningBlock: {
-    marginVertical: 4,
-    paddingVertical: 2,
-  },
-  flatReasoningHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 3,
-  },
-  flatReasoningHeaderTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#8b949e',
-  },
-  flatReasoningHeaderTitleLight: {
-    color: '#57606a',
-  },
-  flatReasoningText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#8b949e',
-    fontStyle: 'italic',
-    paddingLeft: 4,
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  flatReasoningTextLight: {
-    color: '#57606a',
   },
 
   // Flat Tool Actions (Pure borderless rows matching reference image)
