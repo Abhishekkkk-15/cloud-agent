@@ -44,6 +44,7 @@ import { PairMachineModal } from './PairMachineModal';
 import { MachineSwitcherModal } from './MachineSwitcherModal';
 import { FolderPickerModal } from './FolderPickerModal';
 import { SessionActionModal } from './SessionActionModal';
+import { SessionDropdownMenu } from './SessionDropdownMenu';
 import { ServerSettingsModal } from './ServerSettingsModal';
 
 export type AppScreen = 'agent' | 'health' | 'approvals' | 'sessions';
@@ -479,13 +480,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                                     {session.pinned && (
                                       <Pin size={12} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 2 }} />
                                     )}
-                                    <TouchableOpacity
-                                      onPress={() => setActionSession(session)}
-                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                      className="p-1"
-                                    >
-                                      <MoreVertical size={14} color={isLight ? '#686868' : '#a3a3a3'} />
-                                    </TouchableOpacity>
+                                    <SessionDropdownMenu session={session} iconSize={13} triggerClassName="p-1" />
                                   </Tree.Actions>
                                 </Tree.Trigger>
                               </Tree.Item>

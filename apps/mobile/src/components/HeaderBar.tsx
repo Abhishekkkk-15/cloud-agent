@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { View, Platform, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button, Text, cn } from 'panelui-native';
 import { ChevronLeft, Menu, MoreVertical, Search } from './Icons';
-import { colors, radii } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
 export interface HeaderBarProps {
@@ -30,141 +30,75 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const isLight = theme === 'light';
 
   return (
-    <View style={[styles.container, isLight && styles.containerLight, { paddingTop: topInset, height: 50 + topInset }]}>
-      <View style={styles.leftRow}>
+    <View
+      style={{ paddingTop: topInset, height: 52 + topInset }}
+      className="w-full bg-background border-b border-border px-3.5 flex-row items-center justify-between z-50"
+    >
+      <View className="flex-row items-center flex-1 mr-2 overflow-hidden">
         {onBack && (
-          <TouchableOpacity
-            style={[styles.circleButton, isLight && styles.circleButtonLight]}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-9 h-9 p-0 rounded-full items-center justify-center bg-surface border-border mr-2.5 active:opacity-70"
             onPress={onBack}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel={leftIcon === 'menu' ? 'Open navigation menu' : 'Go back'}
           >
             {leftIcon === 'menu' ? (
-              <Menu size={18} color={isLight ? '#1f2328' : '#fafafa'} />
+              <Menu size={18} color={isLight ? '#262626' : '#f5f5f5'} />
             ) : (
-              <ChevronLeft size={18} color={isLight ? '#1f2328' : '#fafafa'} />
+              <ChevronLeft size={18} color={isLight ? '#262626' : '#f5f5f5'} />
             )}
-          </TouchableOpacity>
+          </Button>
         )}
-        <View style={styles.titleColumn}>
-          <Text style={[styles.title, isLight && styles.titleLight]} numberOfLines={1}>
+
+        <View className="flex-1 justify-center">
+          <Text
+            size="base"
+            weight="semibold"
+            className="text-[15px] font-semibold text-foreground tracking-tight leading-snug"
+            numberOfLines={1}
+          >
             {title}
           </Text>
           {subtitle ? (
-            <Text style={[styles.subtitle, isLight && styles.subtitleLight]} numberOfLines={1}>
+            <Text
+              size="xs"
+              className="text-[11px] text-muted-foreground mt-0.5 leading-none"
+              numberOfLines={1}
+            >
               {subtitle}
             </Text>
           ) : null}
         </View>
       </View>
-      <View style={styles.rightRow}>
+
+      <View className="flex-row items-center gap-1.5 shrink-0">
         {onSearch && (
-          <TouchableOpacity
-            style={[styles.circleActionBtn, isLight && styles.circleActionBtnLight]}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-8 h-8 p-0 rounded-full items-center justify-center bg-surface border-border active:opacity-70"
             onPress={onSearch}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Search"
           >
-            <Search size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
-          </TouchableOpacity>
+            <Search size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+          </Button>
         )}
+
         {rightElement}
+
         {onMore && (
-          <TouchableOpacity
-            style={[styles.circleActionBtn, isLight && styles.circleActionBtnLight]}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-8 h-8 p-0 rounded-full items-center justify-center bg-surface border-border active:opacity-70"
             onPress={onMore}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="More options"
           >
-            <MoreVertical size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
-          </TouchableOpacity>
+            <MoreVertical size={16} color={isLight ? '#686868' : '#a3a3a3'} />
+          </Button>
         )}
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    height: 50,
-    backgroundColor: '#0a0a0a',
-    borderBottomWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    zIndex: 50,
-  },
-  containerLight: {
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#d0d7de',
-  },
-  leftRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    overflow: 'hidden',
-  },
-  circleButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  circleButtonLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  circleActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 6,
-  },
-  circleActionBtnLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  titleColumn: {
-    flex: 1,
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fafafa',
-    letterSpacing: -0.2,
-    lineHeight: 20,
-    flexShrink: 1,
-  },
-  titleLight: {
-    color: '#1f2328',
-  },
-  subtitle: {
-    fontSize: 11,
-    color: '#737373',
-    marginTop: 1,
-    lineHeight: 14,
-  },
-  subtitleLight: {
-    color: '#6e7681',
-  },
-  rightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-});

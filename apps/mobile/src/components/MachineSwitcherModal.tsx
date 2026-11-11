@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
+import {
+  Dialog,
+  Button,
+  Badge,
+  Text,
+  GridItem,
+  cn,
+} from 'panelui-native';
 import {
   Server,
   X,
@@ -18,10 +21,7 @@ import {
   Plus,
   RefreshCw,
   Trash2,
-  ChevronRight,
-  Radio,
 } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore, type MachineInfo } from '../stores/useDaemonStore';
 
 interface MachineSwitcherModalProps {
@@ -46,8 +46,6 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
 
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  if (!visible) return null;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -90,448 +88,151 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-
-        <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
-          {/* Header */}
-          <View style={[styles.header, isLight && styles.headerLight]}>
-            <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
-              <Server size={18} color={isLight ? '#0077b6' : '#fafafa'} />
+    <Dialog open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Content className="w-full max-w-md bg-popover border border-border p-0 overflow-hidden rounded-2xl">
+        {/* Header */}
+        <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
+          <View className="flex-row items-center gap-2.5 flex-1 mr-2">
+            <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
+              <Server size={16} color={isLight ? '#262626' : '#f5f5f5'} />
             </View>
-            <View style={{ flex: 1 }}>
-              <View style={styles.titleRow}>
-                <Text style={[styles.title, isLight && styles.titleLight]}>Machines & VPSs</Text>
-                <View style={[styles.countBadge, isLight && styles.countBadgeLight]}>
-                  <Text style={[styles.countBadgeText, isLight && styles.countBadgeTextLight]}>{machines.length}</Text>
-                </View>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-2">
+                <Dialog.Title className="text-base font-semibold text-foreground">
+                  Compute Nodes
+                </Dialog.Title>
+                <Badge variant="outline" size="sm" className="px-1.5 py-0">
+                  <Text className="text-[11px] font-mono text-muted-foreground">{machines.length}</Text>
+                </Badge>
               </View>
-              <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>Select an active VPS or workstation</Text>
+              <Dialog.Description className="text-xs text-muted-foreground" numberOfLines={1}>
+                Select an active VPS or workstation
+              </Dialog.Description>
             </View>
-            <TouchableOpacity
-              style={[styles.actionBtn, isLight && styles.actionBtnLight]}
+          </View>
+          <View className="flex-row items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
               onPress={handleRefresh}
-              activeOpacity={0.7}
               disabled={isRefreshing || isLoadingMachines}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              className="w-7 h-7 p-0 items-center justify-center rounded-lg"
             >
               <RefreshCw
-                size={16}
-                color={isRefreshing ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')}
+                size={14}
+                color={isRefreshing ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')}
               />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionBtn, isLight && styles.actionBtnLight]}
-              onPress={onClose}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
-            </TouchableOpacity>
+            </Button>
+            <Dialog.Close>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-7 h-7 p-0 items-center justify-center rounded-lg"
+              >
+                <X size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Button>
+            </Dialog.Close>
           </View>
+        </View>
 
-          {/* Machine List */}
-          <ScrollView
-            style={[styles.listScroll, isLight && styles.listScrollLight]}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {isLoadingMachines && machines.length === 0 ? (
-              <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
-                <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Fetching paired machines...</Text>
-              </View>
-            ) : machines.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Server size={32} color={isLight ? '#8c959f' : '#737373'} />
-                <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>No Paired Machines</Text>
-                <Text style={[styles.emptySubtitle, isLight && styles.emptySubtitleLight]}>
-                  You don't have any active VPS or local workstation paired with this account yet.
-                </Text>
-              </View>
-            ) : (
-              machines.map((machine) => {
+        {/* Machine List */}
+        <ScrollView
+          style={{ maxHeight: 360 }}
+          contentContainerStyle={{ padding: 14 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {isLoadingMachines && machines.length === 0 ? (
+            <View className="py-8 items-center justify-center">
+              <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+              <Text className="text-xs text-muted-foreground mt-2">Fetching paired nodes...</Text>
+            </View>
+          ) : machines.length === 0 ? (
+            <View className="py-8 items-center justify-center">
+              <Server size={28} color={isLight ? '#a3a3a3' : '#737373'} />
+              <Text className="text-sm font-semibold text-foreground mt-2">No Paired Nodes</Text>
+              <Text className="text-xs text-muted-foreground mt-1 text-center max-w-xs">
+                You don't have any active VPS or local workstation linked to this account yet.
+              </Text>
+            </View>
+          ) : (
+            <GridItem.Group columns={1} gap={8} rowHeight={74} size="sm">
+              {machines.map((machine) => {
                 const isActive = activeMachine?.machineId === machine.machineId;
                 const isSwitchingThis = switchingId === machine.machineId;
 
                 return (
-                  <TouchableOpacity
+                  <GridItem
                     key={machine.machineId}
-                    style={[
-                      styles.machineCard,
-                      isLight && styles.machineCardLight,
-                      isActive && (isLight ? styles.machineCardActiveLight : styles.machineCardActive),
-                    ]}
+                    colSpan={1}
+                    rowSpan={1}
                     onPress={() => handleSelect(machine)}
-                    activeOpacity={0.7}
                     disabled={isSwitchingThis}
+                    className={cn(
+                      'p-2.5 border-border flex-row items-center justify-between',
+                      isActive ? 'bg-surface-secondary border-primary/40' : 'bg-surface'
+                    )}
                   >
-
-
-                    {/* Machine Details */}
-                    <View style={styles.machineInfo}>
-                      <View style={styles.nameRow}>
-                        <Text style={[styles.machineName, isLight && styles.machineNameLight]} numberOfLines={1}>
-                          {machine.name}
-                        </Text>
-                        {isActive ? (
-                          <View style={[styles.activePill, isLight && styles.activePillLight]}>
-                            <Check size={11} color={isLight ? '#0077b6' : '#fafafa'} />
-                            <Text style={[styles.activePillText, isLight && styles.activePillTextLight]}>Active</Text>
-                          </View>
-                        ) : null}
+                    <View className="flex-row items-center gap-2.5 flex-1 mr-2">
+                      <GridItem.Media variant="icon">
+                        <Server size={14} color={isLight ? '#262626' : '#f5f5f5'} />
+                      </GridItem.Media>
+                      <View className="flex-1">
+                        <View className="flex-row items-center gap-1.5 mb-0.5">
+                          <GridItem.Title numberOfLines={1}>{machine.name}</GridItem.Title>
+                          {isActive && (
+                            <Badge variant="default" size="xs">Active</Badge>
+                          )}
+                        </View>
+                        <GridItem.Description numberOfLines={1}>
+                          {machine.platform} ({machine.arch}) • {machine.isOnline ? 'Online' : 'Offline'}
+                        </GridItem.Description>
                       </View>
-                      <Text style={[styles.machineSub, isLight && styles.machineSubLight]} numberOfLines={1}>
-                        {machine.platform} ({machine.arch}) •{' '}
-                        <Text
-                          style={{
-                            color: machine.isOnline ? (isLight ? '#1a7f37' : '#fafafa') : '#737373',
-                          }}
-                        >
-                          {machine.isOnline ? 'Online' : 'Offline'}
-                        </Text>
-                      </Text>
                     </View>
 
-                    {/* Action Right */}
-                    <View style={styles.cardActions}>
+                    <View className="flex-row items-center gap-1.5 shrink-0">
                       {isSwitchingThis ? (
-                        <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+                        <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
                       ) : !isActive ? (
-                        <TouchableOpacity
-                          style={[styles.switchBtn, isLight && styles.switchBtnLight]}
+                        <Button
+                          variant="outline"
+                          size="xs"
                           onPress={() => handleSelect(machine)}
-                          activeOpacity={0.7}
                         >
-                          <Text style={[styles.switchBtnText, isLight && styles.switchBtnTextLight]}>Switch</Text>
-                        </TouchableOpacity>
+                          Switch
+                        </Button>
                       ) : null}
 
                       <TouchableOpacity
-                        style={[styles.trashBtn, isLight && styles.trashBtnLight]}
                         onPress={() => handleUnpair(machine)}
-                        activeOpacity={0.7}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        className="p-1.5 rounded-lg"
                       >
-                        <Trash2 size={14} color={isLight ? '#8c959f' : '#737373'} />
+                        <Trash2 size={13} color={isLight ? '#686868' : '#a3a3a3'} />
                       </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
+                  </GridItem>
                 );
-              })
-            )}
-          </ScrollView>
+              })}
+            </GridItem.Group>
+          )}
+        </ScrollView>
 
-          {/* Footer: Pair New Button */}
-          <View style={[styles.footer, isLight && styles.footerLight]}>
-            <TouchableOpacity
-              style={[styles.pairNewBtn, isLight && styles.pairNewBtnLight]}
-              onPress={() => {
-                onClose();
-                onPairNew();
-              }}
-              activeOpacity={0.8}
-            >
-              <Plus size={16} color={isLight ? '#ffffff' : '#0a0a0a'} />
-              <Text style={[styles.pairNewBtnText, isLight && styles.pairNewBtnTextLight]}>Pair Another Machine / VPS</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Footer */}
+        <View className="p-3 border-t border-border bg-surface flex-row items-center justify-between">
+          <Button
+            variant="primary"
+            size="sm"
+            onPress={() => {
+              onClose();
+              onPairNew();
+            }}
+            className="flex-1 flex-row items-center justify-center gap-1.5"
+          >
+            <Plus size={14} color={isLight ? '#fafafa' : '#262626'} />
+            <Text className="text-xs font-semibold text-primary-foreground">Pair Another Compute Node</Text>
+          </Button>
         </View>
-      </View>
-    </Modal>
+      </Dialog.Content>
+    </Dialog>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 420,
-    maxHeight: '80%',
-    backgroundColor: '#0a0a0a',
-    borderRadius: radii.xl || 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: '#262626',
-    backgroundColor: '#161616',
-    gap: 12,
-  },
-  headerIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fafafa',
-  },
-  countBadge: {
-    backgroundColor: '#fafafa',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-  },
-  countBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    marginTop: 1,
-  },
-  actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#262626',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listScroll: {
-    maxHeight: 380,
-  },
-  listContent: {
-    padding: 16,
-    gap: 10,
-  },
-  machineCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#262626',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-  },
-  machineCardActive: {
-    borderColor: '#fafafa',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  machineInfo: {
-    flex: 1,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 2,
-  },
-  machineName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  activePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.20)',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 10,
-  },
-  activePillText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fafafa',
-  },
-  machineSub: {
-    fontSize: 12,
-    color: '#a3a3a3',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  switchBtn: {
-    backgroundColor: '#262626',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-  },
-  switchBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  trashBtn: {
-    width: 28,
-    height: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingBox: {
-    paddingVertical: 32,
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#a3a3a3',
-  },
-  emptyBox: {
-    paddingVertical: 32,
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    textAlign: 'center',
-    maxWidth: 240,
-    lineHeight: 16,
-  },
-  footer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderColor: '#262626',
-    backgroundColor: '#161616',
-  },
-  pairNewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#fafafa',
-    paddingVertical: 11,
-    borderRadius: 10,
-  },
-  pairNewBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0a0a0a',
-  },
-
-  // Light Theme Overrides
-  modalCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  headerLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#e1e4e8',
-  },
-  headerIconBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-  },
-  titleLight: {
-    color: '#1f2328',
-  },
-  subtitleLight: {
-    color: '#6e7681',
-  },
-  countBadgeLight: {
-    backgroundColor: '#eaeef2',
-  },
-  countBadgeTextLight: {
-    color: '#57606a',
-  },
-  actionBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  listScrollLight: {
-    backgroundColor: '#ffffff',
-  },
-  loadingTextLight: {
-    color: '#6e7681',
-  },
-  emptyTitleLight: {
-    color: '#1f2328',
-  },
-  emptySubtitleLight: {
-    color: '#6e7681',
-  },
-  machineCardLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  machineCardActiveLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
-    borderColor: '#0077b6',
-  },
-  machineNameLight: {
-    color: '#1f2328',
-  },
-  machineSubLight: {
-    color: '#6e7681',
-  },
-  activePillLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.12)',
-    borderColor: 'rgba(0, 119, 182, 0.3)',
-  },
-  activePillTextLight: {
-    color: '#0077b6',
-  },
-  switchBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  switchBtnTextLight: {
-    color: '#0077b6',
-  },
-  trashBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  footerLight: {
-    backgroundColor: '#ffffff',
-    borderTopColor: '#e1e4e8',
-  },
-  pairNewBtnLight: {
-    backgroundColor: '#0077b6',
-  },
-  pairNewBtnTextLight: {
-    color: '#ffffff',
-  },
-});
