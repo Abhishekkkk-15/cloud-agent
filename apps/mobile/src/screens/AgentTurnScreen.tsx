@@ -70,6 +70,7 @@ import {
   Response,
   ThinkingOrb,
   Shimmer,
+  toast,
 } from 'panelui-native';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
@@ -243,6 +244,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     try {
       await renameSession(activeSession.id, renameTitle.trim());
       setIsRenamingSession(false);
+      toast.show({
+        variant: 'success',
+        label: 'Session Renamed',
+        description: renameTitle.trim(),
+        duration: 2500,
+      });
     } finally {
       setIsSavingRename(false);
     }
@@ -439,6 +446,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       navigator.clipboard.writeText(text);
     }
     setCopiedTurnId(turnId);
+    toast.show({
+      variant: 'default',
+      label: 'Message copied to clipboard',
+      duration: 2000,
+    });
     setTimeout(() => {
       setCopiedTurnId(null);
     }, 1500);

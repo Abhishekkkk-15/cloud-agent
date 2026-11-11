@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -14,6 +13,7 @@ import {
   Item,
   Text,
   ScrollHeader,
+  toast,
   cn,
 } from 'panelui-native';
 import {
@@ -49,6 +49,11 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
 
   const handleCopy = () => {
     setCopied(true);
+    toast.show({
+      variant: 'default',
+      label: 'Command copied to clipboard',
+      duration: 2000,
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -56,7 +61,11 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
     setIsAuthorizing(true);
     try {
       await respondApproval(true);
-      Alert.alert('Action Authorized', 'Command authorization dispatched to host daemon.');
+      toast.show({
+        variant: 'success',
+        label: 'Action Authorized',
+        description: 'Command authorization dispatched to host daemon.',
+      });
     } finally {
       setIsAuthorizing(false);
     }
@@ -66,7 +75,11 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
     setIsDenying(true);
     try {
       await respondApproval(false);
-      Alert.alert('Action Denied', 'Command execution aborted.');
+      toast.show({
+        variant: 'destructive',
+        label: 'Action Denied',
+        description: 'Command execution aborted.',
+      });
     } finally {
       setIsDenying(false);
     }

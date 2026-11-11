@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import {
@@ -15,6 +14,7 @@ import {
   Text,
   GridItem,
   ScrollHeader,
+  toast,
   cn,
 } from 'panelui-native';
 import {
@@ -92,6 +92,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
     setIsPinging(true);
     await pingHeartbeat();
     setIsPinging(false);
+    toast.show({
+      variant: 'default',
+      label: 'Heartbeat Pong',
+      description: `Latency: ${useDaemonStore.getState().pingRtt || 'connected'}`,
+    });
   };
 
   const isConnected = connectionState === 'connected';
@@ -603,7 +608,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
               rowSpan={1}
               onPress={async () => {
                 await handleRefresh();
-                Alert.alert('Refreshed', 'Machine state and adapters queried from Daemon.');
+                toast.show({
+                  variant: 'info',
+                  label: 'Host State Synced',
+                  description: 'Machine telemetry and adapters queried from Daemon.',
+                });
               }}
               disabled={isRefreshing}
               className="p-3 pb-3.5 bg-card border-border"
@@ -641,7 +650,13 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
             <GridItem
               colSpan={1}
               rowSpan={1}
-              onPress={() => Alert.alert('Restart Daemon', `Restart command dispatched to ${hostName}.`)}
+              onPress={() => {
+                toast.show({
+                  variant: 'warning',
+                  label: 'Restart Daemon',
+                  description: `Restart command dispatched to ${hostName}.`,
+                });
+              }}
               className="p-3 pb-3.5 bg-card border-border border-destructive/30"
             >
               <GridItem.Media variant="icon" className="bg-destructive/10 border-destructive/20">

@@ -6,6 +6,7 @@ import {
   Button,
   Input,
   Text,
+  toast,
 } from 'panelui-native';
 import { MoreVertical, Pencil, Pin, Trash2, X } from './Icons';
 import { useDaemonStore, type RealSessionItem } from '../stores/useDaemonStore';
@@ -52,17 +53,29 @@ export const SessionDropdownMenu: React.FC<SessionDropdownMenuProps> = ({
         await renameSession(session.id, newTitle.trim());
       }
       setRenameDialogOpen(false);
+      toast.show({
+        variant: 'success',
+        label: 'Session Renamed',
+        description: newTitle.trim(),
+        duration: 2500,
+      });
     } finally {
       setIsRenaming(false);
     }
   };
 
   const handleTogglePin = async () => {
+    const willPin = !session.pinned;
     if (onTogglePin) {
       await onTogglePin(session);
     } else {
       await togglePinSession(session.id);
     }
+    toast.show({
+      variant: 'default',
+      label: willPin ? 'Session pinned' : 'Session unpinned',
+      duration: 2000,
+    });
   };
 
   const handleDelete = () => {
@@ -80,6 +93,11 @@ export const SessionDropdownMenu: React.FC<SessionDropdownMenuProps> = ({
             } else {
               await deleteSession(session.id);
             }
+            toast.show({
+              variant: 'default',
+              label: 'Session deleted',
+              duration: 2500,
+            });
           },
         },
       ]
