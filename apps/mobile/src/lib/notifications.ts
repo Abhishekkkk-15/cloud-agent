@@ -51,11 +51,18 @@ let currentPushToken: string | null = null;
 export function isRunningInExpoGo(): boolean {
   if (Platform.OS === 'web') return false;
   try {
-    return (
-      (Constants as any).appOwnership === 'expo' ||
-      Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
-      (Constants as any).executionEnvironment === 'storeClient' ||
-      (Constants as any).expoVersion != null
+    const c = (Constants as any)?.default || Constants;
+    return Boolean(
+      c?.appOwnership === 'expo' ||
+      c?.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      c?.executionEnvironment === 'storeClient' ||
+      c?.expoVersion != null ||
+      c?.expoGoConfig != null ||
+      (Constants as any)?.appOwnership === 'expo' ||
+      (Constants as any)?.executionEnvironment === ExecutionEnvironment.StoreClient ||
+      (Constants as any)?.executionEnvironment === 'storeClient' ||
+      (Constants as any)?.expoVersion != null ||
+      (Constants as any)?.expoGoConfig != null
     );
   } catch {
     return false;

@@ -66,6 +66,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+  const effectiveTopPadding = Math.max(topInset, Platform.OS === 'ios' ? 12 : 8) + 4;
 
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const machines = useDaemonStore((s) => s.machines);
@@ -244,12 +245,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           size="md"
           showClose={false}
           className="bg-popover border-r border-border p-0"
+          style={{ paddingTop: 0 }}
         >
           {/* Drawer Body: Smoothly scrollable with native UI-thread physics */}
           <Drawer.Body
             scrollable={true}
             contentContainerStyle={{
-              paddingTop: topInset + (Platform.OS === 'ios' ? 8 : 12),
+              paddingTop: effectiveTopPadding,
               paddingBottom: Math.max(insets.bottom, 16),
               paddingHorizontal: 16,
             }}

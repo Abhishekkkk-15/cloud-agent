@@ -408,23 +408,19 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
             <Button
               variant="outline"
               size="sm"
-              className="w-full py-2.5 px-4 rounded-2xl flex-row items-center justify-center gap-2 border-border bg-surface"
+              fullWidth
+              loading={isLoadingDev}
+              startContent={<Zap size={14} color="#0077b6" />}
+              endContent={
+                <Badge variant="secondary" size="sm" className="px-1.5 py-0 ml-1">
+                  <Text className="text-[10px] font-medium text-muted-foreground">Dev Only</Text>
+                </Badge>
+              }
+              className="py-2.5 px-4 rounded-2xl border-border bg-surface"
               onPress={handleDevLogin}
               disabled={isLoadingDev || isLoadingGoogle}
             >
-              {isLoadingDev ? (
-                <Spinner size="sm" color={isLight ? '#262626' : '#f5f5f5'} />
-              ) : (
-                <>
-                  <Zap size={14} color="#0077b6" />
-                  <Text className="text-xs font-medium text-foreground">
-                    Expo Go Test / Dev Account
-                  </Text>
-                  <Badge variant="secondary" size="sm" className="px-1.5 py-0 ml-1">
-                    <Text className="text-[10px] font-medium text-muted-foreground">Dev Only</Text>
-                  </Badge>
-                </>
-              )}
+              Expo Go Test / Dev Account
             </Button>
           </View>
         )}
