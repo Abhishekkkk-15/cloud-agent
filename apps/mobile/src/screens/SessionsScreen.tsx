@@ -225,7 +225,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           showsVerticalScrollIndicator={false}
         >
         {/* 1. Overview Bento Grid */}
-        <GridItem.Group columns={2} gap={10} rowHeight={105} size="sm">
+        <GridItem.Group columns={2} gap={10} rowHeight={130} size="sm">
           {/* Host Tile */}
           <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
             <GridItem.Media variant="icon">
