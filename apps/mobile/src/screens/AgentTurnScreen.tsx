@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronRight,
+  Clock,
   MoreVertical,
   Menu as MenuIcon,
   Terminal,
@@ -283,36 +284,33 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const activePromptTurnIndexRef = useRef<number>(-1);
   const activePromptLayoutYRef = useRef<number>(0);
 
-  // Infinite Scroll Refs
-  const prevScrollHeightRef = useRef<number>(0);
-  const prevScrollYRef = useRef<number>(0);
-  const prependedAnchorMsgIdRef = useRef<string | null>(null);
+  // Infinite Scroll & Synchronous Scroll Compensation Refs
   const isFetchingOlderRef = useRef<boolean>(false);
-  const needsScrollAdjustmentRef = useRef<boolean>(false);
+  const isPrependPendingRef = useRef<boolean>(false);
+  const prevScrollHeightRef = useRef<number>(0);
+  const anchorScrollYRef = useRef<number>(0);
+  const anchorTurnIdRef = useRef<string | null>(null);
+  const anchorTurnOldYRef = useRef<number>(0);
+  const turnYPositionsRef = useRef<Map<string, number>>(new Map());
+  const liveScrollYRef = useRef<number>(0);
+  const lastContentHeightRef = useRef<number>(0);
   const hasInitialScrolledRef = useRef<string | null>(null);
+  const displayedTurnsRef = useRef<any[]>([]);
 
   // Initial scroll to bottom when session messages load
   useEffect(() => {
     if (activeSession?.id && sessionMessages.length > 0 && !isLoadingMessages) {
       if (hasInitialScrolledRef.current !== activeSession.id) {
         hasInitialScrolledRef.current = activeSession.id;
+        turnYPositionsRef.current.clear();
+        isPrependPendingRef.current = false;
+        anchorTurnIdRef.current = null;
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: false });
         }, 120);
       }
     }
   }, [activeSession?.id, sessionMessages.length, isLoadingMessages]);
-
-  // When older messages are successfully prepended to sessionMessages, flag for scroll compensation
-  useEffect(() => {
-    if (
-      prependedAnchorMsgIdRef.current &&
-      sessionMessages.length > 0 &&
-      sessionMessages[0]?.id !== prependedAnchorMsgIdRef.current
-    ) {
-      needsScrollAdjustmentRef.current = true;
-    }
-  }, [sessionMessages]);
 
   const handleComposerLayout = (event: any) => {
     const newHeight = Math.round(event.nativeEvent.layout.height);
@@ -369,10 +367,48 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     scrollViewRef.current?.scrollToEnd({ animated: true });
   };
 
+  const triggerLoadOlderMessages = useCallback(async () => {
+    if (
+      !hasMoreMessages ||
+      isLoadingOlderMessages ||
+      isFetchingOlderRef.current ||
+      !activeSession?.id
+    ) {
+      return;
+    }
+
+    isFetchingOlderRef.current = true;
+
+    // Snapshot current scroll offset & top turn anchor BEFORE store mutation
+    isPrependPendingRef.current = true;
+    prevScrollHeightRef.current = lastContentHeightRef.current;
+    anchorScrollYRef.current = liveScrollYRef.current;
+
+    const firstTurn = displayedTurnsRef.current[0];
+    if (firstTurn) {
+      anchorTurnIdRef.current = firstTurn.id || null;
+      anchorTurnOldYRef.current = turnYPositionsRef.current.get(firstTurn.id) ?? 0;
+    } else {
+      anchorTurnIdRef.current = null;
+      anchorTurnOldYRef.current = 0;
+    }
+
+    try {
+      await loadOlderMessages();
+    } finally {
+      setTimeout(() => {
+        isFetchingOlderRef.current = false;
+      }, 500);
+    }
+  }, [hasMoreMessages, isLoadingOlderMessages, activeSession?.id, loadOlderMessages]);
+
   const handleScroll = (event: any) => {
     const { contentOffset, layoutMeasurement, contentSize } = event?.nativeEvent || event || {};
     if (!contentOffset || !layoutMeasurement || !contentSize) return;
     currentScrollYRef.current = contentOffset.y;
+    liveScrollYRef.current = contentOffset.y;
+    lastContentHeightRef.current = contentSize.height;
+
     const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
     const isNear = distanceFromBottom <= 45;
     isNearBottomRef.current = isNear;
@@ -388,23 +424,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       pauseAutoScroll();
     }
 
-    // Infinite scroll: when user scrolls near the top (< 120px from top) and there are older messages
+    // Smooth Infinite scroll: trigger when user scrolls near the top (< 120px) and not bouncing negatively
     if (
       contentOffset.y <= 120 &&
+      contentOffset.y >= 0 &&
       hasMoreMessages &&
       !isLoadingOlderMessages &&
       !isFetchingOlderRef.current &&
       contentSize.height > layoutMeasurement.height
     ) {
-      isFetchingOlderRef.current = true;
-      prependedAnchorMsgIdRef.current = sessionMessages[0]?.id || null;
-      prevScrollHeightRef.current = contentSize.height;
-      prevScrollYRef.current = contentOffset.y;
-      loadOlderMessages().finally(() => {
-        setTimeout(() => {
-          isFetchingOlderRef.current = false;
-        }, 400);
-      });
+      triggerLoadOlderMessages();
     }
   };
 
@@ -793,6 +822,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   }, [chatTurns, selectedActionForTray]);
 
   const displayedTurns = chatTurns;
+  displayedTurnsRef.current = displayedTurns;
 
   const renderActionIcon = (category: ActionStep['category']) => {
     const iconColor = isLight ? '#57606a' : '#c9d1d9';
@@ -1008,25 +1038,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         keyboardDismissMode="interactive"
         onTouchStart={pauseAutoScroll}
         onScrollBeginDrag={pauseAutoScroll}
-        maintainVisibleContentPosition={{
-          minIndexForVisible: 1,
-          autoscrollToTopThreshold: 10,
-        }}
         onContentSizeChange={(_w, h) => {
-          if (needsScrollAdjustmentRef.current && prevScrollHeightRef.current > 0) {
-            const heightDelta = h - prevScrollHeightRef.current;
+          const previousHeight = lastContentHeightRef.current;
+          lastContentHeightRef.current = h;
+
+          if (isPrependPendingRef.current && previousHeight > 0) {
+            const heightDelta = h - previousHeight;
             if (heightDelta > 0) {
-              const targetY = prevScrollYRef.current + heightDelta;
+              const targetY = anchorScrollYRef.current + heightDelta;
               scrollViewRef.current?.scrollTo({
                 y: targetY,
                 animated: false,
               });
+              liveScrollYRef.current = targetY;
               currentScrollYRef.current = targetY;
             }
-            needsScrollAdjustmentRef.current = false;
-            prependedAnchorMsgIdRef.current = null;
+            isPrependPendingRef.current = false;
+            anchorTurnIdRef.current = null;
           }
-          prevScrollHeightRef.current = h;
 
           if (isSendingPrompt && !isAutoScrollPausedRef.current) {
             triggerAutoScroll();
@@ -1034,15 +1063,44 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         }}
       >
 
-        {/* Infinite Scroll: Loading Spinner when older messages are being fetched */}
-        {isLoadingOlderMessages && (
-          <View style={styles.infiniteLoadingContainer}>
-            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#58a6ff'} />
-            <Text style={[styles.infiniteLoadingText, isLight && { color: '#57606a' }]}>
-              Loading older messages...
-            </Text>
+        {/* Infinite Scroll / Top Pagination Header */}
+        {hasMoreMessages ? (
+          <View style={styles.paginationHeaderContainer}>
+            {isLoadingOlderMessages ? (
+              <View style={styles.paginationLoadingRow}>
+                <Spinner size="sm" />
+                <Text style={[styles.paginationLoadingText, isLight && { color: '#57606a' }]}>
+                  Loading earlier messages…
+                </Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[
+                  styles.loadOlderButton,
+                  isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' },
+                ]}
+                onPress={triggerLoadOlderMessages}
+                activeOpacity={0.7}
+              >
+                <Clock size={13} color={isLight ? '#57606a' : '#8b949e'} />
+                <Text style={[styles.loadOlderButtonText, isLight && { color: '#57606a' }]}>
+                  Load earlier messages
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
-        )}
+        ) : displayedTurns.length > 0 ? (
+          <View style={styles.transcriptStartContainer}>
+            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
+            <View style={[styles.transcriptStartBadge, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
+              <Terminal size={11} color={isLight ? '#57606a' : '#8b949e'} />
+              <Text style={[styles.transcriptStartText, isLight && { color: '#57606a' }]}>
+                Beginning of session
+              </Text>
+            </View>
+            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
+          </View>
+        ) : null}
 
         {/* 4. Turn-by-Turn Timeline (Paradev OutgoingBubble & AgentMessage) */}
         {isLoadingMessages ? (
@@ -1068,9 +1126,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               key={turn.id || turnIdx}
               style={styles.turnCardContainer}
               onLayout={(e) => {
+                const turnY = e.nativeEvent.layout.y;
+                turnYPositionsRef.current.set(turn.id, turnY);
+
+                if (isPrependPendingRef.current && anchorTurnIdRef.current === turn.id) {
+                  const oldY = anchorTurnOldYRef.current;
+                  if (turnY > oldY) {
+                    const shift = turnY - oldY;
+                    const targetY = anchorScrollYRef.current + shift;
+                    scrollViewRef.current?.scrollTo({ y: targetY, animated: false });
+                    liveScrollYRef.current = targetY;
+                    currentScrollYRef.current = targetY;
+                    isPrependPendingRef.current = false;
+                    anchorTurnIdRef.current = null;
+                  }
+                }
+
                 if (turnIdx === activePromptTurnIndexRef.current && userJustSubmittedRef.current) {
                   userJustSubmittedRef.current = false;
-                  const turnY = e.nativeEvent.layout.y;
                   activePromptLayoutYRef.current = turnY;
                   // Vercel v0 Pattern: Smoothly anchor the user prompt comfortably below the header
                   const targetY = Math.max(0, turnY - (topInset + 52));
@@ -1744,20 +1817,71 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
-  // Infinite scroll loader
-  infiniteLoadingContainer: {
+  // Infinite scroll & transcript pagination header
+  paginationHeaderContainer: {
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  paginationLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 6,
+  },
+  paginationLoadingText: {
+    fontSize: 12,
+    color: '#8b949e',
+    fontWeight: '500',
+  },
+  loadOlderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: '#1e1e1e',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  loadOlderButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#a3a3a3',
+  },
+  transcriptStartContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     marginBottom: 8,
-    gap: 8,
+    paddingHorizontal: 16,
+    gap: 10,
   },
-  infiniteLoadingText: {
-    fontSize: 12,
+  transcriptStartDivider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  transcriptStartBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: '#191919',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  transcriptStartText: {
+    fontSize: 11,
     fontWeight: '500',
-    color: '#8b949e',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: '#737373',
   },
 
   // Sequential Turn Card
