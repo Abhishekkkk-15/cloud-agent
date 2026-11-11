@@ -47,6 +47,8 @@ import {
   Pin,
   Pencil,
   Trash2,
+  GitBranch,
+  BookOpen,
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
@@ -67,6 +69,11 @@ interface AgentTurnScreenProps {
   onNavigateTab?: (tab: string) => void;
 }
 
+export type AssistantTurnElement =
+  | { type: 'reasoning'; id: string; text: string }
+  | { type: 'action'; id: string; action: ActionStep }
+  | { type: 'content'; id: string; text: string };
+
 interface ChatTurn {
   id: string;
   userMessage?: {
@@ -80,6 +87,7 @@ interface ChatTurn {
     reasoning?: string;
     actions: ActionStep[];
     content?: string;
+    elements: AssistantTurnElement[];
   };
 }
 
@@ -347,12 +355,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     }));
   };
 
-  const isReasoningOpen = (turnId: string) => openReasoningAccordions[turnId] ?? false;
+  const isReasoningOpen = (id: string) => openReasoningAccordions[id] ?? true;
 
-  const toggleReasoningAccordion = (turnId: string) => {
+  const toggleReasoningAccordion = (id: string) => {
     setOpenReasoningAccordions((prev) => ({
       ...prev,
-      [turnId]: !isReasoningOpen(turnId),
+      [id]: !isReasoningOpen(id),
     }));
   };
 
@@ -459,6 +467,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       return [];
     }
 
+    const formatFilePath = (p: string) => {
+      const clean = p.replace(/^"|"$/g, '').replace(/\\/g, '/');
+      const parts = clean.split('/');
+      return parts.length > 3 ? parts.slice(-3).join('/') : clean;
+    };
+
     const turns: ChatTurn[] = [];
     let currentTurn: ChatTurn | null = null;
 
@@ -490,33 +504,48 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             actions: [],
             content: '',
             reasoning: '',
+            elements: [],
           };
         }
 
-        if (msg.reasoning) {
-          currentTurn.assistant.reasoning = currentTurn.assistant.reasoning
-            ? currentTurn.assistant.reasoning + '\n' + msg.reasoning
-            : msg.reasoning;
-        }
-
-        if (msg.content) {
-          currentTurn.assistant.content = currentTurn.assistant.content
-            ? currentTurn.assistant.content + '\n' + msg.content
-            : msg.content;
-        }
-
-        // Process tool calls made in this assistant step
         const asstObj = currentTurn.assistant;
-        if (asstObj && msg.toolCalls && msg.toolCalls.length > 0) {
+
+        // 1. Process reasoning
+        if (msg.reasoning && msg.reasoning.trim()) {
+          asstObj.reasoning = asstObj.reasoning
+            ? asstObj.reasoning + '\n' + msg.reasoning
+            : msg.reasoning;
+
+          const lastEl = asstObj.elements[asstObj.elements.length - 1];
+          if (lastEl && lastEl.type === 'reasoning') {
+            lastEl.text = msg.reasoning;
+          } else {
+            asstObj.elements.push({
+              type: 'reasoning',
+              id: `${msg.id || i}_reasoning`,
+              text: msg.reasoning,
+            });
+          }
+        }
+
+        // 2. Process tool calls made in this assistant step
+        if (msg.toolCalls && msg.toolCalls.length > 0) {
           msg.toolCalls.forEach((tc, tcIdx) => {
             const name = tc.name || '';
+            const args = tc.arguments || {};
             let category: ActionStep['category'] = 'terminal';
+
             if (
-              name.includes('file') ||
+              name === 'edit_file' ||
+              name === 'write_file' ||
+              name === 'create_file' ||
+              name === 'patch_file'
+            ) {
+              category = 'edit';
+            } else if (
               name === 'read_file' ||
               name === 'view_file' ||
-              name === 'edit_file' ||
-              name === 'write_file'
+              name.includes('file')
             ) {
               category = 'file';
             } else if (name.includes('mcp') || name.startsWith('mcp_') || name === 'call_mcp_tool') {
@@ -529,8 +558,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               name === 'send_message'
             ) {
               category = 'skill';
-            } else if (name.includes('search') || name === 'search_web') {
+            } else if (name.includes('search') || name === 'search_web' || args.query) {
               category = 'search';
+            }
+
+            const cmd = args.CommandLine ? String(args.CommandLine).replace(/^"|"$/g, '').trim() : '';
+            if (cmd.startsWith('git ') || name.includes('git')) {
+              category = 'git';
             }
 
             // Correlate with tool output
@@ -554,20 +588,39 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               }
             }
 
-            const args = tc.arguments || {};
             let title = `Execute ${name}`;
             if (args.toolSummary) {
               title = String(args.toolSummary).replace(/^"|"$/g, '');
-            } else if (args.CommandLine) {
-              title = String(args.CommandLine).replace(/^"|"$/g, '');
-            } else if (args.Path || args.AbsolutePath) {
-              const p = String(args.Path || args.AbsolutePath).replace(/^"|"$/g, '');
-              const filename = p.split(/[\\/]/).pop() || p;
-              title = `${name.replace(/_file$/, '')}: ${filename}`;
-            } else if (args.query) {
-              title = `Search: "${String(args.query).replace(/^"|"$/g, '')}"`;
+            } else if (category === 'git' && cmd) {
+              if (cmd.startsWith('git checkout ')) {
+                title = `Checked out ${cmd.replace('git checkout ', '').trim()}`;
+              } else if (cmd.startsWith('git switch ')) {
+                title = `Switched to ${cmd.replace('git switch ', '').trim()}`;
+              } else if (cmd.startsWith('git branch ')) {
+                title = `Branch ${cmd.replace('git branch ', '').trim()}`;
+              } else if (cmd.startsWith('git clone ')) {
+                title = `Cloned ${cmd.replace('git clone ', '').trim()}`;
+              } else {
+                title = `Git ${cmd.replace(/^git\s+/, '')}`;
+              }
+            } else if (name === 'read_file' || name === 'view_file') {
+              const filePath = args.Path || args.AbsolutePath || '';
+              title = filePath ? `Read ${formatFilePath(String(filePath))}` : 'Read file';
+            } else if (name === 'edit_file') {
+              const filePath = args.Path || args.AbsolutePath || '';
+              title = filePath ? `Edited ${formatFilePath(String(filePath))}` : 'Edited file';
+            } else if (name === 'write_file' || name === 'create_file') {
+              const filePath = args.Path || args.AbsolutePath || '';
+              title = filePath ? `Created ${formatFilePath(String(filePath))}` : 'Created file';
+            } else if (cmd) {
+              const shortCmd = cmd.length > 45 ? `${cmd.slice(0, 42)}...` : cmd;
+              title = `Ran ${shortCmd}`;
+            } else if (name.includes('search') || args.query) {
+              title = `Searched for ${String(args.query || 'query').replace(/^"|"$/g, '')}`;
             } else if (args.ServerName && args.ToolName) {
               title = `MCP: ${args.ServerName} / ${args.ToolName}`;
+            } else if (args.Path || args.AbsolutePath) {
+              title = `${name}: ${formatFilePath(String(args.Path || args.AbsolutePath))}`;
             }
 
             let exitCode: number | undefined;
@@ -578,7 +631,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               }
             }
 
-            asstObj.actions.push({
+            const actionStep: ActionStep = {
               id: `action_${tc.id || `${i}_${tcIdx}`}`,
               title,
               category,
@@ -589,8 +642,46 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               status: tc.status || (exitCode === undefined || exitCode === 0 ? 'success' : 'error'),
               exitCode,
               details: toolOutput || (typeof args === 'object' ? JSON.stringify(args, null, 2) : String(args)),
-            });
+            };
+
+            const existingActionIdx = asstObj.actions.findIndex((a) => a.id === actionStep.id);
+            if (existingActionIdx >= 0) {
+              asstObj.actions[existingActionIdx] = actionStep;
+            } else {
+              asstObj.actions.push(actionStep);
+            }
+
+            const existingEl = asstObj.elements.find(
+              (el) => el.type === 'action' && el.action.id === actionStep.id
+            );
+            if (existingEl && existingEl.type === 'action') {
+              existingEl.action = actionStep;
+            } else {
+              asstObj.elements.push({
+                type: 'action',
+                id: actionStep.id,
+                action: actionStep,
+              });
+            }
           });
+        }
+
+        // 3. Process content
+        if (msg.content && msg.content.trim()) {
+          asstObj.content = asstObj.content
+            ? asstObj.content + '\n' + msg.content
+            : msg.content;
+
+          const lastEl = asstObj.elements[asstObj.elements.length - 1];
+          if (lastEl && lastEl.type === 'content') {
+            lastEl.text = msg.content;
+          } else {
+            asstObj.elements.push({
+              type: 'content',
+              id: `${msg.id || i}_content`,
+              text: msg.content,
+            });
+          }
         }
       }
     }
@@ -612,21 +703,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const displayedTurns = chatTurns;
 
   const renderActionIcon = (category: ActionStep['category']) => {
-    const iconColor = isLight ? '#1f2328' : '#ffffff';
+    const iconColor = isLight ? '#57606a' : '#c9d1d9';
     switch (category) {
+      case 'git':
       case 'repo':
-        return <FolderGit2 size={14} color={iconColor} />;
-      case 'mcp':
-        return <Link size={14} color={iconColor} />;
-      case 'skill':
-        return <GitFork size={14} color={iconColor} />;
-      case 'file':
-        return <FileText size={14} color={iconColor} />;
+        return <GitBranch size={15} color={iconColor} />;
       case 'search':
-        return <Search size={14} color={iconColor} />;
+        return <Search size={15} color={iconColor} />;
+      case 'edit':
+        return <Pencil size={14} color={iconColor} />;
+      case 'file':
+        return <FileText size={15} color={iconColor} />;
+      case 'mcp':
+        return <BookOpen size={15} color={iconColor} />;
+      case 'skill':
+        return <GitFork size={15} color={iconColor} />;
       case 'terminal':
       default:
-        return <Terminal size={14} color={iconColor} />;
+        return <Terminal size={15} color={iconColor} />;
     }
   };
 
@@ -983,188 +1077,158 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 </View>
               ) : null}
 
-              {/* Assistant Turn: Natural Unboxed Flow matching Paradev AgentMessage */}
+              {/* Assistant Turn: Natural Borderless Flow matching Reference */}
               {turn.assistant ? (
                 <View style={styles.assistantTurnWrapper}>
-                  {/* Reasoning Process: Paradev Reasoning Component */}
-                  {turn.assistant.reasoning ? (
-                    <View
-                      style={[
-                        styles.reasoningContainer,
-                        isLight && {
-                          backgroundColor: '#ffffff',
-                          borderColor: '#e1e4e8',
-                        },
-                      ]}
-                    >
-                      <TouchableOpacity
-                        style={styles.reasoningToggleBtn}
-                        onPress={() => toggleReasoningAccordion(turn.id)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.reasoningToggleLeft}>
-                          <Brain size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
-                          <Text style={[styles.reasoningToggleText, isLight && { color: '#57606a' }]}>
-                            {isSendingPrompt && turnIdx === displayedTurns.length - 1
-                              ? 'Thinking...'
-                              : 'Thought for a few seconds'}
-                          </Text>
-                        </View>
-                        <View style={styles.reasoningToggleRight}>
-                          {isReasoningOpen(turn.id) ? (
-                            <ChevronUp size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
-                          ) : (
-                            <ChevronDown size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-
-                      {isReasoningOpen(turn.id) && (
-                        <View style={styles.reasoningBody}>
-                          <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={true} style={{ maxHeight: 220 }}>
-                            <Text style={[styles.reasoningText, isLight && { color: '#57606a' }]} selectable>
-                              {turn.assistant.reasoning.trim()}
-                            </Text>
-                          </ScrollView>
-                        </View>
-                      )}
-                    </View>
-                  ) : null}
-
-                  {/* Inline Tool Execution Steps: Paradev ToolCallRow */}
-                  {turn.assistant.actions && turn.assistant.actions.length > 0 ? (
-                    <View style={[styles.toolCallsSection, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
-                      <TouchableOpacity
-                        style={styles.toolCallsSummaryRow}
-                        onPress={() => toggleTurnAccordion(turn.id)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.toolCallsSummaryLeft}>
-                          {turn.assistant.actions.some((a) => a.status === 'running') ? (
-                            <ActivityIndicator
-                              size="small"
-                              color={isLight ? '#0077b6' : '#a3a3a3'}
-                              style={{ transform: [{ scale: 0.7 }], marginRight: 6 }}
-                            />
-                          ) : (
-                            <Wrench size={13} color={isLight ? '#57606a' : '#737373'} style={{ marginRight: 6 }} />
-                          )}
-                          <Text style={[styles.toolCallsSummaryText, isLight && { color: '#57606a' }]}>
-                            {turn.assistant.actions.length} tool call
-                            {turn.assistant.actions.length > 1 ? 's' : ''} executed
-                          </Text>
-                        </View>
-                        <View style={styles.toolCallsSummaryRight}>
-                          {isTurnOpen(turn.id) ? (
-                            <ChevronUp size={14} color={isLight ? '#57606a' : '#737373'} />
-                          ) : (
-                            <ChevronDown size={14} color={isLight ? '#57606a' : '#737373'} />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-
-                      {isTurnOpen(turn.id) && (
-                        <View style={[styles.toolActionRowsList, isLight && { borderTopColor: '#e1e4e8' }]}>
-                          {turn.assistant.actions.map((action) => (
+                  {/* Sequential chronological stream elements (Thoughts, Tool Actions, Markdown resolution) */}
+                  {turn.assistant.elements && turn.assistant.elements.length > 0 ? (
+                    turn.assistant.elements.map((element) => {
+                      if (element.type === 'reasoning') {
+                        const isOpen = isReasoningOpen(element.id);
+                        return (
+                          <View key={element.id} style={styles.flatReasoningBlock}>
                             <TouchableOpacity
-                              key={action.id}
-                              style={[
-                                styles.toolCallRow,
-                                isLight && {
-                                  backgroundColor: '#f6f8fa',
-                                  borderColor: '#e1e4e8',
-                                  borderBottomColor: '#e1e4e8',
-                                },
-                              ]}
+                              style={styles.flatReasoningHeader}
+                              onPress={() => toggleReasoningAccordion(element.id)}
                               activeOpacity={0.7}
+                            >
+                              <Brain size={13} color={isLight ? '#8c959f' : '#6e7681'} />
+                              <Text
+                                style={[
+                                  styles.flatReasoningHeaderTitle,
+                                  isLight && styles.flatReasoningHeaderTitleLight,
+                                ]}
+                              >
+                                {isSendingPrompt && turnIdx === displayedTurns.length - 1
+                                  ? 'Thinking...'
+                                  : 'Thought'}
+                              </Text>
+                              {isOpen ? (
+                                <ChevronUp size={12} color={isLight ? '#8c959f' : '#6e7681'} />
+                              ) : (
+                                <ChevronDown size={12} color={isLight ? '#8c959f' : '#6e7681'} />
+                              )}
+                            </TouchableOpacity>
+
+                            {isOpen && (
+                              <Text
+                                style={[
+                                  styles.flatReasoningText,
+                                  isLight && styles.flatReasoningTextLight,
+                                ]}
+                                selectable
+                              >
+                                {element.text.trim()}
+                              </Text>
+                            )}
+                          </View>
+                        );
+                      }
+
+                      if (element.type === 'action') {
+                        const action = element.action;
+                        return (
+                          <View key={action.id} style={styles.flatToolItemWrapper}>
+                            <TouchableOpacity
+                              style={styles.flatToolRow}
+                              activeOpacity={0.65}
                               onPress={() => setSelectedActionForTray(action)}
                             >
-                              <View style={styles.toolCallLeft}>
-                                <View style={[styles.toolCallIconBox, isLight && styles.toolCallIconBoxLight]}>
+                              <View style={styles.flatToolLeft}>
+                                <View style={styles.flatToolIconWrap}>
                                   {renderActionIcon(action.category)}
                                 </View>
-                                <Text style={[styles.toolCallTitle, isLight && { color: '#1f2328' }]} numberOfLines={1}>
+                                <Text
+                                  style={[
+                                    styles.flatToolTitle,
+                                    isLight && styles.flatToolTitleLight,
+                                    action.status === 'error' && styles.flatToolTitleError,
+                                  ]}
+                                  numberOfLines={1}
+                                  ellipsizeMode="middle"
+                                >
                                   {action.title}
                                 </Text>
                               </View>
 
-                              <View style={styles.toolCallRight}>
-                                {action.status === 'running' ? (
-                                  <View style={[styles.actionRunningBadge, isLight && { backgroundColor: 'rgba(0, 119, 182, 0.10)' }]}>
-                                    <ActivityIndicator
-                                      size="small"
-                                      color={isLight ? '#0077b6' : '#a3a3a3'}
-                                      style={{ transform: [{ scale: 0.65 }] }}
-                                    />
-                                    <Text style={[styles.actionRunningBadgeText, isLight && { color: '#0077b6' }]}>Running</Text>
-                                  </View>
-                                ) : action.status === 'error' ? (
-                                  <View style={styles.actionErrorBadge}>
-                                    <X size={12} color="#ef4444" />
-                                    <Text style={styles.actionErrorBadgeText}>Failed</Text>
-                                  </View>
-                                ) : (
-                                  <Check size={13} color={isLight ? '#0077b6' : '#fafafa'} />
+                              <View style={styles.flatToolRight}>
+                                {action.status === 'running' && (
+                                  <ActivityIndicator
+                                    size="small"
+                                    color={isLight ? '#0077b6' : '#a3a3a3'}
+                                    style={{ transform: [{ scale: 0.65 }], marginRight: 2 }}
+                                  />
                                 )}
-                                <ChevronRight size={14} color={isLight ? '#57606a' : '#737373'} />
+                                <ChevronRight size={14} color={isLight ? '#8c959f' : '#6e7681'} />
                               </View>
                             </TouchableOpacity>
-                          ))}
+
+                            {/* Interactive Clarification & Choice Cards (ask_question) */}
+                            {action.toolName === 'ask_question' && (
+                              <AskQuestionCard
+                                action={action}
+                                onSubmitAnswer={async (answerText) => {
+                                  await sendPrompt(answerText);
+                                }}
+                                isSubmitting={isSendingPrompt}
+                              />
+                            )}
+                          </View>
+                        );
+                      }
+
+                      if (element.type === 'content') {
+                        return (
+                          <View key={element.id} style={styles.resolutionContainer}>
+                            <MarkdownText content={element.text} isUser={false} />
+                          </View>
+                        );
+                      }
+
+                      return null;
+                    })
+                  ) : (
+                    // Fallback if elements not yet populated
+                    <>
+                      {turn.assistant.content ? (
+                        <View style={styles.resolutionContainer}>
+                          <MarkdownText content={turn.assistant.content} isUser={false} />
                         </View>
-                      )}
-                    </View>
-                  ) : null}
+                      ) : null}
+                    </>
+                  )}
 
-                  {/* Interactive Clarification & Choice Cards (ask_question) */}
-                  {turn.assistant.actions
-                    ?.filter((a) => a.toolName === 'ask_question')
-                    .map((qAction) => (
-                      <AskQuestionCard
-                        key={qAction.id}
-                        action={qAction}
-                        onSubmitAnswer={async (answerText) => {
-                          await sendPrompt(answerText);
-                        }}
-                        isSubmitting={isSendingPrompt}
-                      />
-                    ))}
-
-                  {/* Assistant Markdown Resolution */}
+                  {/* Paradev Action Row (Copy Message & Branch Icon Buttons) */}
                   {turn.assistant.content ? (
-                    <View style={styles.resolutionContainer}>
-                      <MarkdownText content={turn.assistant.content} isUser={false} />
+                    <View style={styles.agentActionRow}>
+                      <TouchableOpacity
+                        style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
+                        onPress={() =>
+                          handleCopyTurnText(turn.id, turn.assistant?.content || '')
+                        }
+                        activeOpacity={0.7}
+                        accessibilityLabel="Copy message"
+                      >
+                        {copiedTurnId === turn.id ? (
+                          <Check size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+                        ) : (
+                          <Copy size={14} color={isLight ? '#57606a' : '#737373'} />
+                        )}
+                      </TouchableOpacity>
 
-                      {/* Paradev Action Row (Copy Message & Branch Icon Buttons) */}
-                      <View style={styles.agentActionRow}>
-                        <TouchableOpacity
-                          style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
-                          onPress={() =>
-                            handleCopyTurnText(turn.id, turn.assistant?.content || '')
-                          }
-                          activeOpacity={0.7}
-                          accessibilityLabel="Copy message"
-                        >
-                          {copiedTurnId === turn.id ? (
-                            <Check size={14} color={isLight ? '#0077b6' : '#fafafa'} />
-                          ) : (
-                            <Copy size={14} color={isLight ? '#57606a' : '#737373'} />
-                          )}
-                        </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
+                        onPress={() => {
+                          setPromptInput(`Regarding turn #${turnIdx + 1}: `);
+                        }}
+                        activeOpacity={0.7}
+                        accessibilityLabel="Branch from here"
+                      >
+                        <GitFork size={14} color={isLight ? '#57606a' : '#737373'} />
+                      </TouchableOpacity>
 
-                        <TouchableOpacity
-                          style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
-                          onPress={() => {
-                            setPromptInput(`Regarding turn #${turnIdx + 1}: `);
-                          }}
-                          activeOpacity={0.7}
-                          accessibilityLabel="Branch from here"
-                        >
-                          <GitFork size={14} color={isLight ? '#57606a' : '#737373'} />
-                        </TouchableOpacity>
-
-                        <View style={[styles.agentMetaPill, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
-                          <Text style={[styles.agentMetaPillText, isLight && { color: '#57606a' }]}>{modelStr}</Text>
-                        </View>
+                      <View style={[styles.agentMetaPill, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
+                        <Text style={[styles.agentMetaPillText, isLight && { color: '#57606a' }]}>{modelStr}</Text>
                       </View>
                     </View>
                   ) : null}
@@ -1815,151 +1879,77 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  // Paradev Reasoning Component
-  reasoningContainer: {
+  // Flat Reasoning Flow (Borderless, natural order)
+  flatReasoningBlock: {
     marginVertical: 4,
-    borderRadius: radii.lg,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
+    paddingVertical: 2,
   },
-  reasoningToggleBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  reasoningToggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-  reasoningToggleText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#a3a3a3',
-  },
-  reasoningToggleRight: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  reasoningBody: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    borderLeftWidth: 2,
-    borderLeftColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  reasoningText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#a3a3a3',
-    fontStyle: 'italic',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-
-  // Paradev ToolCallRow Section
-  toolCallsSection: {
-    marginVertical: 6,
-    borderRadius: radii.lg,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden',
-  },
-  toolCallsSummaryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  toolCallsSummaryLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  toolCallsSummaryText: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    fontWeight: '500',
-  },
-  toolCallsSummaryRight: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolActionRowsList: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-  },
-  toolCallRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
-  },
-  toolCallLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-    overflow: 'hidden',
-  },
-  toolCallIconBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolCallIconBoxLight: {
-    backgroundColor: 'rgba(0, 0, 0, 0.06)',
-  },
-  toolCallTitle: {
-    fontSize: 12,
-    color: '#fafafa',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    flex: 1,
-  },
-  toolCallRight: {
+  flatReasoningHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    paddingVertical: 3,
   },
-  actionRunningBadge: {
+  flatReasoningHeaderTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#8b949e',
+  },
+  flatReasoningHeaderTitleLight: {
+    color: '#57606a',
+  },
+  flatReasoningText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#8b949e',
+    fontStyle: 'italic',
+    paddingLeft: 4,
+    marginTop: 2,
+    marginBottom: 6,
+  },
+  flatReasoningTextLight: {
+    color: '#57606a',
+  },
+
+  // Flat Tool Actions (Pure borderless rows matching reference image)
+  flatToolItemWrapper: {
+    width: '100%',
+  },
+  flatToolRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    paddingHorizontal: 2,
   },
-  actionRunningBadgeText: {
-    fontSize: 10,
-    color: '#fafafa',
-    fontWeight: '600',
-  },
-  actionErrorBadge: {
+  flatToolLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(239, 68, 68, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    flex: 1,
+    marginRight: 8,
   },
-  actionErrorBadgeText: {
-    fontSize: 10,
-    color: '#ef4444',
-    fontWeight: '600',
+  flatToolIconWrap: {
+    width: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  flatToolTitle: {
+    fontSize: 13,
+    color: '#e6edf3',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    flex: 1,
+  },
+  flatToolTitleLight: {
+    color: '#1f2328',
+  },
+  flatToolTitleError: {
+    color: '#f85149',
+  },
+  flatToolRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
 
   // Resolution summary container

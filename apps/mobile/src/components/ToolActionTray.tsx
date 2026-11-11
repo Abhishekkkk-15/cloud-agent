@@ -30,6 +30,9 @@ import {
   CheckCircle2,
   XCircle,
   Folder,
+  GitBranch,
+  Pencil,
+  BookOpen,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { MarkdownText, JsonViewer } from './MarkdownText';
@@ -47,7 +50,7 @@ const SNAP_CLOSED = FULL_HEIGHT + 60;
 export interface ActionStep {
   id: string;
   title: string;
-  category: 'repo' | 'mcp' | 'skill' | 'terminal' | 'file' | 'search';
+  category: 'repo' | 'git' | 'mcp' | 'skill' | 'terminal' | 'file' | 'edit' | 'search';
   duration?: string;
   hasDetails?: boolean;
   details?: string;
@@ -200,10 +203,14 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
   const renderCategoryIcon = (category: ActionStep['category'], size = 16) => {
     const iconColor = isLight ? '#0077b6' : '#ffffff';
     switch (category) {
+      case 'git':
+        return <GitBranch size={size} color={iconColor} />;
+      case 'edit':
+        return <Pencil size={size} color={iconColor} />;
       case 'repo':
         return <FolderGit2 size={size} color={iconColor} />;
       case 'mcp':
-        return <Link size={size} color={iconColor} />;
+        return <BookOpen size={size} color={iconColor} />;
       case 'skill':
         return <GitFork size={size} color={iconColor} />;
       case 'file':
@@ -218,6 +225,10 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
 
   const getCategoryLabel = (category: ActionStep['category']) => {
     switch (category) {
+      case 'git':
+        return 'Git Operation';
+      case 'edit':
+        return 'File Edit';
       case 'repo':
         return 'Git Repository';
       case 'mcp':

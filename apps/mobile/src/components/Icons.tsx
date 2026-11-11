@@ -103,3 +103,4 @@ export const Eye = wrapIcon(Lucide.Eye);
 export const EyeOff = wrapIcon(Lucide.EyeOff);
 export const Github = wrapIcon(Lucide.Github);
 export const Mail = wrapIcon(Lucide.Mail);
+export const BookOpen = wrapIcon(Lucide.BookOpen);
