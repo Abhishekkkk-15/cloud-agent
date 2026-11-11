@@ -41,7 +41,6 @@ import {
   FolderGit2,
   GitFork,
   ArrowDown,
-  ArrowUp,
   Sparkles,
   Search,
   Brain,
@@ -270,6 +269,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const activePromptTurnIndexRef = useRef<number>(-1);
   const activePromptLayoutYRef = useRef<number>(0);
 
+  // Infinite Scroll Refs
+  const prevContentHeightRef = useRef<number>(0);
+  const isFetchingOlderRef = useRef<boolean>(false);
+  const isPrependingOlderRef = useRef<boolean>(false);
+  const hasInitialScrolledRef = useRef<string | null>(null);
+
+  // Initial scroll to bottom when session messages load
+  useEffect(() => {
+    if (activeSession?.id && sessionMessages.length > 0 && !isLoadingMessages) {
+      if (hasInitialScrolledRef.current !== activeSession.id) {
+        hasInitialScrolledRef.current = activeSession.id;
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: false });
+        }, 120);
+      }
+    }
+  }, [activeSession?.id, sessionMessages.length, isLoadingMessages]);
+
   const handleComposerLayout = (event: any) => {
     const newHeight = Math.round(event.nativeEvent.layout.height);
     if (newHeight > 0 && Math.abs(newHeight - prevComposerHeightRef.current) > 2) {
@@ -342,6 +359,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     } else if (distanceFromBottom > 80 && isSendingPrompt) {
       // User scrolled up away from the bottom while agent is writing
       pauseAutoScroll();
+    }
+
+    // Infinite scroll: when user scrolls near the top (< 140px from top) and there are older messages
+    if (
+      contentOffset.y <= 140 &&
+      hasMoreMessages &&
+      !isLoadingOlderMessages &&
+      !isFetchingOlderRef.current &&
+      contentSize.height > layoutMeasurement.height
+    ) {
+      isFetchingOlderRef.current = true;
+      isPrependingOlderRef.current = true;
+      prevContentHeightRef.current = contentSize.height;
+      loadOlderMessages().finally(() => {
+        setTimeout(() => {
+          isFetchingOlderRef.current = false;
+        }, 350);
+      });
     }
   };
 
@@ -935,31 +970,32 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         keyboardDismissMode="interactive"
         onTouchStart={pauseAutoScroll}
         onScrollBeginDrag={pauseAutoScroll}
-        onContentSizeChange={() => {
+        onContentSizeChange={(_w, h) => {
+          if (isPrependingOlderRef.current && prevContentHeightRef.current > 0) {
+            const heightDelta = h - prevContentHeightRef.current;
+            if (heightDelta > 0) {
+              scrollViewRef.current?.scrollTo({
+                y: currentScrollYRef.current + heightDelta,
+                animated: false,
+              });
+            }
+            isPrependingOlderRef.current = false;
+          }
+          prevContentHeightRef.current = h;
+
           if (isSendingPrompt && !isAutoScrollPausedRef.current) {
             triggerAutoScroll();
           }
         }}
       >
 
-        {/* 3. Pagination: Load Older History Button */}
-        {hasMoreMessages && (
-          <View style={styles.loadOlderContainer}>
-            <TouchableOpacity
-              style={[styles.loadOlderBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}
-              onPress={loadOlderMessages}
-              disabled={isLoadingOlderMessages}
-              activeOpacity={0.7}
-            >
-              {isLoadingOlderMessages ? (
-                <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.primaryLight} />
-              ) : (
-                <>
-                  <ArrowUp size={13} color={isLight ? '#0077b6' : colors.primaryLight} />
-                  <Text style={[styles.loadOlderText, isLight && { color: '#57606a' }]}>Load older messages</Text>
-                </>
-              )}
-            </TouchableOpacity>
+        {/* Infinite Scroll: Loading Spinner when older messages are being fetched */}
+        {isLoadingOlderMessages && (
+          <View style={styles.infiniteLoadingContainer}>
+            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#58a6ff'} />
+            <Text style={[styles.infiniteLoadingText, isLight && { color: '#57606a' }]}>
+              Loading older messages...
+            </Text>
           </View>
         )}
 
@@ -1648,27 +1684,19 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
-  // Pagination header
-  loadOlderContainer: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  loadOlderBtn: {
+  // Infinite scroll loader
+  infiniteLoadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 8,
+    gap: 8,
   },
-  loadOlderText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#fafafa',
+  infiniteLoadingText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#8b949e',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
