@@ -13,6 +13,7 @@ import {
   Checkbox,
   Item,
   Text,
+  ScrollHeader,
   cn,
 } from 'panelui-native';
 import {
@@ -21,11 +22,11 @@ import {
   Copy,
   Check,
   X,
+  ChevronLeft,
   ShieldAlert,
   ShieldCheck,
   CheckCheck,
 } from '../components/Icons';
-import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
 interface ApprovalsScreenProps {
@@ -74,12 +75,32 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   const targetNode = pendingApproval?.targetNode || activeMachine?.name || 'Local Machine';
 
   return (
-    <View className="flex-1 bg-background">
-      <HeaderBar
-        title="Command Approvals"
-        subtitle={targetNode}
-        onBack={onBack}
-      />
+    <ScrollHeader className="flex-1 bg-background" inset={true}>
+      <ScrollHeader.Bar divider={false} surface="blur">
+        {onBack && (
+          <TouchableOpacity
+            className="w-10 h-10 rounded-full bg-surface items-center justify-center active:opacity-70"
+            onPress={onBack}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Go back"
+          >
+            <ChevronLeft size={22} color={isLight ? '#262626' : '#f5f5f5'} />
+          </TouchableOpacity>
+        )}
+        <ScrollHeader.Title className="text-base font-semibold text-foreground">
+          Command Approvals
+        </ScrollHeader.Title>
+      </ScrollHeader.Bar>
+
+      <ScrollHeader.Large className="px-4 pb-3">
+        <ScrollHeader.Title className="text-2xl font-bold text-foreground">
+          Command Approvals
+        </ScrollHeader.Title>
+        <ScrollHeader.Description className="text-xs text-muted-foreground mt-0.5">
+          {targetNode}
+        </ScrollHeader.Description>
+      </ScrollHeader.Large>
 
       <ScrollView
         className="flex-1"
@@ -282,6 +303,6 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
           </Card>
         )}
       </ScrollView>
-    </View>
+    </ScrollHeader>
   );
 };

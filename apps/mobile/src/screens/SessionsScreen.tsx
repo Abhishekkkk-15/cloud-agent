@@ -12,6 +12,7 @@ import {
   Input,
   Text,
   GridItem,
+  ScrollHeader,
   cn,
 } from 'panelui-native';
 import {
@@ -21,14 +22,15 @@ import {
   FolderGit2,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Folder,
   Pin,
   MoreVertical,
   Server,
   Zap,
   Activity,
+  RefreshCw,
 } from '../components/Icons';
-import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { SessionActionModal } from '../components/SessionActionModal';
 import { SessionDropdownMenu } from '../components/SessionDropdownMenu';
@@ -53,6 +55,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const fetchSessions = useDaemonStore((s) => s.fetchSessions);
   const selectSessionInStore = useDaemonStore((s) => s.selectSession);
   const startNewSessionInWorkspace = useDaemonStore((s) => s.startNewSessionInWorkspace);
+  const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
@@ -149,18 +152,78 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
 
   return (
     <View className="flex-1 bg-background">
-      <HeaderBar
-        title="Workspaces & Fleets"
-        subtitle={`${activeMachine?.name || 'Local Machine'} • ${workspaces.length} workspaces`}
-        onBack={onBack}
-        onMore={fetchSessions}
-      />
+      <ScrollHeader className="flex-1" inset={true}>
+        <ScrollHeader.Bar divider={false} surface="blur">
+          {onBack && (
+            <TouchableOpacity
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center mr-2.5 active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={onBack}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Go back"
+            >
+              <ChevronLeft size={22} color={isLight ? '#1f2328' : '#fafafa'} />
+            </TouchableOpacity>
+          )}
 
-      <ScrollView
-        className="flex-1 bg-background"
-        contentContainerClassName="p-4 gap-3.5"
-        showsVerticalScrollIndicator={false}
-      >
+          <ScrollHeader.Title className="text-base font-semibold text-foreground">
+            Workspaces & Fleets
+          </ScrollHeader.Title>
+
+          <ScrollHeader.Actions>
+            <TouchableOpacity
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={fetchSessions}
+              disabled={isLoadingSessions}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Refresh sessions"
+            >
+              {isLoadingSessions ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isLight ? '#1f2328' : '#fafafa'}
+                  style={{ transform: [{ scale: 0.75 }] }}
+                />
+              ) : (
+                <RefreshCw size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="h-10 px-3.5 rounded-full bg-primary flex-row items-center gap-1.5 active:opacity-80"
+              onPress={() => {
+                const ws = selectedWorkspace === 'all' ? (targetWorkspacePath || workspaces[0] || '') : selectedWorkspace;
+                startNewSessionInWorkspace(ws);
+              }}
+              accessibilityLabel="New session"
+            >
+              <Plus size={16} color={isLight ? '#fafafa' : '#141414'} />
+              <Text className="text-xs font-semibold text-primary-foreground">New</Text>
+            </TouchableOpacity>
+          </ScrollHeader.Actions>
+        </ScrollHeader.Bar>
+
+        <ScrollHeader.Large className="px-4 pb-3">
+          <ScrollHeader.Title className="text-2xl font-bold text-foreground">
+            Workspaces & Fleets
+          </ScrollHeader.Title>
+          <ScrollHeader.Description className="text-xs text-muted-foreground mt-0.5">
+            {`${activeMachine?.name || 'Local Machine'} • ${workspaces.length} workspace${workspaces.length === 1 ? '' : 's'} • ${sessions.length} session${sessions.length === 1 ? '' : 's'}`}
+          </ScrollHeader.Description>
+        </ScrollHeader.Large>
+
+        <ScrollView
+          className="flex-1 bg-background"
+          contentContainerClassName="p-4 gap-3.5"
+          showsVerticalScrollIndicator={false}
+        >
         {/* 1. Overview Bento Grid */}
         <GridItem.Group columns={2} gap={10} rowHeight={105} size="sm">
           {/* Host Tile */}
@@ -436,6 +499,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           </View>
         )}
       </ScrollView>
+    </ScrollHeader>
 
       {/* Session Action Modal (Rename, Pin, Delete) */}
       <SessionActionModal

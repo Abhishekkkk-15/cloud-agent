@@ -14,6 +14,7 @@ import {
   Item,
   Text,
   GridItem,
+  ScrollHeader,
   cn,
 } from 'panelui-native';
 import {
@@ -26,6 +27,7 @@ import {
   Zap,
   Power,
   ChevronRight,
+  ChevronLeft,
   Bell,
   Bug,
   GitPullRequest,
@@ -35,7 +37,6 @@ import {
   Mail,
   Terminal,
 } from '../components/Icons';
-import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
 import { PairMachineModal } from '../components/PairMachineModal';
@@ -131,54 +132,98 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
 
   return (
     <View className="flex-1 bg-background">
-      <HeaderBar
-        title="Machine & CLI Health"
-        subtitle={`${hostName} • ${platformStr}`}
-        onBack={onBack}
-        onMore={handleRefresh}
-        rightElement={
-          <View className="flex-row items-center gap-1.5">
-            {isRefreshing && (
-              <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} style={{ transform: [{ scale: 0.75 }] }} />
-            )}
-            <Button
-              variant="outline"
-              size="xs"
-              className="flex-row items-center gap-1 px-2.5 py-1"
-              onPress={() => setShowMachineSwitcher(true)}
+      <ScrollHeader className="flex-1" inset={true}>
+        <ScrollHeader.Bar divider={false} surface="blur">
+          {onBack && (
+            <TouchableOpacity
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center mr-2.5 active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={onBack}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Go back"
             >
-              <Server size={13} color={isLight ? '#262626' : '#f5f5f5'} />
-              <Text className="text-xs font-medium text-foreground">Switch</Text>
-            </Button>
+              <ChevronLeft size={22} color={isLight ? '#1f2328' : '#fafafa'} />
+            </TouchableOpacity>
+          )}
+
+          <ScrollHeader.Title className="text-base font-semibold text-foreground">
+            Machine & CLI Health
+          </ScrollHeader.Title>
+
+          <ScrollHeader.Actions>
+            <TouchableOpacity
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Refresh status"
+            >
+              {isRefreshing ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isLight ? '#1f2328' : '#fafafa'}
+                  style={{ transform: [{ scale: 0.75 }] }}
+                />
+              ) : (
+                <RefreshCw size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={() => setShowMachineSwitcher(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Switch machine"
+            >
+              <Server size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+            </TouchableOpacity>
+          </ScrollHeader.Actions>
+        </ScrollHeader.Bar>
+
+        <ScrollHeader.Large className="px-4 pb-3">
+          <ScrollHeader.Title className="text-2xl font-bold text-foreground">
+            Machine & CLI Health
+          </ScrollHeader.Title>
+          <ScrollHeader.Description className="text-xs text-muted-foreground mt-0.5">
+            {`${hostName} • ${platformStr}`}
+          </ScrollHeader.Description>
+        </ScrollHeader.Large>
+
+        <ScrollView
+          className="flex-1 bg-background"
+          contentContainerClassName="p-4 gap-4"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Connection & Telemetry Status Strip (Border-free) */}
+          <View className="px-3.5 py-2.5 bg-surface rounded-xl flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2 flex-1 mr-2">
+              <View
+                className={cn(
+                  'w-2 h-2 rounded-full',
+                  isConnected ? 'bg-success' : 'bg-destructive'
+                )}
+              />
+              <Text className="text-xs text-muted-foreground font-mono" numberOfLines={1}>
+                {isConnected ? 'CONNECTED' : connectionState.toUpperCase()} • PID: {pidStr} • Uptime: {uptimeStr}
+              </Text>
+            </View>
+            {pingRtt ? (
+              <Badge variant="outline" size="xs">
+                {pingRtt}
+              </Badge>
+            ) : null}
           </View>
-        }
-      />
-
-      {/* Sub-bar */}
-      <View className="px-4 py-2 bg-surface border-b border-border flex-row items-center justify-between">
-        <View className="flex-row items-center gap-2 flex-1 mr-2">
-          <View
-            className={cn(
-              'w-2 h-2 rounded-full',
-              isConnected ? 'bg-success' : 'bg-destructive'
-            )}
-          />
-          <Text className="text-xs text-muted-foreground font-mono" numberOfLines={1}>
-            {isConnected ? 'CONNECTED' : connectionState.toUpperCase()} • PID: {pidStr} • Uptime: {uptimeStr}
-          </Text>
-        </View>
-        {pingRtt ? (
-          <Badge variant="outline" size="xs">
-            {pingRtt}
-          </Badge>
-        ) : null}
-      </View>
-
-      <ScrollView
-        className="flex-1 bg-background"
-        contentContainerClassName="p-4 gap-4"
-        showsVerticalScrollIndicator={false}
-      >
         {/* Host System State Card */}
         <Card className="p-4 bg-card border border-border rounded-2xl">
           <View className="flex-row items-center justify-between">
@@ -613,6 +658,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
           </GridItem.Group>
         </View>
       </ScrollView>
+    </ScrollHeader>
 
       {/* Machine & VPS Switcher Modal */}
       <MachineSwitcherModal
