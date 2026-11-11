@@ -1,35 +1,35 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Animated,
-  Dimensions,
-  PanResponder,
   Platform,
-  TouchableWithoutFeedback,
-  TextInput,
   StatusBar,
   ActivityIndicator,
   Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  Drawer,
+  Tree,
+  Button,
+  Input,
+  Card,
+  Badge,
+  Item,
+  Text,
+  cn,
+} from 'panelui-native';
+import {
   Plus,
   ChevronRight,
-  ChevronDown,
   ShieldAlert,
   Activity,
-  Cpu,
   Layers,
   Server,
   Search,
   LogOut,
   Folder,
   FolderOpen,
-  FolderGit2,
   Pin,
   MoreVertical,
   X,
@@ -38,17 +38,13 @@ import {
   Sun,
   Moon,
 } from './Icons';
-import { colors, radii, typography, getThemeColors } from '../theme/tokens';
-import { useDaemonStore, RealSessionItem, MachineInfo } from '../stores/useDaemonStore';
+import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
 import { MachineSwitcherModal } from './MachineSwitcherModal';
 import { FolderPickerModal } from './FolderPickerModal';
 import { SessionActionModal } from './SessionActionModal';
 import { ServerSettingsModal } from './ServerSettingsModal';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DRAWER_WIDTH = Math.min(Math.round(SCREEN_WIDTH * 0.85), 350);
 
 export type AppScreen = 'agent' | 'health' | 'approvals' | 'sessions';
 
@@ -67,10 +63,10 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const machines = useDaemonStore((s) => s.machines);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
-  const connectionState = useDaemonStore((s) => s.connectionState);
   const pingRtt = useDaemonStore((s) => s.pingRtt);
   const sessions = useDaemonStore((s) => s.sessions);
   const isLoadingSessions = useDaemonStore((s) => s.isLoadingSessions);
@@ -89,11 +85,17 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const toggleTheme = useDaemonStore((s) => s.toggleTheme);
   const isLight = theme === 'light';
-  const themeColors = getThemeColors(theme);
 
-  const [userToggledGroups, setUserToggledGroups] = useState<Record<string, boolean>>({});
   const [drawerSearch, setDrawerSearch] = useState<string>('');
   const [avatarError, setAvatarError] = useState(false);
+  const [expandedWorkspaces, setExpandedWorkspaces] = useState<string[]>([]);
+
+  const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
+  const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
+  const [showPairModal, setShowPairModal] = useState<boolean>(false);
+  const [showMachineSwitcher, setShowMachineSwitcher] = useState<boolean>(false);
+  const [showDirectFolderPicker, setShowDirectFolderPicker] = useState<boolean>(false);
+  const [showServerSettings, setShowServerSettings] = useState<boolean>(false);
 
   const avatarUri =
     currentUser?.avatarUrl ||
@@ -106,182 +108,32 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     setAvatarError(false);
   }, [avatarUri]);
 
-  const toggleGroupCollapse = (groupName: string) => {
-    const isCurrentlyActive = Boolean(
-      activeSession && (
-        (activeSession.workspaceName || 'Default') === groupName
-      )
-    );
-    setUserToggledGroups((prev) => {
-      const wasOpen = prev[groupName] !== undefined ? prev[groupName] : isCurrentlyActive;
-      return {
-        ...prev,
-        [groupName]: !wasOpen,
-      };
-    });
-  };
-
+  // Auto-expand active session's workspace folder
   useEffect(() => {
     if (activeSession?.workspaceName) {
-      setUserToggledGroups((prev) => ({
-        ...prev,
-        [activeSession.workspaceName || 'Default']: true,
-      }));
+      setExpandedWorkspaces((prev) =>
+        prev.includes(activeSession.workspaceName || 'Default')
+          ? prev
+          : [...prev, activeSession.workspaceName || 'Default']
+      );
     }
   }, [activeSession?.id, activeSession?.workspaceName]);
-  const [isRendered, setIsRendered] = useState<boolean>(isOpen);
-  const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
-  const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
-  const [showPairModal, setShowPairModal] = useState<boolean>(false);
-  const [showMachineSwitcher, setShowMachineSwitcher] = useState<boolean>(false);
-  const [showDirectFolderPicker, setShowDirectFolderPicker] = useState<boolean>(false);
-  const [showServerSettings, setShowServerSettings] = useState<boolean>(false);
-  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsRendered(true);
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          damping: 24,
-          mass: 0.8,
-          stiffness: 220,
-          useNativeDriver: false,
-        }),
-        Animated.timing(backdropAnim, {
-          toValue: 1,
-          duration: 240,
-          useNativeDriver: false,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -DRAWER_WIDTH,
-          duration: 220,
-          useNativeDriver: false,
-        }),
-        Animated.timing(backdropAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) {
-          setIsRendered(false);
-        }
-      });
-    }
-  }, [isOpen, slideAnim, backdropAnim]);
-
-  const handleBackdropPress = () => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: -DRAWER_WIDTH,
-        duration: 200,
-        useNativeDriver: false,
-      }),
-      Animated.timing(backdropAnim, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: false,
-      }),
-    ]).start(() => {
-      setIsRendered(false);
-      onClose();
-    });
-  };
-
-  // Pan responder for live swiping left to close
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return gestureState.dx < -8 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dx < 0) {
-          slideAnim.setValue(Math.max(gestureState.dx, -DRAWER_WIDTH));
-          const progress = 1 - Math.abs(gestureState.dx) / DRAWER_WIDTH;
-          backdropAnim.setValue(Math.max(0, Math.min(1, progress)));
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -60 || gestureState.vx < -0.3) {
-          Animated.parallel([
-            Animated.timing(slideAnim, {
-              toValue: -DRAWER_WIDTH,
-              duration: 180,
-              useNativeDriver: false,
-            }),
-            Animated.timing(backdropAnim, {
-              toValue: 0,
-              duration: 180,
-              useNativeDriver: false,
-            }),
-          ]).start(() => {
-            setIsRendered(false);
-            onClose();
-          });
-        } else {
-          Animated.parallel([
-            Animated.spring(slideAnim, {
-              toValue: 0,
-              damping: 24,
-              mass: 0.8,
-              stiffness: 220,
-              useNativeDriver: false,
-            }),
-            Animated.timing(backdropAnim, {
-              toValue: 1,
-              duration: 160,
-              useNativeDriver: false,
-            }),
-          ]).start();
-        }
-      },
-    })
-  ).current;
-
-  const closeAndNavigate = (action: () => void) => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: -DRAWER_WIDTH,
-        duration: 180,
-        useNativeDriver: false,
-      }),
-      Animated.timing(backdropAnim, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: false,
-      }),
-    ]).start(() => {
-      setIsRendered(false);
-      action();
-      onClose();
-    });
-  };
 
   const handleStartSessionInWorkspace = (workspacePath: string) => {
-    closeAndNavigate(() => {
-      startNewSessionInWorkspace(workspacePath);
-      onNavigateScreen('agent');
-    });
+    onClose();
+    startNewSessionInWorkspace(workspacePath);
+    onNavigateScreen('agent');
   };
 
   const handleSelectSession = (item: RealSessionItem) => {
-    closeAndNavigate(() => {
-      selectSession(item);
-      onNavigateScreen('agent');
-    });
+    onClose();
+    selectSession(item);
+    onNavigateScreen('agent');
   };
 
   const handleNavScreen = (screen: AppScreen) => {
-    closeAndNavigate(() => {
-      onNavigateScreen(screen);
-    });
+    onClose();
+    onNavigateScreen(screen);
   };
 
   const searchedSessions = useMemo(() => {
@@ -336,7 +188,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           groups.push(val);
         }
       } else {
-        // Show all groups with sessions, or registered workspaces
         if (val.items.length > 0 || workspaces.includes(name)) {
           groups.push(val);
         }
@@ -351,79 +202,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     });
   }, [workspaces, searchedSessions, drawerSearch, activeSession?.workspaceName]);
 
-  // Standby nodes (excluding active)
   const standbyMachines = machines.filter((m) => m.machineId !== activeMachine?.machineId);
-
-  const formatTimeAgo = (isoDate: string) => {
-    const diffMs = Date.now() - new Date(isoDate).getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays > 0) return `${diffDays}d ago`;
-    if (diffHours > 0) return `${diffHours}h ago`;
-    if (diffMins > 0) return `${diffMins}m ago`;
-    return 'Just now';
-  };
-
-  const renderSessionRow = (item: RealSessionItem, isChild = false) => {
-    const isActive = activeSession?.id === item.id && currentScreen === 'agent';
-    return (
-      <View
-        key={item.id}
-        style={[
-          styles.sessionItem,
-          isChild ? styles.sessionTreeItem : styles.sessionFlatItem,
-          isActive && styles.sessionItemActive,
-          isActive && isLight && styles.sessionItemActiveLight,
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.sessionItemContent}
-          onPress={() => handleSelectSession(item)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.sessionTitleRow}>
-            {item.pinned ? (
-              <Pin size={11} color={isLight ? '#0077b6' : colors.primary} style={{ marginRight: 5 }} />
-            ) : null}
-            <Text
-              style={[
-                styles.sessionTitle,
-                isLight && styles.sessionTitleLight,
-                isActive && styles.sessionTitleActive,
-                isActive && isLight && styles.sessionTitleActiveLight,
-              ]}
-              numberOfLines={1}
-            >
-              {item.title}
-            </Text>
-          </View>
-          {!isChild && (
-            <View style={styles.sessionMetaRow}>
-              <Text style={[styles.sessionWorkspace, isLight && { color: '#6e7781' }]} numberOfLines={1}>
-                {item.workspaceName}
-              </Text>
-              <Text style={[styles.sessionMetaDot, isLight && { color: '#8c959f' }]}>•</Text>
-              <Text style={[styles.sessionTime, isLight && { color: '#6e7781' }]}>
-                {formatTimeAgo(item.updatedAt || item.createdAt)}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.moreActionBtn}
-          onPress={() => setActionSession(item)}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <MoreVertical size={13} color={isLight ? '#8c959f' : '#6e7681'} />
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  if (!isRendered && !isOpen) return null;
 
   const operatorInitial = currentUser?.name
     ? currentUser.name[0].toUpperCase()
@@ -437,619 +216,483 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const ramGb = daemonStatus?.telemetry?.ram?.totalGb || 32;
   const nodePlatform = activeMachine?.platform || daemonStatus?.platform || 'Host';
 
+  const displayedExpanded = drawerSearch.trim()
+    ? workspaceGroups.map((g) => g.name)
+    : expandedWorkspaces;
+
   return (
-    <View
-      style={[StyleSheet.absoluteFill, { zIndex: 200 }]}
-      pointerEvents={isOpen || isRendered ? 'box-none' : 'none'}
-    >
-      {/* Dimmed Backdrop */}
-      <TouchableWithoutFeedback onPress={handleBackdropPress}>
-        <Animated.View
-          style={[
-            styles.backdrop,
-            {
-              opacity: backdropAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.65],
-              }),
-            },
-          ]}
-          pointerEvents={isOpen ? 'auto' : 'none'}
-        />
-      </TouchableWithoutFeedback>
-
-      {/* Drawer Surface */}
-      <Animated.View
-        style={[
-          styles.drawerContainer,
-          {
-            width: DRAWER_WIDTH,
-            transform: [{ translateX: slideAnim }],
-            backgroundColor: isLight ? '#ffffff' : colors.surfaceContainerLowest,
-            borderRightColor: isLight ? '#d0d7de' : colors.borderMuted,
-          },
-        ]}
-        {...panResponder.panHandlers}
+    <>
+      <Drawer
+        open={isOpen}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) onClose();
+        }}
       >
-        <View
-          style={[
-            styles.drawerSafeArea,
-            {
-              paddingTop: topInset + (Platform.OS === 'ios' ? 8 : 4),
-              paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 4),
-            },
-          ]}
+        <Drawer.Content
+          side="start"
+          size="md"
+          showClose={false}
+          className="bg-popover border-r border-border p-0"
         >
-          {/* Floating Search Bar (No borders, no < icon, floating pill) */}
-        <View style={styles.floatingSearchContainer}>
-          <View
-            style={[
-              styles.floatingSearchBox,
-              isLight && {
-                backgroundColor: '#f6f8fa',
-                borderColor: '#d0d7de',
-              },
-            ]}
+          {/* Drawer Body: Smoothly scrollable with native UI-thread physics */}
+          <Drawer.Body
+            scrollable={true}
+            contentContainerStyle={{
+              paddingTop: topInset + (Platform.OS === 'ios' ? 8 : 12),
+              paddingBottom: Math.max(insets.bottom, 16),
+              paddingHorizontal: 16,
+            }}
           >
-            <Search size={15} color={isLight ? '#57606a' : colors.textMuted} />
-            <TextInput
-              style={[
-                styles.floatingSearchInput,
-                isLight && { color: '#1f2328' },
-              ]}
-              value={drawerSearch}
-              onChangeText={setDrawerSearch}
-              placeholder="Search sessions or workspaces..."
-              placeholderTextColor={isLight ? '#8c959f' : colors.textDisabled}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {drawerSearch.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setDrawerSearch('')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <X size={14} color={isLight ? '#57606a' : colors.textMuted} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+            {/* 1. Search Bar */}
+            <View className="mb-3">
+              <Input
+                placeholder="Search sessions or workspaces..."
+                value={drawerSearch}
+                onChangeText={setDrawerSearch}
+                size="sm"
+                variant="outline"
+                startContent={<Search size={14} color={isLight ? '#686868' : '#a3a3a3'} />}
+                endContent={
+                  drawerSearch.length > 0 ? (
+                    <TouchableOpacity onPress={() => setDrawerSearch('')}>
+                      <X size={14} color={isLight ? '#686868' : '#a3a3a3'} />
+                    </TouchableOpacity>
+                  ) : undefined
+                }
+                className="w-full"
+              />
+            </View>
 
-        {/* Scrollable Content */}
-        <ScrollView
-          style={styles.drawerScroll}
-          contentContainerStyle={styles.drawerScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* 2. Compute Node Fleet Widget (Stitch Screen 1) */}
-          <View style={styles.computeNodeSection}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.computeLabelRow}>
-                <Server size={12} color={isLight ? '#6e7781' : colors.textMuted} />
-                <Text style={[styles.computeLabel, isLight && { color: '#6e7781' }]}>COMPUTE NODE</Text>
+            {/* 2. Compute Node Fleet Widget */}
+            <Card className="p-3 mb-3 bg-surface border border-border rounded-xl">
+              <View className="flex-row items-center justify-between mb-2">
+                <View className="flex-row items-center gap-1.5">
+                  <Server size={12} color={isLight ? '#686868' : '#a3a3a3'} />
+                  <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Compute Node
+                  </Text>
+                </View>
+                <Badge variant="outline" size="sm" className="px-1.5 py-0.5">
+                  <Text className="text-xs text-muted-foreground font-mono">{pingRtt || '18ms'}</Text>
+                </Badge>
               </View>
-              <View
-                style={[
-                  styles.latencyTag,
-                  isLight && { backgroundColor: '#f0f2f5', borderColor: '#d0d7de' },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.latencyTagText,
-                    isLight && { color: '#0077b6' },
-                  ]}
+
+              <View className="flex-row items-center justify-between mb-1">
+                <Text className="text-sm font-semibold text-foreground flex-1 mr-2" numberOfLines={1}>
+                  {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
+                </Text>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onPress={() => setShowMachineSwitcher(true)}
+                  className="flex-row items-center gap-1 px-2 py-1"
                 >
-                  {pingRtt || '18ms'}
+                  <ChevronsUpDown size={11} color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Text className="text-xs font-medium text-foreground">Switch</Text>
+                </Button>
+              </View>
+
+              <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                {cpuCores} vCPU • {ramGb}GB RAM • {nodePlatform}
+              </Text>
+
+              {/* Standby Nodes Grid */}
+              <View className="flex-row gap-2 mt-2.5 pt-2.5 border-t border-border">
+                {standbyMachines.slice(0, 2).map((m) => (
+                  <TouchableOpacity
+                    key={m.machineId}
+                    onPress={() => selectMachine(m)}
+                    className="flex-1 p-2 rounded-lg bg-surface-secondary border border-border"
+                    activeOpacity={0.7}
+                  >
+                    <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
+                      {m.name}
+                    </Text>
+                    <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
+                      {m.isOnline ? 'Standby' : 'Offline'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {standbyMachines.length < 2 && (
+                  <TouchableOpacity
+                    onPress={() => setShowPairModal(true)}
+                    className="flex-1 p-2 rounded-lg border border-dashed border-border items-center justify-center flex-row gap-1"
+                    activeOpacity={0.7}
+                  >
+                    <Plus size={12} color={isLight ? '#686868' : '#a3a3a3'} />
+                    <Text className="text-xs text-muted-foreground font-medium">Pair Node</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </Card>
+
+            {/* 3. Primary Action: + New Session */}
+            <Button
+              variant="primary"
+              size="md"
+              onPress={() => setShowNewChatSheet(true)}
+              className="w-full mb-4 flex-row items-center justify-center gap-2 rounded-xl"
+            >
+              <Plus size={16} color={isLight ? '#fafafa' : '#262626'} />
+              <Text className="font-semibold text-primary-foreground text-sm">New Session</Text>
+            </Button>
+
+            {/* 4. Pinned Sessions (if any) */}
+            {pinnedSessions.length > 0 && (
+              <View className="mb-4">
+                <View className="flex-row items-center justify-between mb-1.5 px-1">
+                  <View className="flex-row items-center gap-1.5">
+                    <Pin size={11} color={isLight ? '#262626' : '#f5f5f5'} />
+                    <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Pinned Sessions
+                    </Text>
+                  </View>
+                  <Text className="text-xs text-muted-foreground">{pinnedSessions.length}</Text>
+                </View>
+                {pinnedSessions.map((session) => {
+                  const isActive = activeSession?.id === session.id && currentScreen === 'agent';
+                  return (
+                    <TouchableOpacity
+                      key={session.id}
+                      onPress={() => handleSelectSession(session)}
+                      className={cn(
+                        'flex-row items-center justify-between py-2 px-2.5 rounded-lg my-0.5',
+                        isActive ? 'bg-secondary' : 'hover:bg-secondary/40'
+                      )}
+                      activeOpacity={0.7}
+                    >
+                      <View className="flex-row items-center flex-1 mr-2">
+                        <Pin size={11} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 6 }} />
+                        <Text
+                          className={cn(
+                            'text-sm flex-1',
+                            isActive ? 'font-semibold text-foreground' : 'text-foreground'
+                          )}
+                          numberOfLines={1}
+                        >
+                          {session.title}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setActionSession(session)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        className="p-1"
+                      >
+                        <MoreVertical size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
+            {/* 5. Workspaces & Sessions Tree Hierarchy (PanelUI Tree) */}
+            <View className="mb-2">
+              <View className="flex-row items-center justify-between mb-1.5 px-1">
+                <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Workspaces
+                </Text>
+                {isLoadingSessions ? (
+                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} style={{ transform: [{ scale: 0.65 }] }} />
+                ) : (
+                  <Text className="text-xs text-muted-foreground">
+                    {workspaceGroups.length} {workspaceGroups.length === 1 ? 'folder' : 'folders'}
+                  </Text>
+                )}
+              </View>
+
+              {isLoadingSessions && workspaceGroups.length === 0 ? (
+                <View className="py-4 items-center justify-center">
+                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Text className="text-xs text-muted-foreground mt-2">Loading workspaces...</Text>
+                </View>
+              ) : workspaceGroups.length === 0 ? (
+                <View className="py-3 items-center justify-center">
+                  <Text className="text-xs text-muted-foreground">
+                    {drawerSearch ? 'No matching workspaces or sessions' : 'No workspaces discovered'}
+                  </Text>
+                </View>
+              ) : (
+                <Tree
+                  selectionMode="single"
+                  value={activeSession?.id}
+                  expanded={displayedExpanded}
+                  onExpandedChange={(newExpanded) => setExpandedWorkspaces(newExpanded)}
+                  showLines={true}
+                  size="default"
+                  className="w-full"
+                >
+                  {workspaceGroups.map((group) => {
+                    const isGroupExpanded = displayedExpanded.includes(group.name);
+                    return (
+                      <Tree.Item key={group.name} value={group.name}>
+                        <Tree.Trigger className="py-2 px-2.5 rounded-lg flex-row items-center justify-between">
+                          <Tree.Indicator />
+                          {/* Workspace folder icon: closed / open based on state */}
+                          <Tree.Icon className="mr-2">
+                            {isGroupExpanded ? (
+                              <FolderOpen size={17} color={isLight ? '#262626' : '#f5f5f5'} />
+                            ) : (
+                              <Folder size={17} color={isLight ? '#686868' : '#a3a3a3'} />
+                            )}
+                          </Tree.Icon>
+                          <Tree.Label className="text-[15px] font-semibold text-foreground flex-1 tracking-tight" numberOfLines={1}>
+                            {group.name}
+                          </Tree.Label>
+                          {group.items.length > 0 && (
+                            <Tree.Actions>
+                              <View className="px-1.5 py-0.5 rounded-full bg-secondary/80">
+                                <Text className="text-xs font-medium text-muted-foreground font-mono">
+                                  {group.items.length}
+                                </Text>
+                              </View>
+                            </Tree.Actions>
+                          )}
+                        </Tree.Trigger>
+
+                        {/* Child Sessions: Zero icons, clean text and subtle hairline guide */}
+                        <Tree.Group>
+                          {group.items.map((session) => {
+                            const isSessionActive = activeSession?.id === session.id && currentScreen === 'agent';
+                            return (
+                              <Tree.Item key={session.id} value={session.id}>
+                                <Tree.Trigger
+                                  onPress={() => handleSelectSession(session)}
+                                  className={cn(
+                                    'py-2 px-2.5 rounded-lg flex-row items-center justify-between',
+                                    isSessionActive && 'bg-secondary'
+                                  )}
+                                >
+                                  {/* Sessions have NO icon, matching clean tree standard */}
+                                  <Tree.Label
+                                    className={cn(
+                                      'text-sm flex-1',
+                                      isSessionActive
+                                        ? 'font-medium text-foreground'
+                                        : 'text-muted-foreground'
+                                    )}
+                                    numberOfLines={1}
+                                  >
+                                    {session.title}
+                                  </Tree.Label>
+                                  <Tree.Actions className="flex-row items-center gap-1">
+                                    {session.pinned && (
+                                      <Pin size={12} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 2 }} />
+                                    )}
+                                    <TouchableOpacity
+                                      onPress={() => setActionSession(session)}
+                                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                      className="p-1"
+                                    >
+                                      <MoreVertical size={14} color={isLight ? '#686868' : '#a3a3a3'} />
+                                    </TouchableOpacity>
+                                  </Tree.Actions>
+                                </Tree.Trigger>
+                              </Tree.Item>
+                            );
+                          })}
+
+                          {/* Quick create inside workspace */}
+                          <TouchableOpacity
+                            onPress={() => handleStartSessionInWorkspace(group.path || group.name)}
+                            className="flex-row items-center py-2 px-2.5 rounded-lg mt-0.5"
+                            activeOpacity={0.7}
+                          >
+                            <Plus size={13} color={isLight ? '#686868' : '#a3a3a3'} style={{ marginRight: 6 }} />
+                            <Text className="text-sm text-muted-foreground font-medium">New Session</Text>
+                          </TouchableOpacity>
+                        </Tree.Group>
+                      </Tree.Item>
+                    );
+                  })}
+                </Tree>
+              )}
+            </View>
+
+            {/* 6. Management & Navigation Links (PanelUI Item) */}
+            <View className="pt-1.5 mt-0.5 border-t border-border mb-1">
+              <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-1">
+                Management & Tools
+              </Text>
+
+              {/* Theme Toggle */}
+              <Item
+                variant="default"
+                size="xs"
+                className="px-2 py-1.5 rounded-lg my-0"
+                onPress={toggleTheme}
+              >
+                <Item.Media variant="icon">
+                  {isLight ? <Sun size={15} color="#262626" /> : <Moon size={15} color="#f5f5f5" />}
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className="text-sm text-foreground">
+                    {isLight ? 'Theme: White' : 'Theme: Dark'}
+                  </Item.Title>
+                </Item.Content>
+                <Item.Actions>
+                  <Badge variant="outline" size="sm" className="px-1.5 py-0">
+                    <Text className="text-[11px] font-medium text-foreground">{isLight ? 'White' : 'Dark'}</Text>
+                  </Badge>
+                </Item.Actions>
+              </Item>
+
+              {/* Security Approvals */}
+              <Item
+                variant="default"
+                size="xs"
+                className={cn(
+                  'px-2 py-1.5 rounded-lg my-0',
+                  currentScreen === 'approvals' && 'bg-secondary'
+                )}
+                onPress={() => handleNavScreen('approvals')}
+              >
+                <Item.Media variant="icon">
+                  <ShieldAlert size={15} color={pendingApproval ? '#ef4444' : (isLight ? '#686868' : '#a3a3a3')} />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className={cn('text-sm', currentScreen === 'approvals' ? 'text-foreground font-semibold' : 'text-foreground')}>
+                    Security Approvals & Diff
+                  </Item.Title>
+                </Item.Content>
+                <Item.Actions>
+                  {pendingApproval ? (
+                    <Badge variant="destructive" size="sm" className="px-1.5 py-0">
+                      <Text className="text-[11px] font-semibold text-destructive-foreground">1 Action</Text>
+                    </Badge>
+                  ) : null}
+                </Item.Actions>
+              </Item>
+
+              {/* Machine Health & Telemetry */}
+              <Item
+                variant="default"
+                size="xs"
+                className={cn(
+                  'px-2 py-1.5 rounded-lg my-0',
+                  currentScreen === 'health' && 'bg-secondary'
+                )}
+                onPress={() => handleNavScreen('health')}
+              >
+                <Item.Media variant="icon">
+                  <Activity size={15} color={currentScreen === 'health' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className={cn('text-sm', currentScreen === 'health' ? 'text-foreground font-semibold' : 'text-foreground')}>
+                    Machine Health & Fleet
+                  </Item.Title>
+                </Item.Content>
+              </Item>
+
+              {/* Workspace & Fleets Screen */}
+              <Item
+                variant="default"
+                size="xs"
+                className={cn(
+                  'px-2 py-1.5 rounded-lg my-0',
+                  currentScreen === 'sessions' && 'bg-secondary'
+                )}
+                onPress={() => handleNavScreen('sessions')}
+              >
+                <Item.Media variant="icon">
+                  <Layers size={15} color={currentScreen === 'sessions' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className={cn('text-sm', currentScreen === 'sessions' ? 'text-foreground font-semibold' : 'text-foreground')}>
+                    Workspace & Fleet Tree
+                  </Item.Title>
+                </Item.Content>
+              </Item>
+
+              {/* Remote Folder Picker */}
+              <Item
+                variant="default"
+                size="xs"
+                className="px-2 py-1.5 rounded-lg my-0"
+                onPress={() => setShowDirectFolderPicker(true)}
+              >
+                <Item.Media variant="icon">
+                  <Folder size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className="text-sm text-foreground">
+                    Browse Node Folders
+                  </Item.Title>
+                </Item.Content>
+                <Item.Actions>
+                  <ChevronRight size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                </Item.Actions>
+              </Item>
+
+              {/* Server & Notifications Settings */}
+              <Item
+                variant="default"
+                size="xs"
+                className="px-2 py-1.5 rounded-lg my-0"
+                onPress={() => setShowServerSettings(true)}
+              >
+                <Item.Media variant="icon">
+                  <Bell size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className="text-sm text-foreground">
+                    Push & Server Settings
+                  </Item.Title>
+                </Item.Content>
+                <Item.Actions>
+                  <ChevronRight size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                </Item.Actions>
+              </Item>
+            </View>
+          </Drawer.Body>
+
+          {/* 7. Drawer Footer: User Profile */}
+          <Drawer.Footer className="border-t border-border px-4 py-3 flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2.5 flex-1 mr-2">
+              <View className="w-8 h-8 rounded-full bg-secondary items-center justify-center overflow-hidden border border-border">
+                {avatarUri && !avatarError ? (
+                  <Image
+                    source={{ uri: avatarUri }}
+                    className="w-full h-full"
+                    onError={() => setAvatarError(true)}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text className="text-xs font-bold text-foreground">{operatorInitial}</Text>
+                )}
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                  {operatorName}
+                </Text>
+                <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                  {operatorEmail}
                 </Text>
               </View>
             </View>
-
-            {/* Primary Connected Machine Card */}
-            <View
-              style={[
-                styles.activeMachineCard,
-                isLight && {
-                  backgroundColor: '#f6f8fa',
-                  borderColor: '#d0d7de',
-                },
-              ]}
-            >
-              <View style={styles.machineCardTopRow}>
-                <View style={styles.machineTitleRow}>
-                  <Text
-                    style={[
-                      styles.machineHostname,
-                      isLight && { color: '#1f2328' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.switchNodeBtn,
-                    isLight && {
-                      backgroundColor: 'rgba(0, 119, 182, 0.10)',
-                      borderColor: 'rgba(0, 119, 182, 0.3)',
-                    },
-                  ]}
-                  onPress={() => setShowMachineSwitcher(true)}
-                  activeOpacity={0.7}
-                >
-                  <ChevronsUpDown size={12} color={isLight ? '#0077b6' : colors.primaryLight} />
-                  <Text style={[styles.switchNodeText, isLight && { color: '#0077b6' }]}>Switch</Text>
-                </TouchableOpacity>
-              </View>
-              <Text
-                style={[
-                  styles.machineSpecs,
-                  isLight && { color: '#6e7781' },
-                ]}
-                numberOfLines={1}
+            <View className="flex-row items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={toggleTheme}
+                className="w-8 h-8 p-0 items-center justify-center rounded-lg"
+                accessibilityLabel="Toggle Theme"
               >
-                {cpuCores} vCPU • {ramGb}GB RAM • {nodePlatform}
-              </Text>
-            </View>
-
-            {/* Standby Secondary Nodes Grid (2 Columns) */}
-            <View style={styles.standbyGrid}>
-              {standbyMachines.slice(0, 2).map((m) => (
-                <TouchableOpacity
-                  key={m.machineId}
-                  style={[
-                    styles.standbyCard,
-                    isLight && {
-                      backgroundColor: '#ffffff',
-                      borderColor: '#e1e4e8',
-                    },
-                  ]}
-                  onPress={() => selectMachine(m)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.standbyTopRow}>
-                    <Text
-                      style={[
-                        styles.standbyName,
-                        isLight && { color: '#24292f' },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {m.name}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.standbySub,
-                      isLight && { color: '#6e7781' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {m.platform} • {m.isOnline ? 'Standby' : 'Offline'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-              {standbyMachines.length < 2 && (
-                <TouchableOpacity
-                  style={[
-                    styles.standbyAddCard,
-                    isLight && {
-                      backgroundColor: '#ffffff',
-                      borderColor: '#d0d7de',
-                    },
-                  ]}
-                  onPress={() => setShowPairModal(true)}
-                  activeOpacity={0.7}
-                >
-                  <Plus size={14} color={isLight ? '#57606a' : colors.textMuted} />
-                  <Text style={[styles.standbyAddText, isLight && { color: '#57606a' }]}>Pair Node</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* 3. Primary Action: + New Session */}
-          <TouchableOpacity
-            style={[
-              styles.newSessionBtn,
-              isLight && {
-                backgroundColor: '#f6f8fa',
-                borderColor: '#d0d7de',
-              },
-            ]}
-            onPress={() => setShowNewChatSheet(true)}
-            activeOpacity={0.8}
-          >
-            <View
-              style={[
-                styles.newSessionIconCircle,
-                isLight && { backgroundColor: '#0077b6' },
-              ]}
-            >
-              <Plus size={14} color="#ffffff" />
-            </View>
-            <Text style={[styles.newSessionBtnText, isLight && { color: '#1f2328' }]}>New Session</Text>
-          </TouchableOpacity>
-
-          {/* 4. Pinned Sessions (if any) */}
-          {pinnedSessions.length > 0 && (
-            <View style={styles.pinnedSection}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.sectionTitleWithIcon}>
-                  <Pin size={11} color={isLight ? '#0077b6' : colors.primary} />
-                  <Text style={[styles.sectionTitle, isLight && { color: '#6e7781' }]}>PINNED SESSIONS</Text>
-                </View>
-                <Text style={[styles.sectionBadge, isLight && { color: '#6e7781' }]}>{pinnedSessions.length}</Text>
-              </View>
-              {pinnedSessions.map((item) => renderSessionRow(item, false))}
-            </View>
-          )}
-
-          {/* 5. Workspaces & Sessions Tree Hierarchy */}
-          <View style={[styles.sectionHeaderRow, pinnedSessions.length > 0 && { marginTop: 12 }]}>
-            <Text style={[styles.sectionTitle, isLight && { color: '#6e7781' }]}>WORKSPACES</Text>
-            {isLoadingSessions ? (
-              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#a3a3a3'} style={{ transform: [{ scale: 0.65 }] }} />
-            ) : (
-              <Text style={[styles.sectionBadge, isLight && { color: '#6e7781' }]}>
-                {workspaceGroups.length} {workspaceGroups.length === 1 ? 'folder' : 'folders'}
-              </Text>
-            )}
-          </View>
-
-          {isLoadingSessions && workspaceGroups.length === 0 ? (
-            <View style={styles.loadingSessionsBox}>
-              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#a3a3a3'} style={{ transform: [{ scale: 0.8 }] }} />
-              <Text style={[styles.loadingSessionsText, isLight && { color: '#6e7781' }]}>Loading workspaces...</Text>
-            </View>
-          ) : workspaceGroups.length === 0 ? (
-            <View style={styles.emptySessionsBox}>
-              <Text style={[styles.emptySessionsText, isLight && { color: '#6e7781' }]}>
-                {drawerSearch ? 'No matching workspaces or sessions' : 'No workspaces discovered'}
-              </Text>
-            </View>
-          ) : (
-            workspaceGroups.map((group) => {
-              const hasActiveSession = Boolean(
-                activeSession && (
-                  group.name === (activeSession.workspaceName || 'Default') ||
-                  group.items.some((item) => item.id === activeSession.id)
-                )
-              );
-              const isExpanded = drawerSearch.trim()
-                ? true
-                : userToggledGroups[group.name] !== undefined
-                  ? userToggledGroups[group.name]
-                  : hasActiveSession;
-              const isCollapsed = !isExpanded;
-              return (
-                <View key={group.name} style={styles.workspaceGroupContainer}>
-                  {/* Workspace Folder Header (Clean tree row with conditional Folder/FolderOpen icon) */}
-                  <TouchableOpacity
-                    style={[
-                      styles.workspaceFolderHeader,
-                      isLight && styles.workspaceFolderHeaderLight,
-                    ]}
-                    onPress={() => toggleGroupCollapse(group.name)}
-                    activeOpacity={0.65}
-                  >
-                    <View style={styles.workspaceFolderToggle}>
-                      {isCollapsed ? (
-                        <ChevronRight size={13} color={isLight ? '#57606a' : '#8b949e'} style={styles.treeChevron} />
-                      ) : (
-                        <ChevronDown size={13} color={isLight ? '#57606a' : '#8b949e'} style={styles.treeChevron} />
-                      )}
-
-                      {/* Folder icon: closed or open based on condition */}
-                      {isCollapsed ? (
-                        <Folder size={15} color={isLight ? '#57606a' : '#c9d1d9'} style={styles.treeFolderIcon} />
-                      ) : (
-                        <FolderOpen size={15} color={isLight ? '#0077b6' : '#f0f6fc'} style={styles.treeFolderIcon} />
-                      )}
-
-                      <Text
-                        style={[
-                          styles.workspaceFolderName,
-                          isLight && styles.workspaceFolderNameLight,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {group.name}
-                      </Text>
-
-                      {group.items.length > 0 && (
-                        <Text
-                          style={[
-                            styles.workspaceCountMuted,
-                            isLight && styles.workspaceCountMutedLight,
-                          ]}
-                        >
-                          {group.items.length}
-                        </Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-
-                  {/* Child Sessions in Workspace Tree (No icons on sessions, clean tree guide line) */}
-                  {!isCollapsed && (
-                    <View
-                      style={[
-                        styles.workspaceChildrenContainer,
-                        isLight && styles.workspaceChildrenContainerLight,
-                      ]}
-                    >
-                      {group.items.map((session) => renderSessionRow(session, true))}
-                      <TouchableOpacity
-                        style={styles.workspaceNewSessionItem}
-                        onPress={() => handleStartSessionInWorkspace(group.path || group.name)}
-                        activeOpacity={0.7}
-                      >
-                        <Plus size={11} color={isLight ? '#57606a' : '#8b949e'} style={{ marginRight: 6 }} />
-                        <Text style={[styles.workspaceNewSessionText, isLight && styles.workspaceNewSessionTextLight]}>
-                          New Session
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-                </View>
-              );
-            })
-          )}
-        </ScrollView>
-
-        {/* 6. Sticky Management & Navigation Links (Pinned above user profile) */}
-        <View
-          style={[
-            styles.stickyManagementSection,
-            isLight && {
-              backgroundColor: '#ffffff',
-              borderTopColor: '#e1e4e8',
-            },
-          ]}
-        >
-          <View style={styles.stickyManagementHeaderRow}>
-            <Text style={[styles.sectionTitle, isLight && { color: '#6e7781' }]}>MANAGEMENT & TOOLS</Text>
-          </View>
-
-          {/* Theme Mode Toggle (White / Dark) */}
-          <TouchableOpacity
-            style={[
-              styles.navItem,
-              isLight && { backgroundColor: 'transparent' },
-            ]}
-            onPress={toggleTheme}
-            activeOpacity={0.7}
-          >
-            <View style={styles.navIconBox}>
-              {isLight ? (
-                <Sun size={17} color="#0077b6" />
-              ) : (
-                <Moon size={17} color={colors.textSecondary} />
-              )}
-            </View>
-            <Text style={[styles.navLabel, isLight && { color: '#1f2328' }]}>
-              {isLight ? 'Theme: White' : 'Theme: Dark'}
-            </Text>
-            <View
-              style={[
-                styles.themeToggleBadge,
-                isLight && {
-                  backgroundColor: 'rgba(0, 119, 182, 0.10)',
-                  borderColor: 'rgba(0, 119, 182, 0.25)',
-                },
-              ]}
-            >
-              {isLight ? (
-                <Sun size={10} color="#0077b6" style={{ marginRight: 3 }} />
-              ) : (
-                <Moon size={10} color="#a3a3a3" style={{ marginRight: 3 }} />
-              )}
-              <Text
-                style={[
-                  styles.themeToggleBadgeText,
-                  isLight && { color: '#0077b6', fontWeight: '700' },
-                ]}
+                {isLight ? <Sun size={15} color="#262626" /> : <Moon size={15} color="#a3a3a3" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={logout}
+                className="w-8 h-8 p-0 items-center justify-center rounded-lg"
+                accessibilityLabel="Sign Out"
               >
-                {isLight ? 'White' : 'Dark'}
-              </Text>
+                <LogOut size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Button>
             </View>
-          </TouchableOpacity>
-
-          {/* Security Approvals */}
-          <TouchableOpacity
-            style={[
-              styles.navItem,
-              currentScreen === 'approvals' && (isLight ? { backgroundColor: 'rgba(0, 119, 182, 0.10)' } : styles.navItemActive),
-            ]}
-            onPress={() => handleNavScreen('approvals')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.navIconBox}>
-              <ShieldAlert
-                size={17}
-                color={pendingApproval ? colors.red : (isLight ? '#57606a' : colors.textSecondary)}
-              />
-            </View>
-            <Text
-              style={[
-                styles.navLabel,
-                isLight && { color: '#24292f' },
-                currentScreen === 'approvals' && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.navLabelActive),
-              ]}
-            >
-              Security Approvals & Diff
-            </Text>
-            {pendingApproval ? (
-              <View style={styles.pendingBadge}>
-                <Text style={styles.pendingBadgeText}>1 Action</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-
-          {/* Machine Health & Telemetry */}
-          <TouchableOpacity
-            style={[
-              styles.navItem,
-              currentScreen === 'health' && (isLight ? { backgroundColor: 'rgba(0, 119, 182, 0.10)' } : styles.navItemActive),
-            ]}
-            onPress={() => handleNavScreen('health')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.navIconBox}>
-              <Activity
-                size={17}
-                color={currentScreen === 'health' ? (isLight ? '#0077b6' : colors.primary) : (isLight ? '#57606a' : colors.textSecondary)}
-              />
-            </View>
-            <Text
-              style={[
-                styles.navLabel,
-                isLight && { color: '#24292f' },
-                currentScreen === 'health' && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.navLabelActive),
-              ]}
-            >
-              Machine Health & Fleet
-            </Text>
-          </TouchableOpacity>
-
-          {/* Workspaces & Fleets Screen */}
-          <TouchableOpacity
-            style={[
-              styles.navItem,
-              currentScreen === 'sessions' && (isLight ? { backgroundColor: 'rgba(0, 119, 182, 0.10)' } : styles.navItemActive),
-            ]}
-            onPress={() => handleNavScreen('sessions')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.navIconBox}>
-              <Layers
-                size={17}
-                color={currentScreen === 'sessions' ? (isLight ? '#0077b6' : colors.primary) : (isLight ? '#57606a' : colors.textSecondary)}
-              />
-            </View>
-            <Text
-              style={[
-                styles.navLabel,
-                isLight && { color: '#24292f' },
-                currentScreen === 'sessions' && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.navLabelActive),
-              ]}
-            >
-              Workspace & Fleet Tree
-            </Text>
-          </TouchableOpacity>
-
-          {/* Remote Folder Picker */}
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => setShowDirectFolderPicker(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.navIconBox}>
-              <Folder size={17} color={isLight ? '#57606a' : colors.textSecondary} />
-            </View>
-            <Text style={[styles.navLabel, isLight && { color: '#24292f' }]}>Browse Node Folders</Text>
-            <ChevronRight size={14} color={isLight ? '#57606a' : colors.textMuted} />
-          </TouchableOpacity>
-
-          {/* Server & Notifications Settings */}
-          <TouchableOpacity
-            style={styles.navItem}
-            onPress={() => setShowServerSettings(true)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.navIconBox}>
-              <Bell size={17} color={isLight ? '#57606a' : colors.textSecondary} />
-            </View>
-            <Text style={[styles.navLabel, isLight && { color: '#24292f' }]}>Push & Server Settings</Text>
-            <ChevronRight size={14} color={isLight ? '#57606a' : colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-
-        {/* 7. Drawer Footer: User Profile */}
-        <View
-          style={[
-            styles.drawerBottomFooter,
-            isLight && {
-              backgroundColor: '#ffffff',
-              borderTopColor: '#e1e4e8',
-            },
-          ]}
-        >
-          <View style={styles.bottomProfileCard}>
-            <View
-              style={[
-                styles.avatarBox,
-                isLight && {
-                  backgroundColor: '#f0f2f5',
-                  borderColor: '#d0d7de',
-                },
-              ]}
-            >
-              {avatarUri && !avatarError ? (
-                <Image
-                  source={{ uri: avatarUri }}
-                  style={styles.avatarImage}
-                  onError={() => setAvatarError(true)}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Text style={[styles.avatarText, isLight && { color: '#1f2328' }]}>{operatorInitial}</Text>
-              )}
-            </View>
-            <View style={styles.bottomProfileTextCol}>
-              <Text
-                style={[
-                  styles.bottomProfileName,
-                  isLight && { color: '#1f2328' },
-                ]}
-                numberOfLines={1}
-              >
-                {operatorName}
-              </Text>
-              <Text
-                style={[
-                  styles.bottomProfileEmail,
-                  isLight && { color: '#6e7781' },
-                ]}
-                numberOfLines={1}
-              >
-                {operatorEmail}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.bottomThemeBtn,
-                isLight && { backgroundColor: '#f0f2f5', borderColor: '#d0d7de' },
-              ]}
-              onPress={toggleTheme}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Toggle Theme"
-            >
-              {isLight ? (
-                <Sun size={15} color="#0077b6" />
-              ) : (
-                <Moon size={15} color={colors.textMuted} />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.bottomLogoutBtn,
-                isLight && { backgroundColor: '#f0f2f5', borderColor: '#d0d7de' },
-              ]}
-              onPress={logout}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Sign Out"
-            >
-              <LogOut size={15} color={isLight ? '#57606a' : colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        </View>
-        </View>
-      </Animated.View>
+          </Drawer.Footer>
+        </Drawer.Content>
+      </Drawer>
 
       {/* Interactive New Chat Workspace Sheet */}
       <NewChatWorkspaceSheet
@@ -1100,558 +743,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           await deleteSession(sess.id);
         }}
       />
-    </View>
+    </>
   );
 };
-
-const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#000000',
-  },
-  drawerContainer: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRightWidth: 1,
-    borderRightColor: colors.borderMuted,
-    zIndex: 210,
-    overflow: 'hidden',
-  },
-  drawerSafeArea: {
-    flex: 1,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-  },
-  floatingSearchContainer: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 8,
-    backgroundColor: 'transparent',
-  },
-  floatingSearchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#161616',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 12,
-    height: 40,
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  floatingSearchInput: {
-    flex: 1,
-    height: 40,
-    color: '#fafafa',
-    fontSize: 13,
-  },
-  avatarBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1c1c1c',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fafafa',
-  },
-  drawerBottomFooter: {
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: colors.surfaceContainerLowest,
-  },
-  bottomProfileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bottomProfileTextCol: {
-    marginLeft: 10,
-    flex: 1,
-    marginRight: 8,
-  },
-  bottomProfileName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  bottomProfileEmail: {
-    fontSize: 11,
-    color: '#737373',
-    marginTop: 1,
-  },
-  bottomThemeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 6,
-  },
-  themeToggleBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-  },
-  themeToggleBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#a3a3a3',
-  },
-  bottomLogoutBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  drawerScroll: {
-    flex: 1,
-  },
-  drawerScrollContent: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  stickyManagementSection: {
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 6,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
-    backgroundColor: colors.surfaceContainerLowest,
-  },
-  stickyManagementHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-    marginBottom: 6,
-  },
-  computeNodeSection: {
-    marginBottom: 12,
-  },
-  computeLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  computeLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-  },
-  latencyTag: {
-    backgroundColor: colors.surfaceContainerHigh,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  latencyTagText: {
-    fontSize: 10,
-    fontFamily: typography.mono,
-    color: colors.textSecondary,
-  },
-  activeMachineCard: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    padding: 12,
-    marginTop: 6,
-  },
-  machineCardTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  machineTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
-  },
-  machineHostname: {
-    fontSize: 13,
-    fontWeight: '700',
-    fontFamily: typography.mono,
-    color: colors.textPrimary,
-    flexShrink: 1,
-  },
-  switchNodeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primarySubtle,
-    borderWidth: 1,
-    borderColor: colors.primaryBorder,
-    borderRadius: radii.full,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    gap: 4,
-  },
-  switchNodeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.primaryLight,
-  },
-  machineSpecs: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 6,
-    fontFamily: typography.mono,
-  },
-  standbyGrid: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 6,
-  },
-  standbyCard: {
-    flex: 1,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    padding: 8,
-  },
-  standbyTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  standbyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  standbyName: {
-    fontSize: 11,
-    fontWeight: '600',
-    fontFamily: typography.mono,
-    color: colors.textSecondary,
-    flexShrink: 1,
-  },
-  standbySub: {
-    fontSize: 9,
-    color: colors.textMuted,
-    marginTop: 3,
-  },
-  standbyAddCard: {
-    flex: 1,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 5,
-    paddingVertical: 10,
-  },
-  standbyAddText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  newSessionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.md,
-    height: 40,
-    gap: 8,
-    marginBottom: 10,
-  },
-  newSessionIconCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  newSessionBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  workspaceGroupContainer: {
-    marginBottom: 4,
-  },
-  workspaceFolderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 7,
-    paddingHorizontal: 4,
-    borderRadius: 6,
-    backgroundColor: 'transparent',
-    marginBottom: 1,
-  },
-  workspaceFolderHeaderLight: {
-    backgroundColor: 'transparent',
-  },
-  workspaceFolderToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  treeChevron: {
-    marginRight: 6,
-  },
-  treeFolderIcon: {
-    marginRight: 8,
-  },
-  workspaceFolderName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#e6edf3',
-    letterSpacing: -0.2,
-    flex: 1,
-  },
-  workspaceFolderNameLight: {
-    color: '#1f2328',
-  },
-  workspaceCountMuted: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#8b949e',
-    marginLeft: 6,
-    marginRight: 4,
-  },
-  workspaceCountMutedLight: {
-    color: '#6e7781',
-  },
-  workspaceChildrenContainer: {
-    marginLeft: 10,
-    paddingLeft: 12,
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(255, 255, 255, 0.12)',
-    paddingTop: 2,
-    paddingBottom: 4,
-  },
-  workspaceChildrenContainerLight: {
-    borderLeftColor: '#d0d7de',
-  },
-  workspaceNewSessionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginTop: 2,
-  },
-  workspaceNewSessionText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#8b949e',
-  },
-  workspaceNewSessionTextLight: {
-    color: '#6e7781',
-  },
-  pinnedSection: {
-    marginBottom: 8,
-  },
-  sectionTitleWithIcon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 2,
-    marginBottom: 6,
-  },
-  sectionTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-  },
-  sectionBadge: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  emptySessionsBox: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  emptySessionsText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  loadingSessionsBox: {
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  loadingSessionsText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  sessionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'transparent',
-  },
-  sessionTreeItem: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginVertical: 1,
-  },
-  sessionFlatItem: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: radii.md,
-    marginBottom: 3,
-  },
-  sessionItemActive: {
-    backgroundColor: 'rgba(0, 119, 182, 0.14)',
-  },
-  sessionItemActiveLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
-  },
-  sessionItemContent: {
-    flex: 1,
-    marginRight: 8,
-  },
-  sessionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sessionTitle: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#c9d1d9',
-    lineHeight: 18,
-    flex: 1,
-  },
-  sessionTitleLight: {
-    color: '#24292f',
-  },
-  sessionTitleActive: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  sessionTitleActiveLight: {
-    color: '#0077b6',
-    fontWeight: '600',
-  },
-  moreActionBtn: {
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sessionMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    gap: 4,
-  },
-  sessionWorkspace: {
-    fontSize: 10,
-    color: colors.textMuted,
-    maxWidth: 110,
-  },
-  sessionMetaDot: {
-    fontSize: 9,
-    color: colors.textDisabled,
-  },
-  sessionMetaText: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  metaDot: {
-    display: "none",
-    fontSize: 9,
-    color: colors.textDisabled,
-  },
-  sessionTime: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  navItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 7.5,
-    borderRadius: radii.md,
-    marginBottom: 2,
-  },
-  navItemActive: {
-    backgroundColor: colors.primarySubtle,
-  },
-  navIconBox: {
-    width: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  navLabel: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  navLabelActive: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  pendingBadge: {
-    backgroundColor: colors.redSubtle,
-    borderWidth: 1,
-    borderColor: colors.redBorder,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-  },
-  pendingBadgeText: {
-    fontSize: 10,
-    color: colors.red,
-    fontWeight: '700',
-  },
-});

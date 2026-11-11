@@ -4,25 +4,38 @@ This document provides strict UI/UX standards, architectural rules, and coding c
 
 ---
 
-## 🎨 UI & Styling Standards (Black, White, Gray & #0077b6)
+## 🎨 UI & Styling Standards (Official Default PanelUI Dark & White)
 
-Strictly adhere to the design palette defined in `AGENTS.md`:
+Strictly adhere to the **Official Default PanelUI** design tokens (via `panelui-native/theme.css` and Uniwind):
 
-- **Canvas Background**: `#0d1117`
-- **Canvas Inset**: `#010409`
-- **Card / Surface**: `#161b22`
-- **Borders & Dividers**: `#21262d` (subtle) / `#30363d` (card boundaries)
-- **Hover / Inset**: `#21262d`
-- **Primary Text**: `#f0f6fc`
-- **Secondary Text**: `#c9d1d9`
-- **Muted Text**: `#8b949e` / `#6e7681`
-- **Pacific Azure Blue (Primary Accent)**:
-  - `#0077b6` (primary buttons, active highlights, badges)
-  - `#0096c7` / `#48cae4` (light accent text, highlights)
-  - `rgba(0, 119, 182, 0.15)` (subtle pill/active item background)
-  - `rgba(0, 119, 182, 0.35)` (subtle border)
-- **Chat Panel Tool Icons**: Use clean white (`#ffffff` / `#f0f6fc`) for all tool category icons.
-- **Danger Red (Exceptions / Alerts only)**: `#f85149` (text/icons), `#da3633` (bg)
+### PanelUI Dark Palette (Default)
+- **Background**: `#141414` (`bg-background`)
+- **Card Surface**: `#191919` (`bg-card`)
+- **Popover / Modal Surface**: `#1d1d1d` (`bg-popover`)
+- **Floating Overlay**: `#232323` (`bg-overlay`)
+- **Nested Surfaces**: `#1e1e1e` (`bg-surface`), `#242424` (`bg-surface-secondary`), `#2a2a2a` (`bg-surface-tertiary`)
+- **Primary Text**: `#f5f5f5` (`text-foreground`)
+- **Muted Text**: `#a3a3a3` (`text-muted-foreground`)
+- **Borders & Dividers**: `rgba(255, 255, 255, 0.10)` (`border-border`)
+- **Primary Accent / Actions**: High-contrast `#f5f5f5` (`bg-primary`, `text-primary-foreground: #262626`)
+- **Secondary / Subtles**: `rgba(255, 255, 255, 0.08)` (`bg-secondary`, `bg-muted`)
+
+### PanelUI White / Light Palette
+- **Background**: `#ffffff` (`bg-background`)
+- **Card Surface**: `#ffffff` (`bg-card`)
+- **Popover / Modal Surface**: `#ffffff` (`bg-popover`)
+- **Nested Surfaces**: `#f7f7f7` (`bg-surface`), `#f1f1f1` (`bg-surface-secondary`), `#eaeaea` (`bg-surface-tertiary`)
+- **Primary Text**: `#262626` (`text-foreground`)
+- **Muted Text**: `#686868` (`text-muted-foreground`)
+- **Borders & Dividers**: `rgba(0, 0, 0, 0.08)` (`border-border`)
+- **Primary Accent / Actions**: High-contrast `#262626` (`bg-primary`, `text-primary-foreground: #fafafa`)
+- **Secondary / Subtles**: `rgba(0, 0, 0, 0.06)` (`bg-secondary`, `bg-muted`)
+
+### Status Tokens (Telemetry & Alerts Only)
+- **Info**: `#3b82f6`
+- **Success / Live**: `#10b981`
+- **Warning**: `#f59e0b`
+- **Destructive / Error**: `#ef4444`
 
 ---
 

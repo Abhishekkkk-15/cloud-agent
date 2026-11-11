@@ -69,7 +69,7 @@ apps/mobile/src/
 - **Component-First Invariant**: All screens and dialogs use `panelui-native` primitives (`Drawer`, `Tree`, `Message`, `Reasoning`, `CodeBlock`, `BottomSheet`, `Kpi`, `LineChart`, `Button`, `Input`). Custom components are only permitted when `panelui-native` genuinely lacks an equivalent.
 - **Root Provider**: `<PanelUIProvider>` in `src/App.tsx` supplies the global gesture root (`GestureHandlerRootView`), overlay portals (`PortalHost`), and in-app toasts (`ToastViewport`).
 - **Tailwind v4 / Uniwind Pipeline**: Ahead-of-time compilation via `withUniwindConfig` in `metro.config.js` scanning `src/global.css` and `panelui-native/src`.
-- **Theme Palette**: Strictly follows `#0d1117` (Canvas), `#161b22` (Card/Surface), `#21262d`/`#30363d` (Borders), and `#0077b6` (Pacific Azure Blue Accent).
+- **Theme Palette**: Strictly follows the official default PanelUI Dark (`#141414` background, `#191919` card, `#1e1e1e` surface, `#f5f5f5` text) and White (`#ffffff` background, `#f7f7f7` surface, `#262626` text) tokens.
 
 ---
 

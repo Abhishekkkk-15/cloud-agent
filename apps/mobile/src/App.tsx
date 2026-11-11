@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { PanelUIProvider } from 'panelui-native';
+import { PanelUIProvider, PanelUITheme } from 'panelui-native';
 import { colors } from './theme/tokens';
 import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
 import { NotificationBanner } from './components/NotificationBanner';
@@ -45,6 +45,11 @@ function MainApp() {
       StatusBar.setBarStyle(isLight ? 'dark-content' : 'light-content');
     }
   }, [init, isLight]);
+
+  // Synchronize PanelUI and Uniwind with store theme
+  useEffect(() => {
+    PanelUITheme.setTheme(theme);
+  }, [theme]);
 
   // Auto-reconnect and session reconciliation when app returns to foreground
   useEffect(() => {
@@ -275,10 +280,10 @@ export default function App() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#141414',
   },
   screenContainer: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#141414',
   },
 });
