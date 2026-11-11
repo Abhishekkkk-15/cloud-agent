@@ -37,6 +37,28 @@ This document provides development instructions, operational rules, code style s
    - **NEVER** introduce hardcoded fallback turns, fake pull request or merge conflict simulations, fake user usernames (e.g. `@Abhishekkk-15 commented:`), fake credits, or hardcoded machine hostnames (e.g. `DESKTOP-...`).
    - Remove GitHub PR UI artifacts ("commit", "merge", floating "VIEW PR" buttons).
 
+7. **PanelUI-Native Component-First Invariant (`apps/mobile`)**:
+   - **ALWAYS** use `panelui-native` components for all UI elements across `apps/mobile`:
+     - **Navigation & Hierarchy**: `Drawer`, `Panelside`, `Tree`, `Tabs`, `Menu`, `Breadcrumb`
+     - **AI Conversations & Streaming**: `Message`, `MessageScroller`, `Response`, `Reasoning`, `Sources`, `CodeBlock`, `AIInput`, `ThinkingOrb`
+     - **Sheets, Modals & Trays**: `BottomSheet`, `Dialog`, `Popover`, `Toast`
+     - **Data & Telemetry Metrics**: `Kpi`, `LineChart`, `BarChart`, `HeatmapChart`, `PieChart`, `Progress`, `Table`
+     - **Forms & Controls**: `Button`, `ButtonGroup`, `Input`, `Select`, `Combobox`, `Checkbox`, `Switch`, `Badge`
+     - **Containers & Feedback**: `Card`, `Item`, `EmptyState`, `Skeleton`, `Spinner`, `Collapse`
+   - **NEVER** build custom one-off React Native components when a `panelui-native` equivalent exists.
+   - **Only create or maintain custom components if**:
+     1. The user explicitly requests a custom implementation, OR
+     2. `panelui-native` genuinely lacks a component for that specific capability.
+   - **Styling via Uniwind / Tailwind CSS v4**:
+     - Style `panelui-native` components using Tailwind utility classes (`className="..."`) and `panelui-native` theme tokens.
+     - Strictly adhere to the Black, White, Gray, and `#0077b6` palette (`#0d1117` canvas, `#161b22` card surface, `#0077b6` accent).
+     - Avoid creating bulky manual `StyleSheet.create` rules for layouts easily handled by Tailwind utility classes.
+   - **Gesture & Reanimated Integrity**:
+     - Leverage `panelui-native`'s built-in `react-native-reanimated` and `react-native-gesture-handler` integration for 60fps UI-thread interactions.
+     - Do not implement redundant custom `PanResponder` handlers or JavaScript timer animations when a `panelui-native` component provides native physics-based gestures.
+   - **Root Provider Mandate**:
+     - Always keep `apps/mobile/src/App.tsx` wrapped with `<PanelUIProvider>` and ensure `apps/mobile/src/global.css` is imported at the entry point so portal hosts, toast viewports, and themed surfaces mount properly.
+
 ---
 
 ## 🎨 UI & Styling Standards (Black, White, Gray & #0077b6)

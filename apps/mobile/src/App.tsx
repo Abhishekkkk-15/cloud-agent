@@ -1,3 +1,4 @@
+import './global.css';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -10,6 +11,7 @@ import {
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PanelUIProvider } from 'panelui-native';
 import { colors } from './theme/tokens';
 import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
 import { NotificationBanner } from './components/NotificationBanner';
@@ -263,7 +265,9 @@ function MainApp() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <MainApp />
+      <PanelUIProvider>
+        <MainApp />
+      </PanelUIProvider>
     </SafeAreaProvider>
   );
 }
