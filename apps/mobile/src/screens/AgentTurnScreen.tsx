@@ -19,6 +19,12 @@ import {
   LayoutAnimation,
   UIManager,
 } from 'react-native';
+import AnimatedReanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing as ReanimatedEasing,
+} from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -57,6 +63,7 @@ import {
 import { colors, radii, typography, getThemeColors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import {
+  AIInput,
   Reasoning,
   Response,
   ThinkingOrb,
@@ -180,32 +187,54 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardAnim = useSharedValue(0);
+
+  const isKeyboardActive = keyboardHeight > 0;
 
   useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates ? e.endCoordinates.height : 0);
-        if (isNearBottomRef.current) {
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, 80);
-        }
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      const rawKbH = e.endCoordinates ? e.endCoordinates.height : 0;
+      setKeyboardHeight(rawKbH);
+
+      // On iOS, window does not resize, so animate translateY by rawKbH.
+      // On Android, windowSoftInputMode="adjustResize" automatically resizes the window,
+      // so translateY is kept at 0 to avoid double spacing.
+      if (Platform.OS === 'ios') {
+        keyboardAnim.value = withTiming(rawKbH, {
+          duration: e.duration || 250,
+          easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
+        });
       }
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
+
+      if (isNearBottomRef.current) {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 80);
       }
-    );
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      setKeyboardHeight(0);
+      if (Platform.OS === 'ios') {
+        keyboardAnim.value = withTiming(0, {
+          duration: e?.duration || 200,
+          easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
+        });
+      }
+    });
+
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [keyboardAnim]);
 
-  const isKeyboardActive = keyboardHeight > 0;
+  const animatedKeyboardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -keyboardAnim.value }],
+  }));
 
   const handleSaveRename = async () => {
     if (!activeSession || !renameTitle.trim() || isSavingRename) return;
@@ -714,7 +743,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   return (
-    <View style={[styles.container, isLight && { backgroundColor: '#f6f8fa' }]}>
+    <View style={[styles.container, isLight && { backgroundColor: '#ffffff' }]}>
+      {/* 0. Top Notch & Sticky Header Bar Background Surface */}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: topInset + (Platform.OS === 'ios' ? 52 : 54),
+          backgroundColor: isLight ? '#ffffff' : '#141414',
+          borderBottomWidth: StyleSheet.hairlineWidth,
+          borderBottomColor: isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
+          zIndex: 15,
+        }}
+        pointerEvents="none"
+      />
+
       {/* 1. Floating Capsule Header */}
       <View
         style={[
@@ -946,7 +991,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       <ScrollView
         ref={scrollViewRef}
-        style={[styles.scroll, isLight && { backgroundColor: '#f6f8fa' }]}
+        style={[styles.scroll, isLight && { backgroundColor: '#ffffff' }]}
         contentContainerStyle={[
           styles.scrollContent,
           {
@@ -954,7 +999,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             paddingBottom:
               composerMeasuredHeight +
               Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) +
-              (Platform.OS === 'ios' && isKeyboardActive ? keyboardHeight : 0) +
+              (Platform.OS === 'ios' ? keyboardHeight : 0) +
               18,
           },
         ]}
@@ -1240,18 +1285,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       {/* 6. Floating Scroll FAB (Visible when user scrolled up or paused auto-scroll mid-stream) */}
       {(showScrollToBottom || (isSendingPrompt && isAutoScrollPaused)) && (
-        <View
+        <AnimatedReanimated.View
           style={[
             styles.scrollFabContainer,
             {
               bottom:
                 composerMeasuredHeight +
                 Math.max(insets.bottom, 12) +
-                (Platform.OS === 'ios' && isKeyboardActive ? keyboardHeight : 0) +
                 12,
-              pointerEvents: 'box-none',
             },
+            Platform.OS === 'ios' ? animatedKeyboardStyle : null,
           ]}
+          pointerEvents="box-none"
         >
           <TouchableOpacity
             style={[styles.scrollFab, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}
@@ -1266,14 +1311,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               <View style={[styles.scrollFabBadge, isLight && { backgroundColor: '#0077b6' }]} />
             )}
           </TouchableOpacity>
-        </View>
+        </AnimatedReanimated.View>
       )}
 
-      {/* 7. Chat Input Bar: Wrapped in KeyboardAvoidingView to prevent keyboard overlap */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-        style={styles.keyboardAvoidingInputWrapper}
+      {/* 7. Chat Input Bar: Elevation above Software Keyboard */}
+      <AnimatedReanimated.View
+        style={[
+          styles.keyboardAvoidingInputWrapper,
+          Platform.OS === 'ios' ? animatedKeyboardStyle : null,
+        ]}
         pointerEvents="box-none"
       >
         <View
@@ -1281,149 +1327,80 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           style={[
             styles.chatInputWrapper,
             {
-              paddingBottom:
-                isKeyboardActive
-                  ? (Platform.OS === 'android' ? 8 : 6)
-                  : Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12),
+              paddingBottom: isKeyboardActive
+                ? (Platform.OS === 'android' ? 8 : 6)
+                : Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10),
             },
           ]}
           pointerEvents="box-none"
         >
-        {/* Vercel v0 Pattern: Liquid Glass Dissolve Gradient Mask */}
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: -26,
-            left: 0,
-            right: 0,
-            height: 26,
-          }}
-        >
-          <Svg width="100%" height="100%">
-            <Defs>
-              <LinearGradient id="composerDissolve" x1="0" y1="0" x2="0" y2="1">
-                <Stop
-                  offset="0"
-                  stopColor={isLight ? '#f6f8fa' : '#0d1117'}
-                  stopOpacity="0"
-                />
-                <Stop
-                  offset="1"
-                  stopColor={isLight ? '#f6f8fa' : '#0d1117'}
-                  stopOpacity={isLight ? 0.95 : 0.9}
-                />
-              </LinearGradient>
-            </Defs>
-            <Rect width="100%" height="100%" fill="url(#composerDissolve)" />
-          </Svg>
-        </View>
-
-        {/* Autocomplete Slash Command Picker Overlay */}
-        <SlashCommandPicker
-          visible={showCommandPicker}
-          searchQuery={promptInput}
-          onSelect={handleSelectCommand}
-          onClose={() => setShowCommandPicker(false)}
-        />
-
-        {/* Interactive Live Tool Approval Card (Paradev ApprovalCard) */}
-        {pendingApproval && (
-          <LiveApprovalCard
-            approval={pendingApproval}
-            isResponding={isRespondingApproval}
-            onAuthorize={async () => {
-              setIsRespondingApproval(true);
-              await respondApproval(true);
-              setIsRespondingApproval(false);
-            }}
-            onDeny={async () => {
-              setIsRespondingApproval(true);
-              await respondApproval(false);
-              setIsRespondingApproval(false);
-            }}
-          />
-        )}
-
-        {/* Floating Capsule Composer Card */}
-        <View style={[styles.composerCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de', shadowOpacity: 0.08 }]}>
-          {/* Circular '+' Button on Left */}
-          <TouchableOpacity
-            style={[
-              styles.composerPlusBtn,
-              isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' },
-              showCommandPicker && (isLight ? { backgroundColor: '#0077b6', borderColor: '#0077b6' } : styles.composerPlusBtnActive),
-            ]}
-            activeOpacity={0.7}
-            onPress={() => setShowCommandPicker((prev) => !prev)}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Plus size={16} color={showCommandPicker ? '#ffffff' : (isLight ? '#57606a' : '#a3a3a3')} />
-          </TouchableOpacity>
-
-          {/* Clean Text Input with Dynamic Multiline Expansion */}
-          <TextInput
-            style={[styles.composerTextInput, isLight && { color: '#1f2328' }]}
-            placeholder={
-              !isNetworkOnline
-                ? 'Offline — waiting for connection...'
-                : isDictating
-                ? 'Listening... speak your prompt'
-                : 'Type a message...'
-            }
-            placeholderTextColor={isDictating ? '#ef4444' : (isLight ? '#8c959f' : '#737373')}
-            value={promptInput}
-            onChangeText={handleInputChange}
-            onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
-            multiline={true}
-            blurOnSubmit={false}
-            editable={!isSendingPrompt}
+          {/* Autocomplete Slash Command Picker Overlay */}
+          <SlashCommandPicker
+            visible={showCommandPicker}
+            searchQuery={promptInput}
+            onSelect={handleSelectCommand}
+            onClose={() => setShowCommandPicker(false)}
           />
 
-          {/* Right Action: Stop, ArrowUp Send, or Mic */}
-          {isSendingPrompt ? (
-            <TouchableOpacity
-              style={styles.composerStopBtn}
-              onPress={cancelPrompt}
-              activeOpacity={0.8}
-              accessibilityLabel="Stop agent turn"
-              disabled={isCancellingPrompt}
-            >
-              {isCancellingPrompt ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Square size={13} color="#ffffff" />
-              )}
-            </TouchableOpacity>
-          ) : promptInput.trim().length > 0 && !isDictating ? (
-            <TouchableOpacity
-              style={[styles.composerSendBtn, { backgroundColor: '#0077b6' }]}
-              onPress={handleSendPrompt}
-              activeOpacity={0.85}
-            >
-              <ArrowUp size={16} color="#ffffff" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.composerMicBtn,
-                isLight && { backgroundColor: '#f6f8fa' },
-                isDictating && styles.composerMicBtnActive,
-              ]}
-              activeOpacity={0.7}
-              onPress={handleToggleDictation}
-              accessibilityLabel={isDictating ? 'Stop voice dictation' : 'Start voice dictation'}
-            >
-              {isDictating ? (
-                <ThinkingOrb state="listening" size={16} />
-              ) : (
-                <Mic size={17} color={isLight ? '#57606a' : '#737373'} />
-              )}
-            </TouchableOpacity>
+          {/* Interactive Live Tool Approval Card (Paradev ApprovalCard) */}
+          {pendingApproval && (
+            <LiveApprovalCard
+              approval={pendingApproval}
+              isResponding={isRespondingApproval}
+              onAuthorize={async () => {
+                setIsRespondingApproval(true);
+                await respondApproval(true);
+                setIsRespondingApproval(false);
+              }}
+              onDeny={async () => {
+                setIsRespondingApproval(true);
+                await respondApproval(false);
+                setIsRespondingApproval(false);
+              }}
+            />
           )}
+
+          {/* PanelUI Native AI Composer */}
+          <AIInput
+            value={promptInput}
+            onValueChange={handleInputChange}
+            onSubmit={handleSendPrompt}
+            onStop={cancelPrompt}
+            onVoice={handleToggleDictation}
+            status={isSendingPrompt ? 'streaming' : isDictating ? 'recording' : 'ready'}
+            avoidKeyboard={false}
+            size="lg"
+            className="w-full"
+          >
+            <AIInput.Row>
+              <AIInput.Action
+                label="Commands"
+                icon={
+                  <Plus
+                    size={16}
+                    color={showCommandPicker ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')}
+                  />
+                }
+                onPress={() => setShowCommandPicker((prev) => !prev)}
+              />
+
+              <AIInput.Field
+                placeholder={
+                  !isNetworkOnline
+                    ? 'Offline — waiting for connection...'
+                    : isDictating
+                    ? 'Listening... speak your prompt'
+                    : 'Type a message...'
+                }
+                editable={!isSendingPrompt}
+                onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
+              />
+
+              <AIInput.Submit />
+            </AIInput.Row>
+          </AIInput>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </AnimatedReanimated.View>
 
       {/* 8. Draggable Tool Slide Tray */}
       <ToolActionTray
@@ -1530,13 +1507,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a', // Paradev root dark theme
+    backgroundColor: '#141414',
   },
   headerTerminalBtn: {
     width: 32,
     height: 32,
     borderRadius: radii.btn,
-    backgroundColor: '#161616',
+    backgroundColor: '#191919',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
@@ -1563,6 +1540,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    backgroundColor: '#141414',
   },
   // Floating Option 3 Header Styles
   floatingHeaderContainer: {
@@ -1583,7 +1561,7 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#161616',
+    backgroundColor: '#191919',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     alignItems: 'center',
@@ -1603,7 +1581,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#161616',
+    backgroundColor: '#191919',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
     borderRadius: 21,
