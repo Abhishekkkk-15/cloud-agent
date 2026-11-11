@@ -15,6 +15,8 @@ import {
   emitInAppNotification,
   scheduleNotification,
   ensureNotificationChannelsAsync,
+  setNotificationPreferences,
+  getNotificationPreferences,
 } from '../lib/notifications';
 
 function getDefaultHost(): string {
@@ -347,6 +349,10 @@ interface DaemonStoreState {
   pushStatus: string;
   isPushRegistered: boolean;
   pushToken: string | null;
+  notifyApprovals: boolean;
+  notifyTurnComplete: boolean;
+  notifyErrors: boolean;
+  setNotificationPreference: (key: 'notifyApprovals' | 'notifyTurnComplete' | 'notifyErrors', enabled: boolean) => void;
   activeProposal: AutoHealerProposal | null;
   activePrReview: AutoPrReviewReport | null;
   isAutoHealerModalVisible: boolean;
@@ -472,6 +478,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   pushStatus: 'Initializing...',
   isPushRegistered: false,
   pushToken: null,
+  notifyApprovals: true,
+  notifyTurnComplete: true,
+  notifyErrors: true,
+  setNotificationPreference: (key, enabled) => {
+    set({ [key]: enabled });
+    setNotificationPreferences({ [key]: enabled });
+  },
   activeProposal: null,
   activePrReview: null,
   isAutoHealerModalVisible: false,

@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   CheckCheck,
+  Bell,
 } from '../components/Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
@@ -39,6 +40,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   const decisionTrail = useDaemonStore((s) => s.decisionTrail);
   const respondApproval = useDaemonStore((s) => s.respondApproval);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
@@ -206,6 +208,28 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
             </View>
           )}
         </Card>
+
+        {/* Lock-Screen Push Notifications Hint */}
+        {!pendingApproval && (
+          <Card className="p-3 bg-surface border border-border rounded-xl mb-3 flex-row items-center gap-2.5">
+            <View className="w-7 h-7 rounded-lg bg-surface-secondary items-center justify-center border border-border">
+              <Bell size={13} color={isPushRegistered ? '#10b981' : (isLight ? '#686868' : '#a3a3a3')} />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-xs font-semibold text-foreground">
+                  Lock-Screen Approvals Active
+                </Text>
+                <Badge variant={isPushRegistered ? 'success' : 'secondary'} size="sm" className="px-1.5 py-0">
+                  <Text className="text-[10px] font-medium">{isPushRegistered ? 'Push Ready' : 'In-App'}</Text>
+                </Badge>
+              </View>
+              <Text className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                When new bash commands need review, actionable [✓ Approve] & [✕ Reject] alerts arrive directly on your lock screen.
+              </Text>
+            </View>
+          </Card>
+        )}
 
         {/* 3. Code Diff & Terminal Command Preview */}
         {pendingApproval && (

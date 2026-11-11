@@ -80,6 +80,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const logout = useDaemonStore((s) => s.logout);
   const currentUser = useDaemonStore((s) => s.currentUser);
   const pendingApproval = useDaemonStore((s) => s.pendingApproval);
+  const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
@@ -629,14 +630,23 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 onPress={() => setShowServerSettings(true)}
               >
                 <Item.Media variant="icon">
-                  <Bell size={18} color={isLight ? '#686868' : '#a3a3a3'} />
+                  <Bell size={18} color={isPushRegistered ? '#10b981' : (isLight ? '#686868' : '#a3a3a3')} />
                 </Item.Media>
                 <Item.Content>
                   <Item.Title className="text-[15px] font-medium text-foreground">
                     Push & Server Settings
                   </Item.Title>
                 </Item.Content>
-                <Item.Actions>
+                <Item.Actions className="flex-row items-center gap-2">
+                  <Badge
+                    variant={isPushRegistered ? 'success' : 'secondary'}
+                    size="sm"
+                    className="px-1.5 py-0"
+                  >
+                    <Text className="text-[10px] font-medium">
+                      {isPushRegistered ? 'Active' : 'Offline'}
+                    </Text>
+                  </Badge>
                   <ChevronRight size={15} color={isLight ? '#686868' : '#a3a3a3'} />
                 </Item.Actions>
               </Item>
