@@ -438,7 +438,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   connectionState: 'disconnected',
   isNetworkOnline: networkMonitor.getIsOnline(),
   daemonStatus: null,
-  pingRtt: '14ms',
+  pingRtt: '',
   sessions: [],
   selectedWorkspace: 'all',
   workspaces: [],

@@ -54,7 +54,6 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const selectSessionInStore = useDaemonStore((s) => s.selectSession);
   const startNewSessionInWorkspace = useDaemonStore((s) => s.startNewSessionInWorkspace);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
-  const pingRtt = useDaemonStore((s) => s.pingRtt);
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
@@ -162,61 +161,61 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         contentContainerClassName="p-4 gap-3.5"
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Fleet Overview Bento Grid */}
+        {/* 1. Overview Bento Grid */}
         <GridItem.Group columns={2} gap={10} rowHeight={105} size="sm">
-          {/* Active Node Tile */}
+          {/* Host Tile */}
           <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
             <GridItem.Media variant="icon">
               <Server size={15} color={isLight ? '#262626' : '#f5f5f5'} />
             </GridItem.Media>
-            <GridItem.Title>Active Host</GridItem.Title>
+            <GridItem.Title>Host</GridItem.Title>
             <GridItem.Value className="text-sm font-semibold" numberOfLines={1}>
               {activeMachine?.name || 'Local Host'}
             </GridItem.Value>
             <GridItem.Description numberOfLines={1}>
-              {activeMachine?.platform || 'Host Machine'}
+              {activeMachine?.platform || 'Connected'}
             </GridItem.Description>
           </GridItem>
 
-          {/* Fleet Live Agents Tile */}
+          {/* Active Sessions Tile */}
           <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
             <GridItem.Media variant="icon">
               <Zap size={15} color="#10b981" />
             </GridItem.Media>
-            <GridItem.Title>Live Fleet</GridItem.Title>
+            <GridItem.Title>Active Sessions</GridItem.Title>
             <GridItem.Value className="text-sm font-semibold font-mono text-success">
-              {sessions.length} Agents
+              {sessions.length}
             </GridItem.Value>
             <GridItem.Description numberOfLines={1}>
-              Autonomous runtime
+              Chat sessions
             </GridItem.Description>
           </GridItem>
 
-          {/* Workspaces Discovered Tile */}
+          {/* Workspaces Tile */}
           <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
             <GridItem.Media variant="icon">
               <FolderGit2 size={15} color={isLight ? '#262626' : '#f5f5f5'} />
             </GridItem.Media>
-            <GridItem.Title>Repositories</GridItem.Title>
+            <GridItem.Title>Workspaces</GridItem.Title>
             <GridItem.Value className="text-sm font-semibold">
-              {workspaces.length} Discovered
+              {workspaces.length}
             </GridItem.Value>
             <GridItem.Description numberOfLines={1}>
-              Workspace trees linked
+              Linked directories
             </GridItem.Description>
           </GridItem>
 
-          {/* Activity / Turns Tile */}
+          {/* Total Turns Tile */}
           <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
             <GridItem.Media variant="icon">
               <Activity size={15} color={isLight ? '#262626' : '#f5f5f5'} />
             </GridItem.Media>
-            <GridItem.Title>Activity</GridItem.Title>
+            <GridItem.Title>Messages</GridItem.Title>
             <GridItem.Value className="text-sm font-semibold">
-              {totalTurns} Turns
+              {totalTurns}
             </GridItem.Value>
             <GridItem.Description numberOfLines={1}>
-              Total session messages
+              Total session turns
             </GridItem.Description>
           </GridItem>
         </GridItem.Group>

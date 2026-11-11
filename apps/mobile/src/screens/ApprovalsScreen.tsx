@@ -21,11 +21,6 @@ import {
   Copy,
   Check,
   X,
-  ChevronDown,
-  ChevronUp,
-  CheckCircle2,
-  GitBranch,
-  Link,
   ShieldAlert,
   ShieldCheck,
   CheckCheck,
@@ -47,7 +42,6 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   const isLight = theme === 'light';
 
   const [rememberRule, setRememberRule] = useState(false);
-  const [isTreeExpanded, setIsTreeExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isDenying, setIsDenying] = useState(false);
@@ -61,7 +55,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
     setIsAuthorizing(true);
     try {
       await respondApproval(true);
-      Alert.alert('Action Authorized', 'Authorization token dispatched over WebRTC DataChannel to VPS Daemon.');
+      Alert.alert('Action Authorized', 'Command authorization dispatched to host daemon.');
     } finally {
       setIsAuthorizing(false);
     }
@@ -71,7 +65,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
     setIsDenying(true);
     try {
       await respondApproval(false);
-      Alert.alert('Action Denied', 'Intervention token dispatched. Command aborted.');
+      Alert.alert('Action Denied', 'Command execution aborted.');
     } finally {
       setIsDenying(false);
     }
@@ -82,8 +76,8 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   return (
     <View className="flex-1 bg-background">
       <HeaderBar
-        title="Security Gate & HITL"
-        subtitle={`${targetNode} • Diff Reviewer`}
+        title="Command Approvals"
+        subtitle={targetNode}
         onBack={onBack}
       />
 
@@ -100,17 +94,17 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
             className="px-2.5 py-1"
           >
             <Text className="text-xs font-semibold">
-              {pendingApproval ? 'Waiting for review' : 'All checks passed'}
+              {pendingApproval ? 'Pending Review' : 'All Clear'}
             </Text>
           </Badge>
           <Text className="text-xs font-mono text-muted-foreground">
-            {pendingApproval ? '1 action pending' : 'Zero elevated actions'}
+            {pendingApproval ? '1 action pending' : '0 actions pending'}
           </Text>
         </View>
 
-        {/* 2. Verification Checks Summary Card */}
+        {/* 2. Checks Summary Card */}
         <Card className="p-4 bg-surface border border-border rounded-xl mb-3">
-          <View className="flex-row items-center gap-3 mb-3">
+          <View className="flex-row items-center gap-3">
             <View
               className={cn(
                 'w-9 h-9 rounded-full items-center justify-center border',
@@ -128,46 +122,20 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
             <View className="flex-1">
               <Text className="text-sm font-semibold text-foreground">
                 {pendingApproval
-                  ? 'Action Required • Human In The Loop'
-                  : 'System Clean • No Approvals Required'}
+                  ? 'Action Approval Required'
+                  : 'No Actions Pending'}
               </Text>
               <Text className="text-xs text-muted-foreground mt-0.5">
                 {pendingApproval
-                  ? `Caller: ${pendingApproval.caller || 'Antigravity Agent'} requested privilege`
-                  : 'Security Policies active • Approvals required'}
+                  ? `Caller: ${pendingApproval.caller || 'Agent'} requested command execution`
+                  : 'All tool execution policies satisfied'}
               </Text>
             </View>
           </View>
 
-          {/* Mini Check Status Chips */}
-          <View className="flex-row flex-wrap gap-1.5 mb-3">
-            <Badge variant="outline" size="sm" className="px-2 py-0.5 flex-row items-center gap-1">
-              <CheckCircle2 size={11} color="#10b981" />
-              <Text className="text-xs text-foreground">unit-tests: ok</Text>
-            </Badge>
-            <Badge variant="outline" size="sm" className="px-2 py-0.5 flex-row items-center gap-1">
-              <CheckCircle2 size={11} color="#10b981" />
-              <Text className="text-xs text-foreground">typecheck: ok</Text>
-            </Badge>
-            <Badge
-              variant={pendingApproval ? 'destructive' : 'outline'}
-              size="sm"
-              className="px-2 py-0.5 flex-row items-center gap-1"
-            >
-              {pendingApproval ? (
-                <ShieldAlert size={11} color="#ef4444" />
-              ) : (
-                <ShieldCheck size={11} color="#10b981" />
-              )}
-              <Text className={cn('text-xs', pendingApproval ? 'text-destructive font-semibold' : 'text-foreground')}>
-                {pendingApproval ? 'gate: required' : 'gate: passed'}
-              </Text>
-            </Badge>
-          </View>
-
           {/* Action Buttons */}
           {pendingApproval && (
-            <View className="flex-row items-center gap-2 pt-2 border-t border-border">
+            <View className="flex-row items-center gap-2 pt-3 mt-3 border-t border-border">
               <Button
                 variant="destructive"
                 size="sm"
@@ -271,48 +239,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
           </Card>
         )}
 
-        {/* 4. Security Sandbox Policies */}
-        <Card className="p-3 bg-surface border border-border rounded-xl mb-4">
-          <TouchableOpacity
-            onPress={() => setIsTreeExpanded(!isTreeExpanded)}
-            activeOpacity={0.7}
-            className="flex-row items-center justify-between"
-          >
-            <View className="flex-row items-center gap-2">
-              <ShieldCheck size={15} color="#10b981" />
-              <Text className="text-xs font-semibold text-foreground">Runtime Security Policies</Text>
-            </View>
-            <View className="flex-row items-center gap-1.5">
-              <Badge variant="outline" size="sm" className="px-1.5 py-0">
-                <Text className="text-[10px] text-success font-semibold">Active</Text>
-              </Badge>
-              {isTreeExpanded ? (
-                <ChevronUp size={14} color={isLight ? '#686868' : '#a3a3a3'} />
-              ) : (
-                <ChevronDown size={14} color={isLight ? '#686868' : '#a3a3a3'} />
-              )}
-            </View>
-          </TouchableOpacity>
-
-          {isTreeExpanded && (
-            <View className="pt-2.5 mt-2 border-t border-border gap-1.5">
-              <View className="flex-row items-center gap-2">
-                <GitBranch size={12} color={isLight ? '#686868' : '#a3a3a3'} />
-                <Text className="text-xs text-muted-foreground">Workspace Sandboxing: Strict</Text>
-              </View>
-              <View className="flex-row items-center gap-2">
-                <Link size={12} color="#10b981" />
-                <Text className="text-xs text-muted-foreground">Permission Gate: Strict Verification</Text>
-              </View>
-              <View className="flex-row items-center gap-2">
-                <ShieldCheck size={12} color="#10b981" />
-                <Text className="text-xs text-foreground font-medium">WebRTC P2P Direct Tunnel: Encrypted</Text>
-              </View>
-            </View>
-          )}
-        </Card>
-
-        {/* 5. Decision Audit Trail */}
+        {/* 4. Decision Audit Trail */}
         <View className="flex-row items-center justify-between mb-2 px-1">
           <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             Decision Audit Trail
@@ -350,7 +277,7 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
         ) : (
           <Card className="p-4 bg-surface border border-border rounded-xl items-center justify-center">
             <Text className="text-xs text-muted-foreground text-center">
-              Zero privileged actions executed in this session yet.
+              No actions executed in this session yet.
             </Text>
           </Card>
         )}

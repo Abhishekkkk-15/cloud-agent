@@ -565,7 +565,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                 </Text>
 
                 <Text className="text-xs text-muted-foreground leading-4">
-                  Add this URL to your GitHub repository to trigger autonomous on-call auto-healing and pull request reviews:
+                  Add this webhook URL to your GitHub repository to enable automatic issue triaging and PR reviews:
                 </Text>
 
                 <View className="p-2.5 rounded-lg bg-surface border border-border flex-row items-center justify-between gap-2">
@@ -618,7 +618,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                   SENTRY CRASH WEBHOOK
                 </Text>
                 <Text className="text-xs text-muted-foreground leading-4">
-                  Receives runtime error alerts to trigger automated on-call investigations:
+                  Receives runtime crash alerts to investigate errors:
                 </Text>
 
                 <View className="p-2.5 rounded-lg bg-surface border border-border flex-row items-center justify-between gap-2">

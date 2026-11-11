@@ -86,7 +86,7 @@ const EFFORT_LEVELS: { id: ReasoningEffort; label: string; desc: string }[] = [
 ];
 
 const EXECUTION_MODES: { id: ExecutionMode; label: string; desc: string }[] = [
-  { id: 'auto', label: 'Auto (Autonomous)', desc: 'Agent directly edits files & executes tools' },
+  { id: 'auto', label: 'Auto', desc: 'Directly edit files & execute tools' },
   { id: 'plan', label: 'Plan Only', desc: 'Agent produces implementation plan without modifying code' },
   { id: 'accept-edits', label: 'Review Edits', desc: 'Step-by-step confirmation for file modifications' },
 ];
@@ -409,11 +409,11 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
               </View>
             </View>
 
-            {/* 4. Tool Permissions & HITL Security */}
+            {/* 4. Tool Permissions */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
                 <ShieldCheck size={13} color={isLight ? '#0077b6' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>TOOL PERMISSIONS & HITL GATE</Text>
+                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>TOOL PERMISSIONS</Text>
               </View>
 
               <View style={styles.modeCardsCol}>
@@ -452,7 +452,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                         </View>
                       </View>
                       <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight]}>
-                        Passes --dangerously-skip-permissions for uninterrupted autonomous tool runs.
+                        Skips confirmation prompts for automated tool execution.
                       </Text>
                     </View>
                   </View>
@@ -485,7 +485,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                           sessionConfig.dangerouslySkipPermissions === false && (isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
                         ]}
                       >
-                        Ask for Confirmation (HITL Gate)
+                        Ask for Confirmation
                       </Text>
                       <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight]}>
                         Strict review. Elevated commands and sensitive tool calls will await your approval on mobile.

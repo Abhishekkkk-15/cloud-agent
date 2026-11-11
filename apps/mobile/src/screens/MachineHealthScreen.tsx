@@ -64,9 +64,6 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
   const activeProposal = useDaemonStore((s) => s.activeProposal);
   const activePrReview = useDaemonStore((s) => s.activePrReview);
   const isAutoHealerModalVisible = useDaemonStore((s) => s.isAutoHealerModalVisible);
-  const isSimulatingIncident = useDaemonStore((s) => s.isSimulatingIncident);
-  const simulateAutoHealerIncident = useDaemonStore((s) => s.simulateAutoHealerIncident);
-  const simulatePrReview = useDaemonStore((s) => s.simulatePrReview);
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const openAutoHealerProposal = useDaemonStore((s) => s.openAutoHealerProposal);
   const openAutoPrReview = useDaemonStore((s) => s.openAutoPrReview);
@@ -94,20 +91,6 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
     setIsPinging(true);
     await pingHeartbeat();
     setIsPinging(false);
-  };
-
-  const handleSimulateBug = async () => {
-    const res = await simulateAutoHealerIncident();
-    if (!res.success) {
-      Alert.alert('Simulation Note', res.message);
-    }
-  };
-
-  const handleSimulatePr = async () => {
-    const res = await simulatePrReview();
-    if (!res.success) {
-      Alert.alert('Simulation Note', res.message);
-    }
   };
 
   const isConnected = connectionState === 'connected';
@@ -181,12 +164,14 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
             )}
           />
           <Text className="text-xs text-muted-foreground font-mono" numberOfLines={1}>
-            {isConnected ? 'GATEWAY CONNECTED' : connectionState.toUpperCase()} • PID: {pidStr} • Uptime: {uptimeStr}
+            {isConnected ? 'CONNECTED' : connectionState.toUpperCase()} • PID: {pidStr} • Uptime: {uptimeStr}
           </Text>
         </View>
-        <Badge variant="outline" size="xs">
-          {pingRtt || '18ms'}
-        </Badge>
+        {pingRtt ? (
+          <Badge variant="outline" size="xs">
+            {pingRtt}
+          </Badge>
+        ) : null}
       </View>
 
       <ScrollView
@@ -400,11 +385,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Autonomous On-Call & PR Reviewer */}
+        {/* Incident Repairs & PR Reviews */}
         <View className="gap-2">
           <View className="flex-row items-center justify-between px-1">
             <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Autonomous On-Call & PR Reviewer
+              Incident Repairs & PR Reviews
             </Text>
             <Button variant="ghost" size="xs" onPress={() => setShowGithubModal(true)}>
               Webhook & Token
@@ -455,44 +440,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
             )}
 
             <Text className="text-xs text-muted-foreground leading-relaxed">
-              24/7 on-call agent listens to GitHub & Sentry webhooks, investigates bugs, writes tests, applies fixes, and conducts PR reviews autonomously.
+              Listens to GitHub and Sentry webhooks to triage runtime issues and review pull requests.
             </Text>
-
-            <View className="flex-row items-center gap-2 pt-1">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 flex-row items-center gap-1.5 border-destructive/30 bg-destructive/10"
-                onPress={handleSimulateBug}
-                disabled={isSimulatingIncident}
-              >
-                {isSimulatingIncident ? (
-                  <ActivityIndicator size="small" color="#ef4444" />
-                ) : (
-                  <>
-                    <Bug size={14} color="#ef4444" />
-                    <Text className="text-xs font-semibold text-destructive">Simulate Bug</Text>
-                  </>
-                )}
-              </Button>
-
-              <Button
-                variant="secondary"
-                size="sm"
-                className="flex-1 flex-row items-center gap-1.5"
-                onPress={handleSimulatePr}
-                disabled={isSimulatingIncident}
-              >
-                {isSimulatingIncident ? (
-                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
-                ) : (
-                  <>
-                    <GitPullRequest size={14} color={isLight ? '#262626' : '#f5f5f5'} />
-                    <Text className="text-xs font-semibold text-foreground">Simulate PR</Text>
-                  </>
-                )}
-              </Button>
-            </View>
           </Card>
         </View>
 
@@ -600,7 +549,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
                 {isPinging ? 'Pinging...' : 'Ping Node'}
               </GridItem.Value>
               <GridItem.Description numberOfLines={1}>
-                Check P2P latency
+                Check latency
               </GridItem.Description>
             </GridItem>
 

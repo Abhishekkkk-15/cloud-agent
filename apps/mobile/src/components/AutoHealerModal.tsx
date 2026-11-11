@@ -57,7 +57,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
   const isPrReviewMode = Boolean(!activeProposal && activePrReview);
   const currentTitle = isPrReviewMode
     ? `PR #${activePrReview?.prNumber}: ${activePrReview?.prTitle}`
-    : activeProposal?.title || 'Autonomous Incident Repair';
+    : activeProposal?.title || 'Incident Repair';
 
   const handleApproveAction = async (action: 'pr' | 'merge' | 'discard') => {
     if (!activeProposal) return;
@@ -111,7 +111,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
     try {
       const content = isPrReviewMode
         ? activePrReview?.fullMarkdown || ''
-        : `Autonomous Auto-Healer Fix for ${activeProposal?.title}\n\nBranch: ${activeProposal?.branchName}\n\nDiff:\n${activeProposal?.diff}`;
+        : `Fix proposal for ${activeProposal?.title}\n\nBranch: ${activeProposal?.branchName}\n\nDiff:\n${activeProposal?.diff}`;
       await Share.share({ message: content });
     } catch {}
   };
@@ -137,7 +137,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
             <View className="flex-1">
               <View className="flex-row items-center gap-1.5 mb-0.5">
                 <Badge variant={isPrReviewMode ? 'outline' : 'destructive'} size="xs">
-                  {isPrReviewMode ? 'PR REVIEW' : 'AUTO-HEALER'}
+                  {isPrReviewMode ? 'PR Review' : 'Incident Repair'}
                 </Badge>
                 {activeProposal?.source && (
                   <Badge variant="secondary" size="xs">

@@ -185,11 +185,11 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
           contentContainerStyle={{ padding: 16 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Architecture Banner */}
+          {/* Connection Info Banner */}
           <Card className="p-3 mb-3 bg-surface border border-border rounded-xl flex-row items-start gap-2.5">
             <Radio size={14} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginTop: 2 }} />
             <Text className="text-xs text-muted-foreground flex-1 leading-relaxed">
-              Mobile operations, OAuth, and live WebRTC streaming connect through this Gateway Hub.
+              Gateway endpoint used to sync sessions, telemetry, and compute nodes.
             </Text>
           </Card>
 

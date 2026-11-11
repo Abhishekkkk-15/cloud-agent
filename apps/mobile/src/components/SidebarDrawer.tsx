@@ -273,9 +273,11 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                     Compute Node
                   </Text>
                 </View>
-                <Badge variant="outline" size="sm" className="px-1.5 py-0.5">
-                  <Text className="text-xs text-muted-foreground font-mono">{pingRtt || '18ms'}</Text>
-                </Badge>
+                {pingRtt ? (
+                  <Badge variant="outline" size="sm" className="px-1.5 py-0.5">
+                    <Text className="text-xs text-muted-foreground font-mono">{pingRtt}</Text>
+                  </Badge>
+                ) : null}
               </View>
 
               <View className="flex-row items-center justify-between mb-1">
@@ -547,7 +549,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 </Item.Media>
                 <Item.Content>
                   <Item.Title className={cn('text-sm', currentScreen === 'approvals' ? 'text-foreground font-semibold' : 'text-foreground')}>
-                    Security Approvals & Diff
+                    Command Approvals
                   </Item.Title>
                 </Item.Content>
                 <Item.Actions>
