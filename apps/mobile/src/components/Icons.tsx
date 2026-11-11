@@ -59,6 +59,7 @@ export const User = wrapIcon(Lucide.User);
 export const Send = wrapIcon(Lucide.Send);
 export const GitPullRequest = wrapIcon(Lucide.GitPullRequest);
 export const Folder = wrapIcon(Lucide.Folder);
+export const FolderOpen = wrapIcon(Lucide.FolderOpen);
 export const FolderGit2 = wrapIcon(Lucide.FolderGit2);
 export const Home = wrapIcon(Lucide.Home);
 export const Inbox = wrapIcon(Lucide.Inbox);

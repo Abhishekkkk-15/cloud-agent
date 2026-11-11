@@ -28,6 +28,7 @@ import {
   Search,
   LogOut,
   Folder,
+  FolderOpen,
   FolderGit2,
   Pin,
   MoreVertical,
@@ -371,9 +372,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         key={item.id}
         style={[
           styles.sessionItem,
-          isChild && styles.sessionItemChild,
+          isChild ? styles.sessionTreeItem : styles.sessionFlatItem,
           isActive && styles.sessionItemActive,
-          isActive && isLight && { backgroundColor: 'rgba(0, 119, 182, 0.08)', borderLeftColor: '#0077b6' },
+          isActive && isLight && styles.sessionItemActiveLight,
         ]}
       >
         <TouchableOpacity
@@ -388,35 +389,26 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             <Text
               style={[
                 styles.sessionTitle,
-                isLight && { color: '#24292f' },
-                isActive && (isLight ? { color: '#0077b6', fontWeight: '700' } : styles.sessionTitleActive),
+                isLight && styles.sessionTitleLight,
+                isActive && styles.sessionTitleActive,
+                isActive && isLight && styles.sessionTitleActiveLight,
               ]}
               numberOfLines={1}
             >
               {item.title}
             </Text>
           </View>
-          <View style={styles.sessionMetaRow}>
-            {!isChild && (
-              <>
-                <Text style={[styles.sessionWorkspace, isLight && { color: '#6e7781' }]} numberOfLines={1}>
-                  {item.workspaceName}
-                </Text>
-                <Text style={[styles.sessionMetaDot, isLight && { color: '#8c959f' }]}>•</Text>
-              </>
-            )}
-            {item.messageCount > 0 && (
-              <>
-                <Text style={[styles.sessionMetaText, isLight && { color: '#6e7781' }]}>
-                  {item.messageCount} msg{item.messageCount === 1 ? '' : 's'}
-                </Text>
-                <Text style={[styles.sessionMetaDot, isLight && { color: '#8c959f' }]}>•</Text>
-              </>
-            )}
-            <Text style={[styles.sessionTime, isLight && { color: '#6e7781' }]}>
-              {formatTimeAgo(item.updatedAt || item.createdAt)}
-            </Text>
-          </View>
+          {!isChild && (
+            <View style={styles.sessionMetaRow}>
+              <Text style={[styles.sessionWorkspace, isLight && { color: '#6e7781' }]} numberOfLines={1}>
+                {item.workspaceName}
+              </Text>
+              <Text style={[styles.sessionMetaDot, isLight && { color: '#8c959f' }]}>•</Text>
+              <Text style={[styles.sessionTime, isLight && { color: '#6e7781' }]}>
+                {formatTimeAgo(item.updatedAt || item.createdAt)}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -425,7 +417,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <MoreVertical size={14} color={isLight ? '#57606a' : colors.textMuted} />
+          <MoreVertical size={13} color={isLight ? '#8c959f' : '#6e7681'} />
         </TouchableOpacity>
       </View>
     );
@@ -733,72 +725,70 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               const isCollapsed = !isExpanded;
               return (
                 <View key={group.name} style={styles.workspaceGroupContainer}>
-                  {/* Workspace Folder Header */}
+                  {/* Workspace Folder Header (Clean tree row with conditional Folder/FolderOpen icon) */}
                   <TouchableOpacity
                     style={[
                       styles.workspaceFolderHeader,
-                      isLight && {
-                        backgroundColor: '#f6f8fa',
-                        borderColor: '#e1e4e8',
-                      },
+                      isLight && styles.workspaceFolderHeaderLight,
                     ]}
                     onPress={() => toggleGroupCollapse(group.name)}
-                    activeOpacity={0.7}
+                    activeOpacity={0.65}
                   >
                     <View style={styles.workspaceFolderToggle}>
                       {isCollapsed ? (
-                        <ChevronRight size={15} color={isLight ? '#57606a' : colors.textMuted} />
+                        <ChevronRight size={13} color={isLight ? '#57606a' : '#8b949e'} style={styles.treeChevron} />
                       ) : (
-                        <ChevronDown size={15} color={isLight ? '#57606a' : colors.textMuted} />
+                        <ChevronDown size={13} color={isLight ? '#57606a' : '#8b949e'} style={styles.treeChevron} />
                       )}
-                      <View
-                        style={[
-                          styles.workspaceFolderIconBox,
-                          isLight && { backgroundColor: 'rgba(0, 0, 0, 0.05)' },
-                        ]}
-                      >
-                        <FolderGit2 size={20} color={isLight ? '#24292f' : '#fafafa'} />
-                      </View>
+
+                      {/* Folder icon: closed or open based on condition */}
+                      {isCollapsed ? (
+                        <Folder size={15} color={isLight ? '#57606a' : '#c9d1d9'} style={styles.treeFolderIcon} />
+                      ) : (
+                        <FolderOpen size={15} color={isLight ? '#0077b6' : '#f0f6fc'} style={styles.treeFolderIcon} />
+                      )}
+
                       <Text
                         style={[
                           styles.workspaceFolderName,
-                          isLight && { color: '#1f2328' },
+                          isLight && styles.workspaceFolderNameLight,
                         ]}
                         numberOfLines={1}
                       >
                         {group.name}
                       </Text>
-                      <View
-                        style={[
-                          styles.workspaceCountBadge,
-                          isLight && { backgroundColor: 'rgba(0, 0, 0, 0.06)' },
-                        ]}
-                      >
+
+                      {group.items.length > 0 && (
                         <Text
                           style={[
-                            styles.workspaceCountBadgeText,
-                            isLight && { color: '#57606a' },
+                            styles.workspaceCountMuted,
+                            isLight && styles.workspaceCountMutedLight,
                           ]}
                         >
                           {group.items.length}
                         </Text>
-                      </View>
+                      )}
                     </View>
                   </TouchableOpacity>
 
-                  {/* Child Sessions in Folder */}
+                  {/* Child Sessions in Workspace Tree (No icons on sessions, clean tree guide line) */}
                   {!isCollapsed && (
-                    <View style={styles.workspaceChildrenContainer}>
+                    <View
+                      style={[
+                        styles.workspaceChildrenContainer,
+                        isLight && styles.workspaceChildrenContainerLight,
+                      ]}
+                    >
                       {group.items.map((session) => renderSessionRow(session, true))}
                       <TouchableOpacity
                         style={styles.workspaceNewSessionItem}
                         onPress={() => handleStartSessionInWorkspace(group.path || group.name)}
                         activeOpacity={0.7}
                       >
-                        <View style={styles.workspaceNewSessionIconCircle}>
-                          <Plus size={10} color={colors.textMuted} />
-                        </View>
-                        <Text style={styles.workspaceNewSessionText}>New Session</Text>
+                        <Plus size={11} color={isLight ? '#57606a' : '#8b949e'} style={{ marginRight: 6 }} />
+                        <Text style={[styles.workspaceNewSessionText, isLight && styles.workspaceNewSessionTextLight]}>
+                          New Session
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   )}
@@ -1424,86 +1414,78 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   workspaceGroupContainer: {
-    marginBottom: 6,
+    marginBottom: 4,
   },
   workspaceFolderHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: radii.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    marginBottom: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    borderRadius: 6,
+    backgroundColor: 'transparent',
+    marginBottom: 1,
+  },
+  workspaceFolderHeaderLight: {
+    backgroundColor: 'transparent',
   },
   workspaceFolderToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  workspaceFolderIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 7,
-    marginRight: 9,
+  treeChevron: {
+    marginRight: 6,
+  },
+  treeFolderIcon: {
+    marginRight: 8,
   },
   workspaceFolderName: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fafafa',
-    letterSpacing: -0.3,
-    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#e6edf3',
+    letterSpacing: -0.2,
+    flex: 1,
   },
-  workspaceCountBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    marginLeft: 8,
+  workspaceFolderNameLight: {
+    color: '#1f2328',
   },
-  workspaceCountBadgeText: {
+  workspaceCountMuted: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#a3a3a3',
+    fontWeight: '500',
+    color: '#8b949e',
+    marginLeft: 6,
+    marginRight: 4,
+  },
+  workspaceCountMutedLight: {
+    color: '#6e7781',
   },
   workspaceChildrenContainer: {
-    marginLeft: 16,
-    paddingLeft: 10,
-    borderLeftWidth: 1.5,
-    borderLeftColor: 'rgba(255, 255, 255, 0.08)',
-    paddingTop: 3,
-    paddingBottom: 6,
+    marginLeft: 10,
+    paddingLeft: 12,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(255, 255, 255, 0.12)',
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
+  workspaceChildrenContainerLight: {
+    borderLeftColor: '#d0d7de',
   },
   workspaceNewSessionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 7,
-    borderRadius: radii.md,
+    paddingVertical: 6,
+    borderRadius: 6,
     marginTop: 2,
-    marginBottom: 2,
-  },
-  workspaceNewSessionIconCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 7,
   },
   workspaceNewSessionText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.textMuted,
+    color: '#8b949e',
+  },
+  workspaceNewSessionTextLight: {
+    color: '#6e7781',
   },
   pinnedSection: {
     marginBottom: 8,
@@ -1554,21 +1536,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    borderRadius: radii.md,
-    marginBottom: 3,
     backgroundColor: 'transparent',
   },
-  sessionItemActive: {
-    backgroundColor: colors.primarySubtle,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+  sessionTreeItem: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginVertical: 1,
   },
-  sessionItemChild: {
-    paddingLeft: 8,
-    paddingVertical: 7,
-    marginBottom: 2,
+  sessionFlatItem: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+    marginBottom: 3,
+  },
+  sessionItemActive: {
+    backgroundColor: 'rgba(0, 119, 182, 0.14)',
+  },
+  sessionItemActiveLight: {
+    backgroundColor: 'rgba(0, 119, 182, 0.08)',
   },
   sessionItemContent: {
     flex: 1,
@@ -1580,13 +1566,20 @@ const styles = StyleSheet.create({
   },
   sessionTitle: {
     fontSize: 13,
-    fontWeight: '500',
-    color: colors.textSecondary,
+    fontWeight: '400',
+    color: '#c9d1d9',
     lineHeight: 18,
     flex: 1,
   },
+  sessionTitleLight: {
+    color: '#24292f',
+  },
   sessionTitleActive: {
-    color: colors.textPrimary,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  sessionTitleActiveLight: {
+    color: '#0077b6',
     fontWeight: '600',
   },
   moreActionBtn: {
