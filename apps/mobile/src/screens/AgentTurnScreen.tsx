@@ -33,7 +33,7 @@ import {
   ChevronUp,
   ChevronRight,
   MoreVertical,
-  Menu,
+  Menu as MenuIcon,
   Terminal,
   Link,
   FileText,
@@ -63,6 +63,7 @@ import {
 import { colors, radii, typography, getThemeColors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import {
+  Menu,
   AIInput,
   Reasoning,
   Response,
@@ -144,7 +145,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [showTerminal, setShowTerminal] = useState(false);
   const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
   const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
-  const [showSessionMenu, setShowSessionMenu] = useState(false);
   const [isRenamingSession, setIsRenamingSession] = useState(false);
   const [renameTitle, setRenameTitle] = useState('');
   const [isSavingRename, setIsSavingRename] = useState(false);
@@ -761,19 +761,19 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         />
       )}
 
-      {/* 1. Floating Capsule Header */}
+      {/* 1. Clean Minimal Header (No borders, circular left button, centered title, circular three-dots button) */}
       <View
         style={[
-          styles.floatingHeaderContainer,
-          { paddingTop: topInset + (Platform.OS === 'ios' ? 4 : 6) },
+          styles.cleanHeaderContainer,
+          { paddingTop: topInset + (Platform.OS === 'ios' ? 6 : 8) },
         ]}
         pointerEvents="box-none"
       >
-        {/* Left: Floating Menu Pill */}
+        {/* Left: Circular Menu Button */}
         <TouchableOpacity
           style={[
-            styles.floatingCircleBtn,
-            isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
+            styles.cleanCircleBtn,
+            isLight && { backgroundColor: '#f2f2f2' },
           ]}
           onPress={() => {
             if (onOpenDrawer) {
@@ -783,30 +783,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             }
           }}
           activeOpacity={0.7}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Open Menu Drawer"
         >
-          <Menu size={20} color={isLight ? '#1f2328' : '#fafafa'} />
+          <MenuIcon size={24} color={isLight ? '#1f2328' : '#fafafa'} />
         </TouchableOpacity>
 
-        {/* Center: Floating Workspace Pill */}
-        <TouchableOpacity
-          style={[
-            styles.floatingCenterPill,
-            isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
-          ]}
-          onPress={() => setShowConfigSheet(true)}
-          activeOpacity={0.75}
-          accessibilityLabel="Open Session Parameters"
-        >
-          {connectionState !== 'connected' ? (
-            <ActivityIndicator size="small" color="#f85149" style={{ transform: [{ scale: 0.7 }] }} />
-          ) : isSendingPrompt ? (
-            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#58a6ff'} style={{ transform: [{ scale: 0.7 }] }} />
-          ) : null}
+        {/* Center: Clean Title (No pill container, no borders) */}
+        <View style={styles.cleanHeaderCenter} pointerEvents="box-none">
           <Text
             style={[
-              styles.floatingPillTitle,
+              styles.cleanHeaderTitle,
               isLight && { color: '#1f2328' },
             ]}
             numberOfLines={1}
@@ -814,151 +801,96 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           >
             {workspaceTitle}
           </Text>
-        </TouchableOpacity>
-
-        {/* Right: Floating Actions (Artifacts, Session Actions with Dropdown) */}
-        <View style={styles.floatingRightCluster}>
-          <TouchableOpacity
-            style={[
-              styles.floatingCircleBtn,
-              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
-            ]}
-            onPress={() => {
-              setArtifactFilterQuery('');
-              setShowArtifactsSheet(true);
-              fetchSessionArtifacts().catch(() => {});
-            }}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="View Session Artifacts"
-          >
-            <Layers size={19} color={isLight ? '#1f2328' : '#fafafa'} />
-            {sessionArtifacts.length > 0 ? (
-              <View style={[styles.headerBadge, isLight && { backgroundColor: '#0077b6' }]}>
-                <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.floatingCircleBtn,
-              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
-              showSessionMenu && (isLight ? { borderColor: '#0077b6' } : styles.floatingCircleBtnActive),
-            ]}
-            onPress={() => setShowSessionMenu((prev) => !prev)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Session Actions"
-          >
-            <MoreVertical size={20} color={showSessionMenu ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')} />
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* 2. Sleek Anchored Dropdown Menu (Underneath Three-Dot Button) */}
-      {showSessionMenu && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 250 }]} pointerEvents="box-none">
-          <TouchableWithoutFeedback onPress={() => setShowSessionMenu(false)}>
-            <View style={styles.dropdownBackdrop} />
-          </TouchableWithoutFeedback>
-
-          <View
-            style={[
-              styles.dropdownMenu,
-              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de', shadowOpacity: 0.12 },
-              {
-                top: topInset + (Platform.OS === 'ios' ? 52 : 54),
-              },
-            ]}
-          >
-            {/* PTY / Terminal Option */}
+        {/* Right: Circular Three Dots Action Button with PanelUI Dropdown Menu */}
+        <Menu>
+          <Menu.Trigger>
             <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setShowSessionMenu(false);
-                setShowTerminal(true);
-              }}
+              style={[
+                styles.cleanCircleBtn,
+                isLight && { backgroundColor: '#f2f2f2' },
+              ]}
               activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Session Actions"
             >
-              <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                <Terminal size={15} color={isLight ? '#1f2328' : '#fafafa'} />
-              </View>
-              <View style={styles.dropdownItemContent}>
-                <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Terminal / PTY</Text>
-                <Text style={[styles.dropdownItemSub, isLight && { color: '#6e7681' }]}>Live interactive shell</Text>
-              </View>
+              <MoreVertical size={24} color={isLight ? '#1f2328' : '#fafafa'} />
             </TouchableOpacity>
+          </Menu.Trigger>
 
-            {/* Model & Config Parameters */}
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setShowSessionMenu(false);
-                setShowConfigSheet(true);
+          <Menu.Content align="end" minWidth={240}>
+            <Menu.Item
+              icon={<SlidersHorizontal size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              description="Model, thinking, temperature"
+              onSelect={() => setShowConfigSheet(true)}
+            >
+              Session Parameters
+            </Menu.Item>
+
+            <Menu.Item
+              icon={<Layers size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              description={
+                sessionArtifacts.length > 0
+                  ? `${sessionArtifacts.length} generated artifact${sessionArtifacts.length === 1 ? '' : 's'}`
+                  : 'View session outputs'
+              }
+              trailing={
+                sessionArtifacts.length > 0 ? (
+                  <View style={[styles.dropdownBadge, isLight && { backgroundColor: '#0077b6' }]}>
+                    <Text style={styles.dropdownBadgeText}>{sessionArtifacts.length}</Text>
+                  </View>
+                ) : undefined
+              }
+              onSelect={() => {
+                setArtifactFilterQuery('');
+                setShowArtifactsSheet(true);
+                fetchSessionArtifacts().catch(() => {});
               }}
-              activeOpacity={0.7}
             >
-              <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                <SlidersHorizontal size={15} color={isLight ? '#57606a' : '#a3a3a3'} />
-              </View>
-              <View style={styles.dropdownItemContent}>
-                <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Parameters</Text>
-                <Text style={[styles.dropdownItemSub, isLight && { color: '#6e7681' }]}>Model, thinking, temperature</Text>
-              </View>
-            </TouchableOpacity>
+              Artifacts
+            </Menu.Item>
 
-            <View style={[styles.dropdownDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
+            <Menu.Item
+              icon={<Terminal size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              description="Live interactive shell"
+              onSelect={() => setShowTerminal(true)}
+            >
+              Terminal / PTY
+            </Menu.Item>
 
-            {/* Pin / Unpin */}
+            <Menu.Separator />
+
             {activeSession && (
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={async () => {
-                  setShowSessionMenu(false);
+              <Menu.Item
+                icon={<Pin size={18} color={activeSession.pinned ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')} />}
+                onSelect={async () => {
                   await togglePinSession(activeSession.id);
                 }}
-                activeOpacity={0.7}
               >
-                <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                  <Pin size={15} color={activeSession.pinned ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')} />
-                </View>
-                <View style={styles.dropdownItemContent}>
-                  <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>
-                    {activeSession.pinned ? 'Unpin Session' : 'Pin Session'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                {activeSession.pinned ? 'Unpin Session' : 'Pin Session'}
+              </Menu.Item>
             )}
 
-            {/* Rename Session */}
             {activeSession && (
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setShowSessionMenu(false);
+              <Menu.Item
+                icon={<Pencil size={18} color={isLight ? '#57606a' : '#a3a3a3'} />}
+                onSelect={() => {
                   setRenameTitle(activeSession.title);
                   setIsRenamingSession(true);
                 }}
-                activeOpacity={0.7}
               >
-                <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                  <Pencil size={15} color={isLight ? '#57606a' : '#a3a3a3'} />
-                </View>
-                <View style={styles.dropdownItemContent}>
-                  <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Rename Session</Text>
-                </View>
-              </TouchableOpacity>
+                Rename Session
+              </Menu.Item>
             )}
 
-            <View style={[styles.dropdownDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
+            {activeSession && <Menu.Separator />}
 
-            {/* Delete Session */}
             {activeSession && (
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setShowSessionMenu(false);
+              <Menu.Item
+                variant="destructive"
+                icon={<Trash2 size={18} color="#ef4444" />}
+                onSelect={() => {
                   Alert.alert(
                     'Delete Session',
                     `Are you sure you want to delete "${activeSession.title}"? This will permanently remove its transcript from the host machine.`,
@@ -974,21 +906,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     ]
                   );
                 }}
-                activeOpacity={0.7}
               >
-                <View style={[styles.dropdownItemIcon, styles.dropdownItemIconDanger]}>
-                  <Trash2 size={15} color="#f85149" />
-                </View>
-                <View style={styles.dropdownItemContent}>
-                  <Text style={[styles.dropdownItemTitle, { color: '#f85149' }]}>
-                    Delete Session
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                Delete Session
+              </Menu.Item>
             )}
-          </View>
-        </View>
-      )}
+          </Menu.Content>
+        </Menu>
+      </View>
 
       <ScrollView
         ref={scrollViewRef}
@@ -1549,7 +1473,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#141414',
   },
   // Floating Option 3 Header Styles
-  floatingHeaderContainer: {
+  cleanHeaderContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -1557,125 +1481,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingTop: Platform.OS === 'ios' ? 8 : 10,
+    paddingHorizontal: 16,
     paddingBottom: 6,
     backgroundColor: 'transparent',
     zIndex: 40,
+    borderBottomWidth: 0,
   },
-  floatingCircleBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#191919',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+  cleanCircleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1e1e1e',
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  floatingCircleBtnActive: {
-    backgroundColor: '#262626',
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-  },
-  floatingCenterPill: {
+  cleanHeaderCenter: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#191919',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 21,
-    height: 42,
-    paddingHorizontal: 14,
-    marginHorizontal: 8,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingHorizontal: 12,
   },
-  floatingPillTitle: {
-    fontSize: 14,
+  cleanHeaderTitle: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#fafafa',
+    color: '#f5f5f5',
     letterSpacing: -0.2,
     textAlign: 'center',
   },
-  floatingRightCluster: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  // Dropdown Badge
+  dropdownBadge: {
+    backgroundColor: '#0077b6',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 8,
   },
-  // Sleek Anchored Dropdown Menu
-  dropdownBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    right: 12,
-    width: 220,
-    backgroundColor: 'rgba(22, 22, 22, 0.98)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 14,
-    zIndex: 260,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    gap: 10,
-  },
-  dropdownItemIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dropdownItemIconDanger: {
-    backgroundColor: 'rgba(248, 81, 73, 0.12)',
-  },
-  dropdownItemContent: {
-    flex: 1,
-  },
-  dropdownItemTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  dropdownItemSub: {
+  dropdownBadgeText: {
     fontSize: 11,
-    color: '#737373',
-    marginTop: 1,
-  },
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginVertical: 4,
-    marginHorizontal: 6,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   // Compact Rename Modal Styles
   renameOverlay: {
