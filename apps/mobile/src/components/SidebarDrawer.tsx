@@ -46,6 +46,8 @@ import { FolderPickerModal } from './FolderPickerModal';
 import { SessionActionModal } from './SessionActionModal';
 import { SessionDropdownMenu } from './SessionDropdownMenu';
 import { ServerSettingsModal } from './ServerSettingsModal';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { CloudAgentLogo } from '../screens/AuthScreen';
 
 export type AppScreen = 'agent' | 'health' | 'approvals' | 'sessions';
 
@@ -89,6 +91,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const isLight = theme === 'light';
 
   const [drawerSearch, setDrawerSearch] = useState<string>('');
+  const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
   const [avatarError, setAvatarError] = useState(false);
   const [expandedWorkspaces, setExpandedWorkspaces] = useState<string[]>([]);
 
@@ -109,6 +112,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   useEffect(() => {
     setAvatarError(false);
   }, [avatarUri]);
+
+  useEffect(() => {
+    if (!isOpen && !drawerSearch) {
+      setIsSearchActive(false);
+    }
+  }, [isOpen, drawerSearch]);
 
   // Auto-expand active session's workspace folder
   useEffect(() => {
@@ -245,25 +254,70 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               paddingHorizontal: 16,
             }}
           >
-            {/* 1. Search Bar */}
-            <View className="mb-3">
-              <Input
-                placeholder="Search sessions or workspaces..."
-                value={drawerSearch}
-                onChangeText={setDrawerSearch}
-                size="sm"
-                variant="outline"
-                startContent={<Search size={14} color={isLight ? '#686868' : '#a3a3a3'} />}
-                endContent={
-                  drawerSearch.length > 0 ? (
-                    <TouchableOpacity onPress={() => setDrawerSearch('')}>
-                      <X size={14} color={isLight ? '#686868' : '#a3a3a3'} />
-                    </TouchableOpacity>
-                  ) : undefined
-                }
-                className="w-full"
-              />
-            </View>
+            {/* 1. Header: Brand Logo/Title & Search Toggle */}
+            {!isSearchActive ? (
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(150)}
+                className="flex-row items-center justify-between mb-3 h-10"
+              >
+                <View className="flex-row items-center gap-2.5">
+                  <View className="w-8 h-8 rounded-lg bg-surface border border-border items-center justify-center">
+                    <CloudAgentLogo color={isLight ? '#262626' : '#f5f5f5'} size={24} />
+                  </View>
+                  <Text className="text-[17px] font-bold text-foreground tracking-tight">
+                    Cloud Agent
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  className="w-9 h-9 rounded-full bg-surface border border-border items-center justify-center active:opacity-70"
+                  onPress={() => setIsSearchActive(true)}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Search sessions and workspaces"
+                >
+                  <Search size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                </TouchableOpacity>
+              </Animated.View>
+            ) : (
+              <Animated.View
+                entering={FadeIn.duration(200)}
+                exiting={FadeOut.duration(150)}
+                className="flex-row items-center gap-2 mb-3 h-10"
+              >
+                <View className="flex-1">
+                  <Input
+                    placeholder="Search sessions or workspaces..."
+                    value={drawerSearch}
+                    onChangeText={setDrawerSearch}
+                    size="sm"
+                    variant="outline"
+                    autoFocus={true}
+                    startContent={<Search size={14} color={isLight ? '#686868' : '#a3a3a3'} />}
+                    endContent={
+                      drawerSearch.length > 0 ? (
+                        <TouchableOpacity onPress={() => setDrawerSearch('')}>
+                          <X size={14} color={isLight ? '#686868' : '#a3a3a3'} />
+                        </TouchableOpacity>
+                      ) : undefined
+                    }
+                    className="w-full"
+                  />
+                </View>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-8 h-8 p-0 items-center justify-center rounded-lg"
+                  onPress={() => {
+                    setDrawerSearch('');
+                    setIsSearchActive(false);
+                  }}
+                >
+                  <X size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+                </Button>
+              </Animated.View>
+            )}
 
             {/* 2. Compute Node Fleet Widget */}
             <Card className="p-3 mb-3 bg-surface border border-border rounded-xl">
