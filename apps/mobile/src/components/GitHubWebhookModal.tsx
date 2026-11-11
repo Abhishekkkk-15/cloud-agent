@@ -12,6 +12,7 @@ import {
   Platform,
   Switch,
   KeyboardAvoidingView,
+  useWindowDimensions,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import {
@@ -70,6 +71,9 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
   const [copiedGithub, setCopiedGithub] = useState(false);
   const [copiedSentry, setCopiedSentry] = useState(false);
   const [activeTab, setActiveTab] = useState<'git' | 'webhooks'>('git');
+
+  const { height: windowHeight } = useWindowDimensions();
+  const modalHeight = Math.min(720, Math.round(windowHeight * 0.86));
 
   const machineId = activeMachine?.machineId || 'your-machine-id';
   const machineName = activeMachine?.name || daemonStatus?.hostname || 'Host Machine';
@@ -190,10 +194,15 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
     >
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.overlay}>
-          <TouchableWithoutFeedback>
+          <TouchableWithoutFeedback onPress={() => {}}>
             <KeyboardAvoidingView
               behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-              style={[styles.modalContent, isLight && styles.modalContentLight]}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+              style={[
+                styles.modalContent,
+                { height: modalHeight },
+                isLight && styles.modalContentLight,
+              ]}
             >
               {/* Header */}
               <View style={[styles.header, isLight && styles.headerLight]}>
@@ -718,7 +727,6 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 520,
-    maxHeight: '90%',
     backgroundColor: '#161b22',
     borderRadius: 16,
     borderWidth: 1,
@@ -841,6 +849,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 14,
+    paddingBottom: 24,
   },
   section: {
     gap: 12,
