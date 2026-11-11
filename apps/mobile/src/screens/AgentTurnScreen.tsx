@@ -70,6 +70,7 @@ import {
   Response,
   ThinkingOrb,
   Shimmer,
+  Spinner,
   toast,
 } from 'panelui-native';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
@@ -1135,7 +1136,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         return (
                           <AnimatedReanimated.View
                             key={element.id}
-                            entering={FadeInDown.duration(240).springify().damping(20)}
+                            entering={FadeInDown.duration(180)}
                           >
                             <Reasoning
                               isStreaming={isCurrentlyThinking}
@@ -1144,19 +1145,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                               <Reasoning.Trigger
                                 label={(isStreaming, duration) =>
                                   isStreaming ? (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                      <ThinkingOrb state="solving" size={13} />
-                                      <Shimmer textClassName={isLight ? 'text-xs text-[#0077b6] font-medium' : 'text-xs text-[#58a6ff] font-medium'}>
-                                        Thinking…
-                                      </Shimmer>
-                                    </View>
+                                    <Shimmer textClassName={isLight ? 'text-xs text-primary font-medium' : 'text-xs text-primary font-medium'}>
+                                      Thinking…
+                                    </Shimmer>
                                   ) : (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                      <Sparkles size={13} color={isLight ? '#57606a' : '#8b949e'} />
-                                      <Text style={[{ fontSize: 12 }, isLight ? { color: '#57606a' } : { color: '#8b949e' }]}>
-                                        {duration === undefined ? 'Thought' : `Thought for ${duration}s`}
-                                      </Text>
-                                    </View>
+                                    <Text className="text-xs text-muted-foreground">
+                                      {duration === undefined ? 'Thought' : `Thought for ${duration}s`}
+                                    </Text>
                                   )
                                 }
                               />
@@ -1171,7 +1166,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       if (element.type === 'action') {
                         const action = element.action;
                         return (
-                          <View key={action.id} style={styles.flatToolItemWrapper}>
+                          <AnimatedReanimated.View
+                            key={action.id}
+                            entering={FadeInDown.duration(180)}
+                            style={styles.flatToolItemWrapper}
+                          >
                             <TouchableOpacity
                               style={styles.flatToolRow}
                               activeOpacity={0.65}
@@ -1196,11 +1195,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
                               <View style={styles.flatToolRight}>
                                 {action.status === 'running' && (
-                                  <ActivityIndicator
-                                    size="small"
-                                    color={isLight ? '#0077b6' : '#a3a3a3'}
-                                    style={{ transform: [{ scale: 0.65 }], marginRight: 2 }}
-                                  />
+                                  <Spinner size="sm" />
                                 )}
                                 <ChevronRight size={14} color={isLight ? '#8c959f' : '#6e7681'} />
                               </View>
@@ -1216,7 +1211,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                                 isSubmitting={isSendingPrompt}
                               />
                             )}
-                          </View>
+                          </AnimatedReanimated.View>
                         );
                       }
 
@@ -1225,7 +1220,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         return (
                           <AnimatedReanimated.View
                             key={element.id}
-                            entering={FadeInDown.duration(280).springify().damping(22)}
+                            entering={FadeInDown.duration(180)}
                             style={styles.resolutionContainer}
                           >
                             <Response isStreaming={isSendingPrompt && isLastTurn}>
@@ -1250,7 +1245,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     <>
                       {turn.assistant.content ? (
                         <AnimatedReanimated.View
-                          entering={FadeInDown.duration(280).springify().damping(22)}
+                          entering={FadeInDown.duration(180)}
                           style={styles.resolutionContainer}
                         >
                           <Response isStreaming={isSendingPrompt && turnIdx === displayedTurns.length - 1}>
