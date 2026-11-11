@@ -19,6 +19,14 @@ import {
   LayoutAnimation,
   UIManager,
 } from 'react-native';
+import AnimatedReanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing as ReanimatedEasing,
+  FadeIn,
+  FadeInDown,
+} from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -27,7 +35,7 @@ import {
   ChevronUp,
   ChevronRight,
   MoreVertical,
-  Menu,
+  Menu as MenuIcon,
   Terminal,
   Link,
   FileText,
@@ -35,7 +43,6 @@ import {
   FolderGit2,
   GitFork,
   ArrowDown,
-  ArrowUp,
   Sparkles,
   Search,
   Brain,
@@ -56,7 +63,15 @@ import {
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
-import { MarkdownText } from '../components/MarkdownText';
+import {
+  Menu,
+  AIInput,
+  Reasoning,
+  Response,
+  ThinkingOrb,
+  Shimmer,
+  toast,
+} from 'panelui-native';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
 import { SessionConfigSheet } from '../components/SessionConfigSheet';
@@ -95,166 +110,6 @@ interface ChatTurn {
   };
 }
 
-interface FlatReasoningBlockProps {
-  id: string;
-  text: string;
-  isCurrentlyThinking: boolean;
-  isLight: boolean;
-}
-
-const FlatReasoningBlock: React.FC<FlatReasoningBlockProps> = ({
-  id,
-  text,
-  isCurrentlyThinking,
-  isLight,
-}) => {
-  // Closed by default when chat is opened; open while actively thinking
-  const [isOpen, setIsOpen] = useState(isCurrentlyThinking);
-  const [contentHeight, setContentHeight] = useState(120);
-  const animValue = useRef(new Animated.Value(isCurrentlyThinking ? 1 : 0)).current;
-  const wasThinkingRef = useRef(isCurrentlyThinking);
-  const userManuallyInteractedRef = useRef(false);
-
-  useEffect(() => {
-    if (isCurrentlyThinking) {
-      userManuallyInteractedRef.current = false;
-      setIsOpen(true);
-      Animated.timing(animValue, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    } else if (wasThinkingRef.current && !isCurrentlyThinking) {
-      // Transition from thinking to completed (end of thought) -> smooth animated auto-close
-      if (!userManuallyInteractedRef.current) {
-        const timer = setTimeout(() => {
-          if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-            try {
-              UIManager.setLayoutAnimationEnabledExperimental(true);
-            } catch {}
-          }
-          try {
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-          } catch {}
-
-          Animated.timing(animValue, {
-            toValue: 0,
-            duration: 320,
-            easing: Easing.inOut(Easing.cubic),
-            useNativeDriver: false,
-          }).start(() => {
-            setIsOpen(false);
-          });
-        }, 300);
-
-        return () => clearTimeout(timer);
-      }
-    }
-    wasThinkingRef.current = isCurrentlyThinking;
-  }, [isCurrentlyThinking]);
-
-  const handleToggle = () => {
-    userManuallyInteractedRef.current = true;
-    try {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    } catch {}
-
-    if (isOpen) {
-      Animated.timing(animValue, {
-        toValue: 0,
-        duration: 260,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }).start(() => {
-        setIsOpen(false);
-      });
-    } else {
-      setIsOpen(true);
-      Animated.timing(animValue, {
-        toValue: 1,
-        duration: 260,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }).start();
-    }
-  };
-
-  return (
-    <View style={styles.flatReasoningBlock}>
-      <TouchableOpacity
-        style={styles.flatReasoningHeader}
-        onPress={handleToggle}
-        activeOpacity={0.7}
-      >
-        <Brain
-          size={13}
-          color={
-            isCurrentlyThinking
-              ? (isLight ? '#0077b6' : '#58a6ff')
-              : (isLight ? '#8c959f' : '#6e7681')
-          }
-        />
-        <Text
-          style={[
-            styles.flatReasoningHeaderTitle,
-            isLight && styles.flatReasoningHeaderTitleLight,
-            isCurrentlyThinking && (isLight ? { color: '#0077b6' } : { color: '#58a6ff' }),
-          ]}
-        >
-          {isCurrentlyThinking ? 'Thinking...' : 'Thought'}
-        </Text>
-        {isCurrentlyThinking ? (
-          <ActivityIndicator
-            size="small"
-            color={isLight ? '#0077b6' : '#58a6ff'}
-            style={{ transform: [{ scale: 0.6 }], marginLeft: 2 }}
-          />
-        ) : null}
-        <View style={{ marginLeft: 2 }}>
-          {isOpen ? (
-            <ChevronUp size={12} color={isLight ? '#8c959f' : '#6e7681'} />
-          ) : (
-            <ChevronDown size={12} color={isLight ? '#8c959f' : '#6e7681'} />
-          )}
-        </View>
-      </TouchableOpacity>
-
-      {isOpen && (
-        <Animated.View
-          style={{
-            opacity: animValue,
-            maxHeight: animValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, Math.max(contentHeight + 20, 800)],
-            }),
-            overflow: 'hidden',
-          }}
-        >
-          <View
-            onLayout={(e) => {
-              const h = e.nativeEvent.layout.height;
-              if (h > 0 && Math.abs(h - contentHeight) > 4) {
-                setContentHeight(h);
-              }
-            }}
-          >
-            <Text
-              style={[
-                styles.flatReasoningText,
-                isLight && styles.flatReasoningTextLight,
-              ]}
-              selectable
-            >
-              {text.trim()}
-            </Text>
-          </View>
-        </Animated.View>
-      )}
-    </View>
-  );
-};
-
 export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   onBack,
   onOpenDrawer,
@@ -292,7 +147,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [showTerminal, setShowTerminal] = useState(false);
   const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
   const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
-  const [showSessionMenu, setShowSessionMenu] = useState(false);
   const [isRenamingSession, setIsRenamingSession] = useState(false);
   const [renameTitle, setRenameTitle] = useState('');
   const [isSavingRename, setIsSavingRename] = useState(false);
@@ -335,32 +189,54 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardAnim = useSharedValue(0);
+
+  const isKeyboardActive = keyboardHeight > 0;
 
   useEffect(() => {
-    const showSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
-        setKeyboardHeight(e.endCoordinates ? e.endCoordinates.height : 0);
-        if (isNearBottomRef.current) {
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
-          }, 80);
-        }
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      const rawKbH = e.endCoordinates ? e.endCoordinates.height : 0;
+      setKeyboardHeight(rawKbH);
+
+      // On iOS, window does not resize, so animate translateY by rawKbH.
+      // On Android, windowSoftInputMode="adjustResize" automatically resizes the window,
+      // so translateY is kept at 0 to avoid double spacing.
+      if (Platform.OS === 'ios') {
+        keyboardAnim.value = withTiming(rawKbH, {
+          duration: e.duration || 250,
+          easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
+        });
       }
-    );
-    const hideSub = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => {
-        setKeyboardHeight(0);
+
+      if (isNearBottomRef.current) {
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: true });
+        }, 80);
       }
-    );
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      setKeyboardHeight(0);
+      if (Platform.OS === 'ios') {
+        keyboardAnim.value = withTiming(0, {
+          duration: e?.duration || 200,
+          easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
+        });
+      }
+    });
+
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [keyboardAnim]);
 
-  const isKeyboardActive = keyboardHeight > 0;
+  const animatedKeyboardStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -keyboardAnim.value }],
+  }));
 
   const handleSaveRename = async () => {
     if (!activeSession || !renameTitle.trim() || isSavingRename) return;
@@ -368,6 +244,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     try {
       await renameSession(activeSession.id, renameTitle.trim());
       setIsRenamingSession(false);
+      toast.show({
+        variant: 'success',
+        label: 'Session Renamed',
+        description: renameTitle.trim(),
+        duration: 2500,
+      });
     } finally {
       setIsSavingRename(false);
     }
@@ -395,6 +277,37 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const userJustSubmittedRef = useRef<boolean>(false);
   const activePromptTurnIndexRef = useRef<number>(-1);
   const activePromptLayoutYRef = useRef<number>(0);
+
+  // Infinite Scroll Refs
+  const prevScrollHeightRef = useRef<number>(0);
+  const prevScrollYRef = useRef<number>(0);
+  const prependedAnchorMsgIdRef = useRef<string | null>(null);
+  const isFetchingOlderRef = useRef<boolean>(false);
+  const needsScrollAdjustmentRef = useRef<boolean>(false);
+  const hasInitialScrolledRef = useRef<string | null>(null);
+
+  // Initial scroll to bottom when session messages load
+  useEffect(() => {
+    if (activeSession?.id && sessionMessages.length > 0 && !isLoadingMessages) {
+      if (hasInitialScrolledRef.current !== activeSession.id) {
+        hasInitialScrolledRef.current = activeSession.id;
+        setTimeout(() => {
+          scrollViewRef.current?.scrollToEnd({ animated: false });
+        }, 120);
+      }
+    }
+  }, [activeSession?.id, sessionMessages.length, isLoadingMessages]);
+
+  // When older messages are successfully prepended to sessionMessages, flag for scroll compensation
+  useEffect(() => {
+    if (
+      prependedAnchorMsgIdRef.current &&
+      sessionMessages.length > 0 &&
+      sessionMessages[0]?.id !== prependedAnchorMsgIdRef.current
+    ) {
+      needsScrollAdjustmentRef.current = true;
+    }
+  }, [sessionMessages]);
 
   const handleComposerLayout = (event: any) => {
     const newHeight = Math.round(event.nativeEvent.layout.height);
@@ -452,7 +365,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   const handleScroll = (event: any) => {
-    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const { contentOffset, layoutMeasurement, contentSize } = event?.nativeEvent || event || {};
+    if (!contentOffset || !layoutMeasurement || !contentSize) return;
     currentScrollYRef.current = contentOffset.y;
     const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
     const isNear = distanceFromBottom <= 45;
@@ -467,6 +381,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     } else if (distanceFromBottom > 80 && isSendingPrompt) {
       // User scrolled up away from the bottom while agent is writing
       pauseAutoScroll();
+    }
+
+    // Infinite scroll: when user scrolls near the top (< 120px from top) and there are older messages
+    if (
+      contentOffset.y <= 120 &&
+      hasMoreMessages &&
+      !isLoadingOlderMessages &&
+      !isFetchingOlderRef.current &&
+      contentSize.height > layoutMeasurement.height
+    ) {
+      isFetchingOlderRef.current = true;
+      prependedAnchorMsgIdRef.current = sessionMessages[0]?.id || null;
+      prevScrollHeightRef.current = contentSize.height;
+      prevScrollYRef.current = contentOffset.y;
+      loadOlderMessages().finally(() => {
+        setTimeout(() => {
+          isFetchingOlderRef.current = false;
+        }, 400);
+      });
     }
   };
 
@@ -513,6 +446,11 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       navigator.clipboard.writeText(text);
     }
     setCopiedTurnId(turnId);
+    toast.show({
+      variant: 'default',
+      label: 'Message copied to clipboard',
+      duration: 2000,
+    });
     setTimeout(() => {
       setCopiedTurnId(null);
     }, 1500);
@@ -660,13 +598,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             ? asstObj.reasoning + '\n' + msg.reasoning
             : msg.reasoning;
 
-          const lastEl = asstObj.elements[asstObj.elements.length - 1];
-          if (lastEl && lastEl.type === 'reasoning') {
-            lastEl.text = msg.reasoning;
+          const existingReasoning = asstObj.elements.find(
+            (el) => el.type === 'reasoning' && el.id.startsWith(`${msg.id || i}_reasoning`)
+          );
+          if (existingReasoning && existingReasoning.type === 'reasoning') {
+            existingReasoning.text = msg.reasoning;
           } else {
             asstObj.elements.push({
               type: 'reasoning',
-              id: `${msg.id || i}_reasoning`,
+              id: `${msg.id || i}_reasoning_${asstObj.elements.length}`,
               text: msg.reasoning,
             });
           }
@@ -803,7 +743,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             } else {
               asstObj.elements.push({
                 type: 'action',
-                id: actionStep.id,
+                id: `${actionStep.id}_${asstObj.elements.length}`,
                 action: actionStep,
               });
             }
@@ -816,13 +756,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             ? asstObj.content + '\n' + msg.content
             : msg.content;
 
-          const lastEl = asstObj.elements[asstObj.elements.length - 1];
-          if (lastEl && lastEl.type === 'content') {
-            lastEl.text = msg.content;
+          const existingContent = asstObj.elements.find(
+            (el) => el.type === 'content' && el.id.startsWith(`${msg.id || i}_content`)
+          );
+          if (existingContent && existingContent.type === 'content') {
+            existingContent.text = msg.content;
           } else {
             asstObj.elements.push({
               type: 'content',
-              id: `${msg.id || i}_content`,
+              id: `${msg.id || i}_content_${asstObj.elements.length}`,
               text: msg.content,
             });
           }
@@ -869,20 +811,36 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   return (
-    <View style={[styles.container, isLight && { backgroundColor: '#f6f8fa' }]}>
-      {/* 1. Floating Capsule Header */}
+    <View style={[styles.container, isLight && { backgroundColor: '#ffffff' }]}>
+      {/* 0. Top Notch Background (Covers physical notch/status bar while keeping the header transparent without borders) */}
+      {topInset > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: topInset,
+            backgroundColor: isLight ? '#ffffff' : '#141414',
+            zIndex: 15,
+          }}
+          pointerEvents="none"
+        />
+      )}
+
+      {/* 1. Clean Minimal Header (No borders, circular left button, centered title, circular three-dots button) */}
       <View
         style={[
-          styles.floatingHeaderContainer,
-          { paddingTop: topInset + (Platform.OS === 'ios' ? 4 : 6) },
+          styles.cleanHeaderContainer,
+          { paddingTop: topInset + (Platform.OS === 'ios' ? 6 : 8) },
         ]}
         pointerEvents="box-none"
       >
-        {/* Left: Floating Menu Pill */}
+        {/* Left: Circular Menu Button */}
         <TouchableOpacity
           style={[
-            styles.floatingCircleBtn,
-            isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
+            styles.cleanCircleBtn,
+            isLight && { backgroundColor: '#f2f2f2' },
           ]}
           onPress={() => {
             if (onOpenDrawer) {
@@ -892,32 +850,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             }
           }}
           activeOpacity={0.7}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Open Menu Drawer"
         >
-          <Menu size={20} color={isLight ? '#1f2328' : '#fafafa'} />
+          <MenuIcon size={24} color={isLight ? '#1f2328' : '#fafafa'} />
         </TouchableOpacity>
 
-        {/* Center: Floating Workspace Pill */}
-        <TouchableOpacity
-          style={[
-            styles.floatingCenterPill,
-            isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
-          ]}
-          onPress={() => setShowConfigSheet(true)}
-          activeOpacity={0.75}
-          accessibilityLabel="Open Session Parameters"
-        >
-          {connectionState !== 'connected' && (
-            <ActivityIndicator
-              size="small"
-              color={isLight ? '#0077b6' : '#a3a3a3'}
-              style={{ transform: [{ scale: 0.75 }], marginRight: 6 }}
-            />
-          )}
+        {/* Center: Clean Title (No pill container, no borders) */}
+        <View style={styles.cleanHeaderCenter} pointerEvents="box-none">
           <Text
             style={[
-              styles.floatingPillTitle,
+              styles.cleanHeaderTitle,
               isLight && { color: '#1f2328' },
             ]}
             numberOfLines={1}
@@ -925,151 +868,96 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           >
             {workspaceTitle}
           </Text>
-        </TouchableOpacity>
-
-        {/* Right: Floating Actions (Artifacts, Session Actions with Dropdown) */}
-        <View style={styles.floatingRightCluster}>
-          <TouchableOpacity
-            style={[
-              styles.floatingCircleBtn,
-              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
-            ]}
-            onPress={() => {
-              setArtifactFilterQuery('');
-              setShowArtifactsSheet(true);
-              fetchSessionArtifacts().catch(() => {});
-            }}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="View Session Artifacts"
-          >
-            <Layers size={19} color={isLight ? '#1f2328' : '#fafafa'} />
-            {sessionArtifacts.length > 0 ? (
-              <View style={[styles.headerBadge, isLight && { backgroundColor: '#0077b6' }]}>
-                <Text style={styles.headerBadgeText}>{sessionArtifacts.length}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.floatingCircleBtn,
-              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' },
-              showSessionMenu && (isLight ? { borderColor: '#0077b6' } : styles.floatingCircleBtnActive),
-            ]}
-            onPress={() => setShowSessionMenu((prev) => !prev)}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityLabel="Session Actions"
-          >
-            <MoreVertical size={20} color={showSessionMenu ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')} />
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* 2. Sleek Anchored Dropdown Menu (Underneath Three-Dot Button) */}
-      {showSessionMenu && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 250 }]} pointerEvents="box-none">
-          <TouchableWithoutFeedback onPress={() => setShowSessionMenu(false)}>
-            <View style={styles.dropdownBackdrop} />
-          </TouchableWithoutFeedback>
-
-          <View
-            style={[
-              styles.dropdownMenu,
-              isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de', shadowOpacity: 0.12 },
-              {
-                top: topInset + (Platform.OS === 'ios' ? 52 : 54),
-              },
-            ]}
-          >
-            {/* PTY / Terminal Option */}
+        {/* Right: Circular Three Dots Action Button with PanelUI Dropdown Menu */}
+        <Menu>
+          <Menu.Trigger>
             <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setShowSessionMenu(false);
-                setShowTerminal(true);
-              }}
+              style={[
+                styles.cleanCircleBtn,
+                isLight && { backgroundColor: '#f2f2f2' },
+              ]}
               activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Session Actions"
             >
-              <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                <Terminal size={15} color={isLight ? '#1f2328' : '#fafafa'} />
-              </View>
-              <View style={styles.dropdownItemContent}>
-                <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Terminal / PTY</Text>
-                <Text style={[styles.dropdownItemSub, isLight && { color: '#6e7681' }]}>Live interactive shell</Text>
-              </View>
+              <MoreVertical size={24} color={isLight ? '#1f2328' : '#fafafa'} />
             </TouchableOpacity>
+          </Menu.Trigger>
 
-            {/* Model & Config Parameters */}
-            <TouchableOpacity
-              style={styles.dropdownItem}
-              onPress={() => {
-                setShowSessionMenu(false);
-                setShowConfigSheet(true);
+          <Menu.Content align="end" minWidth={240}>
+            <Menu.Item
+              icon={<SlidersHorizontal size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              description="Model, thinking, temperature"
+              onSelect={() => setShowConfigSheet(true)}
+            >
+              Session Parameters
+            </Menu.Item>
+
+            <Menu.Item
+              icon={<Layers size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              description={
+                sessionArtifacts.length > 0
+                  ? `${sessionArtifacts.length} generated artifact${sessionArtifacts.length === 1 ? '' : 's'}`
+                  : 'View session outputs'
+              }
+              trailing={
+                sessionArtifacts.length > 0 ? (
+                  <View style={[styles.dropdownBadge, isLight && { backgroundColor: '#0077b6' }]}>
+                    <Text style={styles.dropdownBadgeText}>{sessionArtifacts.length}</Text>
+                  </View>
+                ) : undefined
+              }
+              onSelect={() => {
+                setArtifactFilterQuery('');
+                setShowArtifactsSheet(true);
+                fetchSessionArtifacts().catch(() => {});
               }}
-              activeOpacity={0.7}
             >
-              <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                <SlidersHorizontal size={15} color={isLight ? '#57606a' : '#a3a3a3'} />
-              </View>
-              <View style={styles.dropdownItemContent}>
-                <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Parameters</Text>
-                <Text style={[styles.dropdownItemSub, isLight && { color: '#6e7681' }]}>Model, thinking, temperature</Text>
-              </View>
-            </TouchableOpacity>
+              Artifacts
+            </Menu.Item>
 
-            <View style={[styles.dropdownDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
+            <Menu.Item
+              icon={<Terminal size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              description="Live interactive shell"
+              onSelect={() => setShowTerminal(true)}
+            >
+              Terminal / PTY
+            </Menu.Item>
 
-            {/* Pin / Unpin */}
+            <Menu.Separator />
+
             {activeSession && (
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={async () => {
-                  setShowSessionMenu(false);
+              <Menu.Item
+                icon={<Pin size={18} color={activeSession.pinned ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')} />}
+                onSelect={async () => {
                   await togglePinSession(activeSession.id);
                 }}
-                activeOpacity={0.7}
               >
-                <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                  <Pin size={15} color={activeSession.pinned ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')} />
-                </View>
-                <View style={styles.dropdownItemContent}>
-                  <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>
-                    {activeSession.pinned ? 'Unpin Session' : 'Pin Session'}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                {activeSession.pinned ? 'Unpin Session' : 'Pin Session'}
+              </Menu.Item>
             )}
 
-            {/* Rename Session */}
             {activeSession && (
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setShowSessionMenu(false);
+              <Menu.Item
+                icon={<Pencil size={18} color={isLight ? '#57606a' : '#a3a3a3'} />}
+                onSelect={() => {
                   setRenameTitle(activeSession.title);
                   setIsRenamingSession(true);
                 }}
-                activeOpacity={0.7}
               >
-                <View style={[styles.dropdownItemIcon, isLight && { backgroundColor: '#f6f8fa' }]}>
-                  <Pencil size={15} color={isLight ? '#57606a' : '#a3a3a3'} />
-                </View>
-                <View style={styles.dropdownItemContent}>
-                  <Text style={[styles.dropdownItemTitle, isLight && { color: '#1f2328' }]}>Rename Session</Text>
-                </View>
-              </TouchableOpacity>
+                Rename Session
+              </Menu.Item>
             )}
 
-            <View style={[styles.dropdownDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
+            {activeSession && <Menu.Separator />}
 
-            {/* Delete Session */}
             {activeSession && (
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setShowSessionMenu(false);
+              <Menu.Item
+                variant="destructive"
+                icon={<Trash2 size={18} color="#ef4444" />}
+                onSelect={() => {
                   Alert.alert(
                     'Delete Session',
                     `Are you sure you want to delete "${activeSession.title}"? This will permanently remove its transcript from the host machine.`,
@@ -1085,25 +973,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     ]
                   );
                 }}
-                activeOpacity={0.7}
               >
-                <View style={[styles.dropdownItemIcon, styles.dropdownItemIconDanger]}>
-                  <Trash2 size={15} color="#f85149" />
-                </View>
-                <View style={styles.dropdownItemContent}>
-                  <Text style={[styles.dropdownItemTitle, { color: '#f85149' }]}>
-                    Delete Session
-                  </Text>
-                </View>
-              </TouchableOpacity>
+                Delete Session
+              </Menu.Item>
             )}
-          </View>
-        </View>
-      )}
+          </Menu.Content>
+        </Menu>
+      </View>
 
       <ScrollView
         ref={scrollViewRef}
-        style={[styles.scroll, isLight && { backgroundColor: '#f6f8fa' }]}
+        style={[styles.scroll, isLight && { backgroundColor: '#ffffff' }]}
         contentContainerStyle={[
           styles.scrollContent,
           {
@@ -1111,7 +991,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             paddingBottom:
               composerMeasuredHeight +
               Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) +
-              (Platform.OS === 'ios' && isKeyboardActive ? keyboardHeight : 0) +
+              (Platform.OS === 'ios' ? keyboardHeight : 0) +
               18,
           },
         ]}
@@ -1122,31 +1002,39 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         keyboardDismissMode="interactive"
         onTouchStart={pauseAutoScroll}
         onScrollBeginDrag={pauseAutoScroll}
-        onContentSizeChange={() => {
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 1,
+          autoscrollToTopThreshold: 10,
+        }}
+        onContentSizeChange={(_w, h) => {
+          if (needsScrollAdjustmentRef.current && prevScrollHeightRef.current > 0) {
+            const heightDelta = h - prevScrollHeightRef.current;
+            if (heightDelta > 0) {
+              const targetY = prevScrollYRef.current + heightDelta;
+              scrollViewRef.current?.scrollTo({
+                y: targetY,
+                animated: false,
+              });
+              currentScrollYRef.current = targetY;
+            }
+            needsScrollAdjustmentRef.current = false;
+            prependedAnchorMsgIdRef.current = null;
+          }
+          prevScrollHeightRef.current = h;
+
           if (isSendingPrompt && !isAutoScrollPausedRef.current) {
             triggerAutoScroll();
           }
         }}
       >
 
-        {/* 3. Pagination: Load Older History Button */}
-        {hasMoreMessages && (
-          <View style={styles.loadOlderContainer}>
-            <TouchableOpacity
-              style={[styles.loadOlderBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}
-              onPress={loadOlderMessages}
-              disabled={isLoadingOlderMessages}
-              activeOpacity={0.7}
-            >
-              {isLoadingOlderMessages ? (
-                <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.primaryLight} />
-              ) : (
-                <>
-                  <ArrowUp size={13} color={isLight ? '#0077b6' : colors.primaryLight} />
-                  <Text style={[styles.loadOlderText, isLight && { color: '#57606a' }]}>Load older messages</Text>
-                </>
-              )}
-            </TouchableOpacity>
+        {/* Infinite Scroll: Loading Spinner when older messages are being fetched */}
+        {isLoadingOlderMessages && (
+          <View style={styles.infiniteLoadingContainer}>
+            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#58a6ff'} />
+            <Text style={[styles.infiniteLoadingText, isLight && { color: '#57606a' }]}>
+              Loading older messages...
+            </Text>
           </View>
         )}
 
@@ -1240,13 +1128,38 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         }
 
                         return (
-                          <FlatReasoningBlock
+                          <AnimatedReanimated.View
                             key={element.id}
-                            id={element.id}
-                            text={element.text}
-                            isCurrentlyThinking={isCurrentlyThinking}
-                            isLight={isLight}
-                          />
+                            entering={FadeInDown.duration(240).springify().damping(20)}
+                          >
+                            <Reasoning
+                              isStreaming={isCurrentlyThinking}
+                              className="my-1.5"
+                            >
+                              <Reasoning.Trigger
+                                label={(isStreaming, duration) =>
+                                  isStreaming ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                      <ThinkingOrb state="solving" size={13} />
+                                      <Shimmer textClassName={isLight ? 'text-xs text-[#0077b6] font-medium' : 'text-xs text-[#58a6ff] font-medium'}>
+                                        Thinking…
+                                      </Shimmer>
+                                    </View>
+                                  ) : (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                      <Sparkles size={13} color={isLight ? '#57606a' : '#8b949e'} />
+                                      <Text style={[{ fontSize: 12 }, isLight ? { color: '#57606a' } : { color: '#8b949e' }]}>
+                                        {duration === undefined ? 'Thought' : `Thought for ${duration}s`}
+                                      </Text>
+                                    </View>
+                                  )
+                                }
+                              />
+                              <Reasoning.Content>
+                                {element.text.trim()}
+                              </Reasoning.Content>
+                            </Reasoning>
+                          </AnimatedReanimated.View>
                         );
                       }
 
@@ -1303,10 +1216,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       }
 
                       if (element.type === 'content') {
+                        const isLastTurn = turnIdx === displayedTurns.length - 1;
                         return (
-                          <View key={element.id} style={styles.resolutionContainer}>
-                            <MarkdownText content={element.text} isUser={false} />
-                          </View>
+                          <AnimatedReanimated.View
+                            key={element.id}
+                            entering={FadeInDown.duration(280).springify().damping(22)}
+                            style={styles.resolutionContainer}
+                          >
+                            <Response isStreaming={isSendingPrompt && isLastTurn}>
+                              {element.text}
+                            </Response>
+                            {isSendingPrompt && isLastTurn && (
+                              <AnimatedReanimated.View
+                                entering={FadeIn.duration(150)}
+                                style={styles.streamingCaretContainer}
+                              >
+                                <View style={[styles.streamingDot, isLight && { backgroundColor: '#0077b6' }]} />
+                              </AnimatedReanimated.View>
+                            )}
+                          </AnimatedReanimated.View>
                         );
                       }
 
@@ -1316,9 +1244,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     // Fallback if elements not yet populated
                     <>
                       {turn.assistant.content ? (
-                        <View style={styles.resolutionContainer}>
-                          <MarkdownText content={turn.assistant.content} isUser={false} />
-                        </View>
+                        <AnimatedReanimated.View
+                          entering={FadeInDown.duration(280).springify().damping(22)}
+                          style={styles.resolutionContainer}
+                        >
+                          <Response isStreaming={isSendingPrompt && turnIdx === displayedTurns.length - 1}>
+                            {turn.assistant.content}
+                          </Response>
+                        </AnimatedReanimated.View>
                       ) : null}
                     </>
                   )}
@@ -1366,7 +1299,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {/* 5. Streaming Live Indicator */}
         {isSendingPrompt && (
           <View style={styles.streamingIndicatorRow}>
-            <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#a3a3a3'} />
+            <ThinkingOrb state="working" size={20} />
             <Text style={[styles.streamingText, isLight && { color: '#57606a' }]}>Agent is thinking and executing...</Text>
           </View>
         )}
@@ -1374,18 +1307,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       {/* 6. Floating Scroll FAB (Visible when user scrolled up or paused auto-scroll mid-stream) */}
       {(showScrollToBottom || (isSendingPrompt && isAutoScrollPaused)) && (
-        <View
+        <AnimatedReanimated.View
           style={[
             styles.scrollFabContainer,
             {
               bottom:
                 composerMeasuredHeight +
                 Math.max(insets.bottom, 12) +
-                (Platform.OS === 'ios' && isKeyboardActive ? keyboardHeight : 0) +
                 12,
-              pointerEvents: 'box-none',
             },
+            Platform.OS === 'ios' ? animatedKeyboardStyle : null,
           ]}
+          pointerEvents="box-none"
         >
           <TouchableOpacity
             style={[styles.scrollFab, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}
@@ -1400,14 +1333,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               <View style={[styles.scrollFabBadge, isLight && { backgroundColor: '#0077b6' }]} />
             )}
           </TouchableOpacity>
-        </View>
+        </AnimatedReanimated.View>
       )}
 
-      {/* 7. Chat Input Bar: Wrapped in KeyboardAvoidingView to prevent keyboard overlap */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-        style={styles.keyboardAvoidingInputWrapper}
+      {/* 7. Chat Input Bar: Elevation above Software Keyboard */}
+      <AnimatedReanimated.View
+        style={[
+          styles.keyboardAvoidingInputWrapper,
+          Platform.OS === 'ios' ? animatedKeyboardStyle : null,
+        ]}
         pointerEvents="box-none"
       >
         <View
@@ -1415,145 +1349,84 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           style={[
             styles.chatInputWrapper,
             {
-              paddingBottom:
-                isKeyboardActive
-                  ? (Platform.OS === 'android' ? 8 : 6)
-                  : Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12),
+              paddingBottom: isKeyboardActive
+                ? (Platform.OS === 'android' ? 8 : 6)
+                : Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10),
             },
           ]}
           pointerEvents="box-none"
         >
-        {/* Vercel v0 Pattern: Liquid Glass Dissolve Gradient Mask */}
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: -26,
-            left: 0,
-            right: 0,
-            height: 26,
-          }}
-        >
-          <Svg width="100%" height="100%">
-            <Defs>
-              <LinearGradient id="composerDissolve" x1="0" y1="0" x2="0" y2="1">
-                <Stop
-                  offset="0"
-                  stopColor={isLight ? '#f6f8fa' : '#0d1117'}
-                  stopOpacity="0"
-                />
-                <Stop
-                  offset="1"
-                  stopColor={isLight ? '#f6f8fa' : '#0d1117'}
-                  stopOpacity={isLight ? 0.95 : 0.9}
-                />
-              </LinearGradient>
-            </Defs>
-            <Rect width="100%" height="100%" fill="url(#composerDissolve)" />
-          </Svg>
-        </View>
-
-        {/* Autocomplete Slash Command Picker Overlay */}
-        <SlashCommandPicker
-          visible={showCommandPicker}
-          searchQuery={promptInput}
-          onSelect={handleSelectCommand}
-          onClose={() => setShowCommandPicker(false)}
-        />
-
-        {/* Interactive Live Tool Approval Card (Paradev ApprovalCard) */}
-        {pendingApproval && (
-          <LiveApprovalCard
-            approval={pendingApproval}
-            isResponding={isRespondingApproval}
-            onAuthorize={async () => {
-              setIsRespondingApproval(true);
-              await respondApproval(true);
-              setIsRespondingApproval(false);
-            }}
-            onDeny={async () => {
-              setIsRespondingApproval(true);
-              await respondApproval(false);
-              setIsRespondingApproval(false);
-            }}
-          />
-        )}
-
-        {/* Floating Capsule Composer Card */}
-        <View style={[styles.composerCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de', shadowOpacity: 0.08 }]}>
-          {/* Circular '+' Button on Left */}
-          <TouchableOpacity
-            style={[
-              styles.composerPlusBtn,
-              isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' },
-              showCommandPicker && (isLight ? { backgroundColor: '#0077b6', borderColor: '#0077b6' } : styles.composerPlusBtnActive),
-            ]}
-            activeOpacity={0.7}
-            onPress={() => setShowCommandPicker((prev) => !prev)}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-          >
-            <Plus size={16} color={showCommandPicker ? '#ffffff' : (isLight ? '#57606a' : '#a3a3a3')} />
-          </TouchableOpacity>
-
-          {/* Clean Text Input with Dynamic Multiline Expansion */}
-          <TextInput
-            style={[styles.composerTextInput, isLight && { color: '#1f2328' }]}
-            placeholder={
-              !isNetworkOnline
-                ? 'Offline — waiting for connection...'
-                : isDictating
-                ? 'Listening... speak your prompt'
-                : 'Type a message...'
-            }
-            placeholderTextColor={isDictating ? '#ef4444' : (isLight ? '#8c959f' : '#737373')}
-            value={promptInput}
-            onChangeText={handleInputChange}
-            onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
-            multiline={true}
-            blurOnSubmit={false}
-            editable={!isSendingPrompt}
+          {/* Autocomplete Slash Command Picker Overlay */}
+          <SlashCommandPicker
+            visible={showCommandPicker}
+            searchQuery={promptInput}
+            onSelect={handleSelectCommand}
+            onClose={() => setShowCommandPicker(false)}
           />
 
-          {/* Right Action: Stop, ArrowUp Send, or Mic */}
-          {isSendingPrompt ? (
-            <TouchableOpacity
-              style={styles.composerStopBtn}
-              onPress={cancelPrompt}
-              activeOpacity={0.8}
-              accessibilityLabel="Stop agent turn"
-              disabled={isCancellingPrompt}
-            >
-              {isCancellingPrompt ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Square size={13} color="#ffffff" />
-              )}
-            </TouchableOpacity>
-          ) : promptInput.trim().length > 0 && !isDictating ? (
-            <TouchableOpacity
-              style={[styles.composerSendBtn, { backgroundColor: '#0077b6' }]}
-              onPress={handleSendPrompt}
-              activeOpacity={0.85}
-            >
-              <ArrowUp size={16} color="#ffffff" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[
-                styles.composerMicBtn,
-                isLight && { backgroundColor: '#f6f8fa' },
-                isDictating && styles.composerMicBtnActive,
-              ]}
-              activeOpacity={0.7}
-              onPress={handleToggleDictation}
-              accessibilityLabel={isDictating ? 'Stop voice dictation' : 'Start voice dictation'}
-            >
-              <Mic size={17} color={isDictating ? '#ffffff' : (isLight ? '#57606a' : '#737373')} />
-            </TouchableOpacity>
+          {/* Interactive Live Tool Approval Card (Paradev ApprovalCard) */}
+          {pendingApproval && (
+            <LiveApprovalCard
+              approval={pendingApproval}
+              isResponding={isRespondingApproval}
+              onAuthorize={async () => {
+                setIsRespondingApproval(true);
+                await respondApproval(true);
+                setIsRespondingApproval(false);
+              }}
+              onDeny={async () => {
+                setIsRespondingApproval(true);
+                await respondApproval(false);
+                setIsRespondingApproval(false);
+              }}
+            />
           )}
+
+          {/* PanelUI Native AI Composer — Vercel v0 Floating Liquid Glass Pattern */}
+          <AIInput
+            value={promptInput}
+            onValueChange={handleInputChange}
+            onSubmit={handleSendPrompt}
+            onStop={cancelPrompt}
+            onVoice={handleToggleDictation}
+            status={isSendingPrompt ? 'streaming' : isDictating ? 'recording' : 'ready'}
+            avoidKeyboard={false}
+            size="lg"
+            className="w-full"
+            style={[
+              styles.floatingComposerCapsule,
+              isLight ? styles.floatingComposerLight : styles.floatingComposerDark,
+            ]}
+          >
+            <AIInput.Row>
+              <AIInput.Action
+                label="Commands"
+                icon={
+                  <Plus
+                    size={16}
+                    color={showCommandPicker ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')}
+                  />
+                }
+                onPress={() => setShowCommandPicker((prev) => !prev)}
+              />
+
+              <AIInput.Field
+                placeholder={
+                  !isNetworkOnline
+                    ? 'Offline — waiting for connection...'
+                    : isDictating
+                    ? 'Listening... speak your prompt'
+                    : 'Type a message...'
+                }
+                editable={!isSendingPrompt}
+                onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
+              />
+
+              <AIInput.Submit />
+            </AIInput.Row>
+          </AIInput>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </AnimatedReanimated.View>
 
       {/* 8. Draggable Tool Slide Tray */}
       <ToolActionTray
@@ -1660,13 +1533,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a', // Paradev root dark theme
+    backgroundColor: '#141414',
   },
   headerTerminalBtn: {
     width: 32,
     height: 32,
     borderRadius: radii.btn,
-    backgroundColor: '#161616',
+    backgroundColor: '#191919',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
@@ -1693,9 +1566,10 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+    backgroundColor: '#141414',
   },
   // Floating Option 3 Header Styles
-  floatingHeaderContainer: {
+  cleanHeaderContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -1703,125 +1577,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingTop: Platform.OS === 'ios' ? 8 : 10,
+    paddingHorizontal: 16,
     paddingBottom: 6,
     backgroundColor: 'transparent',
     zIndex: 40,
+    borderBottomWidth: 0,
   },
-  floatingCircleBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+  cleanCircleBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1e1e1e',
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  floatingCircleBtnActive: {
-    backgroundColor: '#262626',
-    borderColor: 'rgba(255, 255, 255, 0.28)',
-  },
-  floatingCenterPill: {
+  cleanHeaderCenter: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    borderRadius: 21,
-    height: 42,
-    paddingHorizontal: 14,
-    marginHorizontal: 8,
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
+    paddingHorizontal: 12,
   },
-  floatingPillTitle: {
-    fontSize: 14,
+  cleanHeaderTitle: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#fafafa',
+    color: '#f5f5f5',
     letterSpacing: -0.2,
     textAlign: 'center',
   },
-  floatingRightCluster: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  // Dropdown Badge
+  dropdownBadge: {
+    backgroundColor: '#0077b6',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginLeft: 8,
   },
-  // Sleek Anchored Dropdown Menu
-  dropdownBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'transparent',
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    right: 12,
-    width: 220,
-    backgroundColor: 'rgba(22, 22, 22, 0.98)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 14,
-    zIndex: 260,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    gap: 10,
-  },
-  dropdownItemIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dropdownItemIconDanger: {
-    backgroundColor: 'rgba(248, 81, 73, 0.12)',
-  },
-  dropdownItemContent: {
-    flex: 1,
-  },
-  dropdownItemTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  dropdownItemSub: {
+  dropdownBadgeText: {
     fontSize: 11,
-    color: '#737373',
-    marginTop: 1,
-  },
-  dropdownDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginVertical: 4,
-    marginHorizontal: 6,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   // Compact Rename Modal Styles
   renameOverlay: {
@@ -1949,27 +1744,19 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
-  // Pagination header
-  loadOlderContainer: {
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  loadOlderBtn: {
+  // Infinite scroll loader
+  infiniteLoadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginBottom: 8,
+    gap: 8,
   },
-  loadOlderText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-    color: '#fafafa',
+  infiniteLoadingText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#8b949e',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
 
@@ -2012,38 +1799,6 @@ const styles = StyleSheet.create({
   assistantTurnWrapper: {
     width: '100%',
     marginBottom: 16,
-  },
-
-  // Flat Reasoning Flow (Borderless, natural order)
-  flatReasoningBlock: {
-    marginVertical: 4,
-    paddingVertical: 2,
-  },
-  flatReasoningHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 3,
-  },
-  flatReasoningHeaderTitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#8b949e',
-  },
-  flatReasoningHeaderTitleLight: {
-    color: '#57606a',
-  },
-  flatReasoningText: {
-    fontSize: 12,
-    lineHeight: 18,
-    color: '#8b949e',
-    fontStyle: 'italic',
-    paddingLeft: 4,
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  flatReasoningTextLight: {
-    color: '#57606a',
   },
 
   // Flat Tool Actions (Pure borderless rows matching reference image)
@@ -2090,6 +1845,19 @@ const styles = StyleSheet.create({
   // Resolution summary container
   resolutionContainer: {
     paddingTop: 2,
+  },
+  streamingCaretContainer: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 2,
+  },
+  streamingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#58a6ff',
+    opacity: 0.85,
   },
 
   // Paradev AgentMessage Footer Action Row
@@ -2236,7 +2004,28 @@ const styles = StyleSheet.create({
   chatInputWrapper: {
     width: '100%',
     backgroundColor: 'transparent',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
+  },
+  // Vercel v0 Liquid Glass Floating Composer Capsule
+  floatingComposerCapsule: {
+    borderRadius: 28,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  floatingComposerDark: {
+    backgroundColor: 'rgba(25, 25, 25, 0.92)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  floatingComposerLight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
   },
   composerCard: {
     flexDirection: 'row',

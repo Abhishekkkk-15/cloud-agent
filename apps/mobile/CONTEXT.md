@@ -62,6 +62,17 @@ apps/mobile/src/
 
 ---
 
+## 🎨 UI Component Stack & PanelUI-Native Architecture
+
+`apps/mobile` is built on **PanelUI** (`panelui-native`), an accessible component ecosystem styled via Tailwind CSS v4 (**Uniwind**) and animated on the UI thread via **React Native Reanimated**:
+
+- **Component-First Invariant**: All screens and dialogs use `panelui-native` primitives (`Drawer`, `Tree`, `Message`, `Reasoning`, `CodeBlock`, `BottomSheet`, `Kpi`, `LineChart`, `Button`, `Input`). Custom components are only permitted when `panelui-native` genuinely lacks an equivalent.
+- **Root Provider**: `<PanelUIProvider>` in `src/App.tsx` supplies the global gesture root (`GestureHandlerRootView`), overlay portals (`PortalHost`), and in-app toasts (`ToastViewport`).
+- **Tailwind v4 / Uniwind Pipeline**: Ahead-of-time compilation via `withUniwindConfig` in `metro.config.js` scanning `src/global.css` and `panelui-native/src`.
+- **Theme Palette**: Strictly follows the official default PanelUI Dark (`#141414` background, `#191919` card, `#1e1e1e` surface, `#f5f5f5` text) and White (`#ffffff` background, `#f7f7f7` surface, `#262626` text) tokens.
+
+---
+
 ## ⚡ Runtime Data Flow
 
 1. **Authentication**: Handled via Google OAuth redirect (`cloud-agent://auth`) or developer token. Profile and credentials persisted via `AsyncStorage`.

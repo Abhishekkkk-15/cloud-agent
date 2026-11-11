@@ -1,42 +1,31 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
-  TextInput,
+  TouchableOpacity,
   ActivityIndicator,
-  Platform,
-  Animated,
-  PanResponder,
-  Dimensions,
-  StatusBar,
 } from 'react-native';
 import {
+  BottomSheet,
+  Breadcrumb,
+  Button,
+  Input,
+  Item,
+  Text,
+  Badge,
+  cn,
+} from 'panelui-native';
+import {
   Folder,
-  ChevronRight,
   ArrowUp,
   Home,
   RefreshCw,
-  X,
   Search,
   Check,
-  FolderGit2,
   HardDrive,
+  X,
 } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
-import { useDaemonStore, DirectoryBrowseResult } from '../stores/useDaemonStore';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
-const FULL_HEIGHT = SCREEN_HEIGHT - TOP_INSET;
-const DEFAULT_HEIGHT = Math.min(SCREEN_HEIGHT * 0.75, 640);
-const SNAP_TOP = 0;
-const SNAP_DEFAULT = Math.round(FULL_HEIGHT - DEFAULT_HEIGHT);
-const SNAP_CLOSED = FULL_HEIGHT + 60;
+import { useDaemonStore } from '../stores/useDaemonStore';
 
 interface FolderPickerModalProps {
   visible: boolean;
@@ -53,7 +42,6 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
 }) => {
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
-  const activeMachine = useDaemonStore((s) => s.activeMachine);
   const browseDirectories = useDaemonStore((s) => s.browseDirectories);
 
   const [currentPath, setCurrentPath] = useState<string>('');
@@ -63,98 +51,14 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   const [subdirs, setSubdirs] = useState<Array<{ name: string; fullPath: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
-  const [isExpanded, setIsExpanded] = useState(false);
-  const isExpandedRef = useRef(false);
-  isExpandedRef.current = isExpanded;
-
-  const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
-  const currentY = useRef(SNAP_DEFAULT);
-  const startDragY = useRef(SNAP_DEFAULT);
-
-  const snapTo = (toValue: number, expanded: boolean) => {
-    currentY.current = toValue;
-    setIsExpanded(expanded);
-    Animated.spring(translateY, {
-      toValue,
-      damping: 24,
-      mass: 0.8,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const handleToggleExpand = () => {
-    if (isExpandedRef.current) {
-      snapTo(SNAP_DEFAULT, false);
-    } else {
-      snapTo(SNAP_TOP, true);
-    }
-  };
-
-  // PanResponder to handle dragging up to expand full screen, or down to collapse/dismiss
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 4,
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => Math.abs(gestureState.dy) > 4,
-      onPanResponderGrant: () => {
-        startDragY.current = currentY.current;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        const nextY = Math.max(SNAP_TOP, startDragY.current + gestureState.dy);
-        currentY.current = nextY;
-        translateY.setValue(nextY);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (!isExpandedRef.current) {
-          if (gestureState.dy < -40 || gestureState.vy < -0.3) {
-            snapTo(SNAP_TOP, true);
-          } else if (gestureState.dy > 90 || gestureState.vy > 0.45) {
-            handleClose();
-          } else {
-            snapTo(SNAP_DEFAULT, false);
-          }
-        } else {
-          if (gestureState.dy > 60 || gestureState.vy > 0.35) {
-            snapTo(SNAP_DEFAULT, false);
-          } else {
-            snapTo(SNAP_TOP, true);
-          }
-        }
-      },
-    })
-  ).current;
 
   useEffect(() => {
     if (visible) {
-      setIsExpanded(false);
-      currentY.current = SNAP_DEFAULT;
-      translateY.setValue(SNAP_CLOSED);
-      Animated.spring(translateY, {
-        toValue: SNAP_DEFAULT,
-        damping: 24,
-        mass: 0.85,
-        useNativeDriver: true,
-      }).start();
       loadDirectory(initialPath);
     } else {
-      currentY.current = SNAP_CLOSED;
-      translateY.setValue(SNAP_CLOSED);
       setSearchFilter('');
-      setIsExpanded(false);
     }
   }, [visible, initialPath]);
-
-  const handleClose = () => {
-    currentY.current = SNAP_CLOSED;
-    Animated.timing(translateY, {
-      toValue: SNAP_CLOSED,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(() => {
-      onClose();
-    });
-  };
 
   const loadDirectory = async (target?: string) => {
     setIsLoading(true);
@@ -180,7 +84,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   };
 
   // Build clickable breadcrumbs from path
-  const pathSegments = React.useMemo(() => {
+  const pathSegments = useMemo(() => {
     if (!currentPath) return [];
     const normalized = currentPath.replace(/\\/g, '/');
     const isWin = /^[a-zA-Z]:/.test(normalized);
@@ -189,7 +93,6 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
     const segments: Array<{ name: string; fullPath: string }> = [];
 
     if (!isWin) {
-      // Root /
       segments.push({ name: '/', fullPath: '/' });
       let accumulated = '';
       for (const p of parts) {
@@ -214,624 +117,194 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
       : d.name.toLowerCase().includes(searchFilter.toLowerCase())
   );
 
-  if (!visible) return null;
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={handleClose}
-    >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-
-        <Animated.View
-          style={[
-            styles.modalCard,
-            isLight && styles.modalCardLight,
-            { transform: [{ translateY }] },
-          ]}
-        >
-          {/* Top Drag Handle & Header Zone */}
-          <View {...panResponder.panHandlers} collapsable={false}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.handleContainer}
-              onPress={handleToggleExpand}
-            >
-              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
-            </TouchableOpacity>
-
-            {/* Header */}
-            <View style={[styles.header, isLight && styles.headerLight]}>
-              <View style={styles.headerLeft}>
-                <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
-                  <Folder size={18} color={isLight ? '#0077b6' : colors.primary} />
-                </View>
-                <View>
-                  <Text style={[styles.title, isLight && styles.titleLight]}>Browse Remote Folders</Text>
-                  <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>
-                    Select workspace directory on{' '}
-                    <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontWeight: '600' }}>
-                      {activeMachine?.name || 'Local Machine'}
-                    </Text>
-                  </Text>
-                </View>
+    <BottomSheet open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <BottomSheet.Content
+        size="85%"
+        showClose={false}
+        className="bg-popover border-t border-border p-0 overflow-hidden"
+      >
+        <BottomSheet.Header className="px-4 pt-3 pb-2 border-b border-border pe-4 pr-4 bg-surface">
+          <View className="flex-row items-center justify-between mb-2">
+            <View className="flex-row items-center gap-2 flex-1 mr-2">
+              <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
+                <Folder size={16} color={isLight ? '#262626' : '#f5f5f5'} />
               </View>
-              <TouchableOpacity
-                style={[styles.closeBtn, isLight && styles.closeBtnLight]}
-                onPress={handleClose}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Navigation & Breadcrumb Toolbar */}
-          <View style={[styles.navBar, isLight && styles.navBarLight]}>
-            <View style={styles.navActions}>
-              <TouchableOpacity
-                style={[styles.navActionBtn, isLight && styles.navActionBtnLight, !parentPath && styles.navActionBtnDisabled]}
-                onPress={() => parentPath && loadDirectory(parentPath)}
-                disabled={!parentPath || isLoading}
-                activeOpacity={0.7}
-              >
-                <ArrowUp size={15} color={parentPath ? (isLight ? '#1f2328' : '#fafafa') : (isLight ? '#8c959f' : '#484f58')} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.navActionBtn, isLight && styles.navActionBtnLight]}
-                onPress={() => loadDirectory(homePath)}
-                disabled={isLoading}
-                activeOpacity={0.7}
-              >
-                <Home size={15} color={isLight ? '#1f2328' : '#fafafa'} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.navActionBtn, isLight && styles.navActionBtnLight]}
-                onPress={() => loadDirectory(currentPath)}
-                disabled={isLoading}
-                activeOpacity={0.7}
-              >
-                <RefreshCw size={14} color={isLight ? '#1f2328' : '#fafafa'} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Clickable Breadcrumbs */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.breadcrumbsScroll}
-            >
-              {pathSegments.map((seg, idx) => (
-                <View key={seg.fullPath} style={styles.breadcrumbItem}>
-                  <TouchableOpacity
-                    onPress={() => loadDirectory(seg.fullPath)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.breadcrumbText,
-                        isLight && styles.breadcrumbTextLight,
-                        idx === pathSegments.length - 1 && (isLight ? styles.breadcrumbTextActiveLight : styles.breadcrumbTextActive),
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {seg.name}
-                    </Text>
-                  </TouchableOpacity>
-                  {idx < pathSegments.length - 1 && (
-                    <Text style={[styles.breadcrumbSep, isLight && { color: '#8c959f' }]}>/</Text>
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Drives / Partitions Selector Bar */}
-          {availableDrives.length > 0 && (
-            <View style={[styles.drivesBar, isLight && styles.drivesBarLight]}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.drivesScroll}
-              >
-                {availableDrives.map((drive) => {
-                  const normCurr = currentPath.toLowerCase().replace(/\\/g, '/');
-                  const normDrive = drive.toLowerCase().replace(/\\/g, '/').replace(/\/$/, '');
-                  const isCurrent =
-                    normCurr.startsWith(normDrive + '/') ||
-                    normCurr === normDrive ||
-                    normCurr.startsWith(normDrive);
-                  return (
-                    <TouchableOpacity
-                      key={drive}
-                      style={[
-                        styles.driveChip,
-                        isLight && styles.driveChipLight,
-                        isCurrent && (isLight ? styles.driveChipActiveLight : styles.driveChipActive),
-                      ]}
-                      onPress={() => loadDirectory(drive)}
-                      activeOpacity={0.7}
-                    >
-                      <HardDrive size={12} color={isCurrent ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')} />
-                      <Text
-                        style={[
-                          styles.driveChipText,
-                          isLight && styles.driveChipTextLight,
-                          isCurrent && (isLight ? styles.driveChipTextActiveLight : styles.driveChipTextActive),
-                        ]}
-                      >
-                        {drive}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Quick Search in Current Folder */}
-          <View style={[styles.searchContainer, isLight && styles.searchContainerLight]}>
-            <Search size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
-            <TextInput
-              style={[styles.searchInput, isLight && styles.searchInputLight]}
-              value={searchFilter}
-              onChangeText={setSearchFilter}
-              placeholder="Filter folders in this directory..."
-              placeholderTextColor={isLight ? '#8c959f' : '#737373'}
-            />
-            {searchFilter.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchFilter('')}>
-                <X size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Folder List */}
-          <ScrollView
-            style={[styles.folderList, isLight && styles.folderListLight]}
-            contentContainerStyle={styles.folderListContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {isLoading ? (
-              <View style={styles.loadingBox}>
-                <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.primary} />
-                <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Reading directories...</Text>
-              </View>
-            ) : filteredDirs.length === 0 ? (
-              <View style={styles.emptyBox}>
-                <Folder size={32} color={isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.10)'} />
-                <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>No subdirectories</Text>
-                <Text style={[styles.emptySubtitle, isLight && styles.emptySubtitleLight]}>
-                  You can choose this current folder as your workspace.
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                  Browse Host Directories
+                </Text>
+                <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
+                  {subdirs.length} folders available
                 </Text>
               </View>
-            ) : (
-              filteredDirs.map((dir) => (
-                <TouchableOpacity
-                  key={dir.fullPath}
-                  style={[styles.folderRow, isLight && styles.folderRowLight]}
-                  onPress={() => loadDirectory(dir.fullPath)}
-                  activeOpacity={0.7}
-                >
-                  <View style={[styles.folderIconBox, isLight && styles.folderIconBoxLight]}>
-                    <Folder size={17} color={isLight ? '#0077b6' : colors.primary} />
-                  </View>
-                  <Text style={[styles.folderName, isLight && styles.folderNameLight]} numberOfLines={1}>
-                    {dir.name}
-                  </Text>
-                  <ChevronRight size={15} color={isLight ? '#8c959f' : '#737373'} />
-                </TouchableOpacity>
-              ))
-            )}
-          </ScrollView>
-
-          {/* Footer: Confirm Selection */}
-          <View style={[styles.footer, isLight && styles.footerLight]}>
-            <View style={styles.selectedRow}>
-              <Text style={[styles.selectedLabel, isLight && styles.selectedLabelLight]}>Target:</Text>
-              <Text style={[styles.selectedPath, isLight && styles.selectedPathLight]} numberOfLines={1}>
-                {currentPath || 'None'}
-              </Text>
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.selectBtn,
-                isLight && styles.selectBtnLight,
-                !currentPath && styles.selectBtnDisabled,
-              ]}
-              onPress={handleSelectCurrent}
-              disabled={!currentPath}
-              activeOpacity={0.85}
-            >
-              <Check size={16} color={!currentPath ? '#737373' : (isLight ? '#ffffff' : '#0a0a0a')} />
-              <Text
-                style={[
-                  styles.selectBtnText,
-                  isLight && styles.selectBtnTextLight,
-                  !currentPath && { color: '#737373' },
-                ]}
+            <View className="flex-row items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="xs"
+                onPress={() => loadDirectory(currentPath)}
+                disabled={isLoading}
+                className="w-7 h-7 p-0 items-center justify-center rounded-lg"
               >
-                Select This Folder
-              </Text>
-            </TouchableOpacity>
+                <RefreshCw size={12} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Button>
+              <Button
+                variant="outline"
+                size="xs"
+                onPress={onClose}
+                className="w-7 h-7 p-0 items-center justify-center rounded-lg"
+              >
+                <X size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Button>
+            </View>
           </View>
-        </Animated.View>
-      </View>
-    </Modal>
+
+          {/* Controls: Drives, Up, Home */}
+          <View className="flex-row items-center gap-1.5 mb-2 overflow-hidden flex-wrap">
+            {availableDrives.map((drv) => {
+              const isSelected = currentPath.toUpperCase().startsWith(drv.toUpperCase());
+              return (
+                <Button
+                  key={drv}
+                  variant={isSelected ? 'secondary' : 'outline'}
+                  size="xs"
+                  onPress={() => loadDirectory(drv)}
+                  className="flex-row items-center gap-1 px-2 py-0.5"
+                >
+                  <HardDrive size={11} color={isSelected ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
+                  <Text className="text-xs font-mono font-medium text-foreground">{drv}</Text>
+                </Button>
+              );
+            })}
+
+            {homePath ? (
+              <Button
+                variant="outline"
+                size="xs"
+                onPress={() => loadDirectory(homePath)}
+                className="flex-row items-center gap-1 px-2 py-0.5"
+              >
+                <Home size={11} color={isLight ? '#686868' : '#a3a3a3'} />
+                <Text className="text-xs font-medium text-foreground">Home</Text>
+              </Button>
+            ) : null}
+
+            {parentPath ? (
+              <Button
+                variant="outline"
+                size="xs"
+                onPress={() => loadDirectory(parentPath)}
+                className="flex-row items-center gap-1 px-2 py-0.5 ml-auto"
+              >
+                <ArrowUp size={11} color={isLight ? '#262626' : '#f5f5f5'} />
+                <Text className="text-xs font-medium text-foreground">Up</Text>
+              </Button>
+            ) : null}
+          </View>
+
+          {/* Breadcrumbs Trail */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-1">
+            <Breadcrumb>
+              <Breadcrumb.List className="flex-row items-center gap-1">
+                {pathSegments.map((seg, idx) => {
+                  const isLast = idx === pathSegments.length - 1;
+                  return (
+                    <Breadcrumb.Item key={seg.fullPath}>
+                      {isLast ? (
+                        <Breadcrumb.Page className="text-xs font-semibold text-foreground">
+                          {seg.name}
+                        </Breadcrumb.Page>
+                      ) : (
+                        <Breadcrumb.Link
+                          onPress={() => loadDirectory(seg.fullPath)}
+                          className="text-xs text-muted-foreground"
+                        >
+                          {seg.name}
+                        </Breadcrumb.Link>
+                      )}
+                    </Breadcrumb.Item>
+                  );
+                })}
+              </Breadcrumb.List>
+            </Breadcrumb>
+          </ScrollView>
+
+          {/* Filter Bar */}
+          <View className="mt-2 w-full">
+            <Input
+              value={searchFilter}
+              onChangeText={setSearchFilter}
+              placeholder="Filter subfolders..."
+              size="sm"
+              variant="outline"
+              className="w-full"
+            />
+          </View>
+        </BottomSheet.Header>
+
+        {/* Directory Listing Body */}
+        <BottomSheet.Body
+          className="p-2 bg-popover"
+          keyboardShouldPersistTaps="handled"
+        >
+          {isLoading ? (
+            <View className="py-12 items-center justify-center">
+              <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+              <Text className="text-xs text-muted-foreground mt-2">Loading directory contents...</Text>
+            </View>
+          ) : filteredDirs.length === 0 ? (
+            <View className="py-12 items-center justify-center">
+              <Folder size={28} color={isLight ? '#a3a3a3' : '#737373'} />
+              <Text className="text-xs text-muted-foreground mt-2">
+                {searchFilter ? 'No matching subfolders' : 'Folder contains no subdirectories'}
+              </Text>
+            </View>
+          ) : (
+            filteredDirs.map((dir) => (
+              <Item
+                key={dir.fullPath}
+                variant="default"
+                size="xs"
+                className="px-2.5 py-2 rounded-xl my-0.5"
+                onPress={() => loadDirectory(dir.fullPath)}
+              >
+                <Item.Media variant="icon">
+                  <Folder size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className="text-sm font-medium text-foreground">
+                    {dir.name}
+                  </Item.Title>
+                </Item.Content>
+              </Item>
+            ))
+          )}
+        </BottomSheet.Body>
+
+        {/* Footer */}
+        <BottomSheet.Footer className="px-4 py-3 border-t border-border bg-surface flex-row items-center justify-between gap-3">
+          <View className="flex-1 mr-2">
+            <Text className="text-[11px] text-muted-foreground" numberOfLines={1}>
+              Selected Path:
+            </Text>
+            <Text className="text-xs font-mono font-medium text-foreground" numberOfLines={1}>
+              {currentPath || 'None'}
+            </Text>
+          </View>
+          <Button
+            variant="primary"
+            size="sm"
+            onPress={handleSelectCurrent}
+            disabled={!currentPath || isLoading}
+            className="flex-row items-center gap-1.5 px-4"
+          >
+            <Check size={14} color={isLight ? '#fafafa' : '#262626'} />
+            <Text className="text-xs font-semibold text-primary-foreground">Choose This Folder</Text>
+          </Button>
+        </BottomSheet.Footer>
+      </BottomSheet.Content>
+    </BottomSheet>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-  },
-  modalCard: {
-    height: FULL_HEIGHT,
-    backgroundColor: '#0a0a0a',
-    borderTopLeftRadius: radii.xl || 20,
-    borderTopRightRadius: radii.xl || 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    overflow: 'hidden',
-  },
-  handleContainer: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  dragPill: {
-    width: 38,
-    height: 4,
-    borderRadius: radii.full,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primarySubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fafafa',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    marginTop: 1,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#161616',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#161616',
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 10,
-  },
-  navActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  navActionBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 6,
-    backgroundColor: '#262626',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navActionBtnDisabled: {
-    opacity: 0.4,
-  },
-  breadcrumbsScroll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingRight: 16,
-  },
-  breadcrumbItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  breadcrumbText: {
-    fontSize: 12.5,
-    color: '#a3a3a3',
-    fontFamily: typography.mono,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
-  },
-  breadcrumbTextActive: {
-    color: '#fafafa',
-    fontWeight: '700',
-  },
-  breadcrumbSep: {
-    color: '#484f58',
-    fontSize: 12,
-  },
-  drivesBar: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    backgroundColor: '#121212',
-  },
-  drivesScroll: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  driveChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.sm,
-    backgroundColor: '#1c1c1c',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-  },
-  driveChipActive: {
-    backgroundColor: 'rgba(0, 119, 182, 0.22)',
-    borderColor: '#0077b6',
-  },
-  driveChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#a3a3a3',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-  },
-  driveChipTextActive: {
-    color: '#fafafa',
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#121212',
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 13,
-    color: '#fafafa',
-    padding: 0,
-  },
-  folderList: {
-    flex: 1,
-  },
-  folderListContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  folderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: radii.md,
-    marginBottom: 2,
-  },
-  folderIconBox: {
-    width: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  folderName: {
-    flex: 1,
-    fontSize: 13.5,
-    color: '#fafafa',
-    fontWeight: '500',
-  },
-  loadingBox: {
-    paddingVertical: 48,
-    alignItems: 'center',
-    gap: 10,
-  },
-  loadingText: {
-    fontSize: 13,
-    color: '#a3a3a3',
-  },
-  emptyBox: {
-    paddingVertical: 48,
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#a3a3a3',
-  },
-  emptySubtitle: {
-    fontSize: 12,
-    color: '#737373',
-    textAlign: 'center',
-    maxWidth: 240,
-  },
-  footer: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#262626',
-    backgroundColor: '#121212',
-    gap: 10,
-  },
-  selectedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  selectedLabel: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    fontWeight: '600',
-  },
-  selectedPath: {
-    flex: 1,
-    fontSize: 12,
-    color: '#d4d4d4',
-    fontFamily: typography.mono,
-  },
-  selectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: radii.md,
-    height: 44,
-    gap: 8,
-  },
-  selectBtnDisabled: {
-    backgroundColor: '#262626',
-    opacity: 0.6,
-  },
-  selectBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0a0a0a',
-  },
-
-  // Light Theme Overrides
-  modalCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  dragPillLight: {
-    backgroundColor: 'rgba(0, 0, 0, 0.15)',
-  },
-  headerLight: {
-    borderBottomColor: '#e1e4e8',
-  },
-  iconCircleLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-  },
-  titleLight: {
-    color: '#1f2328',
-  },
-  subtitleLight: {
-    color: '#6e7681',
-  },
-  closeBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  navBarLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#e1e4e8',
-  },
-  navActionBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  breadcrumbTextLight: {
-    color: '#57606a',
-  },
-  breadcrumbTextActiveLight: {
-    color: '#0077b6',
-    fontWeight: '600',
-  },
-  drivesBarLight: {
-    backgroundColor: '#ffffff',
-    borderBottomColor: '#e1e4e8',
-  },
-  driveChipLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  driveChipActiveLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
-    borderColor: '#0077b6',
-  },
-  driveChipTextLight: {
-    color: '#57606a',
-  },
-  driveChipTextActiveLight: {
-    color: '#0077b6',
-    fontWeight: '600',
-  },
-  searchContainerLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#e1e4e8',
-  },
-  searchInputLight: {
-    color: '#1f2328',
-  },
-  folderListLight: {
-    backgroundColor: '#ffffff',
-  },
-  loadingTextLight: {
-    color: '#6e7681',
-  },
-  emptyTitleLight: {
-    color: '#1f2328',
-  },
-  emptySubtitleLight: {
-    color: '#6e7681',
-  },
-  folderRowLight: {
-    borderBottomColor: '#f0f2f5',
-  },
-  folderIconBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
-  },
-  folderNameLight: {
-    color: '#1f2328',
-  },
-  footerLight: {
-    backgroundColor: '#ffffff',
-    borderTopColor: '#e1e4e8',
-  },
-  selectedLabelLight: {
-    color: '#6e7681',
-  },
-  selectedPathLight: {
-    color: '#1f2328',
-  },
-  selectBtnLight: {
-    backgroundColor: '#0077b6',
-  },
-  selectBtnTextLight: {
-    color: '#ffffff',
-  },
-});

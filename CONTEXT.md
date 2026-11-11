@@ -19,7 +19,7 @@ This document is the single source of truth outlining the platform architecture,
 ```mermaid
 flowchart TD
     subgraph MobileWebClients ["Client Surfaces"]
-        Mobile["apps/mobile (Expo / React Native Primer Dark)"]
+        Mobile["apps/mobile (Expo / React Native + PanelUI + Uniwind)"]
         Web["apps/web (React 19 + Monaco + xterm.js)"]
         Desktop["apps/desktop (Desktop Client)"]
     end
@@ -135,10 +135,11 @@ cloud-agent/
   - Automatically reaps idle processes after 20 minutes of inactivity.
   - Runs with `--dangerously-skip-permissions` by default to prevent headless terminal hangs on approval prompts.
 
-### 4. GitHub Mobile Copilot UI Standards
-- The mobile surface (`apps/mobile`) strictly implements GitHub Mobile's Primer Dark design system:
-  - Backgrounds: `#0d1117` (Canvas), `#161b22` (Cards/Surfaces), `#21262d` (Dividers/Pills).
-  - Accents: `#238636` (View/Success Green), `#1f6feb` (Submit Blue), `#58a6ff` (Options/Pills), `#79c0ff` (Commit Badges).
+### 4. PanelUI-Native & Mobile Design System Standards
+- The mobile surface (`apps/mobile`) strictly implements the **PanelUI** component-first architecture styled with **Tailwind CSS v4 (Uniwind)**:
+  - Component-First Policy: Always use `panelui-native` components (`Drawer`, `Tree`, `Message`, `Reasoning`, `CodeBlock`, `BottomSheet`, `Kpi`, `LineChart`, `Button`, `Input`). Custom components are prohibited unless explicitly requested or genuinely missing from `panelui-native`.
+  - Palette: `#0d1117` (Canvas), `#010409` (Canvas Inset), `#161b22` (Cards/Surfaces), `#21262d`/`#30363d` (Borders/Dividers), `#0077b6` (Pacific Azure Blue Accent), `#f0f6fc` (Primary Text).
+  - Gestures & Performance: Driven by `react-native-reanimated` and `react-native-gesture-handler` on the UI thread for 60fps interaction.
   - Native markdown parsing with automatic handling of directory trees, file headers, and commit hashes.
 
 ---

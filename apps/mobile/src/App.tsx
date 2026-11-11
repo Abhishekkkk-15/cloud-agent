@@ -1,3 +1,4 @@
+import './global.css';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -6,10 +7,10 @@ import {
   Platform,
   PanResponder,
   AppState,
-  ActivityIndicator,
 } from 'react-native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PanelUIProvider, PanelUITheme, Spinner, Text } from 'panelui-native';
 import { colors } from './theme/tokens';
 import { SidebarDrawer, AppScreen } from './components/SidebarDrawer';
 import { NotificationBanner } from './components/NotificationBanner';
@@ -18,7 +19,7 @@ import { MachineHealthScreen } from './screens/MachineHealthScreen';
 import { ApprovalsScreen } from './screens/ApprovalsScreen';
 import { AgentTurnScreen } from './screens/AgentTurnScreen';
 import { SessionsScreen } from './screens/SessionsScreen';
-import { AuthScreen } from './screens/AuthScreen';
+import { AuthScreen, CloudAgentLogo } from './screens/AuthScreen';
 import { useDaemonStore } from './stores/useDaemonStore';
 import { mobileP2P } from './lib/p2p-client';
 import { isRunningInExpoGo } from './lib/notifications';
@@ -43,6 +44,11 @@ function MainApp() {
       StatusBar.setBarStyle(isLight ? 'dark-content' : 'light-content');
     }
   }, [init, isLight]);
+
+  // Synchronize PanelUI and Uniwind with store theme
+  useEffect(() => {
+    PanelUITheme.setTheme(theme);
+  }, [theme]);
 
   // Auto-reconnect and session reconciliation when app returns to foreground
   useEffect(() => {
@@ -199,8 +205,12 @@ function MainApp() {
       <ExpoStatusBar style={isLight ? "dark" : "light"} />
 
       {isInitializingAuth ? (
-        <View style={[styles.rootContainer, isLight && { backgroundColor: '#ffffff' }, { alignItems: 'center', justifyContent: 'center' }]}>
-          <ActivityIndicator size="small" color={isLight ? "#0077b6" : "#fafafa"} />
+        <View className="flex-1 bg-background items-center justify-center p-6 gap-4">
+          <CloudAgentLogo color={isLight ? '#262626' : '#f5f5f5'} size={110} />
+          <Spinner size="lg" />
+          <Text className="text-xs font-medium text-muted-foreground tracking-wide mt-2">
+            Initializing Cloud Agent...
+          </Text>
         </View>
       ) : !isAuthenticated && !token ? (
         <AuthScreen />
@@ -263,7 +273,9 @@ function MainApp() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <MainApp />
+      <PanelUIProvider>
+        <MainApp />
+      </PanelUIProvider>
     </SafeAreaProvider>
   );
 }
@@ -271,10 +283,10 @@ export default function App() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#141414',
   },
   screenContainer: {
     flex: 1,
-    backgroundColor: '#0d1117',
+    backgroundColor: '#141414',
   },
 });

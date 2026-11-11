@@ -1,30 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  TextInput,
+  ScrollView,
   ActivityIndicator,
-  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import {
+  Dialog,
+  Tabs,
+  Button,
+  Input,
+  Card,
+  Text,
+  cn,
+} from 'panelui-native';
 import {
   X,
   Server,
   Copy,
   Check,
   Terminal,
-  QrCode,
-  Link,
   CheckCircle2,
   Camera,
   Code2,
-  RefreshCw,
 } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
 interface PairMachineModalProps {
@@ -40,9 +40,12 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
 }) => {
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
+
+  const { height: windowHeight } = useWindowDimensions();
+  const modalHeight = Math.min(680, Math.round(windowHeight * 0.85));
+
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const connectionState = useDaemonStore((s) => s.connectionState);
-  const gatewayUrl = useDaemonStore((s) => s.gatewayUrl);
   const generateMachinePairingToken = useDaemonStore((s) => s.generateMachinePairingToken);
   const claimPairingSession = useDaemonStore((s) => s.claimPairingSession);
   const pairWithPayload = useDaemonStore((s) => s.pairWithPayload);
@@ -189,975 +192,345 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
     });
   };
 
-  if (!visible) return null;
-
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-
-        <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
-          {/* Header */}
-          <View style={[styles.header, isLight && styles.headerLight]}>
-            <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
-              <Server size={18} color={isLight ? '#0077b6' : '#f0f6fc'} />
+    <Dialog open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Content
+        className="w-full max-w-md bg-popover border border-border p-0 overflow-hidden rounded-2xl flex-col"
+        style={{ maxHeight: modalHeight }}
+      >
+        {/* Header */}
+        <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
+          <View className="flex-row items-center gap-2.5 flex-1 mr-2">
+            <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
+              <Server size={16} color={isLight ? '#262626' : '#f5f5f5'} />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.title, isLight && styles.titleLight]}>Pair a Machine</Text>
-              <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>Link your local computer, workstation, or VPS</Text>
+            <View className="flex-1">
+              <Dialog.Title className="text-base font-semibold text-foreground">
+                Pair Compute Node
+              </Dialog.Title>
+              <Dialog.Description className="text-xs text-muted-foreground" numberOfLines={1}>
+                Link your local computer, workstation, or remote VPS
+              </Dialog.Description>
             </View>
-            <TouchableOpacity
-              style={[styles.closeBtn, isLight && styles.closeBtnLight]}
-              onPress={onClose}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <X size={18} color={isLight ? '#57606a' : '#8b949e'} />
-            </TouchableOpacity>
           </View>
+          <Dialog.Close>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-7 h-7 p-0 items-center justify-center rounded-lg"
+            >
+              <X size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+            </Button>
+          </Dialog.Close>
+        </View>
 
-          {/* Success Overlay state */}
-          {successResult ? (
-            <View style={styles.successContainer}>
-              <View style={styles.successIconBox}>
-                <CheckCircle2 size={38} color="#0077b6" />
-              </View>
-              <Text style={[styles.successTitle, isLight && { color: '#1f2328' }]}>Machine Paired!</Text>
-              <Text style={[styles.successSubtitle, isLight && { color: '#6e7681' }]}>
-                {successResult.machineName} is now linked and starting up.
-              </Text>
+        {/* Content Body */}
+        {successResult ? (
+          <View className="p-6 items-center justify-center">
+            <View className="w-14 h-14 rounded-full bg-success/10 border border-success/20 items-center justify-center mb-3">
+              <CheckCircle2 size={32} color="#10b981" />
             </View>
-          ) : (
-            <>
-              {/* Tab Selector */}
-              <View style={[styles.tabBar, isLight && styles.tabBarLight]}>
-                <TouchableOpacity
-                  style={[styles.tabItem, activeTab === 'scan' && styles.tabItemActive]}
-                  onPress={() => {
-                    setActiveTab('scan');
-                    setClaimError(null);
-                    isScanningRef.current = false;
-                  }}
-                  activeOpacity={0.7}
+            <Text className="text-base font-semibold text-foreground mb-1 text-center">
+              Node Paired Successfully!
+            </Text>
+            <Text className="text-xs text-muted-foreground text-center">
+              {successResult.machineName} is now linked and ready.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            style={{ maxHeight: modalHeight - 90 }}
+            contentContainerClassName="p-4"
+            showsVerticalScrollIndicator={true}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Tabs */}
+            <Tabs
+              defaultValue="scan"
+              value={activeTab}
+              size="xs"
+              onValueChange={(val) => {
+                setActiveTab(val as TabType);
+                setClaimError(null);
+                isScanningRef.current = false;
+              }}
+              className="w-full mb-3"
+            >
+              <Tabs.List className="w-full bg-surface-secondary border border-border p-1 rounded-xl flex-row">
+                <Tabs.Trigger
+                  value="scan"
+                  icon={<Camera size={13} color={activeTab === 'scan' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />}
+                  className="flex-1 px-1 py-1"
+                  labelClassName="text-xs font-medium"
                 >
-                  <Camera
-                    size={14}
-                    color={activeTab === 'scan' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#57606a' : '#8b949e')}
-                  />
-                  <Text
-                    style={[
-                      styles.tabLabel,
-                      isLight && { color: '#57606a' },
-                      activeTab === 'scan' && (isLight ? { color: '#0077b6' } : styles.tabLabelActive),
-                    ]}
-                  >
-                    Scan QR
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.tabItem, activeTab === 'code' && styles.tabItemActive]}
-                  onPress={() => {
-                    setActiveTab('code');
-                    setClaimError(null);
-                  }}
-                  activeOpacity={0.7}
+                  Scan QR
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="code"
+                  icon={<Code2 size={13} color={activeTab === 'code' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />}
+                  className="flex-1 px-1 py-1"
+                  labelClassName="text-xs font-medium"
                 >
-                  <Code2
-                    size={14}
-                    color={activeTab === 'code' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#57606a' : '#8b949e')}
-                  />
-                  <Text
-                    style={[
-                      styles.tabLabel,
-                      isLight && { color: '#57606a' },
-                      activeTab === 'code' && (isLight ? { color: '#0077b6' } : styles.tabLabelActive),
-                    ]}
-                  >
-                    Enter Code
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.tabItem, activeTab === 'cli' && styles.tabItemActive]}
-                  onPress={() => {
-                    setActiveTab('cli');
-                    setClaimError(null);
-                  }}
-                  activeOpacity={0.7}
+                  Pair Code
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="cli"
+                  icon={<Terminal size={13} color={activeTab === 'cli' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />}
+                  className="flex-1 px-1 py-1"
+                  labelClassName="text-xs font-medium"
                 >
-                  <Terminal
-                    size={14}
-                    color={activeTab === 'cli' ? (isLight ? '#0077b6' : '#f0f6fc') : (isLight ? '#57606a' : '#8b949e')}
-                  />
-                  <Text
-                    style={[
-                      styles.tabLabel,
-                      isLight && { color: '#57606a' },
-                      activeTab === 'cli' && (isLight ? { color: '#0077b6' } : styles.tabLabelActive),
-                    ]}
-                  >
-                    Headless / CLI
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  CLI / VPS
+                </Tabs.Trigger>
+              </Tabs.List>
 
-              {/* Body */}
-              <View style={styles.body}>
-                {/* 1. Camera Scan Tab */}
-                {activeTab === 'scan' ? (
-                  <View style={styles.scannerWrapper}>
-                    <Text style={styles.tabInstruction}>
-                      Run <Text style={styles.codeBadge}>ca pair</Text> in your terminal and point camera at the QR code.
-                    </Text>
+              {/* 1. Camera Scan Tab */}
+              <Tabs.Content value="scan" className="mt-2">
+                <Text className="text-xs text-muted-foreground mb-2.5">
+                  Run <Text className="font-mono text-foreground font-semibold">ca pair</Text> in your terminal and point the camera at the QR code:
+                </Text>
 
-                    <View style={styles.cameraBox}>
-                      {!permission ? (
-                        <View style={styles.cameraFallbackBox}>
-                          <ActivityIndicator size="small" color="#0077b6" />
-                          <Text style={styles.cameraFallbackText}>Checking camera permissions...</Text>
-                        </View>
-                      ) : !permission.granted ? (
-                        <View style={styles.cameraFallbackBox}>
-                          <View style={styles.permIconBox}>
-                            <Camera size={26} color="#c9d1d9" />
-                          </View>
-                          <Text style={styles.cameraFallbackTitle}>Camera Access Required</Text>
-                          <Text style={styles.cameraFallbackText}>
-                            Enable camera access to scan pairing QR codes from your terminal.
-                          </Text>
-                          <TouchableOpacity
-                            style={styles.grantPermBtn}
-                            onPress={requestPermission}
-                            activeOpacity={0.8}
-                          >
-                            <Text style={styles.grantPermBtnText}>Grant Camera Access</Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
-                            style={styles.switchCodeBtn}
-                            onPress={() => setActiveTab('code')}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={styles.switchCodeBtnText}>Or enter 6-digit code manually</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : cameraError ? (
-                        <View style={styles.cameraFallbackBox}>
-                          <Text style={styles.cameraFallbackTitle}>Camera Unavailable</Text>
-                          <Text style={styles.cameraFallbackText}>{cameraError}</Text>
-                          <TouchableOpacity
-                            style={styles.grantPermBtn}
-                            onPress={() => setActiveTab('code')}
-                            activeOpacity={0.8}
-                          >
-                            <Text style={styles.grantPermBtnText}>Enter Code Manually</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <View style={styles.cameraContainer}>
-                          <CameraView
-                            style={StyleSheet.absoluteFill}
-                            facing="back"
-                            barcodeScannerSettings={{
-                              barcodeTypes: ['qr'],
-                            }}
-                            onBarcodeScanned={isClaiming ? undefined : handleBarcodeScanned}
-                            onMountError={(e) => setCameraError(e.message)}
-                          />
-
-                          {/* Scanner Target Frame */}
-                          <View style={styles.scannerOverlay}>
-                            <View style={styles.scannerTargetBox}>
-                              <View style={[styles.cornerGuide, styles.cornerTL]} />
-                              <View style={[styles.cornerGuide, styles.cornerTR]} />
-                              <View style={[styles.cornerGuide, styles.cornerBL]} />
-                              <View style={[styles.cornerGuide, styles.cornerBR]} />
-                            </View>
-                          </View>
-
-                          {isClaiming && (
-                            <View style={styles.scannerLoadingMask}>
-                              <ActivityIndicator size="small" color="#0077b6" />
-                              <Text style={styles.scannerLoadingText}>Authorizing machine...</Text>
-                            </View>
-                          )}
-                        </View>
-                      )}
+                <View className="w-full h-56 rounded-xl overflow-hidden bg-surface-secondary border border-border items-center justify-center relative">
+                  {!permission ? (
+                    <View className="items-center p-4">
+                      <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+                      <Text className="text-xs text-muted-foreground mt-2">Checking camera permissions...</Text>
                     </View>
-
-                    {claimError ? (
-                      <View style={styles.errorBanner}>
-                        <Text style={styles.errorBannerText}>{claimError}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                ) : null}
-
-                {/* 2. Enter Code Tab */}
-                {activeTab === 'code' ? (
-                  <View style={styles.codeTabContent}>
-                    <Text style={[styles.tabInstruction, isLight && { color: '#6e7681' }]}>
-                      Run <Text style={[styles.codeBadge, isLight && { color: '#0077b6', backgroundColor: 'rgba(0, 119, 182, 0.10)' }]}>ca pair</Text> in your terminal and enter the 6-character code:
-                    </Text>
-
-                    <View style={[styles.codeInputWrapper, isLight && styles.codeInputWrapperLight]}>
-                      <TextInput
-                        style={[styles.codeInput, isLight && styles.codeInputLight]}
-                        value={codeInput}
-                        onChangeText={(t) => {
-                          setCodeInput(t.toUpperCase());
-                          if (claimError) setClaimError(null);
-                        }}
-                        placeholder="CA-XXXX"
-                        placeholderTextColor={isLight ? '#8c959f' : '#484f58'}
-                        autoCapitalize="characters"
-                        autoCorrect={false}
-                        maxLength={10}
-                        returnKeyType="done"
-                        onSubmitEditing={handleCodeSubmit}
-                      />
-                    </View>
-
-                    {claimError ? (
-                      <View style={styles.errorBanner}>
-                        <Text style={styles.errorBannerText}>{claimError}</Text>
-                      </View>
-                    ) : null}
-
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryActionBtn,
-                        (!codeInput.trim() || isClaiming) && styles.primaryActionBtnDisabled,
-                      ]}
-                      onPress={handleCodeSubmit}
-                      disabled={!codeInput.trim() || isClaiming}
-                      activeOpacity={0.8}
-                    >
-                      {isClaiming ? (
-                        <ActivityIndicator size="small" color="#ffffff" />
-                      ) : (
-                        <Text style={styles.primaryActionBtnText}>Authorize & Connect</Text>
-                      )}
-                    </TouchableOpacity>
-
-                    <Text style={styles.hintText}>
-                      Tip: The code expires in 10 minutes. If expired, run <Text style={styles.codeBadge}>ca pair</Text> again.
-                    </Text>
-                  </View>
-                ) : null}
-
-                {/* 3. Headless / CLI Tab */}
-                {activeTab === 'cli' ? (
-                  <View style={styles.cliTabContent}>
-                    {isLoadingCli ? (
-                      <View style={styles.loadingCliBox}>
-                        <ActivityIndicator size="small" color="#0077b6" />
-                        <Text style={styles.loadingCliText}>Generating outbound token...</Text>
-                      </View>
-                    ) : cliPairingData ? (
-                      <>
-                        <Text style={[styles.tabInstruction, isLight && { color: '#6e7681' }]}>
-                          For headless remote VPS or cloud servers, start the daemon with this command:
-                        </Text>
-
-                        <View style={[styles.codeSnippetBox, isLight && styles.codeSnippetBoxLight]}>
-                          <View style={[styles.codeSnippetHeader, isLight && styles.codeSnippetHeaderLight]}>
-                            <Terminal size={12} color={isLight ? '#57606a' : '#8b949e'} />
-                            <Text style={[styles.codeSnippetTitle, isLight && { color: '#57606a' }]}>Terminal Command</Text>
-                            <TouchableOpacity
-                              style={[styles.copyPillBtn, isLight && { backgroundColor: '#eaeef2' }]}
-                              onPress={() => handleCopy(cliPairingData.installCommand)}
-                              activeOpacity={0.7}
-                            >
-                              {copied ? (
-                                <>
-                                  <Check size={12} color={isLight ? '#0077b6' : '#f0f6fc'} />
-                                  <Text style={[styles.copyPillBtnText, { color: isLight ? '#0077b6' : '#f0f6fc' }]}>
-                                    Copied
-                                  </Text>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={12} color={isLight ? '#57606a' : '#8b949e'} />
-                                  <Text style={[styles.copyPillBtnText, isLight && { color: '#57606a' }]}>Copy</Text>
-                                </>
-                              )}
-                            </TouchableOpacity>
-                          </View>
-                          <Text style={[styles.codeSnippetText, isLight && { color: '#1f2328' }]} selectable>
-                            {cliPairingData.installCommand}
-                          </Text>
-                        </View>
-
-                        {/* Paste token or connect URL */}
-                        <Text style={[styles.tabInstruction, { marginTop: 8 }, isLight && { color: '#6e7681' }]}>
-                          Or paste a machine token or <Text style={[styles.codeBadge, isLight && { color: '#0077b6', backgroundColor: 'rgba(0, 119, 182, 0.10)' }]}>ca_pair://</Text> link:
-                        </Text>
-
-                        <View style={[styles.pasteBox, isLight && styles.pasteBoxLight]}>
-                          <TextInput
-                            style={[styles.pasteInput, isLight && styles.pasteInputLight]}
-                            value={pasteInput}
-                            onChangeText={setPasteInput}
-                            placeholder="ca_pair://connect?token=... or token"
-                            placeholderTextColor={isLight ? '#8c959f' : '#484f58'}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                          />
-                        </View>
-
-                        {pasteFeedback ? (
-                          <View
-                            style={[
-                              styles.feedbackBox,
-                              pasteFeedback.success
-                                ? styles.feedbackSuccess
-                                : styles.feedbackError,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.feedbackText,
-                                pasteFeedback.success
-                                  ? styles.feedbackTextSuccess
-                                  : styles.feedbackTextError,
-                              ]}
-                            >
-                              {pasteFeedback.text}
-                            </Text>
-                          </View>
-                        ) : null}
-
-                        <TouchableOpacity
-                          style={[
-                            styles.pasteConnectBtn,
-                            (!pasteInput.trim() || isPairingPaste) && styles.pasteConnectBtnDisabled,
-                          ]}
-                          onPress={handlePairPaste}
-                          disabled={!pasteInput.trim() || isPairingPaste}
-                          activeOpacity={0.8}
-                        >
-                          {isPairingPaste ? (
-                            <ActivityIndicator size="small" color="#f0f6fc" />
-                          ) : (
-                            <Text style={styles.pasteConnectBtnText}>Connect via Token</Text>
-                          )}
-                        </TouchableOpacity>
-                      </>
-                    ) : (
-                      <View style={styles.cliErrorBox}>
-                        <Text style={styles.cliErrorText}>
-                          Failed to generate outbound token. Ensure Gateway is reachable.
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.retryBtn}
-                          onPress={loadCliToken}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.retryBtnText}>Retry</Text>
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                ) : null}
-
-                {/* Machine Connection Status Bar */}
-                <View style={styles.connectionStatusBar}>
-                  {connectionState === 'connected' ? (
-                    <View style={styles.statusConnectedRow}>
-                      <CheckCircle2 size={15} color="#0077b6" />
-                      <Text style={styles.statusConnectedText}>
-                        Machine connected: {activeMachine?.name || 'Online'}
+                  ) : !permission.granted ? (
+                    <View className="items-center p-4 max-w-xs">
+                      <Camera size={26} color={isLight ? '#686868' : '#a3a3a3'} />
+                      <Text className="text-sm font-semibold text-foreground mt-2 text-center">
+                        Camera Access Required
                       </Text>
+                      <Text className="text-xs text-muted-foreground mt-1 mb-3 text-center">
+                        Enable camera access to scan pairing QR codes from your terminal.
+                      </Text>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onPress={requestPermission}
+                        className="w-full mb-1.5"
+                      >
+                        Grant Camera Access
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        onPress={() => setActiveTab('code')}
+                      >
+                        Or enter 6-digit code manually
+                      </Button>
+                    </View>
+                  ) : cameraError ? (
+                    <View className="items-center p-4">
+                      <Text className="text-sm font-semibold text-foreground mb-1">Camera Unavailable</Text>
+                      <Text className="text-xs text-muted-foreground mb-3">{cameraError}</Text>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onPress={() => setActiveTab('code')}
+                      >
+                        Enter Code Manually
+                      </Button>
                     </View>
                   ) : (
-                    <View style={styles.statusWaitingRow}>
-                      <ActivityIndicator
-                        size="small"
-                        color="#8b949e"
-                        style={{ transform: [{ scale: 0.75 }] }}
+                    <View className="w-full h-full relative">
+                      <CameraView
+                        style={{ width: '100%', height: '100%' }}
+                        facing="back"
+                        barcodeScannerSettings={{
+                          barcodeTypes: ['qr'],
+                        }}
+                        onBarcodeScanned={isClaiming ? undefined : handleBarcodeScanned}
+                        onMountError={(e) => setCameraError(e.message)}
                       />
-                      <Text style={styles.statusWaitingText}>
-                        Ready for daemon connection...
-                      </Text>
+                      {/* Targeting Reticle Frame */}
+                      <View className="absolute inset-0 items-center justify-center pointer-events-none">
+                        <View className="w-36 h-36 border-2 border-primary/70 rounded-xl" />
+                      </View>
+                      {isClaiming && (
+                        <View className="absolute inset-0 bg-background/80 items-center justify-center gap-2">
+                          <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+                          <Text className="text-xs font-medium text-foreground">Authorizing compute node...</Text>
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>
-              </View>
 
-              {/* Footer */}
-              <View style={styles.footer}>
-                <TouchableOpacity
-                  style={styles.doneBtn}
-                  onPress={onClose}
-                  activeOpacity={0.85}
+                {claimError ? (
+                  <Card className="mt-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                    <Text className="text-xs text-destructive font-medium">{claimError}</Text>
+                  </Card>
+                ) : null}
+              </Tabs.Content>
+
+              {/* 2. Enter Code Tab */}
+              <Tabs.Content value="code" className="mt-2">
+                <Text className="text-xs text-muted-foreground mb-2">
+                  Run <Text className="font-mono text-foreground font-semibold">ca pair</Text> in your terminal and enter the 6-character code:
+                </Text>
+
+                <Input
+                  value={codeInput}
+                  onChangeText={(t) => {
+                    setCodeInput(t.toUpperCase());
+                    if (claimError) setClaimError(null);
+                  }}
+                  placeholder="CA-XXXX"
+                  size="md"
+                  variant="outline"
+                  autoCapitalize="characters"
+                  maxLength={10}
+                  returnKeyType="done"
+                  onSubmitEditing={handleCodeSubmit}
+                  className="font-mono tracking-widest text-center text-lg mb-3"
+                />
+
+                {claimError ? (
+                  <Card className="mb-3 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                    <Text className="text-xs text-destructive font-medium">{claimError}</Text>
+                  </Card>
+                ) : null}
+
+                <Button
+                  variant="primary"
+                  size="md"
+                  onPress={handleCodeSubmit}
+                  disabled={!codeInput.trim() || isClaiming}
+                  className="w-full mb-2"
                 >
-                  <Text style={styles.doneBtnText}>Close</Text>
-                </TouchableOpacity>
+                  {isClaiming ? (
+                    <ActivityIndicator size="small" color={isLight ? '#fafafa' : '#262626'} />
+                  ) : (
+                    'Authorize & Connect'
+                  )}
+                </Button>
+
+                <Text className="text-[11px] text-muted-foreground text-center">
+                  Codes expire in 10 minutes. If expired, run <Text className="font-mono font-medium">ca pair</Text> again.
+                </Text>
+              </Tabs.Content>
+
+              {/* 3. Headless / CLI Tab */}
+              <Tabs.Content value="cli" className="mt-2">
+                {isLoadingCli ? (
+                  <View className="py-8 items-center justify-center">
+                    <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+                    <Text className="text-xs text-muted-foreground mt-2">Generating outbound token...</Text>
+                  </View>
+                ) : cliPairingData ? (
+                  <>
+                    <Text className="text-xs text-muted-foreground mb-2">
+                      For headless remote VPS or cloud servers, start the daemon with this command:
+                    </Text>
+
+                    <Card className="p-3 bg-surface-secondary border border-border rounded-xl mb-3">
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-row items-center gap-1.5">
+                          <Terminal size={12} color={isLight ? '#686868' : '#a3a3a3'} />
+                          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            Terminal Command
+                          </Text>
+                        </View>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onPress={() => handleCopy(cliPairingData.installCommand)}
+                          className="flex-row items-center gap-1 px-2 py-0.5"
+                        >
+                          {copied ? (
+                            <>
+                              <Check size={11} color={isLight ? '#262626' : '#f5f5f5'} />
+                              <Text className="text-xs font-medium text-foreground">Copied</Text>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={11} color={isLight ? '#686868' : '#a3a3a3'} />
+                              <Text className="text-xs font-medium text-muted-foreground">Copy</Text>
+                            </>
+                          )}
+                        </Button>
+                      </View>
+                      <Text className="text-xs font-mono text-foreground leading-relaxed" selectable>
+                        {cliPairingData.installCommand}
+                      </Text>
+                    </Card>
+
+                    <Text className="text-xs text-muted-foreground mb-1.5">
+                      Or paste a machine token or <Text className="font-mono text-foreground">ca_pair://</Text> link:
+                    </Text>
+
+                    <Input
+                      value={pasteInput}
+                      onChangeText={setPasteInput}
+                      placeholder="ca_pair://connect?token=... or token"
+                      size="sm"
+                      variant="outline"
+                      autoCapitalize="none"
+                      className="mb-2"
+                    />
+
+                    {pasteFeedback ? (
+                      <Card className={cn('p-2.5 rounded-lg mb-2', pasteFeedback.success ? 'bg-success/10 border border-success/20' : 'bg-destructive/10 border border-destructive/20')}>
+                        <Text className={cn('text-xs font-medium', pasteFeedback.success ? 'text-success' : 'text-destructive')}>
+                          {pasteFeedback.text}
+                        </Text>
+                      </Card>
+                    ) : null}
+
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onPress={handlePairPaste}
+                      disabled={!pasteInput.trim() || isPairingPaste}
+                      className="w-full"
+                    >
+                      {isPairingPaste ? (
+                        <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} />
+                      ) : (
+                        'Connect via Token'
+                      )}
+                    </Button>
+                  </>
+                ) : (
+                  <View className="py-6 items-center justify-center">
+                    <Text className="text-xs text-muted-foreground mb-3 text-center">
+                      Failed to generate token. Ensure Gateway is reachable.
+                    </Text>
+                    <Button variant="outline" size="sm" onPress={loadCliToken}>
+                      Retry
+                    </Button>
+                  </View>
+                )}
+              </Tabs.Content>
+            </Tabs>
+
+            {/* Connection Status Indicator */}
+            <View className="pt-3 border-t border-border flex-row items-center justify-between mt-2">
+              <View className="flex-row items-center gap-1.5 flex-1 mr-2">
+                {connectionState === 'connected' ? (
+                  <>
+                    <View className="w-2 h-2 rounded-full bg-success" />
+                    <Text className="text-xs text-foreground font-medium" numberOfLines={1}>
+                      Connected: {activeMachine?.name || 'Online'}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <ActivityIndicator size="small" color={isLight ? '#686868' : '#a3a3a3'} style={{ transform: [{ scale: 0.65 }] }} />
+                    <Text className="text-xs text-muted-foreground" numberOfLines={1}>
+                      Ready for node connection...
+                    </Text>
+                  </>
+                )}
               </View>
-            </>
-          )}
-        </View>
-      </View>
-    </Modal>
+              <Button variant="ghost" size="xs" onPress={onClose}>
+                Close
+              </Button>
+            </View>
+          </ScrollView>
+        )}
+      </Dialog.Content>
+    </Dialog>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.80)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 440,
-    backgroundColor: '#0d1117',
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#30363d',
-    overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
-  },
-  headerIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#f0f6fc',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#8b949e',
-    marginTop: 1,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#21262d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    backgroundColor: '#010409',
-    borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    paddingHorizontal: 8,
-    paddingTop: 4,
-  },
-  tabItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 11,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabItemActive: {
-    borderBottomColor: '#0077b6',
-  },
-  tabLabel: {
-    color: '#8b949e',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  tabLabelActive: {
-    color: '#f0f6fc',
-  },
-  body: {
-    padding: 16,
-  },
-  tabInstruction: {
-    fontSize: 12,
-    color: '#8b949e',
-    lineHeight: 18,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  codeBadge: {
-    color: '#48cae4',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontWeight: '600',
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
-  },
-  scannerWrapper: {
-    alignItems: 'center',
-  },
-  cameraBox: {
-    width: '100%',
-    height: 250,
-    borderRadius: radii.md,
-    backgroundColor: '#010409',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  cameraContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  scannerOverlay: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-  },
-  scannerTargetBox: {
-    width: 170,
-    height: 170,
-    position: 'relative',
-  },
-  cornerGuide: {
-    position: 'absolute',
-    width: 22,
-    height: 22,
-    borderColor: '#0077b6',
-  },
-  cornerTL: {
-    top: 0,
-    left: 0,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
-    borderTopLeftRadius: 4,
-  },
-  cornerTR: {
-    top: 0,
-    right: 0,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
-    borderTopRightRadius: 4,
-  },
-  cornerBL: {
-    bottom: 0,
-    left: 0,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
-    borderBottomLeftRadius: 4,
-  },
-  cornerBR: {
-    bottom: 0,
-    right: 0,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderBottomRightRadius: 4,
-  },
-  scannerLoadingMask: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(13, 17, 23, 0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  scannerLoadingText: {
-    fontSize: 12,
-    color: '#f0f6fc',
-    fontWeight: '600',
-  },
-  cameraFallbackBox: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-    gap: 8,
-  },
-  permIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  cameraFallbackTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#f0f6fc',
-    textAlign: 'center',
-  },
-  cameraFallbackText: {
-    fontSize: 12,
-    color: '#8b949e',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  grantPermBtn: {
-    marginTop: 8,
-    backgroundColor: '#0077b6',
-    borderRadius: radii.sm,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-  },
-  grantPermBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  switchCodeBtn: {
-    marginTop: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  switchCodeBtnText: {
-    color: '#48cae4',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  codeTabContent: {
-    paddingVertical: 6,
-  },
-  codeInputWrapper: {
-    backgroundColor: '#010409',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#30363d',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    marginBottom: 12,
-  },
-  codeInput: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#f0f6fc',
-    textAlign: 'center',
-    fontFamily: typography.mono,
-    letterSpacing: 4,
-  },
-  primaryActionBtn: {
-    backgroundColor: '#0077b6',
-    borderRadius: radii.md,
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  primaryActionBtnDisabled: {
-    backgroundColor: '#21262d',
-    opacity: 0.6,
-  },
-  primaryActionBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  hintText: {
-    fontSize: 11,
-    color: '#6e7681',
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  cliTabContent: {
-    paddingVertical: 4,
-  },
-  loadingCliBox: {
-    paddingVertical: 32,
-    alignItems: 'center',
-    gap: 10,
-  },
-  loadingCliText: {
-    fontSize: 12,
-    color: '#8b949e',
-  },
-  codeSnippetBox: {
-    backgroundColor: '#010409',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#30363d',
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  codeSnippetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#21262d',
-    backgroundColor: '#161b22',
-  },
-  codeSnippetTitle: {
-    fontSize: 11,
-    color: '#8b949e',
-    fontFamily: typography.mono,
-    flex: 1,
-    marginLeft: 6,
-  },
-  copyPillBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: '#21262d',
-    borderRadius: 4,
-  },
-  copyPillBtnText: {
-    fontSize: 11,
-    color: '#c9d1d9',
-  },
-  codeSnippetText: {
-    padding: 10,
-    fontFamily: typography.mono,
-    fontSize: 11,
-    color: '#f0f6fc',
-    lineHeight: 16,
-  },
-  pasteBox: {
-    backgroundColor: '#010409',
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: '#30363d',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 10,
-  },
-  pasteInput: {
-    fontSize: 11,
-    color: '#f0f6fc',
-    fontFamily: typography.mono,
-  },
-  pasteConnectBtn: {
-    backgroundColor: '#21262d',
-    borderWidth: 1,
-    borderColor: '#30363d',
-    borderRadius: radii.md,
-    paddingVertical: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  pasteConnectBtnDisabled: {
-    opacity: 0.5,
-  },
-  pasteConnectBtnText: {
-    color: '#f0f6fc',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  cliErrorBox: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    gap: 10,
-  },
-  cliErrorText: {
-    color: '#f85149',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  retryBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: '#21262d',
-    borderRadius: radii.sm,
-  },
-  retryBtnText: {
-    color: '#f0f6fc',
-    fontSize: 12,
-  },
-  errorBanner: {
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(248, 81, 73, 0.40)',
-    borderRadius: radii.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginBottom: 10,
-    width: '100%',
-  },
-  errorBannerText: {
-    color: '#f85149',
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  feedbackBox: {
-    padding: 8,
-    borderRadius: radii.sm,
-    marginBottom: 10,
-  },
-  feedbackSuccess: {
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.40)',
-  },
-  feedbackError: {
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(248, 81, 73, 0.40)',
-  },
-  feedbackText: {
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  feedbackTextSuccess: {
-    color: '#f0f6fc',
-  },
-  feedbackTextError: {
-    color: '#f85149',
-  },
-  connectionStatusBar: {
-    backgroundColor: '#161b22',
-    borderWidth: 1,
-    borderColor: '#21262d',
-    borderRadius: radii.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 4,
-  },
-  statusConnectedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusConnectedText: {
-    fontSize: 12,
-    color: '#f0f6fc',
-    fontWeight: '600',
-  },
-  statusWaitingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusWaitingText: {
-    fontSize: 11,
-    color: '#8b949e',
-  },
-  successContainer: {
-    paddingVertical: 36,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    gap: 10,
-  },
-  successIconBox: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(0, 119, 182, 0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  successTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#f0f6fc',
-  },
-  successSubtitle: {
-    fontSize: 12,
-    color: '#8b949e',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  footer: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#21262d',
-    backgroundColor: '#161b22',
-    alignItems: 'flex-end',
-  },
-  doneBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: '#21262d',
-    borderRadius: radii.sm,
-  },
-  doneBtnText: {
-    fontSize: 12,
-    color: '#f0f6fc',
-    fontWeight: '600',
-  },
-
-  // Light Theme Overrides
-  modalCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  headerLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#e1e4e8',
-  },
-  headerIconBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-    borderColor: 'rgba(0, 119, 182, 0.25)',
-  },
-  titleLight: {
-    color: '#1f2328',
-  },
-  subtitleLight: {
-    color: '#6e7681',
-  },
-  closeBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  tabBarLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#e1e4e8',
-  },
-  codeInputWrapperLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  codeInputLight: {
-    color: '#1f2328',
-  },
-  codeSnippetBoxLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  codeSnippetHeaderLight: {
-    backgroundColor: '#eaeef2',
-    borderBottomColor: '#d0d7de',
-  },
-  pasteBoxLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  pasteInputLight: {
-    color: '#1f2328',
-  },
-});

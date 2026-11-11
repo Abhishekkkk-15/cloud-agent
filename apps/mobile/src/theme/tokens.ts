@@ -1,162 +1,221 @@
 export type ThemeMode = 'dark' | 'light';
 
+/**
+ * Official Default PanelUI Dark Theme Palette
+ * (Matches panelui-native/theme.css @variant dark)
+ */
 export const darkColors = {
-  // Paradev & Cloud Agent Unified Dark Theme (Pure Monochrome Black, White, Gray)
-  bgPrimary: '#0a0a0a',
-  bgCanvasInset: '#050505',
-  bgCard: '#161616',
-  bgSurface: '#1c1c1c',
-  bgUserBubble: '#2F2F2F',
+  // Surfaces & Backgrounds
+  bgPrimary: '#141414',
+  bgCanvasInset: '#101010',
+  bgCard: '#191919',
+  bgSurface: '#1e1e1e',
+  bgSurfaceSecondary: '#242424',
+  bgSurfaceTertiary: '#2a2a2a',
+  bgOverlay: '#232323',
   bgHover: '#262626',
-  bgInput: '#161616',
-  bgModal: 'rgba(10, 10, 10, 0.95)',
+  bgInput: 'rgba(255, 255, 255, 0.12)',
+  bgModal: '#1d1d1d',
+  bgUserBubble: '#242424',
 
   // Surface Tiers
-  surfaceContainerLowest: '#0a0a0a',
+  surfaceContainerLowest: '#101010',
   surfaceContainerLow: '#141414',
-  surfaceContainer: '#161616',
-  surfaceContainerHigh: '#1c1c1c',
-  surfaceContainerHighest: '#262626',
+  surfaceContainer: '#191919',
+  surfaceContainerHigh: '#1e1e1e',
+  surfaceContainerHighest: '#242424',
 
-  borderDefault: '#262626',
-  borderMuted: '#1f1f1f',
-  borderSubtle: 'rgba(255, 255, 255, 0.10)',
+  // Borders & Dividers
+  borderDefault: 'rgba(255, 255, 255, 0.10)',
+  borderMuted: 'rgba(255, 255, 255, 0.06)',
+  borderSubtle: 'rgba(255, 255, 255, 0.08)',
 
-  textPrimary: '#fafafa',
-  textSecondary: '#a3a3a3',
-  textMuted: '#737373',
-  textCode: '#b4b4b4',
-  textMutedOutline: '#737373',
-  textSecondaryOutline: '#a3a3a3',
+  // Typography
+  textPrimary: '#f5f5f5',
+  textSecondary: '#d4d4d4',
+  textMuted: '#a3a3a3',
+  textCode: '#e5e5e5',
+  textMutedOutline: '#a3a3a3',
+  textSecondaryOutline: '#d4d4d4',
   textDisabled: '#525252',
 
-  // Primary Accent: Pure Monochrome White & Grayscale (Zero Blue)
-  primary: '#fafafa',
+  // High-Contrast Primary Accent
+  primary: '#f5f5f5',
+  primaryForeground: '#262626',
   primaryLight: '#ffffff',
   primarySubtle: 'rgba(255, 255, 255, 0.08)',
-  primaryBorder: 'rgba(255, 255, 255, 0.20)',
-  primaryHover: 'rgba(255, 255, 255, 0.15)',
+  primaryBorder: 'rgba(255, 255, 255, 0.16)',
+  primaryHover: 'rgba(255, 255, 255, 0.12)',
 
-  // Live Status Indicator (Monochrome / No Green)
-  statusLive: '#fafafa',
-  statusLivePulse: '#ffffff',
-  statusLiveSubtle: 'rgba(255, 255, 255, 0.08)',
-  statusLiveBorder: 'rgba(255, 255, 255, 0.18)',
+  // Live Status / Telemetry
+  statusLive: '#10b981',
+  statusLivePulse: '#34d399',
+  statusLiveSubtle: 'rgba(16, 185, 129, 0.10)',
+  statusLiveBorder: 'rgba(16, 185, 129, 0.25)',
 
-  // Mappings for legacy colors
-  blue: '#fafafa',
-  blueLight: '#ffffff',
-  blueBg: '#fafafa',
-  blueSubtle: 'rgba(255, 255, 255, 0.08)',
-  blueBorder: 'rgba(255, 255, 255, 0.20)',
+  // Status Tokens
+  info: '#3b82f6',
+  infoSubtle: 'rgba(59, 130, 246, 0.10)',
+  infoBorder: 'rgba(59, 130, 246, 0.25)',
 
-  green: '#fafafa',
-  greenLight: '#ffffff',
-  greenWhitish: '#fafafa',
-  greenBg: '#262626',
-  greenHover: '#333333',
-  greenSubtle: 'rgba(255, 255, 255, 0.08)',
-  greenBorder: 'rgba(255, 255, 255, 0.20)',
+  success: '#10b981',
+  successSubtle: 'rgba(16, 185, 129, 0.10)',
+  successBorder: 'rgba(16, 185, 129, 0.25)',
 
-  purple: '#fafafa',
-  purpleBg: '#262626',
-  purpleSubtle: 'rgba(255, 255, 255, 0.08)',
-  purpleBorder: 'rgba(255, 255, 255, 0.20)',
+  warning: '#f59e0b',
+  warningSubtle: 'rgba(245, 158, 11, 0.10)',
+  warningBorder: 'rgba(245, 158, 11, 0.25)',
 
-  // Danger Red (Alerts and security exceptions only)
+  destructive: '#ef4444',
+  destructiveSubtle: 'rgba(239, 68, 68, 0.10)',
+  destructiveBorder: 'rgba(239, 68, 68, 0.25)',
+
+  // Color aliases for backwards compatibility
+  blue: '#3b82f6',
+  blueLight: '#60a5fa',
+  blueBg: '#1e293b',
+  blueSubtle: 'rgba(59, 130, 246, 0.10)',
+  blueBorder: 'rgba(59, 130, 246, 0.25)',
+
+  green: '#10b981',
+  greenLight: '#34d399',
+  greenWhitish: '#a7f3d0',
+  greenBg: '#064e3b',
+  greenHover: '#047857',
+  greenSubtle: 'rgba(16, 185, 129, 0.10)',
+  greenBorder: 'rgba(16, 185, 129, 0.25)',
+
+  purple: '#8b5cf6',
+  purpleBg: '#2e1065',
+  purpleSubtle: 'rgba(139, 92, 246, 0.10)',
+  purpleBorder: 'rgba(139, 92, 246, 0.25)',
+
   red: '#ef4444',
-  redBg: '#dc2626',
-  redSubtle: 'rgba(239, 68, 68, 0.15)',
-  redBorder: 'rgba(239, 68, 68, 0.3)',
+  redBg: '#7f1d1d',
+  redSubtle: 'rgba(239, 68, 68, 0.10)',
+  redBorder: 'rgba(239, 68, 68, 0.25)',
 };
 
+/**
+ * Official Default PanelUI White/Light Theme Palette
+ * (Matches panelui-native/theme.css @variant light)
+ */
 export const lightColors: typeof darkColors = {
-  // Pure Clean White Theme (Crisp, High Contrast, Modern)
+  // Surfaces & Backgrounds
   bgPrimary: '#ffffff',
-  bgCanvasInset: '#f6f8fa',
+  bgCanvasInset: '#fafafa',
   bgCard: '#ffffff',
-  bgSurface: '#f6f8fa',
-  bgUserBubble: '#f0f3f6',
-  bgHover: '#eaeef2',
-  bgInput: '#f6f8fa',
+  bgSurface: '#f7f7f7',
+  bgSurfaceSecondary: '#f1f1f1',
+  bgSurfaceTertiary: '#eaeaea',
+  bgOverlay: '#ffffff',
+  bgHover: '#f1f1f1',
+  bgInput: 'rgba(0, 0, 0, 0.10)',
   bgModal: 'rgba(255, 255, 255, 0.98)',
+  bgUserBubble: '#f7f7f7',
 
   // Surface Tiers
   surfaceContainerLowest: '#ffffff',
-  surfaceContainerLow: '#f6f8fa',
+  surfaceContainerLow: '#fafafa',
   surfaceContainer: '#ffffff',
-  surfaceContainerHigh: '#f0f2f5',
-  surfaceContainerHighest: '#e4e7eb',
+  surfaceContainerHigh: '#f7f7f7',
+  surfaceContainerHighest: '#f1f1f1',
 
-  borderDefault: '#d0d7de',
-  borderMuted: '#e1e4e8',
-  borderSubtle: 'rgba(0, 0, 0, 0.08)',
+  // Borders & Dividers
+  borderDefault: 'rgba(0, 0, 0, 0.08)',
+  borderMuted: 'rgba(0, 0, 0, 0.04)',
+  borderSubtle: 'rgba(0, 0, 0, 0.06)',
 
-  textPrimary: '#1f2328',
-  textSecondary: '#57606a',
-  textMuted: '#6e7781',
-  textCode: '#24292f',
-  textMutedOutline: '#6e7781',
-  textSecondaryOutline: '#57606a',
-  textDisabled: '#8c959f',
+  // Typography
+  textPrimary: '#262626',
+  textSecondary: '#525252',
+  textMuted: '#686868',
+  textCode: '#171717',
+  textMutedOutline: '#686868',
+  textSecondaryOutline: '#525252',
+  textDisabled: '#a3a3a3',
 
-  // Primary Accent: Pacific Azure Blue & Crisp Dark
-  primary: '#0077b6',
-  primaryLight: '#0096c7',
-  primarySubtle: 'rgba(0, 119, 182, 0.08)',
-  primaryBorder: 'rgba(0, 119, 182, 0.25)',
-  primaryHover: 'rgba(0, 119, 182, 0.15)',
+  // High-Contrast Primary Accent
+  primary: '#262626',
+  primaryForeground: '#fafafa',
+  primaryLight: '#404040',
+  primarySubtle: 'rgba(0, 0, 0, 0.06)',
+  primaryBorder: 'rgba(0, 0, 0, 0.12)',
+  primaryHover: 'rgba(0, 0, 0, 0.08)',
 
-  // Live Status Indicator
-  statusLive: '#1a7f37',
-  statusLivePulse: '#2da44e',
-  statusLiveSubtle: 'rgba(45, 164, 78, 0.10)',
-  statusLiveBorder: 'rgba(45, 164, 78, 0.25)',
+  // Live Status / Telemetry
+  statusLive: '#10b981',
+  statusLivePulse: '#059669',
+  statusLiveSubtle: 'rgba(16, 185, 129, 0.10)',
+  statusLiveBorder: 'rgba(16, 185, 129, 0.25)',
 
-  blue: '#0077b6',
-  blueLight: '#0096c7',
-  blueBg: '#e7f5ff',
-  blueSubtle: 'rgba(0, 119, 182, 0.08)',
-  blueBorder: 'rgba(0, 119, 182, 0.25)',
+  // Status Tokens
+  info: '#3b82f6',
+  infoSubtle: 'rgba(59, 130, 246, 0.10)',
+  infoBorder: 'rgba(59, 130, 246, 0.25)',
 
-  green: '#1a7f37',
-  greenLight: '#2da44e',
-  greenWhitish: '#1a7f37',
-  greenBg: '#dafbe1',
-  greenHover: '#c8f7d3',
-  greenSubtle: 'rgba(45, 164, 78, 0.10)',
-  greenBorder: 'rgba(45, 164, 78, 0.25)',
+  success: '#10b981',
+  successSubtle: 'rgba(16, 185, 129, 0.10)',
+  successBorder: 'rgba(16, 185, 129, 0.25)',
 
-  purple: '#8250df',
-  purpleBg: '#fbefff',
-  purpleSubtle: 'rgba(130, 80, 223, 0.10)',
-  purpleBorder: 'rgba(130, 80, 223, 0.25)',
+  warning: '#f59e0b',
+  warningSubtle: 'rgba(245, 158, 11, 0.10)',
+  warningBorder: 'rgba(245, 158, 11, 0.25)',
 
-  red: '#cf222e',
-  redBg: '#ffebe9',
-  redSubtle: 'rgba(207, 34, 46, 0.10)',
-  redBorder: 'rgba(207, 34, 46, 0.25)',
+  destructive: '#ef4444',
+  destructiveSubtle: 'rgba(239, 68, 68, 0.10)',
+  destructiveBorder: 'rgba(239, 68, 68, 0.25)',
+
+  // Color aliases for backwards compatibility
+  blue: '#3b82f6',
+  blueLight: '#2563eb',
+  blueBg: '#eff6ff',
+  blueSubtle: 'rgba(59, 130, 246, 0.10)',
+  blueBorder: 'rgba(59, 130, 246, 0.25)',
+
+  green: '#10b981',
+  greenLight: '#059669',
+  greenWhitish: '#047857',
+  greenBg: '#ecfdf5',
+  greenHover: '#d1fae5',
+  greenSubtle: 'rgba(16, 185, 129, 0.10)',
+  greenBorder: 'rgba(16, 185, 129, 0.25)',
+
+  purple: '#8b5cf6',
+  purpleBg: '#f5f3ff',
+  purpleSubtle: 'rgba(139, 92, 246, 0.10)',
+  purpleBorder: 'rgba(139, 92, 246, 0.25)',
+
+  red: '#ef4444',
+  redBg: '#fef2f2',
+  redSubtle: 'rgba(239, 68, 68, 0.10)',
+  redBorder: 'rgba(239, 68, 68, 0.25)',
 };
 
 export type ThemeColors = typeof darkColors;
 
-// Default exported colors (for static backwards compatibility)
+// Default exported colors (PanelUI Dark by default)
 export const colors = darkColors;
 
 export function getThemeColors(mode?: ThemeMode | null): ThemeColors {
   return mode === 'light' ? lightColors : darkColors;
 }
 
+/**
+ * PanelUI Default Shape Scale
+ * (Matches panelui-native/theme.css radius scale)
+ */
 export const radii = {
   xs: 4,
   sm: 6,
   md: 8,
   lg: 10,
   xl: 14,
-  xxl: 22,
-  bubble: 22,
+  xxl: 16,
+  '3xl': 24,
+  bubble: 16,
   card: 14,
-  code: 10,
+  code: 8,
   btn: 8,
   full: 9999,
 };

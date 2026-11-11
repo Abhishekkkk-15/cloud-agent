@@ -1,42 +1,42 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import {
+  Card,
+  Badge,
+  Button,
+  Progress,
+  Item,
+  Text,
+  GridItem,
+  ScrollHeader,
+  toast,
+  cn,
+} from 'panelui-native';
+import {
   Server,
-  ShieldCheck,
-  Lock,
   Cpu,
   Layers,
   HardDrive,
-  ArrowUp,
-  ArrowDown,
-  Terminal,
-  Code2,
-  FileCode,
   Radio,
   RefreshCw,
   Zap,
   Power,
   ChevronRight,
+  ChevronLeft,
   Bell,
   Bug,
   GitPullRequest,
-  Sparkles,
-  Key,
   Github,
   GitBranch,
   User,
   Mail,
+  Terminal,
 } from '../components/Icons';
-import { colors, radii, typography } from '../theme/tokens';
-import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
 import { PairMachineModal } from '../components/PairMachineModal';
@@ -49,7 +49,10 @@ interface MachineHealthScreenProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack, onNavigateTab }) => {
+export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
+  onBack,
+  onNavigateTab,
+}) => {
   const connectionState = useDaemonStore((s) => s.connectionState);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
@@ -62,19 +65,19 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
   const activeProposal = useDaemonStore((s) => s.activeProposal);
   const activePrReview = useDaemonStore((s) => s.activePrReview);
   const isAutoHealerModalVisible = useDaemonStore((s) => s.isAutoHealerModalVisible);
-  const isSimulatingIncident = useDaemonStore((s) => s.isSimulatingIncident);
-  const simulateAutoHealerIncident = useDaemonStore((s) => s.simulateAutoHealerIncident);
-  const simulatePrReview = useDaemonStore((s) => s.simulatePrReview);
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const openAutoHealerProposal = useDaemonStore((s) => s.openAutoHealerProposal);
   const openAutoPrReview = useDaemonStore((s) => s.openAutoPrReview);
   const githubStatus = useDaemonStore((s) => s.githubStatus);
-  const fetchGithubStatus = useDaemonStore((s) => s.fetchGithubStatus);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
   const [isPinging, setIsPinging] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showMachineSwitcher, setShowMachineSwitcher] = useState(false);
+  const [showPairModal, setShowPairModal] = useState(false);
+  const [showServerSettings, setShowServerSettings] = useState(false);
+  const [showGithubModal, setShowGithubModal] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -84,29 +87,16 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
       setIsRefreshing(false);
     }
   };
-  const [showMachineSwitcher, setShowMachineSwitcher] = useState(false);
-  const [showPairModal, setShowPairModal] = useState(false);
-  const [showServerSettings, setShowServerSettings] = useState(false);
-  const [showGithubModal, setShowGithubModal] = useState(false);
 
   const handlePing = async () => {
     setIsPinging(true);
     await pingHeartbeat();
     setIsPinging(false);
-  };
-
-  const handleSimulateBug = async () => {
-    const res = await simulateAutoHealerIncident();
-    if (!res.success) {
-      Alert.alert('Simulation Note', res.message);
-    }
-  };
-
-  const handleSimulatePr = async () => {
-    const res = await simulatePrReview();
-    if (!res.success) {
-      Alert.alert('Simulation Note', res.message);
-    }
+    toast.show({
+      variant: 'default',
+      label: 'Heartbeat Pong',
+      description: `Latency: ${useDaemonStore.getState().pingRtt || 'connected'}`,
+    });
   };
 
   const isConnected = connectionState === 'connected';
@@ -141,687 +131,549 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
     };
   }) || [];
 
+  const cpuPercent = daemonStatus?.telemetry?.cpu?.percent ?? 0;
+  const ramPercent = daemonStatus?.telemetry?.ram?.percent ?? 0;
+  const diskPercent = daemonStatus?.telemetry?.disk?.percent ?? 0;
+
   return (
-    <View style={[styles.container, isLight && styles.containerLight]}>
-      <HeaderBar
-        title="Machine & CLI Health"
-        subtitle={`${hostName} • ${platformStr}`}
-        onBack={onBack}
-        onMore={handleRefresh}
-        rightElement={
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {isRefreshing && (
-              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} style={{ transform: [{ scale: 0.75 }] }} />
-            )}
+    <View className="flex-1 bg-background">
+      <ScrollHeader className="flex-1" inset={true}>
+        <ScrollHeader.Bar divider={false} surface="blur">
+          {onBack && (
             <TouchableOpacity
-              style={[styles.switchMachineBtn, isLight && styles.switchMachineBtnLight]}
-              onPress={() => setShowMachineSwitcher(true)}
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center mr-2.5 active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={onBack}
               activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Go back"
             >
-              <Server size={14} color={isLight ? '#1f2328' : '#fafafa'} />
-              <Text style={[styles.switchMachineBtnText, isLight && styles.switchMachineBtnTextLight]}>Switch</Text>
+              <ChevronLeft size={22} color={isLight ? '#1f2328' : '#fafafa'} />
             </TouchableOpacity>
-          </View>
-        }
-      />
-
-      {/* Sub-bar */}
-      <View style={[styles.subBar, isLight && styles.subBarLight]}>
-
-        <Text style={[styles.subBarText, isLight && styles.subBarTextLight]}>
-          {isConnected ? 'GATEWAY CONNECTED' : connectionState.toUpperCase()} • 0 open ports • PID: {pidStr} • Uptime: {uptimeStr}
-        </Text>
-      </View>
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Host System State Card */}
-        <View style={[styles.card, isLight && styles.cardLight]}>
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.hostInfo}>
-              <View style={[styles.iconBox, isLight && styles.iconBoxLight]}>
-                <Server size={20} color={isLight ? '#0077b6' : '#fafafa'} />
-              </View>
-              <View style={styles.hostTexts}>
-                <Text style={[styles.hostName, isLight && styles.hostNameLight]}>{hostName}</Text>
-                <Text style={[styles.hostSub, isLight && styles.hostSubLight]}>{platformStr} • Zero-Trust Tunnel</Text>
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.connectedBadge,
-                !isConnected && {
-                  backgroundColor: colors.redSubtle,
-                  borderColor: colors.redBorder,
-                },
-              ]}
-            >
-
-              <Text
-                style={[
-                  styles.connectedText,
-                  !isConnected && { color: colors.red },
-                ]}
-              >
-                {isConnected ? 'Connected' : connectionState}
-              </Text>
-            </View>
-          </View>
-
-          {/* Security & Transport Badges */}
-          <View style={styles.badgesRow}>
-            <View style={[styles.badgeCard, isLight && styles.badgeCardLight]}>
-              <ShieldCheck size={16} color={colors.green} />
-              <View style={styles.badgeCardTextCol}>
-                <Text style={[styles.badgeCardLabel, isLight && styles.badgeCardLabelLight]}>Inbound Ports</Text>
-                <Text style={[styles.badgeCardValue, isLight && styles.badgeCardValueLight]}>0 Open (Zero-Trust)</Text>
-              </View>
-            </View>
-
-            <View style={[styles.badgeCard, isLight && styles.badgeCardLight]}>
-              <Lock size={16} color={colors.green} />
-              <View style={styles.badgeCardTextCol}>
-                <Text style={[styles.badgeCardLabel, isLight && styles.badgeCardLabelLight]}>Tunnel Transport</Text>
-                <Text style={[styles.badgeCardValue, isLight && styles.badgeCardValueLight]}>WebRTC DataChannel</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Telemetry & Resource Pools */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>TELEMETRY & RESOURCE POOLS</Text>
-        </View>
-
-        <View style={[styles.card, isLight && styles.cardLight]}>
-          {/* CPU Metric */}
-          <View style={styles.metricItem}>
-            <View style={styles.metricHeader}>
-              <View style={styles.metricTitleGroup}>
-                <Cpu size={15} color={isLight ? '#57606a' : colors.textMuted} />
-                <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>
-                  CPU ({daemonStatus?.telemetry?.cpu?.model || 'Intel / AMD Multi-Core'})
-                </Text>
-              </View>
-              <Text style={[styles.metricValue, { color: colors.green }]}>
-                {daemonStatus?.telemetry?.cpu?.percent ?? 0}%
-              </Text>
-            </View>
-            <View style={[styles.progressBarBg, isLight && styles.progressBarBgLight]}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${Math.min(100, Math.max(3, daemonStatus?.telemetry?.cpu?.percent ?? 0))}%`,
-                    backgroundColor: colors.green,
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.metricFooter}>
-              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>
-                Logical Cores: {daemonStatus?.telemetry?.cpu?.cores ?? 4}
-              </Text>
-              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>
-                Clock: {daemonStatus?.telemetry?.cpu?.speedMhz ? `${daemonStatus.telemetry.cpu.speedMhz} MHz` : 'Active'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={[styles.divider, isLight && styles.dividerLight]} />
-
-          {/* RAM Metric */}
-          <View style={styles.metricItem}>
-            <View style={styles.metricHeader}>
-              <View style={styles.metricTitleGroup}>
-                <Layers size={15} color={isLight ? '#57606a' : colors.textMuted} />
-                <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>RAM Allocation Pool (Host Physical)</Text>
-              </View>
-              <Text style={[styles.metricValue, isLight && { color: '#1f2328' }]}>
-                {daemonStatus?.telemetry?.ram?.usedGb ?? 0} / {daemonStatus?.telemetry?.ram?.totalGb ?? 0} GB{' '}
-                <Text style={{ color: isLight ? '#6e7681' : colors.textMuted }}>({daemonStatus?.telemetry?.ram?.percent ?? 0}%)</Text>
-              </Text>
-            </View>
-            <View style={[styles.progressBarBg, isLight && styles.progressBarBgLight]}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  {
-                    width: `${Math.min(100, Math.max(3, daemonStatus?.telemetry?.ram?.percent ?? 0))}%`,
-                    backgroundColor: colors.green,
-                  },
-                ]}
-              />
-            </View>
-            <View style={styles.metricFooter}>
-              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Free: {daemonStatus?.telemetry?.ram?.freeGb ?? 0} GB</Text>
-              <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Zero-DB In-Memory: Active</Text>
-            </View>
-          </View>
-
-          {daemonStatus?.telemetry?.disk && (
-            <>
-              <View style={[styles.divider, isLight && styles.dividerLight]} />
-
-              {/* Persistent Storage Volume Metric */}
-              <View style={styles.metricItem}>
-                <View style={styles.metricHeader}>
-                  <View style={styles.metricTitleGroup}>
-                    <HardDrive size={15} color={isLight ? '#57606a' : colors.textMuted} />
-                    <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>System Disk Storage</Text>
-                  </View>
-                  <Text style={[styles.metricValue, isLight && { color: '#1f2328' }]}>
-                    {daemonStatus.telemetry.disk.usedGb} / {daemonStatus.telemetry.disk.totalGb} GB{' '}
-                    <Text style={{ color: isLight ? '#6e7681' : colors.textMuted }}>({daemonStatus.telemetry.disk.percent}%)</Text>
-                  </Text>
-                </View>
-                <View style={[styles.progressBarBg, isLight && styles.progressBarBgLight]}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      {
-                        width: `${Math.min(100, Math.max(3, daemonStatus.telemetry.disk.percent))}%`,
-                        backgroundColor: colors.green,
-                      },
-                    ]}
-                  />
-                </View>
-                <View style={styles.metricFooter}>
-                  <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Free: {daemonStatus.telemetry.disk.freeGb} GB</Text>
-                  <Text style={[styles.metricFooterText, isLight && { color: '#6e7681' }]}>Transcript Storage: Direct I/O</Text>
-                </View>
-              </View>
-            </>
           )}
 
-          <View style={[styles.divider, isLight && styles.dividerLight]} />
+          <ScrollHeader.Title className="text-base font-semibold text-foreground">
+            Machine & CLI Health
+          </ScrollHeader.Title>
 
-          {/* Network Tunnel Metric */}
-          <View style={styles.networkRow}>
-            <View>
-              <Text style={[styles.metricLabel, isLight && styles.metricLabelLight]}>Network Tunnel Transport</Text>
-              <View style={styles.trafficStats}>
-                <View style={styles.trafficStatItem}>
-                  <ArrowUp size={13} color={colors.green} />
-                  <Text style={[styles.trafficStatText, { color: colors.green }]}>
-                    WebRTC P2P Direct Tunnel: Connected
-                  </Text>
-                </View>
+          <ScrollHeader.Actions>
+            <TouchableOpacity
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={handleRefresh}
+              disabled={isRefreshing}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Refresh status"
+            >
+              {isRefreshing ? (
+                <ActivityIndicator
+                  size="small"
+                  color={isLight ? '#1f2328' : '#fafafa'}
+                  style={{ transform: [{ scale: 0.75 }] }}
+                />
+              ) : (
+                <RefreshCw size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className={cn(
+                'w-10 h-10 rounded-full items-center justify-center active:opacity-70',
+                isLight ? 'bg-[#f2f2f2]' : 'bg-[#1e1e1e]'
+              )}
+              onPress={() => setShowMachineSwitcher(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Switch machine"
+            >
+              <Server size={20} color={isLight ? '#57606a' : '#a3a3a3'} />
+            </TouchableOpacity>
+          </ScrollHeader.Actions>
+        </ScrollHeader.Bar>
+
+        <ScrollHeader.Large className="px-4 pb-3">
+          <ScrollHeader.Title className="text-2xl font-bold text-foreground">
+            Machine & CLI Health
+          </ScrollHeader.Title>
+          <ScrollHeader.Description className="text-xs text-muted-foreground mt-0.5">
+            {`${hostName} • ${platformStr}`}
+          </ScrollHeader.Description>
+        </ScrollHeader.Large>
+
+        <ScrollView
+          className="flex-1 bg-background"
+          contentContainerClassName="p-4 gap-4"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Connection & Telemetry Status Strip (Border-free) */}
+          <View className="px-3.5 py-2.5 bg-surface rounded-xl flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2 flex-1 mr-2">
+              <View
+                className={cn(
+                  'w-2 h-2 rounded-full',
+                  isConnected ? 'bg-success' : 'bg-destructive'
+                )}
+              />
+              <Text className="text-xs text-muted-foreground font-mono" numberOfLines={1}>
+                {isConnected ? 'CONNECTED' : connectionState.toUpperCase()} • PID: {pidStr} • Uptime: {uptimeStr}
+              </Text>
+            </View>
+            {pingRtt ? (
+              <Badge variant="outline" size="xs">
+                {pingRtt}
+              </Badge>
+            ) : null}
+          </View>
+        {/* Host System State Card */}
+        <Card className="p-4 bg-card border border-border rounded-2xl">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-3 flex-1 mr-2">
+              <View className="w-10 h-10 rounded-xl bg-surface items-center justify-center border border-border">
+                <Server size={20} color={isLight ? '#262626' : '#f5f5f5'} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                  {hostName}
+                </Text>
+                <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
+                  {platformStr}
+                </Text>
               </View>
             </View>
-            <View style={[styles.pingPill, isLight && styles.pingPillLight]}>
-              <Text style={styles.pingText}>RTT: {pingRtt}</Text>
-            </View>
+
+            <Badge variant={isConnected ? 'success' : 'destructive'} size="sm">
+              {isConnected ? 'Connected' : connectionState}
+            </Badge>
           </View>
+        </Card>
+
+        {/* Telemetry & Resource Pools */}
+        <View className="gap-2">
+          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+            Telemetry & Resource Pools
+          </Text>
+
+          <GridItem.Group columns={2} gap={10} rowHeight={135} size="sm">
+            {/* CPU Metric */}
+            <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+              <GridItem.Media variant="icon">
+                <Cpu size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+              </GridItem.Media>
+              <GridItem.Title>CPU Load</GridItem.Title>
+              <GridItem.Value
+                className={cn(
+                  'text-xl font-bold font-mono',
+                  cpuPercent > 85 ? 'text-destructive' : cpuPercent > 70 ? 'text-warning' : 'text-success'
+                )}
+              >
+                {cpuPercent}%
+              </GridItem.Value>
+              <GridItem.Description numberOfLines={1}>
+                {daemonStatus?.telemetry?.cpu?.cores ?? 4} Cores • {daemonStatus?.telemetry?.cpu?.speedMhz ? `${daemonStatus.telemetry.cpu.speedMhz} MHz` : 'Active'}
+              </GridItem.Description>
+              <GridItem.Footer>
+                <Progress
+                  value={cpuPercent}
+                  color={cpuPercent > 85 ? 'destructive' : cpuPercent > 70 ? 'warning' : 'success'}
+                  size="sm"
+                />
+              </GridItem.Footer>
+            </GridItem>
+
+            {/* RAM Metric */}
+            <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+              <GridItem.Media variant="icon">
+                <Layers size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+              </GridItem.Media>
+              <GridItem.Title>Physical RAM</GridItem.Title>
+              <GridItem.Value className="text-xl font-bold font-mono">
+                {daemonStatus?.telemetry?.ram?.usedGb ?? 0} GB
+              </GridItem.Value>
+              <GridItem.Description numberOfLines={1}>
+                {ramPercent}% of {daemonStatus?.telemetry?.ram?.totalGb ?? 0} GB
+              </GridItem.Description>
+              <GridItem.Footer>
+                <Progress
+                  value={ramPercent}
+                  color={ramPercent > 85 ? 'destructive' : ramPercent > 70 ? 'warning' : 'success'}
+                  size="sm"
+                />
+              </GridItem.Footer>
+            </GridItem>
+
+            {/* Persistent Storage Volume Metric (Full Width Bento Card) */}
+            <GridItem colSpan={2} rowSpan={1} className="p-3 bg-card border-border">
+              <View className="flex-row items-center justify-between w-full">
+                <View className="flex-row items-center gap-2 flex-1 mr-2">
+                  <GridItem.Media variant="icon">
+                    <HardDrive size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                  </GridItem.Media>
+                  <View className="flex-1">
+                    <GridItem.Title>Disk Storage</GridItem.Title>
+                    <GridItem.Description numberOfLines={1}>
+                      {daemonStatus?.telemetry?.disk ? `Free: ${daemonStatus.telemetry.disk.freeGb} GB • Direct I/O` : 'Direct I/O NDJSON'}
+                    </GridItem.Description>
+                  </View>
+                </View>
+                <GridItem.Value className="text-base font-bold font-mono shrink-0">
+                  {daemonStatus?.telemetry?.disk ? `${daemonStatus.telemetry.disk.usedGb} / ${daemonStatus.telemetry.disk.totalGb} GB (${diskPercent}%)` : 'Active'}
+                </GridItem.Value>
+              </View>
+              <GridItem.Footer>
+                <Progress
+                  value={diskPercent}
+                  color={diskPercent > 90 ? 'destructive' : diskPercent > 75 ? 'warning' : 'success'}
+                  size="sm"
+                />
+              </GridItem.Footer>
+            </GridItem>
+          </GridItem.Group>
         </View>
 
         {/* Active Coding Adapters */}
-        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>ACTIVE CODING ADAPTERS</Text>
-          <Text style={styles.sectionSubtitle}>{adapters.length} registered</Text>
-        </View>
-
-        {adapters.length === 0 ? (
-          <View style={[styles.card, isLight && styles.cardLight, { padding: 18, alignItems: 'center' }]}>
-            <Text style={{ color: isLight ? '#6e7681' : colors.textMuted, fontSize: 13, fontFamily: typography.mono }}>
-              No adapters detected yet. Connect daemon to register CLI tools.
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between px-1">
+            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Active Coding Adapters
             </Text>
+            <Badge variant="outline" size="xs">
+              {adapters.length} registered
+            </Badge>
           </View>
-        ) : (
-          <View style={[styles.card, isLight && styles.cardLight, { padding: 0, overflow: 'hidden' }]}>
-            {adapters.map((adapter, idx) => (
-              <React.Fragment key={adapter.id || idx}>
-                {idx > 0 && <View style={[styles.divider, isLight && styles.dividerLight]} />}
-                <TouchableOpacity
-                  style={styles.adapterItem}
-                  activeOpacity={0.7}
-                  onPress={() => onNavigateTab && onNavigateTab('agent')}
+
+          {adapters.length === 0 ? (
+            <Card className="p-4 bg-card border border-border rounded-2xl items-center">
+              <Text className="text-xs text-muted-foreground font-mono text-center">
+                No adapters detected yet. Connect daemon to register CLI tools.
+              </Text>
+            </Card>
+          ) : (
+            <Card className="bg-card border border-border rounded-2xl overflow-hidden p-0">
+              {adapters.map((adapter, idx) => (
+                <View
+                  key={adapter.id || idx}
+                  className={cn(
+                    'p-3 flex-row items-center justify-between',
+                    idx > 0 && 'border-t border-border'
+                  )}
                 >
-                  <View style={styles.adapterLeft}>
-                    <View style={[styles.adapterIconBox, isLight && styles.adapterIconBoxLight]}>
-                      <Terminal size={17} color={isLight ? '#0077b6' : colors.green} />
+                  <View className="flex-row items-center gap-3 flex-1 mr-2">
+                    <View className="w-8 h-8 rounded-lg bg-surface items-center justify-center border border-border">
+                      <Terminal size={15} color={isLight ? '#262626' : '#f5f5f5'} />
                     </View>
-                    <View style={styles.adapterTexts}>
-                      <View style={styles.adapterTitleRow}>
-                        <Text style={[styles.adapterName, isLight && styles.adapterNameLight]}>{adapter.name || adapter.id}</Text>
-                        <View style={[styles.versionBadge, isLight && styles.versionBadgeLight]}>
-                          <Text style={styles.versionBadgeText}>{adapter.version || 'installed'}</Text>
-                        </View>
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2">
+                        <Text className="text-xs font-semibold text-foreground">
+                          {adapter.name || adapter.id}
+                        </Text>
+                        <Badge variant="outline" size="xs">
+                          {adapter.version || 'installed'}
+                        </Badge>
                       </View>
-                      <Text style={[styles.adapterPath, isLight && styles.adapterPathLight]} numberOfLines={1}>
+                      <Text className="text-[11px] font-mono text-muted-foreground mt-0.5" numberOfLines={1}>
                         {adapter.binaryPath || 'stdio RPC'}
                       </Text>
                     </View>
                   </View>
-                  <View style={styles.adapterRight}>
-                    {idx === 0 || adapter.status === 'active' ? (
-                      <View style={styles.primaryBadge}>
-                        <Text style={styles.primaryBadgeText}>Active</Text>
-                      </View>
-                    ) : (
-                      <View style={[styles.readyBadge, isLight && styles.readyBadgeLight]}>
-                        <Text style={[styles.readyBadgeText, isLight && styles.readyBadgeTextLight]}>Ready</Text>
-                      </View>
-                    )}
-                    <ChevronRight size={16} color={isLight ? '#57606a' : colors.textMuted} />
+
+                  <View className="flex-row items-center gap-2">
+                    <Badge variant={adapter.status === 'active' ? 'default' : 'secondary'} size="xs">
+                      {adapter.status === 'active' ? 'Active' : 'Ready'}
+                    </Badge>
+                    <ChevronRight size={14} color={isLight ? '#686868' : '#a3a3a3'} />
                   </View>
-                </TouchableOpacity>
-              </React.Fragment>
-            ))}
-          </View>
-        )}
+                </View>
+              ))}
+            </Card>
+          )}
+        </View>
 
         {/* Push Notifications & Gateway */}
-        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>PUSH NOTIFICATIONS & GATEWAY</Text>
-          <TouchableOpacity onPress={() => setShowServerSettings(true)} activeOpacity={0.7}>
-            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>Configure</Text>
-          </TouchableOpacity>
-        </View>
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between px-1">
+            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Push Notifications & Gateway
+            </Text>
+            <Button variant="ghost" size="xs" onPress={() => setShowServerSettings(true)}>
+              Configure
+            </Button>
+          </View>
 
-        <TouchableOpacity
-          style={[styles.card, isLight && styles.cardLight, { padding: 14 }]}
-          onPress={() => setShowServerSettings(true)}
-          activeOpacity={0.7}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Bell size={16} color={isLight ? '#0077b6' : colors.primary} />
-              <Text style={{ color: isLight ? '#1f2328' : colors.textPrimary, fontSize: 14, fontWeight: '600' }}>Native Push Notifications</Text>
-            </View>
-            <View style={{
-              paddingHorizontal: 8,
-              paddingVertical: 2,
-              borderRadius: 12,
-              backgroundColor: isPushRegistered
-                ? (isLight ? 'rgba(0, 119, 182, 0.12)' : 'rgba(255, 255, 255, 0.08)')
-                : (isLight ? '#f6f8fa' : '#262626'),
-              borderWidth: 1,
-              borderColor: isPushRegistered
-                ? (isLight ? 'rgba(0, 119, 182, 0.3)' : 'rgba(255, 255, 255, 0.25)')
-                : (isLight ? '#d0d7de' : 'rgba(255, 255, 255, 0.10)'),
-            }}>
-              <Text style={{
-                color: isPushRegistered ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#6e7681' : '#a3a3a3'),
-                fontSize: 11,
-                fontWeight: '600',
-              }}>
-                {isPushRegistered ? 'Active' : 'Standby'}
+          <TouchableOpacity activeOpacity={0.8} onPress={() => setShowServerSettings(true)}>
+            <Card className="p-4 bg-card border border-border rounded-2xl gap-2.5">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-2">
+                  <Bell size={15} color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Text className="text-sm font-semibold text-foreground">
+                    Native Push Notifications
+                  </Text>
+                </View>
+                <Badge variant={isPushRegistered ? 'default' : 'secondary'} size="xs">
+                  {isPushRegistered ? 'Active' : 'Standby'}
+                </Badge>
+              </View>
+
+              <Text className="text-xs text-muted-foreground leading-relaxed" numberOfLines={2}>
+                {pushStatus}
               </Text>
-            </View>
-          </View>
-          <Text style={{ color: isLight ? '#57606a' : colors.textMuted, fontSize: 12, lineHeight: 16 }} numberOfLines={2}>
-            {pushStatus}
-          </Text>
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 10,
-            paddingTop: 8,
-            borderTopWidth: 1,
-            borderTopColor: isLight ? '#d0d7de' : '#262626'
-          }}>
-            <Text style={{ color: isLight ? '#6e7681' : '#737373', fontSize: 11 }}>
-              Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
-            </Text>
-            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>
-              Test Push Notification →
-            </Text>
-          </View>
-        </TouchableOpacity>
 
-        {/* Autonomous On-Call & PR Reviewer */}
-        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>AUTONOMOUS ON-CALL & PR REVIEWER</Text>
-          <TouchableOpacity onPress={() => setShowGithubModal(true)} activeOpacity={0.7}>
-            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>Webhook & Token</Text>
+              <View className="pt-2.5 border-t border-border flex-row items-center justify-between gap-2">
+                <Text className="text-[11px] font-mono text-muted-foreground flex-1" numberOfLines={1}>
+                  Gateway: {gatewayUrl.replace(/^https?:\/\//, '')}
+                </Text>
+                <View className="flex-row items-center gap-1 shrink-0">
+                  <Text className="text-xs font-semibold text-foreground">Configure</Text>
+                  <ChevronRight size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                </View>
+              </View>
+            </Card>
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.card, isLight && styles.cardLight, { padding: 14, gap: 10 }]}>
-          {/* Active Proposal / Review Card if available */}
-          {activeProposal && (
-            <TouchableOpacity
-              style={{
-                backgroundColor: 'rgba(63, 185, 80, 0.1)',
-                borderWidth: 1,
-                borderColor: 'rgba(63, 185, 80, 0.3)',
-                borderRadius: 8,
-                padding: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-              onPress={() => openAutoHealerProposal(activeProposal)}
-              activeOpacity={0.7}
-            >
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <Bug size={14} color={isLight ? '#1f2328' : '#fafafa'} />
-                  <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '700' }}>Fix Proposal Ready</Text>
-                </View>
-                <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
-                  {activeProposal.title}
-                </Text>
-              </View>
-              <Text style={{ color: isLight ? '#0077b6' : '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
-            </TouchableOpacity>
-          )}
-
-          {activePrReview && (
-            <TouchableOpacity
-              style={{
-                backgroundColor: isLight ? '#f6f8fa' : 'rgba(255, 255, 255, 0.08)',
-                borderWidth: 1,
-                borderColor: isLight ? '#d0d7de' : 'rgba(255, 255, 255, 0.18)',
-                borderRadius: 8,
-                padding: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-              onPress={() => openAutoPrReview(activePrReview)}
-              activeOpacity={0.7}
-            >
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <GitPullRequest size={14} color={isLight ? '#1f2328' : '#fafafa'} />
-                  <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '700' }}>PR Review Ready ({activePrReview.verdict})</Text>
-                </View>
-                <Text style={{ color: isLight ? '#1f2328' : '#fafafa', fontSize: 12, fontWeight: '600' }} numberOfLines={1}>
-                  PR #{activePrReview.prNumber}: {activePrReview.prTitle}
-                </Text>
-              </View>
-              <Text style={{ color: isLight ? '#0077b6' : '#fafafa', fontSize: 12, fontWeight: '600' }}>Review →</Text>
-            </TouchableOpacity>
-          )}
-
-          <Text style={{ color: isLight ? '#57606a' : '#a3a3a3', fontSize: 12, lineHeight: 17 }}>
-            24/7 on-call agent listens to GitHub & Sentry webhooks, investigates bugs, writes tests, applies fixes, and conducts PR reviews autonomously.
-          </Text>
-
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                backgroundColor: 'rgba(248, 81, 73, 0.12)',
-                borderWidth: 1,
-                borderColor: 'rgba(248, 81, 73, 0.35)',
-                borderRadius: 8,
-                paddingVertical: 9,
-                opacity: isSimulatingIncident ? 0.6 : 1,
-              }}
-              onPress={handleSimulateBug}
-              disabled={isSimulatingIncident}
-              activeOpacity={0.7}
-            >
-              {isSimulatingIncident ? (
-                <ActivityIndicator size="small" color="#f85149" />
-              ) : (
-                <>
-                  <Bug size={14} color="#f85149" />
-                  <Text style={{ color: '#f85149', fontSize: 12, fontWeight: '600' }}>Simulate Bug</Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                backgroundColor: isLight ? 'rgba(0, 119, 182, 0.10)' : 'rgba(255, 255, 255, 0.08)',
-                borderWidth: 1,
-                borderColor: isLight ? 'rgba(0, 119, 182, 0.30)' : 'rgba(255, 255, 255, 0.20)',
-                borderRadius: 8,
-                paddingVertical: 9,
-                opacity: isSimulatingIncident ? 0.6 : 1,
-              }}
-              onPress={handleSimulatePr}
-              disabled={isSimulatingIncident}
-              activeOpacity={0.7}
-            >
-              {isSimulatingIncident ? (
-                <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
-              ) : (
-                <>
-                  <GitPullRequest size={14} color={isLight ? '#0077b6' : '#fafafa'} />
-                  <Text style={{ color: isLight ? '#0077b6' : '#fafafa', fontSize: 12, fontWeight: '600' }}>Simulate PR</Text>
-                </>
-              )}
-            </TouchableOpacity>
+        {/* Incident Repairs & PR Reviews */}
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between px-1">
+            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Incident Repairs & PR Reviews
+            </Text>
+            <Button variant="ghost" size="xs" onPress={() => setShowGithubModal(true)}>
+              Webhook & Token
+            </Button>
           </View>
+
+          <Card className="p-4 bg-card border border-border rounded-2xl gap-3">
+            {/* Active Proposal Card */}
+            {activeProposal && (
+              <TouchableOpacity
+                className="p-3 bg-success/10 border border-success/20 rounded-xl flex-row items-center justify-between"
+                onPress={() => openAutoHealerProposal(activeProposal)}
+                activeOpacity={0.7}
+              >
+                <View className="flex-1 mr-2">
+                  <View className="flex-row items-center gap-1.5 mb-1">
+                    <Bug size={13} color="#10b981" />
+                    <Text className="text-xs font-bold text-foreground">Fix Proposal Ready</Text>
+                  </View>
+                  <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
+                    {activeProposal.title}
+                  </Text>
+                </View>
+                <Text className="text-xs font-semibold text-foreground">Review →</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Active PR Review Card */}
+            {activePrReview && (
+              <TouchableOpacity
+                className="p-3 bg-surface border border-border rounded-xl flex-row items-center justify-between"
+                onPress={() => openAutoPrReview(activePrReview)}
+                activeOpacity={0.7}
+              >
+                <View className="flex-1 mr-2">
+                  <View className="flex-row items-center gap-1.5 mb-1">
+                    <GitPullRequest size={13} color={isLight ? '#262626' : '#f5f5f5'} />
+                    <Text className="text-xs font-bold text-foreground">
+                      PR Review Ready ({activePrReview.verdict})
+                    </Text>
+                  </View>
+                  <Text className="text-xs font-medium text-foreground" numberOfLines={1}>
+                    PR #{activePrReview.prNumber}: {activePrReview.prTitle}
+                  </Text>
+                </View>
+                <Text className="text-xs font-semibold text-foreground">Review →</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text className="text-xs text-muted-foreground leading-relaxed">
+              Listens to GitHub and Sentry webhooks to triage runtime issues and review pull requests.
+            </Text>
+          </Card>
         </View>
 
         {/* Dedicated GitHub & Git Host Identity Section */}
-        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>GITHUB & GIT IDENTITY</Text>
-          <TouchableOpacity onPress={() => setShowGithubModal(true)} activeOpacity={0.7}>
-            <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 12, fontWeight: '600' }}>
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between px-1">
+            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              GitHub & Git Identity
+            </Text>
+            <Button variant="ghost" size="xs" onPress={() => setShowGithubModal(true)}>
               {githubStatus?.authenticated ? 'Manage →' : 'Configure →'}
-            </Text>
+            </Button>
+          </View>
+
+          <TouchableOpacity activeOpacity={0.8} onPress={() => setShowGithubModal(true)}>
+            <Card className="p-4 bg-card border border-border rounded-2xl gap-3">
+              <View className="flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3 flex-1 mr-2">
+                  <View className="w-9 h-9 rounded-xl bg-surface items-center justify-center border border-border">
+                    <Github size={18} color={isLight ? '#262626' : '#f5f5f5'} />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-semibold text-foreground">
+                      GitHub & Git Identity
+                    </Text>
+                    <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
+                      {githubStatus?.authenticated
+                        ? `Authenticated as @${githubStatus.username}`
+                        : 'Personal Access Token & Git author profile'}
+                    </Text>
+                  </View>
+                </View>
+
+                <Badge variant={githubStatus?.authenticated ? 'default' : 'secondary'} size="xs">
+                  {githubStatus?.authenticated ? 'Active' : 'Standby'}
+                </Badge>
+              </View>
+
+              {/* Git identity metadata pill row if authenticated */}
+              {githubStatus?.authenticated && (
+                <View className="flex-row items-center flex-wrap gap-2 pt-2 border-t border-border">
+                  {githubStatus.gitUserName ? (
+                    <View className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border">
+                      <User size={12} color={isLight ? '#686868' : '#a3a3a3'} />
+                      <Text className="text-xs font-medium text-foreground">
+                        {githubStatus.gitUserName}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {githubStatus.gitUserEmail ? (
+                    <View className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border">
+                      <Mail size={12} color={isLight ? '#686868' : '#a3a3a3'} />
+                      <Text className="text-xs font-medium text-foreground">
+                        {githubStatus.gitUserEmail}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  <View className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface border border-border">
+                    <GitBranch size={12} color={isLight ? '#262626' : '#f5f5f5'} />
+                    <Text className="text-xs font-medium text-foreground">
+                      {githubStatus.source === 'token' ? 'PAT Token' : 'Host gh'}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View className="pt-2 border-t border-border flex-row items-center justify-between">
+                <Text className="text-[11px] text-muted-foreground">
+                  Host: <Text className="font-semibold text-foreground">{hostName}</Text>
+                </Text>
+                <View className="flex-row items-center gap-1">
+                  <Text className="text-xs font-medium text-foreground">Configure Identity</Text>
+                  <ChevronRight size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                </View>
+              </View>
+            </Card>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={[styles.card, isLight && styles.cardLight, { padding: 14 }]}
-          onPress={() => setShowGithubModal(true)}
-          activeOpacity={0.8}
-        >
-          {/* Header Row: Icon, Title, Status Pill */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
-              <View style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                backgroundColor: isLight ? 'rgba(0, 119, 182, 0.1)' : 'rgba(0, 119, 182, 0.15)',
-                borderWidth: 1,
-                borderColor: isLight ? 'rgba(0, 119, 182, 0.25)' : 'rgba(0, 119, 182, 0.35)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}>
-                <Github size={17} color={isLight ? '#0077b6' : '#48cae4'} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: isLight ? '#1f2328' : '#f0f6fc', fontSize: 13, fontWeight: '700' }}>
-                  GitHub & Git Identity
-                </Text>
-                <Text style={{ color: isLight ? '#57606a' : '#8b949e', fontSize: 11, marginTop: 1 }} numberOfLines={1}>
-                  {githubStatus?.authenticated
-                    ? `Authenticated as @${githubStatus.username}`
-                    : 'Personal Access Token & Git author profile'}
-                </Text>
-              </View>
-            </View>
+        {/* Daemon Operations Bento Grid */}
+        <View className="gap-2 mb-6">
+          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+            Daemon Operations
+          </Text>
 
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 5,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              borderRadius: 12,
-              backgroundColor: githubStatus?.authenticated
-                ? (isLight ? 'rgba(46, 160, 67, 0.1)' : 'rgba(46, 160, 67, 0.15)')
-                : (isLight ? '#eaeef2' : 'rgba(255, 255, 255, 0.06)'),
-              borderWidth: 1,
-              borderColor: githubStatus?.authenticated
-                ? (isLight ? 'rgba(46, 160, 67, 0.3)' : 'rgba(46, 160, 67, 0.35)')
-                : (isLight ? '#d0d7de' : '#30363d'),
-            }}>
-              <View style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: githubStatus?.authenticated ? '#2ea043' : '#6e7681',
-              }} />
-              <Text style={{
-                color: githubStatus?.authenticated
-                  ? (isLight ? '#1a7f37' : '#2ea043')
-                  : (isLight ? '#6e7681' : '#8b949e'),
-                fontSize: 10.5,
-                fontWeight: '600',
-              }}>
-                {githubStatus?.authenticated ? 'Active' : 'Standby'}
-              </Text>
-            </View>
-          </View>
+          <GridItem.Group columns={2} gap={10} rowHeight={130} size="sm">
+            <GridItem
+              colSpan={1}
+              rowSpan={1}
+              onPress={handlePing}
+              disabled={isPinging}
+              className="p-3 pb-3.5 bg-card border-border"
+            >
+              <GridItem.Media variant="icon">
+                {isPinging ? (
+                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#f5f5f5'} style={{ transform: [{ scale: 0.75 }] }} />
+                ) : (
+                  <Radio size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                )}
+              </GridItem.Media>
+              <GridItem.Title>Heartbeat</GridItem.Title>
+              <GridItem.Value className="text-base font-semibold">
+                {isPinging ? 'Pinging...' : 'Ping Node'}
+              </GridItem.Value>
+              <GridItem.Description numberOfLines={1}>
+                Check latency
+              </GridItem.Description>
+            </GridItem>
 
-          {/* Git identity metadata pill row if authenticated */}
-          {githubStatus?.authenticated && (
-            <View style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 6,
-              marginTop: 10,
-              paddingTop: 8,
-              borderTopWidth: 1,
-              borderTopColor: isLight ? '#e1e4e8' : '#21262d',
-            }}>
-              {githubStatus.gitUserName ? (
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: isLight ? '#ffffff' : '#0d1117',
-                  borderWidth: 1,
-                  borderColor: isLight ? '#d0d7de' : '#21262d',
-                  borderRadius: 6,
-                  paddingHorizontal: 7,
-                  paddingVertical: 2,
-                }}>
-                  <User size={11} color={isLight ? '#57606a' : '#8b949e'} />
-                  <Text style={{ color: isLight ? '#1f2328' : '#c9d1d9', fontSize: 11, fontWeight: '500' }}>
-                    {githubStatus.gitUserName}
-                  </Text>
-                </View>
-              ) : null}
+            <GridItem
+              colSpan={1}
+              rowSpan={1}
+              onPress={async () => {
+                await handleRefresh();
+                toast.show({
+                  variant: 'info',
+                  label: 'Host State Synced',
+                  description: 'Machine telemetry and adapters queried from Daemon.',
+                });
+              }}
+              disabled={isRefreshing}
+              className="p-3 pb-3.5 bg-card border-border"
+            >
+              <GridItem.Media variant="icon">
+                <RefreshCw size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+              </GridItem.Media>
+              <GridItem.Title>Host State</GridItem.Title>
+              <GridItem.Value className="text-base font-semibold">
+                Flush Cache
+              </GridItem.Value>
+              <GridItem.Description numberOfLines={1}>
+                Sync tools & CLI
+              </GridItem.Description>
+            </GridItem>
 
-              {githubStatus.gitUserEmail ? (
-                <View style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  backgroundColor: isLight ? '#ffffff' : '#0d1117',
-                  borderWidth: 1,
-                  borderColor: isLight ? '#d0d7de' : '#21262d',
-                  borderRadius: 6,
-                  paddingHorizontal: 7,
-                  paddingVertical: 2,
-                }}>
-                  <Mail size={11} color={isLight ? '#57606a' : '#8b949e'} />
-                  <Text style={{ color: isLight ? '#1f2328' : '#c9d1d9', fontSize: 11, fontWeight: '500' }}>
-                    {githubStatus.gitUserEmail}
-                  </Text>
-                </View>
-              ) : null}
+            <GridItem
+              colSpan={1}
+              rowSpan={1}
+              onPress={() => onNavigateTab && onNavigateTab('sessions')}
+              className="p-3 pb-3.5 bg-card border-border"
+            >
+              <GridItem.Media variant="icon">
+                <Zap size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+              </GridItem.Media>
+              <GridItem.Title>Daemon Logs</GridItem.Title>
+              <GridItem.Value className="text-base font-semibold">
+                STDOUT
+              </GridItem.Value>
+              <GridItem.Description numberOfLines={1}>
+                Live stream console
+              </GridItem.Description>
+            </GridItem>
 
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                backgroundColor: isLight ? 'rgba(0, 119, 182, 0.08)' : 'rgba(0, 119, 182, 0.12)',
-                borderWidth: 1,
-                borderColor: isLight ? 'rgba(0, 119, 182, 0.2)' : 'rgba(0, 119, 182, 0.3)',
-                borderRadius: 6,
-                paddingHorizontal: 7,
-                paddingVertical: 2,
-              }}>
-                <GitBranch size={11} color={isLight ? '#0077b6' : '#48cae4'} />
-                <Text style={{ color: isLight ? '#0077b6' : '#48cae4', fontSize: 11, fontWeight: '600' }}>
-                  {githubStatus.source === 'token' ? 'PAT Token' : 'Host gh'}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Bottom Host Target & Action Link */}
-          <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 8,
-            paddingTop: 8,
-            borderTopWidth: 1,
-            borderTopColor: isLight ? '#e1e4e8' : '#21262d',
-          }}>
-            <Text style={{ color: isLight ? '#6e7681' : '#8b949e', fontSize: 11 }}>
-              Host: <Text style={{ color: isLight ? '#1f2328' : '#f0f6fc', fontWeight: '600' }}>{activeMachine?.name || daemonStatus?.hostname || 'Remote Node'}</Text>
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-              <Text style={{ color: isLight ? '#0077b6' : colors.primary, fontSize: 11.5, fontWeight: '600' }}>
-                Configure Host Identity
-              </Text>
-              <ChevronRight size={13} color={isLight ? '#0077b6' : colors.primary} />
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        {/* Daemon Operations */}
-        <View style={[styles.sectionHeader, { marginTop: 18 }]}>
-          <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>DAEMON OPERATIONS</Text>
-        </View>
-
-        <View style={styles.operationsGrid}>
-          <TouchableOpacity
-            style={[styles.operationBtn, isLight && styles.operationBtnLight, isPinging && { borderColor: colors.green }]}
-            onPress={handlePing}
-            disabled={isPinging}
-            activeOpacity={0.7}
-          >
-            {isPinging ? (
-              <ActivityIndicator size="small" color={colors.green} style={{ transform: [{ scale: 0.75 }] }} />
-            ) : (
-              <Radio size={16} color={colors.green} />
-            )}
-            <Text style={[styles.operationBtnText, isLight && styles.operationBtnTextLight]}>{isPinging ? 'Pinging...' : 'Ping Heartbeat'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.operationBtn, isLight && styles.operationBtnLight]}
-            onPress={async () => {
-              await handleRefresh();
-              Alert.alert('Refreshed', 'Machine state and adapters queried from Daemon.');
-            }}
-            disabled={isRefreshing}
-            activeOpacity={0.7}
-          >
-            <RefreshCw size={16} color={colors.green} />
-            <Text style={[styles.operationBtnText, isLight && styles.operationBtnTextLight]}>Flush Cache</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.operationBtn, isLight && styles.operationBtnLight]}
-            onPress={() => onNavigateTab && onNavigateTab('sessions')}
-            activeOpacity={0.7}
-          >
-            <Zap size={16} color={colors.green} />
-            <Text style={[styles.operationBtnText, isLight && styles.operationBtnTextLight]}>STDOUT Stream</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.operationBtn, isLight && styles.operationBtnLight, { borderColor: colors.redBorder }]}
-            onPress={() => Alert.alert('Restart Daemon', `Restart command dispatched to ${hostName}.`)}
-            activeOpacity={0.7}
-          >
-            <Power size={16} color={colors.red} />
-            <Text style={[styles.operationBtnText, { color: colors.red }]}>Restart Daemon</Text>
-          </TouchableOpacity>
+            <GridItem
+              colSpan={1}
+              rowSpan={1}
+              onPress={() => {
+                toast.show({
+                  variant: 'warning',
+                  label: 'Restart Daemon',
+                  description: `Restart command dispatched to ${hostName}.`,
+                });
+              }}
+              className="p-3 pb-3.5 bg-card border-border border-destructive/30"
+            >
+              <GridItem.Media variant="icon" className="bg-destructive/10 border-destructive/20">
+                <Power size={16} color="#ef4444" />
+              </GridItem.Media>
+              <GridItem.Title className="text-destructive">Daemon</GridItem.Title>
+              <GridItem.Value className="text-base font-semibold text-destructive">
+                Restart
+              </GridItem.Value>
+              <GridItem.Description numberOfLines={1} className="text-destructive/70">
+                Reboot host daemon
+              </GridItem.Description>
+            </GridItem>
+          </GridItem.Group>
         </View>
       </ScrollView>
+    </ScrollHeader>
 
       {/* Machine & VPS Switcher Modal */}
       <MachineSwitcherModal
@@ -856,460 +708,3 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({ onBack
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bgPrimary,
-  },
-  switchMachineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 8,
-    marginRight: 6,
-  },
-  switchMachineBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  subBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    backgroundColor: colors.bgPrimary,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderDefault,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pulseDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: colors.green,
-  },
-  pulseDotSmall: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.green,
-  },
-  pulseDotTiny: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.green,
-  },
-  subBarText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 32,
-  },
-  card: {
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.xl,
-    padding: 14,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  hostInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.lg,
-    backgroundColor: colors.bgHover,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hostTexts: {
-    flex: 1,
-  },
-  hostName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  hostSub: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-    marginTop: 1,
-  },
-  connectedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    backgroundColor: colors.greenSubtle,
-    borderWidth: 1,
-    borderColor: colors.greenBorder,
-  },
-  connectedText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.green,
-    fontFamily: typography.mono,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  badgeCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 10,
-    borderRadius: radii.lg,
-    backgroundColor: colors.bgPrimary,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-  },
-  badgeCardTextCol: {
-    flex: 1,
-  },
-  badgeCardLabel: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  badgeCardValue: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    fontFamily: typography.mono,
-    marginTop: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 8,
-    paddingHorizontal: 2,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-  },
-  sectionSubtitle: {
-    fontSize: 11,
-    color: colors.green,
-    fontFamily: typography.mono,
-  },
-  metricItem: {
-    paddingVertical: 4,
-  },
-  metricHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  metricTitleGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  metricLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textPrimary,
-  },
-  metricValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    fontFamily: typography.mono,
-  },
-  progressBarBg: {
-    height: 6,
-    backgroundColor: colors.bgHover,
-    borderRadius: radii.full,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: radii.full,
-  },
-  metricFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  metricFooterText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.borderMuted,
-    marginVertical: 10,
-  },
-  networkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 2,
-  },
-  trafficStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 3,
-  },
-  trafficStatItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  trafficStatText: {
-    fontSize: 11,
-    fontFamily: typography.mono,
-  },
-  trafficDot: {
-    color: colors.textMuted,
-    fontSize: 10,
-  },
-  pingPill: {
-    backgroundColor: colors.bgHover,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-  },
-  pingText: {
-    fontSize: 11,
-    color: colors.green,
-    fontFamily: typography.mono,
-    fontWeight: '600',
-  },
-  adapterItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 12,
-  },
-  adapterLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  adapterIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.md,
-    backgroundColor: colors.bgHover,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  adapterTexts: {
-    flex: 1,
-  },
-  adapterTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  adapterName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  versionBadge: {
-    backgroundColor: colors.bgHover,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: radii.sm,
-  },
-  versionBadgeText: {
-    fontSize: 10,
-    color: colors.green,
-    fontFamily: typography.mono,
-  },
-  adapterPath: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-    marginTop: 2,
-  },
-  adapterRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  primaryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    backgroundColor: colors.greenSubtle,
-    borderWidth: 1,
-    borderColor: colors.greenBorder,
-  },
-  primaryBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.green,
-  },
-  readyBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    backgroundColor: colors.bgHover,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-  },
-  readyBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  operationsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  operationBtn: {
-    width: '48.5%',
-    height: 44,
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  operationBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  containerLight: {
-    backgroundColor: '#ffffff',
-  },
-  switchMachineBtnLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  switchMachineBtnTextLight: {
-    color: '#1f2328',
-  },
-  subBarLight: {
-    backgroundColor: '#ffffff',
-    borderBottomColor: '#d0d7de',
-  },
-  subBarTextLight: {
-    color: '#6e7681',
-  },
-  cardLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  iconBoxLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  hostNameLight: {
-    color: '#1f2328',
-  },
-  hostSubLight: {
-    color: '#6e7681',
-  },
-  badgeCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  badgeCardLabelLight: {
-    color: '#6e7681',
-  },
-  badgeCardValueLight: {
-    color: '#1f2328',
-  },
-  sectionTitleLight: {
-    color: '#6e7681',
-  },
-  metricLabelLight: {
-    color: '#1f2328',
-  },
-  progressBarBgLight: {
-    backgroundColor: '#e1e4e8',
-  },
-  dividerLight: {
-    backgroundColor: '#e1e4e8',
-  },
-  pingPillLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  adapterIconBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-    borderColor: 'rgba(0, 119, 182, 0.25)',
-  },
-  adapterNameLight: {
-    color: '#1f2328',
-  },
-  adapterPathLight: {
-    color: '#6e7681',
-  },
-  versionBadgeLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  readyBadgeLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  readyBadgeTextLight: {
-    color: '#6e7681',
-  },
-  operationBtnLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  operationBtnTextLight: {
-    color: '#1f2328',
-  },
-});

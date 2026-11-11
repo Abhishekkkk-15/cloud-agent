@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
   ActivityIndicator,
   Share,
+  useWindowDimensions,
 } from 'react-native';
+import {
+  Dialog,
+  Tabs,
+  Button,
+  Badge,
+  Card,
+  Text,
+  cn,
+} from 'panelui-native';
 import {
   X,
   Bug,
@@ -21,11 +26,9 @@ import {
   FileCode,
   Share2,
   Trash2,
-  ArrowRight,
   GitMerge,
   Sparkles,
 } from './Icons';
-import { colors, radii, typography } from '../theme/tokens';
 import {
   useDaemonStore,
   type AutoHealerProposal,
@@ -47,6 +50,9 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
+  const { height: windowHeight } = useWindowDimensions();
+  const modalHeight = Math.min(680, Math.round(windowHeight * 0.85));
+
   const [activeTab, setActiveTab] = useState<'diff' | 'tests' | 'details' | 'review'>('diff');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -55,7 +61,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
   const isPrReviewMode = Boolean(!activeProposal && activePrReview);
   const currentTitle = isPrReviewMode
     ? `PR #${activePrReview?.prNumber}: ${activePrReview?.prTitle}`
-    : activeProposal?.title || 'Autonomous Incident Repair';
+    : activeProposal?.title || 'Incident Repair';
 
   const handleApproveAction = async (action: 'pr' | 'merge' | 'discard') => {
     if (!activeProposal) return;
@@ -109,767 +115,384 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
     try {
       const content = isPrReviewMode
         ? activePrReview?.fullMarkdown || ''
-        : `Autonomous Auto-Healer Fix for ${activeProposal?.title}\n\nBranch: ${activeProposal?.branchName}\n\nDiff:\n${activeProposal?.diff}`;
+        : `Fix proposal for ${activeProposal?.title}\n\nBranch: ${activeProposal?.branchName}\n\nDiff:\n${activeProposal?.diff}`;
       await Share.share({ message: content });
     } catch {}
   };
 
-  if (!visible) return null;
-
   return (
-    <Modal
-      visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
-    >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay}>
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-            <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
-              {/* 1. Modal Header */}
-              <View style={[styles.header, isLight && styles.headerLight]}>
-                <View style={styles.headerLeft}>
-                  <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
-                    {isPrReviewMode ? (
-                      <GitPullRequest size={18} color={isLight ? '#0077b6' : '#fafafa'} />
-                    ) : (
-                      <Bug size={18} color="#f85149" />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.headerBadge, isLight && { color: '#0077b6' }]}>
-                        {isPrReviewMode ? 'AUTONOMOUS PR REVIEW' : 'ON-CALL AUTO-HEALER'}
-                      </Text>
-                      {activeProposal?.source && (
-                        <View style={[styles.sourcePill, isLight && { backgroundColor: '#e1e4e8' }]}>
-                          <Text style={[styles.sourcePillText, isLight && { color: '#57606a' }]}>{activeProposal.source.toUpperCase()}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]} numberOfLines={1}>
-                      {currentTitle}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.headerRight}>
-                  <TouchableOpacity
-                    style={styles.headerActionBtn}
-                    onPress={handleShare}
-                    activeOpacity={0.7}
-                  >
-                    <Share2 size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.headerActionBtn}
-                    onPress={onClose}
-                    activeOpacity={0.7}
-                  >
-                    <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
-                  </TouchableOpacity>
-                </View>
+    <Dialog open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Content
+        className="w-full max-w-lg bg-popover border border-border p-0 overflow-hidden rounded-2xl flex-col"
+        style={{ height: modalHeight }}
+      >
+        {/* 1. Modal Header */}
+        <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
+          <View className="flex-row items-center gap-2.5 flex-1 mr-2">
+            <View className={cn(
+              "w-8 h-8 rounded-lg items-center justify-center border",
+              isPrReviewMode
+                ? "bg-primary/10 border-primary/20"
+                : "bg-destructive/10 border-destructive/20"
+            )}>
+              {isPrReviewMode ? (
+                <GitPullRequest size={16} color={isLight ? '#0077b6' : '#38bdf8'} />
+              ) : (
+                <Bug size={16} color="#ef4444" />
+              )}
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5 mb-0.5">
+                <Badge variant={isPrReviewMode ? 'outline' : 'destructive'} size="xs">
+                  {isPrReviewMode ? 'PR Review' : 'Incident Repair'}
+                </Badge>
+                {activeProposal?.source && (
+                  <Badge variant="secondary" size="xs">
+                    {activeProposal.source.toUpperCase()}
+                  </Badge>
+                )}
               </View>
+              <Dialog.Title className="text-base font-semibold text-foreground" numberOfLines={1}>
+                {currentTitle}
+              </Dialog.Title>
+            </View>
+          </View>
 
-              {/* Status Alert Banner */}
-              {statusMessage && (
-                <View
-                  style={[
-                    styles.statusAlert,
-                    statusMessage.type === 'success'
-                      ? styles.statusAlertSuccess
-                      : styles.statusAlertError,
-                  ]}
+          <View className="flex-row items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-7 h-7 p-0 items-center justify-center rounded-lg"
+              onPress={handleShare}
+            >
+              <Share2 size={14} color={isLight ? '#686868' : '#a3a3a3'} />
+            </Button>
+            <Dialog.Close>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-7 h-7 p-0 items-center justify-center rounded-lg"
+              >
+                <X size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Button>
+            </Dialog.Close>
+          </View>
+        </View>
+
+        {/* Status Alert Banner */}
+        {statusMessage && (
+          <View
+            className={cn(
+              "mx-4 mt-3 px-3.5 py-2.5 rounded-xl border flex-row items-center gap-2",
+              statusMessage.type === 'success'
+                ? "bg-success/10 border-success/30"
+                : "bg-destructive/10 border-destructive/30"
+            )}
+          >
+            {statusMessage.type === 'success' ? (
+              <CheckCircle2 size={15} color="#10b981" />
+            ) : (
+              <AlertCircle size={15} color="#ef4444" />
+            )}
+            <Text
+              className={cn(
+                "text-xs font-medium flex-1",
+                statusMessage.type === 'success' ? "text-success" : "text-destructive"
+              )}
+            >
+              {statusMessage.text}
+            </Text>
+          </View>
+        )}
+
+        {/* 2. Mode Specific Banners */}
+        {!isPrReviewMode && activeProposal && (
+          <View className="mx-4 mt-3 p-3 rounded-xl bg-surface-secondary border border-border flex-row items-center gap-2.5">
+            <ShieldCheck size={18} color={activeProposal.testsPassed ? '#10b981' : '#ef4444'} />
+            <View className="flex-1">
+              <Text className="text-xs font-semibold text-foreground">
+                {activeProposal.testsPassed ? 'Fix Verified: Test Suite Passing' : 'Fix Applied: Manual Review Advised'}
+              </Text>
+              <Text className="text-[11px] text-muted-foreground mt-0.5">
+                Branch: <Text className="font-mono text-primary">{activeProposal.branchName}</Text>
+              </Text>
+            </View>
+            <Badge variant={activeProposal.testsPassed ? 'success' : 'destructive'} size="xs">
+              {activeProposal.testsPassed ? 'TESTS OK' : 'CHECK FAILS'}
+            </Badge>
+          </View>
+        )}
+
+        {isPrReviewMode && activePrReview && (
+          <View className="mx-4 mt-3 p-3 rounded-xl bg-surface-secondary border border-border flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2.5 flex-1 mr-2">
+              {activePrReview.verdict === 'APPROVE' ? (
+                <CheckCircle2 size={18} color="#10b981" />
+              ) : (
+                <AlertCircle size={18} color="#ef4444" />
+              )}
+              <View className="flex-1">
+                <Text className="text-xs font-semibold text-foreground">
+                  Review Verdict: {activePrReview.verdict}
+                </Text>
+                <Text className="text-[11px] text-muted-foreground mt-0.5" numberOfLines={1}>
+                  {activePrReview.baseBranch} ← {activePrReview.headBranch} by @{activePrReview.author}
+                </Text>
+              </View>
+            </View>
+            <Badge variant={activePrReview.verdict === 'APPROVE' ? 'success' : 'destructive'} size="xs">
+              {activePrReview.verdict}
+            </Badge>
+          </View>
+        )}
+
+        {/* 3. Navigation Tabs */}
+        <View className="px-4 pt-3">
+          {!isPrReviewMode ? (
+            <Tabs
+              defaultValue="diff"
+              value={activeTab}
+              size="xs"
+              onValueChange={(val) => setActiveTab(val as any)}
+              className="w-full"
+            >
+              <Tabs.List className="w-full bg-surface-secondary border border-border p-1 rounded-xl">
+                <Tabs.Trigger
+                  value="diff"
+                  className="flex-1 py-1.5 px-2 flex-row items-center justify-center gap-1.5"
                 >
-                  <Text
-                    style={[
-                      styles.statusAlertText,
-                      statusMessage.type === 'success'
-                        ? styles.statusAlertTextSuccess
-                        : styles.statusAlertTextError,
-                    ]}
-                  >
-                    {statusMessage.text}
+                  <FileCode size={13} color={activeTab === 'diff' ? (isLight ? '#262626' : '#f5f5f5') : '#888888'} />
+                  <Text className={cn("text-xs font-medium", activeTab === 'diff' ? "text-foreground font-semibold" : "text-muted-foreground")}>
+                    Changes Diff
+                  </Text>
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="tests"
+                  className="flex-1 py-1.5 px-2 flex-row items-center justify-center gap-1.5"
+                >
+                  <Terminal size={13} color={activeTab === 'tests' ? (isLight ? '#262626' : '#f5f5f5') : '#888888'} />
+                  <Text className={cn("text-xs font-medium", activeTab === 'tests' ? "text-foreground font-semibold" : "text-muted-foreground")}>
+                    Test Runner
+                  </Text>
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="details"
+                  className="flex-1 py-1.5 px-2 flex-row items-center justify-center gap-1.5"
+                >
+                  <Bug size={13} color={activeTab === 'details' ? (isLight ? '#262626' : '#f5f5f5') : '#888888'} />
+                  <Text className={cn("text-xs font-medium", activeTab === 'details' ? "text-foreground font-semibold" : "text-muted-foreground")}>
+                    Incident
+                  </Text>
+                </Tabs.Trigger>
+              </Tabs.List>
+            </Tabs>
+          ) : (
+            <Tabs
+              defaultValue="review"
+              value={activeTab}
+              size="xs"
+              onValueChange={(val) => setActiveTab(val as any)}
+              className="w-full"
+            >
+              <Tabs.List className="w-full bg-surface-secondary border border-border p-1 rounded-xl">
+                <Tabs.Trigger
+                  value="review"
+                  className="flex-1 py-1.5 px-2 flex-row items-center justify-center gap-1.5"
+                >
+                  <Sparkles size={13} color={activeTab === 'review' ? (isLight ? '#262626' : '#f5f5f5') : '#888888'} />
+                  <Text className={cn("text-xs font-medium", activeTab === 'review' ? "text-foreground font-semibold" : "text-muted-foreground")}>
+                    Review Report
+                  </Text>
+                </Tabs.Trigger>
+              </Tabs.List>
+            </Tabs>
+          )}
+        </View>
+
+        {/* 4. Tab Contents */}
+        <ScrollView
+          className="flex-1"
+          style={{ flex: 1 }}
+          contentContainerClassName="p-4 pb-6"
+          showsVerticalScrollIndicator={true}
+        >
+          {/* Tab: Changes Diff */}
+          {!isPrReviewMode && activeTab === 'diff' && activeProposal && (
+            <View className="gap-2">
+              <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                UNIFIED GIT PATCH
+              </Text>
+              <DiffViewer diffText={activeProposal.diff} maxHeight={360} collapsible={false} />
+            </View>
+          )}
+
+          {/* Tab: Test Runner */}
+          {!isPrReviewMode && activeTab === 'tests' && activeProposal && (
+            <View className="rounded-xl bg-surface-secondary border border-border p-3">
+              <View className="flex-row items-center gap-2 pb-2.5 mb-2.5 border-b border-border">
+                <Terminal size={14} color="#888888" />
+                <Text className="text-xs font-mono font-medium text-foreground flex-1" numberOfLines={1}>
+                  Command: {activeProposal.testCommand}
+                </Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <Text className="font-mono text-xs text-muted-foreground leading-5">
+                  {activeProposal.testOutput}
+                </Text>
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Tab: Incident Details */}
+          {!isPrReviewMode && activeTab === 'details' && activeProposal && (
+            <Card className="p-3.5 bg-surface-secondary border border-border rounded-xl">
+              <Text className="text-xs font-semibold text-foreground mb-1.5">Reported Problem</Text>
+              <Text className="text-xs text-muted-foreground leading-5">{activeProposal.description}</Text>
+              {activeProposal.url && (
+                <View className="mt-3 pt-3 border-t border-border">
+                  <Text className="text-xs font-semibold text-foreground mb-1">Source URL</Text>
+                  <Text className="text-xs text-primary font-mono" numberOfLines={2}>
+                    {activeProposal.url}
                   </Text>
                 </View>
               )}
+            </Card>
+          )}
 
-              {/* 2. Mode Specific Banners */}
-              {!isPrReviewMode && activeProposal && (
-                <View style={[styles.verificationBanner, isLight && styles.verificationBannerLight]}>
-                  <ShieldCheck size={16} color={activeProposal.testsPassed ? '#2ea043' : '#f85149'} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.verificationTitle, isLight && { color: '#1f2328' }]}>
-                      {activeProposal.testsPassed ? 'Fix Verified: Test Suite Passing' : 'Fix Applied: Manual Review Advised'}
-                    </Text>
-                    <Text style={[styles.verificationSubtitle, isLight && { color: '#57606a' }]}>
-                      Isolated Branch: <Text style={{ color: '#0077b6', fontFamily: typography.mono }}>{activeProposal.branchName}</Text>
+          {/* PR Review Report */}
+          {isPrReviewMode && activePrReview && (
+            <View className="gap-3">
+              {/* Summary Card */}
+              <Card className="p-3.5 bg-surface-secondary border border-border rounded-xl">
+                <Text className="text-xs font-semibold text-foreground mb-1.5">Executive Summary</Text>
+                <Text className="text-xs text-muted-foreground leading-5">{activePrReview.summary}</Text>
+              </Card>
+
+              {/* Security Risks */}
+              {activePrReview.securityRisks && activePrReview.securityRisks.length > 0 && (
+                <Card className="p-3.5 bg-destructive/10 border border-destructive/30 rounded-xl">
+                  <View className="flex-row items-center gap-1.5 mb-2">
+                    <AlertCircle size={14} color="#ef4444" />
+                    <Text className="text-xs font-semibold text-destructive">
+                      Security & Critical Risks
                     </Text>
                   </View>
-                  <View style={[styles.testBadge, activeProposal.testsPassed ? styles.testBadgePass : styles.testBadgeFail]}>
-                    <Text style={[styles.testBadgeText, activeProposal.testsPassed ? styles.testBadgeTextPass : styles.testBadgeTextFail]}>
-                      {activeProposal.testsPassed ? 'TESTS OK' : 'CHECK FAILS'}
+                  {activePrReview.securityRisks.map((risk, idx) => (
+                    <Text key={idx} className="text-xs text-destructive-foreground/90 leading-5">
+                      • {risk}
                     </Text>
-                  </View>
-                </View>
+                  ))}
+                </Card>
               )}
 
-              {isPrReviewMode && activePrReview && (
-                <View style={[styles.verdictBanner, isLight && styles.verdictBannerLight]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {activePrReview.verdict === 'APPROVE' ? (
-                      <CheckCircle2 size={18} color="#2ea043" />
-                    ) : (
-                      <AlertCircle size={18} color="#f85149" />
-                    )}
-                    <View>
-                      <Text style={[styles.verdictTitle, isLight && { color: '#1f2328' }]}>Review Verdict: {activePrReview.verdict}</Text>
-                      <Text style={[styles.verdictSubtitle, isLight && { color: '#57606a' }]}>
-                        {activePrReview.baseBranch} ← {activePrReview.headBranch} by @{activePrReview.author}
+              {/* Line Comments */}
+              {activePrReview.lineComments && activePrReview.lineComments.length > 0 && (
+                <View className="gap-2">
+                  <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                    Line-by-Line Suggestions
+                  </Text>
+                  {activePrReview.lineComments.map((c, idx) => (
+                    <Card key={idx} className="p-3 bg-surface-secondary border border-border rounded-xl gap-1.5">
+                      <Text className="text-xs font-mono font-medium text-primary">
+                        {c.file}:{c.line}
                       </Text>
-                    </View>
-                  </View>
-                  <View
-                    style={[
-                      styles.verdictPill,
-                      activePrReview.verdict === 'APPROVE'
-                        ? styles.verdictPillApprove
-                        : styles.verdictPillChanges,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.verdictPillText,
-                        activePrReview.verdict === 'APPROVE'
-                          ? styles.verdictPillTextApprove
-                          : styles.verdictPillTextChanges,
-                      ]}
-                    >
-                      {activePrReview.verdict}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* 3. Navigation Tabs */}
-              <View style={[styles.tabBar, isLight && styles.tabBarLight]}>
-                {!isPrReviewMode ? (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.tabItem, activeTab === 'diff' && styles.tabItemActive]}
-                      onPress={() => setActiveTab('diff')}
-                      activeOpacity={0.7}
-                    >
-                      <FileCode size={13} color={activeTab === 'diff' ? '#fafafa' : '#a3a3a3'} />
-                      <Text style={[styles.tabText, activeTab === 'diff' && styles.tabTextActive]}>
-                        Changes Diff
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.tabItem, activeTab === 'tests' && styles.tabItemActive]}
-                      onPress={() => setActiveTab('tests')}
-                      activeOpacity={0.7}
-                    >
-                      <Terminal size={13} color={activeTab === 'tests' ? '#fafafa' : '#a3a3a3'} />
-                      <Text style={[styles.tabText, activeTab === 'tests' && styles.tabTextActive]}>
-                        Test Runner
-                      </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.tabItem, activeTab === 'details' && styles.tabItemActive]}
-                      onPress={() => setActiveTab('details')}
-                      activeOpacity={0.7}
-                    >
-                      <Bug size={13} color={activeTab === 'details' ? '#fafafa' : '#a3a3a3'} />
-                      <Text style={[styles.tabText, activeTab === 'details' && styles.tabTextActive]}>
-                        Incident Details
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.tabItem, activeTab === 'review' && styles.tabItemActive]}
-                      onPress={() => setActiveTab('review')}
-                      activeOpacity={0.7}
-                    >
-                      <Sparkles size={13} color={activeTab === 'review' ? '#fafafa' : '#a3a3a3'} />
-                      <Text style={[styles.tabText, activeTab === 'review' && styles.tabTextActive]}>
-                        Review Report
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                )}
-              </View>
-
-              {/* 4. Tab Contents */}
-              <ScrollView style={styles.scrollContent} contentContainerStyle={{ padding: 14 }}>
-                {/* Tab: Changes Diff */}
-                {!isPrReviewMode && activeTab === 'diff' && activeProposal && (
-                  <View style={{ gap: 8 }}>
-                    <Text style={styles.diffHeader}>UNIFIED GIT PATCH</Text>
-                    <DiffViewer diffText={activeProposal.diff} maxHeight={360} collapsible={false} />
-                  </View>
-                )}
-
-                {/* Tab: Test Runner */}
-                {!isPrReviewMode && activeTab === 'tests' && activeProposal && (
-                  <View style={styles.terminalBox}>
-                    <View style={styles.terminalHeader}>
-                      <Terminal size={13} color="#a3a3a3" />
-                      <Text style={styles.terminalTitle}>Command: {activeProposal.testCommand}</Text>
-                    </View>
-                    <ScrollView horizontal>
-                      <Text style={styles.terminalOutput}>{activeProposal.testOutput}</Text>
-                    </ScrollView>
-                  </View>
-                )}
-
-                {/* Tab: Incident Details */}
-                {!isPrReviewMode && activeTab === 'details' && activeProposal && (
-                  <View style={styles.detailsCard}>
-                    <Text style={styles.detailsSectionTitle}>Reported Problem</Text>
-                    <Text style={styles.detailsBodyText}>{activeProposal.description}</Text>
-                    {activeProposal.url && (
-                      <View style={{ marginTop: 12 }}>
-                        <Text style={styles.detailsSectionTitle}>Source URL</Text>
-                        <Text style={{ color: '#58a6ff', fontSize: 12 }}>{activeProposal.url}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* PR Review Report */}
-                {isPrReviewMode && activePrReview && (
-                  <View style={{ gap: 12 }}>
-                    {/* Summary Card */}
-                    <View style={styles.detailsCard}>
-                      <Text style={styles.detailsSectionTitle}>Executive Summary</Text>
-                      <Text style={styles.detailsBodyText}>{activePrReview.summary}</Text>
-                    </View>
-
-                    {/* Security Risks */}
-                    {activePrReview.securityRisks?.length > 0 && (
-                      <View style={[styles.detailsCard, { borderColor: 'rgba(248, 81, 73, 0.4)' }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                          <AlertCircle size={14} color="#f85149" />
-                          <Text style={[styles.detailsSectionTitle, { color: '#f85149', marginBottom: 0 }]}>
-                            Security & Critical Risks
-                          </Text>
+                      <Text className="text-xs text-foreground leading-5">{c.comment}</Text>
+                      {c.suggestion && (
+                        <View className="p-2 rounded-lg bg-surface border border-border mt-1">
+                          <Text className="text-xs font-mono text-muted-foreground">{c.suggestion}</Text>
                         </View>
-                        {activePrReview.securityRisks.map((risk, idx) => (
-                          <Text key={idx} style={{ color: '#d4d4d4', fontSize: 12, lineHeight: 18 }}>
-                            • {risk}
-                          </Text>
-                        ))}
-                      </View>
-                    )}
-
-                    {/* Line Comments */}
-                    {activePrReview.lineComments?.length > 0 && (
-                      <View style={{ gap: 8 }}>
-                        <Text style={styles.detailsSectionTitle}>Line-by-Line Suggestions</Text>
-                        {activePrReview.lineComments.map((c, idx) => (
-                          <View key={idx} style={styles.lineCommentCard}>
-                            <Text style={styles.lineCommentFile}>
-                              {c.file}:{c.line}
-                            </Text>
-                            <Text style={styles.lineCommentText}>{c.comment}</Text>
-                            {c.suggestion && (
-                              <View style={styles.suggestionBox}>
-                                <Text style={styles.suggestionCode}>{c.suggestion}</Text>
-                              </View>
-                            )}
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    {/* Full Markdown Review */}
-                    <View style={styles.detailsCard}>
-                      <Text style={styles.detailsSectionTitle}>Full Review Notes</Text>
-                      <Text style={styles.detailsBodyText}>{activePrReview.fullMarkdown}</Text>
-                    </View>
-                  </View>
-                )}
-              </ScrollView>
-
-              {/* 5. Action Footer */}
-              <View style={[styles.footer, isLight && styles.footerLight]}>
-                {!isPrReviewMode ? (
-                  <>
-                    <TouchableOpacity
-                      style={[styles.discardBtn, isLight && styles.discardBtnLight]}
-                      onPress={() => handleApproveAction('discard')}
-                      disabled={isSubmitting}
-                      activeOpacity={0.7}
-                    >
-                      <Trash2 size={13} color="#f85149" />
-                      <Text style={styles.discardBtnText}>Discard</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.mergeBtn, isLight && styles.mergeBtnLight]}
-                      onPress={() => handleApproveAction('merge')}
-                      disabled={isSubmitting}
-                      activeOpacity={0.7}
-                    >
-                      <GitMerge size={13} color={isLight ? '#0077b6' : '#d4d4d4'} />
-                      <Text style={[styles.mergeBtnText, isLight && { color: '#0077b6' }]}>Merge Locally</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryActionBtn,
-                        isLight && styles.primaryActionBtnLight,
-                        isSubmitting && { opacity: 0.6 }
-                      ]}
-                      onPress={() => handleApproveAction('pr')}
-                      disabled={isSubmitting}
-                      activeOpacity={0.7}
-                    >
-                      {isSubmitting ? (
-                        <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
-                      ) : (
-                        <>
-                          <GitPullRequest size={14} color={isLight ? '#ffffff' : '#0a0a0a'} />
-                          <Text style={[styles.primaryActionBtnText, isLight && { color: '#ffffff' }]}>Approve & PR</Text>
-                        </>
                       )}
-                    </TouchableOpacity>
-                  </>
+                    </Card>
+                  ))}
+                </View>
+              )}
+
+              {/* Full Markdown Review */}
+              <Card className="p-3.5 bg-surface-secondary border border-border rounded-xl">
+                <Text className="text-xs font-semibold text-foreground mb-1.5">Full Review Notes</Text>
+                <Text className="text-xs text-muted-foreground leading-5">{activePrReview.fullMarkdown}</Text>
+              </Card>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* 5. Action Footer */}
+        <View className="px-4 py-3 border-t border-border flex-row items-center justify-between bg-surface">
+          {!isPrReviewMode ? (
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="flex-row items-center gap-1.5 px-3"
+                onPress={() => handleApproveAction('discard')}
+                disabled={isSubmitting}
+              >
+                <Trash2 size={13} color="#ffffff" />
+                <Text className="text-xs font-medium text-destructive-foreground">Discard</Text>
+              </Button>
+
+              <View className="flex-row items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-row items-center gap-1.5 px-3"
+                  onPress={() => handleApproveAction('merge')}
+                  disabled={isSubmitting}
+                >
+                  <GitMerge size={13} color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Text className="text-xs font-medium text-foreground">Merge Locally</Text>
+                </Button>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="flex-row items-center gap-1.5 px-3.5"
+                  onPress={() => handleApproveAction('pr')}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#262626'} />
+                  ) : (
+                    <>
+                      <GitPullRequest size={13} color={isLight ? '#ffffff' : '#262626'} />
+                      <Text className="text-xs font-semibold text-primary-foreground">Approve & PR</Text>
+                    </>
+                  )}
+                </Button>
+              </View>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="px-3"
+                onPress={onClose}
+                disabled={isSubmitting}
+              >
+                <Text className="text-xs font-medium text-foreground">Dismiss</Text>
+              </Button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                className="flex-row items-center gap-1.5 px-3.5"
+                onPress={handlePostReview}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#262626'} />
                 ) : (
                   <>
-                    <TouchableOpacity
-                      style={[styles.discardBtn, isLight && styles.discardBtnLight]}
-                      onPress={onClose}
-                      disabled={isSubmitting}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.discardBtnText, isLight && { color: '#6e7681' }]}>Dismiss</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[
-                        styles.primaryActionBtn,
-                        isLight && styles.primaryActionBtnLight,
-                        isSubmitting && { opacity: 0.6 }
-                      ]}
-                      onPress={handlePostReview}
-                      disabled={isSubmitting}
-                      activeOpacity={0.7}
-                    >
-                      {isSubmitting ? (
-                        <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
-                      ) : (
-                        <>
-                          <GitPullRequest size={14} color={isLight ? '#ffffff' : '#0a0a0a'} />
-                          <Text style={[styles.primaryActionBtnText, isLight && { color: '#ffffff' }]}>Post to GitHub</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
+                    <GitPullRequest size={13} color={isLight ? '#ffffff' : '#262626'} />
+                    <Text className="text-xs font-semibold text-primary-foreground">Post to GitHub</Text>
                   </>
                 )}
-              </View>
-            </View>
-          </TouchableWithoutFeedback>
+              </Button>
+            </>
+          )}
         </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      </Dialog.Content>
+    </Dialog>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(1, 4, 9, 0.85)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 580,
-    maxHeight: '88%',
-    backgroundColor: '#0a0a0a',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    backgroundColor: '#161616',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  headerIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#262626',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerBadge: {
-    fontSize: 10,
-    color: '#fafafa',
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  sourcePill: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-    backgroundColor: '#262626',
-  },
-  sourcePillText: {
-    fontSize: 9,
-    color: '#a3a3a3',
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fafafa',
-    marginTop: 1,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  headerActionBtn: {
-    padding: 6,
-    borderRadius: 6,
-  },
-  statusAlert: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-  },
-  statusAlertSuccess: {
-    backgroundColor: 'rgba(63, 185, 80, 0.15)',
-    borderBottomColor: 'rgba(63, 185, 80, 0.3)',
-  },
-  statusAlertError: {
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    borderBottomColor: 'rgba(248, 81, 73, 0.3)',
-  },
-  statusAlertText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  statusAlertTextSuccess: {
-    color: '#fafafa',
-  },
-  statusAlertTextError: {
-    color: '#f85149',
-  },
-  verificationBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(63, 185, 80, 0.08)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(63, 185, 80, 0.25)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  verificationTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  verificationSubtitle: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    marginTop: 1,
-  },
-  testBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  testBadgePass: {
-    backgroundColor: 'rgba(63, 185, 80, 0.2)',
-  },
-  testBadgeFail: {
-    backgroundColor: 'rgba(248, 81, 73, 0.2)',
-  },
-  testBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  testBadgeTextPass: {
-    color: '#fafafa',
-  },
-  testBadgeTextFail: {
-    color: '#f85149',
-  },
-  verdictBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  verdictTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  verdictSubtitle: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    marginTop: 1,
-  },
-  verdictPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  verdictPillApprove: {
-    backgroundColor: 'rgba(63, 185, 80, 0.15)',
-    borderColor: 'rgba(63, 185, 80, 0.4)',
-  },
-  verdictPillChanges: {
-    backgroundColor: 'rgba(248, 81, 73, 0.15)',
-    borderColor: 'rgba(248, 81, 73, 0.4)',
-  },
-  verdictPillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  verdictPillTextApprove: {
-    color: '#fafafa',
-  },
-  verdictPillTextChanges: {
-    color: '#f85149',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    backgroundColor: '#161616',
-  },
-  tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabItemActive: {
-    borderBottomColor: '#fafafa',
-  },
-  tabText: {
-    fontSize: 12,
-    color: '#a3a3a3',
-    fontWeight: '500',
-  },
-  tabTextActive: {
-    color: '#fafafa',
-    fontWeight: '600',
-  },
-  scrollContent: {
-    flex: 1,
-  },
-  diffHeader: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#a3a3a3',
-    letterSpacing: 0.5,
-  },
-  terminalBox: {
-    backgroundColor: '#121212',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#262626',
-    padding: 10,
-  },
-  terminalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    marginBottom: 8,
-  },
-  terminalTitle: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    fontFamily: typography.mono,
-  },
-  terminalOutput: {
-    fontFamily: typography.mono,
-    fontSize: 11,
-    color: '#fafafa',
-    lineHeight: 16,
-  },
-  detailsCard: {
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#262626',
-    borderRadius: 8,
-    padding: 12,
-  },
-  detailsSectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#a3a3a3',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  detailsBodyText: {
-    fontSize: 12,
-    color: '#d4d4d4',
-    lineHeight: 18,
-  },
-  lineCommentCard: {
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 8,
-    padding: 10,
-    gap: 4,
-  },
-  lineCommentFile: {
-    fontFamily: typography.mono,
-    fontSize: 11,
-    color: '#58a6ff',
-    fontWeight: '600',
-  },
-  lineCommentText: {
-    fontSize: 12,
-    color: '#fafafa',
-  },
-  suggestionBox: {
-    backgroundColor: '#121212',
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#262626',
-    marginTop: 4,
-  },
-  suggestionCode: {
-    fontFamily: typography.mono,
-    fontSize: 11,
-    color: '#fafafa',
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#262626',
-    backgroundColor: '#161616',
-  },
-  discardBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#262626',
-  },
-  discardBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#f85149',
-  },
-  mergeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#262626',
-  },
-  mergeBtnText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#d4d4d4',
-  },
-  primaryActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#fafafa',
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-  primaryActionBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0a0a0a',
-  },
-  modalCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  headerLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#d0d7de',
-  },
-  headerIconBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-  },
-  headerTitleLight: {
-    color: '#1f2328',
-  },
-  verificationBannerLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  verdictBannerLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  tabBarLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#d0d7de',
-  },
-  footerLight: {
-    backgroundColor: '#ffffff',
-    borderTopColor: '#d0d7de',
-  },
-  discardBtnLight: {
-    backgroundColor: '#ffebe9',
-  },
-  mergeBtnLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-    borderColor: 'rgba(0, 119, 182, 0.3)',
-  },
-  primaryActionBtnLight: {
-    backgroundColor: '#0077b6',
-  },
-});

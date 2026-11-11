@@ -1,34 +1,33 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import {
+  Card,
+  Badge,
+  Button,
+  Checkbox,
+  Item,
+  Text,
+  ScrollHeader,
+  toast,
+  cn,
+} from 'panelui-native';
+import {
   AlertTriangle,
-  Clock,
-  Server,
   Terminal,
-  Shield,
   Copy,
   Check,
   X,
-  ChevronDown,
-  ChevronUp,
-  Bot,
-  CheckCircle2,
-  GitBranch,
-  Link,
+  ChevronLeft,
   ShieldAlert,
   ShieldCheck,
   CheckCheck,
+  Bell,
 } from '../components/Icons';
-import { colors, radii, typography } from '../theme/tokens';
-import { HeaderBar } from '../components/HeaderBar';
 import { useDaemonStore } from '../stores/useDaemonStore';
 
 interface ApprovalsScreenProps {
@@ -36,22 +35,27 @@ interface ApprovalsScreenProps {
   onNavigateTab?: (tab: string) => void;
 }
 
-export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavigateTab }) => {
+export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   const pendingApproval = useDaemonStore((s) => s.pendingApproval);
   const decisionTrail = useDaemonStore((s) => s.decisionTrail);
   const respondApproval = useDaemonStore((s) => s.respondApproval);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
+  const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
   const [rememberRule, setRememberRule] = useState(false);
-  const [isTreeExpanded, setIsTreeExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isAuthorizing, setIsAuthorizing] = useState(false);
   const [isDenying, setIsDenying] = useState(false);
 
   const handleCopy = () => {
     setCopied(true);
+    toast.show({
+      variant: 'default',
+      label: 'Command copied to clipboard',
+      duration: 2000,
+    });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -59,7 +63,11 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
     setIsAuthorizing(true);
     try {
       await respondApproval(true);
-      Alert.alert('Action Authorized', 'Authorization token dispatched over WebRTC DataChannel to VPS Daemon.');
+      toast.show({
+        variant: 'success',
+        label: 'Action Authorized',
+        description: 'Command authorization dispatched to host daemon.',
+      });
     } finally {
       setIsAuthorizing(false);
     }
@@ -69,7 +77,11 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
     setIsDenying(true);
     try {
       await respondApproval(false);
-      Alert.alert('Action Denied', 'Intervention token dispatched. Command aborted.');
+      toast.show({
+        variant: 'destructive',
+        label: 'Action Denied',
+        description: 'Command execution aborted.',
+      });
     } finally {
       setIsDenying(false);
     }
@@ -78,838 +90,256 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack, onNavi
   const targetNode = pendingApproval?.targetNode || activeMachine?.name || 'Local Machine';
 
   return (
-    <View style={[styles.container, isLight && styles.containerLight]}>
-      <HeaderBar
-        title="Diff Reviewer & Security Gate"
-        subtitle={`${targetNode} • HITL Gate`}
-        onBack={onBack}
-        onMore={() => {}}
-      />
+    <ScrollHeader className="flex-1 bg-background" inset={true}>
+      <ScrollHeader.Bar divider={false} surface="blur">
+        {onBack && (
+          <TouchableOpacity
+            className="w-10 h-10 rounded-full bg-surface items-center justify-center active:opacity-70"
+            onPress={onBack}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Go back"
+          >
+            <ChevronLeft size={22} color={isLight ? '#262626' : '#f5f5f5'} />
+          </TouchableOpacity>
+        )}
+        <ScrollHeader.Title className="text-base font-semibold text-foreground">
+          Command Approvals
+        </ScrollHeader.Title>
+      </ScrollHeader.Bar>
+
+      <ScrollHeader.Large className="px-4 pb-3">
+        <ScrollHeader.Title className="text-2xl font-bold text-foreground">
+          Command Approvals
+        </ScrollHeader.Title>
+        <ScrollHeader.Description className="text-xs text-muted-foreground mt-0.5">
+          {targetNode}
+        </ScrollHeader.Description>
+      </ScrollHeader.Large>
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        className="flex-1"
+        contentContainerStyle={{ padding: 14, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. Status Badge & Diff Metrics Row (Stitch Screen 4) */}
-        <View style={styles.statusBarRow}>
-          <View style={styles.statusBarLeft}>
-            <View
-              style={[
-                styles.statusBadge,
-                pendingApproval
-                  ? (isLight ? styles.statusBadgeOpenLight : styles.statusBadgeOpen)
-                  : (isLight ? styles.statusBadgePassedLight : styles.statusBadgePassed),
-              ]}
-            >
-              <Text
-                style={[
-                  styles.statusBadgeText,
-                  { color: pendingApproval ? (isLight ? '#0077b6' : colors.primaryLight) : colors.statusLive },
-                ]}
-              >
-                {pendingApproval ? 'Waiting for review' : 'All checks passed'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.metricsRight}>
-            <Text style={[styles.metricsText, isLight && { color: '#6e7681' }]}>
-              {pendingApproval ? '1 action pending' : 'Zero elevated actions'}
+        {/* 1. Status Bar Row */}
+        <View className="flex-row items-center justify-between mb-3">
+          <Badge
+            variant={pendingApproval ? 'destructive' : 'success'}
+            size="sm"
+            className="px-2.5 py-1"
+          >
+            <Text className="text-xs font-semibold">
+              {pendingApproval ? 'Pending Review' : 'All Clear'}
             </Text>
-          </View>
+          </Badge>
+          <Text className="text-xs font-mono text-muted-foreground">
+            {pendingApproval ? '1 action pending' : '0 actions pending'}
+          </Text>
         </View>
 
-        {/* 2. Verification Checks Summary Card (Stitch Screen 4) */}
-        <View style={[styles.summaryCard, isLight && styles.summaryCardLight]}>
-          <View style={styles.summaryHeaderRow}>
-            <View style={styles.summaryHeaderLeft}>
-              {pendingApproval ? (
-                <View style={styles.summaryPendingIcon}>
-                  <AlertTriangle size={15} color={colors.red} />
-                </View>
-              ) : (
-                <View style={[styles.summaryPassIcon, isLight && { backgroundColor: 'rgba(46, 160, 67, 0.12)', borderColor: 'rgba(46, 160, 67, 0.3)' }]}>
-                  <CheckCheck size={15} color={colors.statusLive} />
-                </View>
-              )}
-              <View style={styles.summaryTitleCol}>
-                <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight]}>
-                  {pendingApproval
-                    ? 'Action Required • Human In The Loop'
-                    : 'System Clean • No Approvals Required'}
-                </Text>
-                <Text style={[styles.summarySub, isLight && styles.summarySubLight]}>
-                  {pendingApproval
-                    ? `Caller: ${pendingApproval.caller || 'Antigravity Agent'} requested privilege`
-                    : 'Zero-Trust Gateways active • Inbound ports closed'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Mini Check Status Chips */}
-          <View style={styles.checksChipsRow}>
-            <View style={[styles.checkChip, isLight && styles.checkChipLight]}>
-              <CheckCircle2 size={11} color={colors.statusLive} />
-              <Text style={[styles.checkChipText, isLight && { color: '#1f2328' }]}>unit-tests: ok</Text>
-            </View>
-            <View style={[styles.checkChip, isLight && styles.checkChipLight]}>
-              <CheckCircle2 size={11} color={colors.statusLive} />
-              <Text style={[styles.checkChipText, isLight && { color: '#1f2328' }]}>typecheck: ok</Text>
-            </View>
+        {/* 2. Checks Summary Card */}
+        <Card className="p-4 bg-surface border border-border rounded-xl mb-3">
+          <View className="flex-row items-center gap-3">
             <View
-              style={[
-                styles.checkChip,
-                isLight && styles.checkChipLight,
-                pendingApproval && styles.checkChipAlert,
-              ]}
+              className={cn(
+                'w-9 h-9 rounded-full items-center justify-center border',
+                pendingApproval
+                  ? 'bg-destructive/10 border-destructive/25'
+                  : 'bg-success/10 border-success/25'
+              )}
             >
               {pendingApproval ? (
-                <ShieldAlert size={11} color={colors.red} />
+                <AlertTriangle size={16} color="#ef4444" />
               ) : (
-                <ShieldCheck size={11} color={colors.statusLive} />
+                <CheckCheck size={16} color="#10b981" />
               )}
-              <Text
-                style={[
-                  styles.checkChipText,
-                  isLight && { color: '#1f2328' },
-                  pendingApproval && { color: colors.red },
-                ]}
-              >
-                {pendingApproval ? 'gate: required' : 'gate: passed'}
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-foreground">
+                {pendingApproval
+                  ? 'Action Approval Required'
+                  : 'No Actions Pending'}
+              </Text>
+              <Text className="text-xs text-muted-foreground mt-0.5">
+                {pendingApproval
+                  ? `Caller: ${pendingApproval.caller || 'Agent'} requested command execution`
+                  : 'All tool execution policies satisfied'}
               </Text>
             </View>
           </View>
 
-          {/* Action Buttons (Rendered prominent when pending) */}
+          {/* Action Buttons */}
           {pendingApproval && (
-            <View style={styles.actionButtonsRow}>
-              <TouchableOpacity
-                style={[styles.denyActionBtn, (isDenying || isAuthorizing) && { opacity: 0.7 }]}
+            <View className="flex-row items-center gap-2 pt-3 mt-3 border-t border-border">
+              <Button
+                variant="destructive"
+                size="sm"
                 onPress={handleDeny}
                 disabled={isDenying || isAuthorizing}
-                activeOpacity={0.8}
+                className="flex-1 flex-row items-center justify-center gap-1.5"
               >
                 {isDenying ? (
-                  <ActivityIndicator size="small" color={colors.red} style={{ transform: [{ scale: 0.75 }] }} />
+                  <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
-                  <X size={15} color={colors.red} />
+                  <>
+                    <X size={14} color="#ffffff" />
+                    <Text className="text-xs font-semibold text-destructive-foreground">Deny / Abort</Text>
+                  </>
                 )}
-                <Text style={styles.denyActionBtnText}>
-                  {isDenying ? 'Aborting...' : 'Deny / Abort'}
-                </Text>
-              </TouchableOpacity>
+              </Button>
 
-              <TouchableOpacity
-                style={[
-                  styles.authorizeActionBtn,
-                  isLight && styles.authorizeActionBtnLight,
-                  (isDenying || isAuthorizing) && { opacity: 0.7 }
-                ]}
+              <Button
+                variant="primary"
+                size="sm"
                 onPress={handleAuthorize}
                 disabled={isDenying || isAuthorizing}
-                activeOpacity={0.85}
+                className="flex-1 flex-row items-center justify-center gap-1.5"
               >
                 {isAuthorizing ? (
-                  <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} style={{ transform: [{ scale: 0.75 }] }} />
+                  <ActivityIndicator size="small" color={isLight ? '#fafafa' : '#262626'} />
                 ) : (
-                  <Check size={15} color={isLight ? '#ffffff' : '#0a0a0a'} />
+                  <>
+                    <Check size={14} color={isLight ? '#fafafa' : '#262626'} />
+                    <Text className="text-xs font-semibold text-primary-foreground">Authorize Action</Text>
+                  </>
                 )}
-                <Text style={[styles.authorizeActionBtnText, isLight && { color: '#ffffff' }]}>
-                  {isAuthorizing ? 'Authorizing...' : 'Authorize Action'}
-                </Text>
-              </TouchableOpacity>
+              </Button>
             </View>
           )}
-        </View>
+        </Card>
 
-        {/* 3. Code Diff & Terminal Preview (Stitch Screen 4) */}
+        {/* Lock-Screen Push Notifications Hint */}
+        {!pendingApproval && (
+          <Card className="p-3 bg-surface border border-border rounded-xl mb-3 flex-row items-center gap-2.5">
+            <View className="w-7 h-7 rounded-lg bg-surface-secondary items-center justify-center border border-border">
+              <Bell size={13} color={isPushRegistered ? '#10b981' : (isLight ? '#686868' : '#a3a3a3')} />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-xs font-semibold text-foreground">
+                  Lock-Screen Approvals Active
+                </Text>
+                <Badge variant={isPushRegistered ? 'success' : 'secondary'} size="sm" className="px-1.5 py-0">
+                  <Text className="text-[10px] font-medium">{isPushRegistered ? 'Push Ready' : 'In-App'}</Text>
+                </Badge>
+              </View>
+              <Text className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                When new bash commands need review, actionable [✓ Approve] & [✕ Reject] alerts arrive directly on your lock screen.
+              </Text>
+            </View>
+          </Card>
+        )}
+
+        {/* 3. Code Diff & Terminal Command Preview */}
         {pendingApproval && (
-          <View style={[styles.diffViewerCard, isLight && styles.diffViewerCardLight]}>
-            <View style={[styles.diffHeaderRow, isLight && styles.diffHeaderRowLight]}>
-              <View style={styles.diffHeaderLeft}>
-                <Terminal size={14} color={isLight ? '#0077b6' : colors.primaryLight} />
-                <Text style={[styles.diffToolTitle, isLight && styles.diffToolTitleLight]}>
+          <Card className="p-3 bg-surface-secondary border border-border rounded-xl mb-3">
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center gap-1.5">
+                <Terminal size={13} color={isLight ? '#262626' : '#f5f5f5'} />
+                <Text className="text-xs font-mono font-medium text-foreground">
                   tool:{pendingApproval.tool || 'run_command'}
                 </Text>
-                <View style={styles.riskBadge}>
-                  <Text style={styles.riskBadgeText}>
+                <Badge variant="destructive" size="sm" className="px-1.5 py-0">
+                  <Text className="text-[10px] font-bold text-destructive-foreground">
                     {pendingApproval.riskLevel ? pendingApproval.riskLevel.toUpperCase() : 'ELEVATED'}
                   </Text>
-                </View>
+                </Badge>
               </View>
-              <TouchableOpacity
-                style={[styles.copyBtn, isLight && styles.copyBtnLight]}
+              <Button
+                variant="outline"
+                size="xs"
                 onPress={handleCopy}
-                activeOpacity={0.7}
+                className="flex-row items-center gap-1 px-2 py-0.5"
               >
                 {copied ? (
-                  <Check size={12} color={colors.statusLive} />
+                  <>
+                    <Check size={11} color="#10b981" />
+                    <Text className="text-xs font-medium text-success">Copied</Text>
+                  </>
                 ) : (
-                  <Copy size={12} color={isLight ? '#57606a' : colors.textMuted} />
+                  <>
+                    <Copy size={11} color={isLight ? '#686868' : '#a3a3a3'} />
+                    <Text className="text-xs font-medium text-muted-foreground">Copy</Text>
+                  </>
                 )}
-                <Text
-                  style={[
-                    styles.copyBtnText,
-                    isLight && { color: '#57606a' },
-                    copied && { color: colors.statusLive },
-                  ]}
-                >
-                  {copied ? 'Copied' : 'Copy'}
-                </Text>
-              </TouchableOpacity>
+              </Button>
             </View>
 
-            {/* Description / Justification */}
-            <View style={[styles.diffDescriptionBox, isLight && styles.diffDescriptionBoxLight]}>
-              <Text style={[styles.diffDescriptionText, isLight && styles.diffDescriptionTextLight]}>
+            {/* Description & Justification */}
+            <View className="mb-2">
+              <Text className="text-xs text-foreground font-medium mb-0.5">
                 {pendingApproval.description}
               </Text>
               {pendingApproval.justification ? (
-                <Text style={[styles.diffJustificationText, isLight && styles.diffJustificationTextLight]}>
+                <Text className="text-xs text-muted-foreground italic">
                   "{pendingApproval.justification}"
                 </Text>
               ) : null}
             </View>
 
-            {/* Command / Diff Snippet */}
-            <View style={[styles.codeSnippetContainer, isLight && styles.codeSnippetContainerLight]}>
-              <View style={styles.codeLine}>
-                <Text style={[styles.codePromptSymbol, isLight && { color: '#0077b6' }]}>$</Text>
-                <Text style={[styles.codeContentText, isLight && { color: '#1f2328' }]} selectable>
+            {/* Snippet */}
+            <View className="p-2.5 rounded-lg bg-surface border border-border mb-3">
+              <View className="flex-row items-start gap-1.5">
+                <Text className="text-xs font-mono font-bold text-muted-foreground">$</Text>
+                <Text className="text-xs font-mono text-foreground flex-1 leading-relaxed" selectable>
                   {pendingApproval.command}
                 </Text>
               </View>
             </View>
 
-            {/* Remember Rule Checkbox */}
-            <TouchableOpacity
-              style={styles.checkboxRow}
-              onPress={() => setRememberRule(!rememberRule)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.checkbox, isLight && styles.checkboxLight, rememberRule && styles.checkboxActive]}>
-                {rememberRule && <Check size={11} color={isLight ? '#ffffff' : '#0a0a0a'} />}
-              </View>
-              <Text style={[styles.checkboxLabel, isLight && styles.checkboxLabelLight]}>
-                Always permit this action for current session
-              </Text>
-            </TouchableOpacity>
-          </View>
+            {/* Remember Checkbox */}
+            <Checkbox
+              checked={rememberRule}
+              onCheckedChange={setRememberRule}
+              label="Always permit this action for current session"
+            />
+          </Card>
         )}
 
-        {/* 4. Security Sandbox Policies (Collapsible) */}
-        <View style={[styles.policiesCard, isLight && styles.policiesCardLight]}>
-          <TouchableOpacity
-            style={styles.policiesHeader}
-            onPress={() => setIsTreeExpanded(!isTreeExpanded)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.policiesHeaderLeft}>
-              <ShieldCheck size={15} color={colors.statusLive} />
-              <Text style={[styles.policiesTitle, isLight && styles.policiesTitleLight]}>Runtime Security Checks</Text>
-            </View>
-            <View style={styles.policiesHeaderRight}>
-              <Text style={[styles.policiesStatusText, isLight && { color: '#0077b6' }]}>Active</Text>
-              {isTreeExpanded ? (
-                <ChevronUp size={15} color={isLight ? '#57606a' : colors.textMuted} />
-              ) : (
-                <ChevronDown size={15} color={isLight ? '#57606a' : colors.textMuted} />
-              )}
-            </View>
-          </TouchableOpacity>
-
-          {isTreeExpanded && (
-            <View style={styles.policiesList}>
-              <View style={styles.policyRow}>
-                <GitBranch size={13} color={isLight ? '#57606a' : colors.textMuted} />
-                <Text style={[styles.policyText, isLight && { color: '#57606a' }]}>Workspace Sandboxing: Strict</Text>
-              </View>
-              <View style={styles.policyRow}>
-                <Link size={13} color={colors.statusLive} />
-                <Text style={[styles.policyText, isLight && { color: '#57606a' }]}>Inbound Ports: 0 Open (Zero-Trust)</Text>
-              </View>
-              <View style={styles.policyRow}>
-                <ShieldCheck size={13} color={colors.statusLive} />
-                <Text style={[styles.policyText, { color: isLight ? '#1f2328' : colors.textPrimary }]}>
-                  WebRTC P2P Direct Tunnel: Encrypted
-                </Text>
-              </View>
-            </View>
-          )}
+        {/* 4. Decision Audit Trail */}
+        <View className="flex-row items-center justify-between mb-2 px-1">
+          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Decision Audit Trail
+          </Text>
+          <Badge variant="outline" size="sm" className="px-1.5 py-0">
+            <Text className="text-[11px] font-mono text-muted-foreground">{decisionTrail.length} recorded</Text>
+          </Badge>
         </View>
 
-        {/* 5. Decision Audit Trail */}
-        <View style={styles.auditHeader}>
-          <Text style={[styles.auditTitle, isLight && { color: '#6e7681' }]}>DECISION AUDIT TRAIL</Text>
-          <View style={[styles.auditBadge, isLight && styles.auditBadgeLight]}>
-            <Text style={[styles.auditBadgeText, isLight && { color: '#57606a' }]}>{decisionTrail.length} recorded</Text>
-          </View>
-        </View>
-
-        <View style={styles.auditList}>
-          {decisionTrail.length > 0 ? (
-            decisionTrail.map((item) => (
-              <View key={item.id} style={[styles.auditItem, isLight && styles.auditItemLight]}>
-                <View style={item.approved ? styles.auditIconAuth : styles.auditIconDeny}>
-                  {item.approved ? (
-                    <Check size={11} color={colors.statusLive} />
-                  ) : (
-                    <X size={11} color={colors.red} />
-                  )}
-                </View>
-                <View style={styles.auditTexts}>
-                  <Text style={[styles.auditCmd, isLight && styles.auditCmdLight]} numberOfLines={1}>{item.command}</Text>
-                  <View style={styles.auditMetaRow}>
-                    <Text
-                      style={[
-                        styles.auditStatus,
-                        { color: item.approved ? colors.statusLive : colors.red },
-                      ]}
-                    >
-                      {item.details}
-                    </Text>
-                    <Text style={[styles.auditDot, isLight && { color: '#8c959f' }]}>•</Text>
-                    <Text style={[styles.auditTime, isLight && { color: '#6e7681' }]}>{item.timestamp}</Text>
-                  </View>
-                </View>
-              </View>
-            ))
-          ) : (
-            <View style={[styles.emptyAuditBox, isLight && styles.emptyAuditBoxLight]}>
-              <Text style={[styles.emptyAuditText, isLight && { color: '#6e7681' }]}>
-                Zero privileged actions executed in this session yet.
-              </Text>
-            </View>
-          )}
-        </View>
+        {decisionTrail.length > 0 ? (
+          decisionTrail.map((item) => (
+            <Item
+              key={item.id}
+              variant="default"
+              size="xs"
+              className="px-3 py-2 rounded-xl mb-1.5"
+            >
+              <Item.Media variant="icon">
+                {item.approved ? (
+                  <Check size={14} color="#10b981" />
+                ) : (
+                  <X size={14} color="#ef4444" />
+                )}
+              </Item.Media>
+              <Item.Content>
+                <Item.Title className="text-xs font-mono font-medium text-foreground" numberOfLines={1}>
+                  {item.command}
+                </Item.Title>
+                <Item.Description className={cn('text-[11px]', item.approved ? 'text-success' : 'text-destructive')}>
+                  {item.details} • {item.timestamp}
+                </Item.Description>
+              </Item.Content>
+            </Item>
+          ))
+        ) : (
+          <Card className="p-4 bg-surface border border-border rounded-xl items-center justify-center">
+            <Text className="text-xs text-muted-foreground text-center">
+              No actions executed in this session yet.
+            </Text>
+          </Card>
+        )}
       </ScrollView>
-    </View>
+    </ScrollHeader>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.surfaceContainerLowest,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 14,
-    paddingBottom: 36,
-  },
-  statusBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  statusBarLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radii.full,
-    borderWidth: 1,
-  },
-  statusBadgeOpen: {
-    backgroundColor: colors.primarySubtle,
-    borderColor: colors.primaryBorder,
-  },
-  statusBadgePassed: {
-    backgroundColor: colors.statusLiveSubtle,
-    borderColor: colors.statusLiveBorder,
-  },
-  statusBadgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    fontFamily: typography.mono,
-  },
-  metricsRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  metricsText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  summaryCard: {
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.xl,
-    padding: 14,
-    marginBottom: 14,
-  },
-  summaryHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  summaryHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  summaryPendingIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.redSubtle,
-    borderWidth: 1,
-    borderColor: colors.redBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  summaryPassIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.statusLiveSubtle,
-    borderWidth: 1,
-    borderColor: colors.statusLiveBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  summaryTitleCol: {
-    flex: 1,
-  },
-  summaryTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textPrimary,
-  },
-  summarySub: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  checksChipsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
-  },
-  checkChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-  },
-  checkChipAlert: {
-    backgroundColor: colors.redSubtle,
-    borderColor: colors.redBorder,
-  },
-  checkChipText: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontFamily: typography.mono,
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-  },
-  denyActionBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.redSubtle,
-    borderWidth: 1,
-    borderColor: colors.redBorder,
-    borderRadius: radii.md,
-    height: 42,
-    gap: 6,
-  },
-  denyActionBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.red,
-  },
-  authorizeActionBtn: {
-    flex: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-    borderRadius: radii.md,
-    height: 42,
-    gap: 6,
-  },
-  authorizeActionBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0a0a0a',
-  },
-  diffViewerCard: {
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.xl,
-    padding: 14,
-    marginBottom: 14,
-  },
-  diffHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  diffHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 1,
-  },
-  diffToolTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    fontFamily: typography.mono,
-  },
-  riskBadge: {
-    backgroundColor: colors.redSubtle,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.redBorder,
-  },
-  riskBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.red,
-  },
-  copyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surfaceContainerHigh,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-  },
-  copyBtnText: {
-    fontSize: 10,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  diffDescriptionBox: {
-    marginBottom: 10,
-  },
-  diffDescriptionText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 17,
-  },
-  diffJustificationText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  codeSnippetContainer: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radii.md,
-    padding: 10,
-    marginBottom: 10,
-  },
-  codeLine: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  codePromptSymbol: {
-    fontSize: 12,
-    color: colors.primaryLight,
-    fontFamily: typography.mono,
-    fontWeight: '700',
-  },
-  codeContentText: {
-    fontSize: 12,
-    color: colors.textPrimary,
-    fontFamily: typography.mono,
-    flex: 1,
-    lineHeight: 18,
-  },
-  checkboxRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  checkbox: {
-    width: 18,
-    height: 18,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    backgroundColor: colors.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkboxLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  policiesCard: {
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-    marginBottom: 14,
-  },
-  policiesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  policiesHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  policiesTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
-  policiesHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  policiesStatusText: {
-    fontSize: 10,
-    color: colors.statusLive,
-    fontFamily: typography.mono,
-  },
-  policiesList: {
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderMuted,
-    paddingTop: 8,
-    gap: 6,
-  },
-  policyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  policyText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  auditHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 2,
-  },
-  auditTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-  },
-  auditBadge: {
-    backgroundColor: colors.surfaceContainerHigh,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: radii.full,
-  },
-  auditBadgeText: {
-    fontSize: 10,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  auditList: {
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: colors.borderDefault,
-    borderRadius: radii.lg,
-    padding: 6,
-    gap: 4,
-  },
-  auditItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 8,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radii.md,
-    gap: 10,
-  },
-  auditIconAuth: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.statusLiveSubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  auditIconDeny: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.redSubtle,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  auditTexts: {
-    flex: 1,
-  },
-  auditCmd: {
-    fontSize: 12,
-    fontFamily: typography.mono,
-    color: colors.textPrimary,
-  },
-  auditMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    gap: 5,
-  },
-  auditStatus: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  auditDot: {
-    fontSize: 8,
-    color: colors.textDisabled,
-  },
-  auditTime: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  emptyAuditBox: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  emptyAuditText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.mono,
-  },
-  containerLight: {
-    backgroundColor: '#ffffff',
-  },
-  statusBadgeOpenLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-    borderColor: 'rgba(0, 119, 182, 0.3)',
-  },
-  statusBadgePassedLight: {
-    backgroundColor: 'rgba(46, 160, 67, 0.10)',
-    borderColor: 'rgba(46, 160, 67, 0.3)',
-  },
-  summaryCardLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  summaryTitleLight: {
-    color: '#1f2328',
-  },
-  summarySubLight: {
-    color: '#57606a',
-  },
-  checkChipLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  authorizeActionBtnLight: {
-    backgroundColor: '#0077b6',
-    borderColor: '#0077b6',
-  },
-  diffViewerCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  diffHeaderRowLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#d0d7de',
-  },
-  diffToolTitleLight: {
-    color: '#1f2328',
-  },
-  copyBtnLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  diffDescriptionBoxLight: {
-    backgroundColor: '#ffffff',
-  },
-  diffDescriptionTextLight: {
-    color: '#1f2328',
-  },
-  diffJustificationTextLight: {
-    color: '#57606a',
-  },
-  codeSnippetContainerLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  checkboxLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  checkboxLabelLight: {
-    color: '#57606a',
-  },
-  policiesCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  policiesTitleLight: {
-    color: '#1f2328',
-  },
-  auditBadgeLight: {
-    backgroundColor: 'rgba(0, 0, 0, 0.06)',
-    borderColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  auditItemLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e1e4e8',
-  },
-  auditCmdLight: {
-    color: '#1f2328',
-  },
-  emptyAuditBoxLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-});

@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -13,6 +9,15 @@ import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
+import {
+  Button,
+  Badge,
+  Card,
+  Spinner,
+  Text,
+  toast,
+  cn,
+} from 'panelui-native';
 import {
   Sun,
   Moon,
@@ -29,7 +34,7 @@ import { isRunningInExpoGo } from '../lib/notifications';
 WebBrowser.maybeCompleteAuthSession();
 
 /**
- * Pixel-perfect Cloud Agent Logo matching the design brief:
+ * Pixel-perfect Cloud Agent Logo:
  * Outlined cloud shape with inner terminal prompt (> _) and sparkle star ✦ at top right.
  */
 interface CloudAgentLogoProps {
@@ -38,7 +43,7 @@ interface CloudAgentLogoProps {
 }
 
 export const CloudAgentLogo: React.FC<CloudAgentLogoProps> = ({
-  color = '#111827',
+  color = '#f5f5f5',
   size = 130,
 }) => {
   const width = size;
@@ -83,7 +88,7 @@ export const CloudAgentLogo: React.FC<CloudAgentLogoProps> = ({
 /**
  * Google 4-Color Flat Brand Mark
  */
-const GoogleIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
+const GoogleIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24">
     <Path
       fill="#4285F4"
@@ -105,14 +110,14 @@ const GoogleIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
 );
 
 /**
- * Organic, soft cloud curves in backdrop (matching top-left & bottom-right billows)
+ * Organic, soft cloud curves in backdrop
  */
 const BackgroundClouds: React.FC<{ isLight: boolean }> = ({ isLight }) => {
-  const primaryFill = isLight ? '#f3f5f8' : 'rgba(255, 255, 255, 0.035)';
-  const secondaryFill = isLight ? '#f9fafb' : 'rgba(255, 255, 255, 0.02)';
+  const primaryFill = isLight ? '#f3f4f6' : 'rgba(255, 255, 255, 0.025)';
+  const secondaryFill = isLight ? '#f9fafb' : 'rgba(255, 255, 255, 0.015)';
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View className="absolute inset-0" pointerEvents="none">
       <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="none">
         {/* Top-left billow */}
         <Path
@@ -207,15 +212,28 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
       setIsLoadingDev(true);
       const ok = await loginWithDev();
       if (ok) {
+        toast.show({
+          variant: 'success',
+          label: 'Welcome, Developer',
+          description: 'Logged into Expo Go developer profile.',
+          duration: 3000,
+        });
         if (onSuccess) onSuccess();
       } else {
-        Alert.alert(
-          'Dev Login Error',
-          `Could not connect to Gateway at ${gatewayUrl}. Please ensure gateway server is running.`
-        );
+        toast.show({
+          variant: 'destructive',
+          label: 'Dev Login Failed',
+          description: `Could not connect to Gateway at ${gatewayUrl}. Please ensure gateway server is online.`,
+          duration: 5000,
+        });
       }
     } catch (err: any) {
-      Alert.alert('Dev Login Error', err?.message || 'Dev login failed.');
+      toast.show({
+        variant: 'destructive',
+        label: 'Dev Login Error',
+        description: err?.message || 'Dev login failed.',
+        duration: 5000,
+      });
     } finally {
       setIsLoadingDev(false);
     }
@@ -223,14 +241,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
   const handleGoogleLogin = async () => {
     if (!isNetworkOnline) {
-      Alert.alert(
-        'No Internet Connection',
-        'You are currently offline. Please check your internet connection before signing in.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Retry', onPress: () => checkNetwork() },
-        ]
-      );
+      toast.show({
+        variant: 'warning',
+        label: 'No Internet Connection',
+        description: 'You are currently offline. Please check your network connection.',
+        duration: 4000,
+      });
       return;
     }
 
@@ -247,7 +263,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
         const parsed = parseAuthCallbackUrl(result.url);
 
         if (parsed.error) {
-          Alert.alert('Sign-In Error', `Google authentication failed: ${parsed.error}`);
+          toast.show({
+            variant: 'destructive',
+            label: 'Sign-In Error',
+            description: `Google authentication failed: ${parsed.error}`,
+            duration: 5000,
+          });
           return;
         }
 
@@ -260,228 +281,171 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           });
 
           if (ok) {
+            toast.show({
+              variant: 'success',
+              label: 'Signed In',
+              description: `Welcome back, ${parsed.name || 'User'}!`,
+              duration: 3000,
+            });
             if (onSuccess) onSuccess();
           } else {
-            Alert.alert(
-              'Sign-In Failed',
-              `Could not complete login on Gateway at ${gatewayUrl}.`
-            );
+            toast.show({
+              variant: 'destructive',
+              label: 'Sign-In Failed',
+              description: `Could not complete login on Gateway at ${gatewayUrl}.`,
+              duration: 5000,
+            });
           }
         } else {
-          Alert.alert('Sign-In Error', 'No authorization token returned.');
+          toast.show({
+            variant: 'destructive',
+            label: 'Sign-In Error',
+            description: 'No authorization token returned from provider.',
+            duration: 5000,
+          });
         }
       }
     } catch (err: any) {
       console.error('[AuthScreen] Google OAuth error:', err);
-      Alert.alert(
-        'Google Sign-In Error',
-        err?.message || 'Google OAuth prompt could not be initialized.'
-      );
+      toast.show({
+        variant: 'destructive',
+        label: 'Google Sign-In Error',
+        description: err?.message || 'Google OAuth prompt could not be initialized.',
+        duration: 5000,
+      });
     } finally {
       setIsLoadingGoogle(false);
     }
   };
 
+  const topInset = Math.max(insets.top, Platform.OS === 'ios' ? 12 : 16);
+
   return (
-    <View style={[styles.container, isLight ? styles.containerLight : styles.containerDark]}>
+    <View className="flex-1 bg-background items-center justify-center px-6">
       <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
 
       {/* Ambient Organic Cloud Backdrop */}
       <BackgroundClouds isLight={isLight} />
 
-      {/* Top Bar Actions: Theme Switcher & Gateway Modal */}
+      {/* Top Bar Actions: 40x40 Circular Buttons */}
       <View
-        style={[
-          styles.topBar,
-          { top: Math.max(insets.top, Platform.OS === 'ios' ? 12 : 16) },
-        ]}
+        className="absolute right-5 flex-row items-center gap-2.5 z-50"
+        style={{ top: topInset }}
       >
         <TouchableOpacity
-          style={[
-            styles.topBarBtn,
-            isLight ? styles.topBarBtnLight : styles.topBarBtnDark,
-          ]}
+          className="w-10 h-10 rounded-full bg-surface border border-border items-center justify-center active:opacity-70"
           onPress={() => setShowServerSettings(true)}
           activeOpacity={0.7}
-          accessibilityLabel="Server Endpoint Settings"
+          accessibilityLabel="Server & Push Settings"
         >
-          <Globe size={18} color={isLight ? '#57606a' : '#c9d1d9'} />
+          <Globe size={18} color={isLight ? '#262626' : '#f5f5f5'} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[
-            styles.topBarBtn,
-            isLight ? styles.topBarBtnLight : styles.topBarBtnDark,
-          ]}
+          className="w-10 h-10 rounded-full bg-surface border border-border items-center justify-center active:opacity-70"
           onPress={toggleTheme}
           activeOpacity={0.7}
           accessibilityLabel="Toggle Dark / Light Theme"
         >
           {isLight ? (
-            <Moon size={18} color="#111827" />
+            <Moon size={18} color="#262626" />
           ) : (
-            <Sun size={18} color="#f0f6fc" />
+            <Sun size={18} color="#f5f5f5" />
           )}
         </TouchableOpacity>
       </View>
 
       {/* Main Center Content */}
-      <View style={styles.centerSection}>
-        {/* Cloud Agent Outline Logo with Terminal Prompt & Sparkle */}
-        <View style={styles.logoWrapper}>
+      <View className="w-full max-w-sm items-center">
+        {/* Cloud Agent Outline Logo */}
+        <View className="mb-6 items-center justify-center">
           <CloudAgentLogo
-            color={isLight ? '#111827' : '#f0f6fc'}
-            size={136}
+            color={isLight ? '#262626' : '#f5f5f5'}
+            size={132}
           />
         </View>
 
         {/* Brand Headline */}
-        <Text style={[styles.title, isLight ? styles.titleLight : styles.titleDark]}>
+        <Text className="text-3xl font-bold text-foreground tracking-tight text-center mb-2">
           Cloud Agent
         </Text>
 
         {/* Subtitle */}
-        <Text style={[styles.subtitle, isLight ? styles.subtitleLight : styles.subtitleDark]}>
+        <Text className="text-base text-muted-foreground text-center leading-relaxed mb-8 px-4">
           Run your coding agent{'\n'}from anywhere.
         </Text>
 
         {/* Primary Action: Continue with Google Pill Button */}
-        <TouchableOpacity
-          style={[
-            styles.googlePillBtn,
-            isLight ? styles.googlePillBtnLight : styles.googlePillBtnDark,
-            (isLoadingGoogle || isLoadingDev) && styles.btnDisabled,
-          ]}
+        <Button
+          variant="primary"
+          size="lg"
+          className="w-full rounded-full py-3.5 px-6 flex-row items-center justify-center gap-3"
           onPress={handleGoogleLogin}
           disabled={isLoadingGoogle || isLoadingDev}
-          activeOpacity={0.8}
         >
           {isLoadingGoogle ? (
-            <ActivityIndicator size="small" color={isLight ? '#111827' : '#ffffff'} />
+            <Spinner size="sm" color={isLight ? '#262626' : '#fafafa'} />
           ) : (
             <>
-              <GoogleIcon size={22} />
-              <View
-                style={[
-                  styles.btnDivider,
-                  isLight ? styles.btnDividerLight : styles.btnDividerDark,
-                ]}
-              />
-              <Text
-                style={[
-                  styles.googlePillText,
-                  isLight ? styles.googlePillTextLight : styles.googlePillTextDark,
-                ]}
-              >
+              <GoogleIcon size={20} />
+              <View className="w-px h-4 bg-primary-foreground/20 mx-1" />
+              <Text className="text-sm font-semibold text-primary-foreground">
                 Continue with Google
               </Text>
             </>
           )}
-        </TouchableOpacity>
+        </Button>
 
-        {/* Developer / Test Account Login (Exclusively visible when running inside Expo Go client) */}
+        {/* Developer / Test Account Login (Only visible when running inside Expo Go client) */}
         {isExpoGo && (
-          <View style={styles.expoGoDevSection}>
-            <View style={styles.cloudDividerRow}>
-              <View
-                style={[
-                  styles.cloudDividerLine,
-                  isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
-                ]}
-              />
-              <View style={styles.cloudIconBox}>
-                <Cloud
-                  size={15}
-                  color={isLight ? '#9ca3af' : '#6e7681'}
-                />
-              </View>
-              <View
-                style={[
-                  styles.cloudDividerLine,
-                  isLight ? styles.cloudDividerLineLight : styles.cloudDividerLineDark,
-                ]}
-              />
+          <View className="w-full mt-6 items-center">
+            <View className="w-full flex-row items-center gap-3 mb-4">
+              <View className="flex-1 h-px bg-border" />
+              <Cloud size={14} color={isLight ? '#888888' : '#666666'} />
+              <View className="flex-1 h-px bg-border" />
             </View>
 
-            <TouchableOpacity
-              style={[
-                styles.devConnectRow,
-                (isLoadingDev || isLoadingGoogle) && styles.btnDisabled,
-              ]}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full py-2.5 px-4 rounded-2xl flex-row items-center justify-center gap-2 border-border bg-surface"
               onPress={handleDevLogin}
               disabled={isLoadingDev || isLoadingGoogle}
-              activeOpacity={0.7}
             >
               {isLoadingDev ? (
-                <ActivityIndicator size="small" color="#0077b6" />
+                <Spinner size="sm" color={isLight ? '#262626' : '#f5f5f5'} />
               ) : (
                 <>
-                  <Zap size={14} color={isLight ? '#0077b6' : '#48cae4'} />
-                  <Text
-                    style={[
-                      styles.devConnectText,
-                      isLight ? styles.devConnectTextLight : styles.devConnectTextDark,
-                    ]}
-                  >
-                    Expo Go Test / Developer Account
+                  <Zap size={14} color="#0077b6" />
+                  <Text className="text-xs font-medium text-foreground">
+                    Expo Go Test / Dev Account
                   </Text>
-                  <View
-                    style={[
-                      styles.devBadge,
-                      isLight ? styles.devBadgeLight : styles.devBadgeDark,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.devBadgeText,
-                        isLight ? styles.devBadgeTextLight : styles.devBadgeTextDark,
-                      ]}
-                    >
-                      Dev Only
-                    </Text>
-                  </View>
+                  <Badge variant="secondary" size="sm" className="px-1.5 py-0 ml-1">
+                    <Text className="text-[10px] font-medium text-muted-foreground">Dev Only</Text>
+                  </Badge>
                 </>
               )}
-            </TouchableOpacity>
+            </Button>
           </View>
         )}
 
         {/* Offline Warning Notice */}
         {!isNetworkOnline && (
-          <View
-            style={[
-              styles.offlineCard,
-              isLight ? styles.offlineCardLight : styles.offlineCardDark,
-            ]}
-          >
-            <WifiOff size={14} color="#f85149" />
-            <Text
-              style={[
-                styles.offlineText,
-                isLight ? styles.offlineTextLight : styles.offlineTextDark,
-              ]}
-            >
+          <Card className="w-full mt-5 p-3 rounded-xl bg-destructive/10 border border-destructive/20 flex-row items-center gap-2.5">
+            <WifiOff size={15} color="#ef4444" />
+            <Text className="text-xs text-destructive font-medium flex-1">
               No internet connection
             </Text>
-            <TouchableOpacity
-              style={[
-                styles.offlineRetryBtn,
-                isLight ? styles.offlineRetryBtnLight : styles.offlineRetryBtnDark,
-              ]}
+            <Button
+              variant="outline"
+              size="xs"
+              className="h-7 px-2.5 flex-row items-center gap-1"
               onPress={() => checkNetwork()}
-              activeOpacity={0.7}
             >
-              <RefreshCw size={12} color={isLight ? '#0077b6' : '#48cae4'} />
-              <Text
-                style={[
-                  styles.offlineRetryText,
-                  isLight ? styles.offlineRetryTextLight : styles.offlineRetryTextDark,
-                ]}
-              >
-                Retry
-              </Text>
-            </TouchableOpacity>
-          </View>
+              <RefreshCw size={11} color={isLight ? '#262626' : '#f5f5f5'} />
+              <Text className="text-xs font-medium text-foreground">Retry</Text>
+            </Button>
+          </Card>
         )}
       </View>
 
@@ -493,271 +457,3 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  containerLight: {
-    backgroundColor: '#ffffff',
-  },
-  containerDark: {
-    backgroundColor: '#0a0a0a',
-  },
-
-  // Top Bar Actions
-  topBar: {
-    position: 'absolute',
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    zIndex: 50,
-  },
-  topBarBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  topBarBtnLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e7eb',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  topBarBtnDark: {
-    backgroundColor: '#161b22',
-    borderColor: '#30363d',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-
-  // Main Center Section
-  centerSection: {
-    width: '100%',
-    maxWidth: 340,
-    alignItems: 'center',
-  },
-  logoWrapper: {
-    marginBottom: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    letterSpacing: -0.6,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  titleLight: {
-    color: '#111827',
-  },
-  titleDark: {
-    color: '#f0f6fc',
-  },
-  subtitle: {
-    fontSize: 16.5,
-    lineHeight: 24,
-    textAlign: 'center',
-    marginBottom: 44,
-  },
-  subtitleLight: {
-    color: '#4b5563',
-  },
-  subtitleDark: {
-    color: '#9ca3af',
-  },
-
-  // Google Pill Button
-  googlePillBtn: {
-    width: '100%',
-    height: 54,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 22,
-  },
-  googlePillBtnLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#111827',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  googlePillBtnDark: {
-    backgroundColor: '#161b22',
-    borderColor: 'rgba(255, 255, 255, 0.35)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  btnDivider: {
-    width: 1,
-    height: 22,
-    marginHorizontal: 16,
-  },
-  btnDividerLight: {
-    backgroundColor: '#e5e7eb',
-  },
-  btnDividerDark: {
-    backgroundColor: '#30363d',
-  },
-  googlePillText: {
-    fontSize: 15.5,
-    fontWeight: '600',
-    letterSpacing: -0.2,
-  },
-  googlePillTextLight: {
-    color: '#111827',
-  },
-  googlePillTextDark: {
-    color: '#f0f6fc',
-  },
-  btnDisabled: {
-    opacity: 0.65,
-  },
-
-  // Offline Warning Notice
-  offlineCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  offlineCardLight: {
-    backgroundColor: '#fff8f7',
-    borderColor: '#ffc1be',
-  },
-  offlineCardDark: {
-    backgroundColor: 'rgba(248, 81, 73, 0.1)',
-    borderColor: 'rgba(248, 81, 73, 0.3)',
-  },
-  offlineText: {
-    fontSize: 12.5,
-    fontWeight: '500',
-  },
-  offlineTextLight: {
-    color: '#cf222e',
-  },
-  offlineTextDark: {
-    color: '#f85149',
-  },
-  offlineRetryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
-    marginLeft: 4,
-  },
-  offlineRetryBtnLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.1)',
-  },
-  offlineRetryBtnDark: {
-    backgroundColor: 'rgba(0, 119, 182, 0.2)',
-  },
-  offlineRetryText: {
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  offlineRetryTextLight: {
-    color: '#0077b6',
-  },
-  offlineRetryTextDark: {
-    color: '#48cae4',
-  },
-
-  // Expo Go Developer Section
-  expoGoDevSection: {
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 6,
-  },
-  cloudDividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 240,
-    marginTop: 20,
-    marginBottom: 16,
-  },
-  cloudDividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  cloudDividerLineLight: {
-    backgroundColor: '#e5e7eb',
-  },
-  cloudDividerLineDark: {
-    backgroundColor: '#262626',
-  },
-  cloudIconBox: {
-    marginHorizontal: 12,
-  },
-  devConnectRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-  },
-  devConnectText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  devConnectTextLight: {
-    color: '#0077b6',
-  },
-  devConnectTextDark: {
-    color: '#48cae4',
-  },
-  devBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  devBadgeLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
-    borderColor: 'rgba(0, 119, 182, 0.2)',
-  },
-  devBadgeDark: {
-    backgroundColor: 'rgba(0, 119, 182, 0.15)',
-    borderColor: 'rgba(0, 119, 182, 0.35)',
-  },
-  devBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  devBadgeTextLight: {
-    color: '#0077b6',
-  },
-  devBadgeTextDark: {
-    color: '#48cae4',
-  },
-});

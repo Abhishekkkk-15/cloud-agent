@@ -16,6 +16,26 @@ export interface PushRegistrationState {
   statusMessage: string;
 }
 
+export interface NotificationPreferences {
+  notifyApprovals: boolean;
+  notifyTurnComplete: boolean;
+  notifyErrors: boolean;
+}
+
+let notificationPreferences: NotificationPreferences = {
+  notifyApprovals: true,
+  notifyTurnComplete: true,
+  notifyErrors: true,
+};
+
+export function setNotificationPreferences(prefs: Partial<NotificationPreferences>) {
+  notificationPreferences = { ...notificationPreferences, ...prefs };
+}
+
+export function getNotificationPreferences(): NotificationPreferences {
+  return notificationPreferences;
+}
+
 type NotificationListener = (payload: NotificationPayload) => void;
 const listeners = new Set<NotificationListener>();
 
@@ -503,6 +523,7 @@ export async function notifyTurnComplete(
   sessionTitle: string,
   message: string = 'Antigravity agent completed instruction.'
 ) {
+  if (!notificationPreferences.notifyTurnComplete) return;
   await scheduleNotification({
     title: `Turn Complete • ${sessionTitle}`,
     body: message,
@@ -512,6 +533,7 @@ export async function notifyTurnComplete(
 }
 
 export async function notifyApprovalRequired(toolName: string, command: string) {
+  if (!notificationPreferences.notifyApprovals) return;
   const shortCmd = command.length > 70 ? `${command.slice(0, 67)}...` : command;
   await scheduleNotification({
     title: 'Security Approval Required',
@@ -522,6 +544,7 @@ export async function notifyApprovalRequired(toolName: string, command: string) 
 }
 
 export async function notifyTurnError(errorMessage: string) {
+  if (!notificationPreferences.notifyErrors) return;
   const shortMsg = errorMessage.length > 80 ? `${errorMessage.slice(0, 77)}...` : errorMessage;
   await scheduleNotification({
     title: 'Agent Execution Error',

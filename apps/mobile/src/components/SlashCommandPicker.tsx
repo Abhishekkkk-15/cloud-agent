@@ -184,10 +184,9 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
 
-  if (!visible) return null;
-
-  // Filter commands by search query
+  // Filter commands by search query (Hooks must ALWAYS run unconditionally)
   const filteredCommands = useMemo(() => {
+    if (!visible) return ANTIGRAVITY_COMMANDS;
     const rawQuery = searchQuery.trim().toLowerCase();
     const query = rawQuery.startsWith('/') ? rawQuery.slice(1) : rawQuery;
 
@@ -201,7 +200,9 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
         cmd.description.toLowerCase().includes(query)
       );
     });
-  }, [searchQuery]);
+  }, [searchQuery, visible]);
+
+  if (!visible) return null;
 
   const renderIcon = (cmd: SlashCommandItem) => {
     const iconColor = isLight ? '#0077b6' : '#ffffff';

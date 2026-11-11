@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  TextInput,
-  ActivityIndicator,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { Pin, Pencil, Trash2, X, Check } from './Icons';
-import { colors, radii } from '../theme/tokens';
+import {
+  Dialog,
+  Button,
+  Input,
+  Item,
+  Text,
+} from 'panelui-native';
+import { Pin, Pencil, Trash2, X } from './Icons';
 import { useDaemonStore, type RealSessionItem } from '../stores/useDaemonStore';
 
 interface SessionActionModalProps {
@@ -85,352 +85,143 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-
-        <View style={[styles.modalCard, isLight && styles.modalCardLight]}>
-          {/* Header */}
-          <View style={[styles.header, isLight && styles.headerLight]}>
-            <View style={styles.headerTextCol}>
-              <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]} numberOfLines={1}>
-                {session.title}
-              </Text>
-              <Text style={[styles.headerSubtitle, isLight && styles.headerSubtitleLight]} numberOfLines={1}>
-                {session.workspaceName} • {session.id.slice(0, 8)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.closeBtn, isLight && styles.closeBtnLight]}
-              onPress={onClose}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    <Dialog open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <Dialog.Content className="w-full max-w-sm bg-popover border border-border p-0 overflow-hidden rounded-2xl">
+        {/* Header */}
+        <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
+          <View className="flex-1 mr-2">
+            <Dialog.Title className="text-sm font-semibold text-foreground" numberOfLines={1}>
+              {session.title}
+            </Dialog.Title>
+            <Dialog.Description className="text-xs text-muted-foreground" numberOfLines={1}>
+              {session.workspaceName} • {session.id.slice(0, 8)}
+            </Dialog.Description>
+          </View>
+          <Dialog.Close>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-7 h-7 p-0 items-center justify-center rounded-lg"
             >
-              <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Body / Actions */}
-          <View style={[styles.body, isLight && styles.bodyLight]}>
-            {isRenaming ? (
-              <View style={styles.renameContainer}>
-                <Text style={[styles.renameLabel, isLight && styles.renameLabelLight]}>Rename Session</Text>
-                <TextInput
-                  style={[styles.renameInput, isLight && styles.renameInputLight]}
-                  value={newTitle}
-                  onChangeText={setNewTitle}
-                  placeholder="Enter new title..."
-                  placeholderTextColor={isLight ? '#8c959f' : '#737373'}
-                  autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={handleSaveRename}
-                />
-                <View style={styles.renameActionsRow}>
-                  <TouchableOpacity
-                    style={[styles.renameCancelBtn, isLight && styles.renameCancelBtnLight]}
-                    onPress={() => setIsRenaming(false)}
-                    disabled={isLoading}
-                  >
-                    <Text style={[styles.renameCancelText, isLight && styles.renameCancelTextLight]}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.renameSaveBtn, isLight && styles.renameSaveBtnLight]}
-                    onPress={handleSaveRename}
-                    disabled={isLoading || !newTitle.trim()}
-                  >
-                    {isLoading ? (
-                      <ActivityIndicator size="small" color={isLight ? '#ffffff' : '#0a0a0a'} />
-                    ) : (
-                      <Text style={[styles.renameSaveText, isLight && styles.renameSaveTextLight]}>Save</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
-              <>
-                {/* 1. Pin / Unpin Action */}
-                <TouchableOpacity
-                  style={[styles.actionRow, isLight && styles.actionRowLight]}
-                  onPress={handleTogglePinAction}
-                  activeOpacity={0.7}
-                  disabled={isLoading}
-                >
-                  <View style={[styles.actionIconBox, isLight && styles.actionIconBoxLight]}>
-                    <Pin
-                      size={16}
-                      color={session.pinned ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#d4d4d4')}
-                    />
-                  </View>
-                  <View style={styles.actionTextCol}>
-                    <Text style={[styles.actionTitle, isLight && styles.actionTitleLight]}>
-                      {session.pinned ? 'Unpin Session' : 'Pin to Top'}
-                    </Text>
-                    <Text style={[styles.actionDesc, isLight && styles.actionDescLight]}>
-                      {session.pinned
-                        ? 'Remove from pinned list'
-                        : 'Keep this session pinned to the top of your drawer'}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 2. Rename Action */}
-                <TouchableOpacity
-                  style={[styles.actionRow, isLight && styles.actionRowLight]}
-                  onPress={() => setIsRenaming(true)}
-                  activeOpacity={0.7}
-                  disabled={isLoading}
-                >
-                  <View style={[styles.actionIconBox, isLight && styles.actionIconBoxLight]}>
-                    <Pencil size={16} color={isLight ? '#57606a' : '#d4d4d4'} />
-                  </View>
-                  <View style={styles.actionTextCol}>
-                    <Text style={[styles.actionTitle, isLight && styles.actionTitleLight]}>Rename Session</Text>
-                    <Text style={[styles.actionDesc, isLight && styles.actionDescLight]}>Change the title of this session</Text>
-                  </View>
-                </TouchableOpacity>
-
-                {/* 3. Delete Action */}
-                <TouchableOpacity
-                  style={[
-                    styles.actionRow,
-                    styles.actionRowDanger,
-                    isLight && styles.actionRowDangerLight,
-                  ]}
-                  onPress={handleDeleteAction}
-                  activeOpacity={0.7}
-                  disabled={isLoading}
-                >
-                  <View style={[styles.actionIconBox, styles.actionIconDanger]}>
-                    <Trash2 size={16} color="#cf222e" />
-                  </View>
-                  <View style={styles.actionTextCol}>
-                    <Text style={styles.actionTitleDanger}>Delete Session</Text>
-                    <Text style={[styles.actionDescDanger, isLight && { color: '#cf222e' }]}>
-                      Permanently delete transcript from host disk
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
+              <X size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+            </Button>
+          </Dialog.Close>
         </View>
-      </View>
-    </Modal>
+
+        {/* Body */}
+        <View className="p-3">
+          {isRenaming ? (
+            <View className="p-1">
+              <Text className="text-xs font-semibold text-foreground mb-1.5">
+                Rename Session
+              </Text>
+              <Input
+                value={newTitle}
+                onChangeText={setNewTitle}
+                placeholder="Enter new title..."
+                size="sm"
+                variant="outline"
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleSaveRename}
+                className="mb-3"
+              />
+              <View className="flex-row items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onPress={() => setIsRenaming(false)}
+                  disabled={isLoading}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onPress={handleSaveRename}
+                  disabled={isLoading || !newTitle.trim()}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color={isLight ? '#fafafa' : '#262626'} />
+                  ) : (
+                    'Save'
+                  )}
+                </Button>
+              </View>
+            </View>
+          ) : (
+            <View className="gap-1">
+              {/* 1. Pin / Unpin Action */}
+              <Item
+                variant="default"
+                size="xs"
+                className="px-2.5 py-2 rounded-xl"
+                onPress={handleTogglePinAction}
+                disabled={isLoading}
+              >
+                <Item.Media variant="icon">
+                  <Pin
+                    size={16}
+                    color={session.pinned ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')}
+                  />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className="text-sm font-medium text-foreground">
+                    {session.pinned ? 'Unpin Session' : 'Pin to Top'}
+                  </Item.Title>
+                  <Item.Description className="text-xs text-muted-foreground">
+                    {session.pinned
+                      ? 'Remove from pinned list'
+                      : 'Keep pinned to the top of your drawer'}
+                  </Item.Description>
+                </Item.Content>
+              </Item>
+
+              {/* 2. Rename Action */}
+              <Item
+                variant="default"
+                size="xs"
+                className="px-2.5 py-2 rounded-xl"
+                onPress={() => setIsRenaming(true)}
+                disabled={isLoading}
+              >
+                <Item.Media variant="icon">
+                  <Pencil size={16} color={isLight ? '#686868' : '#a3a3a3'} />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className="text-sm font-medium text-foreground">
+                    Rename Session
+                  </Item.Title>
+                  <Item.Description className="text-xs text-muted-foreground">
+                    Change the title of this session
+                  </Item.Description>
+                </Item.Content>
+              </Item>
+
+              {/* 3. Delete Action */}
+              <Item
+                variant="default"
+                size="xs"
+                className="px-2.5 py-2 rounded-xl"
+                onPress={handleDeleteAction}
+                disabled={isLoading}
+              >
+                <Item.Media variant="icon">
+                  <Trash2 size={16} color="#ef4444" />
+                </Item.Media>
+                <Item.Content>
+                  <Item.Title className="text-sm font-medium text-destructive">
+                    Delete Session
+                  </Item.Title>
+                  <Item.Description className="text-xs text-destructive/70">
+                    Permanently delete transcript from host disk
+                  </Item.Description>
+                </Item.Content>
+              </Item>
+            </View>
+          )}
+        </View>
+      </Dialog.Content>
+    </Dialog>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFill,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: '#0a0a0a',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
-    backgroundColor: '#161616',
-  },
-  headerTextCol: {
-    flex: 1,
-    marginRight: 10,
-  },
-  headerTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#fafafa',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    marginTop: 2,
-  },
-  closeBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#262626',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  body: {
-    padding: 12,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 6,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: '#262626',
-  },
-  actionRowDanger: {
-    borderColor: 'rgba(248, 81, 73, 0.25)',
-  },
-  actionIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: '#262626',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  actionIconDanger: {
-    backgroundColor: 'rgba(248, 81, 73, 0.12)',
-  },
-  actionTextCol: {
-    flex: 1,
-  },
-  actionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fafafa',
-  },
-  actionDesc: {
-    fontSize: 11,
-    color: '#a3a3a3',
-    marginTop: 2,
-  },
-  actionTitleDanger: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#f85149',
-  },
-  actionDescDanger: {
-    fontSize: 11,
-    color: 'rgba(248, 81, 73, 0.7)',
-    marginTop: 2,
-  },
-  renameContainer: {
-    padding: 8,
-  },
-  renameLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#a3a3a3',
-    marginBottom: 8,
-  },
-  renameInput: {
-    height: 42,
-    backgroundColor: '#121212',
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    paddingHorizontal: 12,
-    color: '#fafafa',
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  renameActionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  renameCancelBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
-    backgroundColor: '#262626',
-  },
-  renameCancelText: {
-    fontSize: 12,
-    color: '#d4d4d4',
-  },
-  renameSaveBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    backgroundColor: '#fafafa',
-  },
-  renameSaveText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#0a0a0a',
-  },
-
-  // Light Theme Overrides
-  modalCardLight: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-  },
-  headerLight: {
-    backgroundColor: '#f6f8fa',
-    borderBottomColor: '#e1e4e8',
-  },
-  headerTitleLight: {
-    color: '#1f2328',
-  },
-  headerSubtitleLight: {
-    color: '#6e7681',
-  },
-  closeBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  bodyLight: {
-    backgroundColor: '#ffffff',
-  },
-  actionRowLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-  },
-  actionRowDangerLight: {
-    borderColor: 'rgba(207, 34, 46, 0.25)',
-    backgroundColor: '#fff8f8',
-  },
-  actionIconBoxLight: {
-    backgroundColor: '#eaeef2',
-  },
-  actionTitleLight: {
-    color: '#1f2328',
-  },
-  actionDescLight: {
-    color: '#6e7681',
-  },
-  renameLabelLight: {
-    color: '#57606a',
-  },
-  renameInputLight: {
-    backgroundColor: '#f6f8fa',
-    borderColor: '#d0d7de',
-    color: '#1f2328',
-  },
-  renameCancelBtnLight: {
-    backgroundColor: '#eaeef2',
-  },
-  renameCancelTextLight: {
-    color: '#57606a',
-  },
-  renameSaveBtnLight: {
-    backgroundColor: '#0077b6',
-  },
-  renameSaveTextLight: {
-    color: '#ffffff',
-  },
-});

@@ -15,6 +15,8 @@ import {
   emitInAppNotification,
   scheduleNotification,
   ensureNotificationChannelsAsync,
+  setNotificationPreferences,
+  getNotificationPreferences,
 } from '../lib/notifications';
 
 function getDefaultHost(): string {
@@ -347,6 +349,10 @@ interface DaemonStoreState {
   pushStatus: string;
   isPushRegistered: boolean;
   pushToken: string | null;
+  notifyApprovals: boolean;
+  notifyTurnComplete: boolean;
+  notifyErrors: boolean;
+  setNotificationPreference: (key: 'notifyApprovals' | 'notifyTurnComplete' | 'notifyErrors', enabled: boolean) => void;
   activeProposal: AutoHealerProposal | null;
   activePrReview: AutoPrReviewReport | null;
   isAutoHealerModalVisible: boolean;
@@ -438,7 +444,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   connectionState: 'disconnected',
   isNetworkOnline: networkMonitor.getIsOnline(),
   daemonStatus: null,
-  pingRtt: '14ms',
+  pingRtt: '',
   sessions: [],
   selectedWorkspace: 'all',
   workspaces: [],
@@ -472,6 +478,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   pushStatus: 'Initializing...',
   isPushRegistered: false,
   pushToken: null,
+  notifyApprovals: true,
+  notifyTurnComplete: true,
+  notifyErrors: true,
+  setNotificationPreference: (key, enabled) => {
+    set({ [key]: enabled });
+    setNotificationPreferences({ [key]: enabled });
+  },
   activeProposal: null,
   activePrReview: null,
   isAutoHealerModalVisible: false,
@@ -900,13 +913,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       } else if (event.type === 'thought') {
         const thought = event.data?.thought || event.thought || '';
         if (!thought) return;
+        const isDelta =
+          typeof event.data === 'object' && event.data !== null && 'delta' in event.data
+            ? (event.data as any).delta
+            : false;
         set((state) => {
           const msgs = [...state.sessionMessages];
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg && lastMsg.role === 'assistant') {
             msgs[msgs.length - 1] = {
               ...lastMsg,
-              reasoning: (lastMsg.reasoning || '') + thought,
+              reasoning: isDelta ? (lastMsg.reasoning || '') + thought : thought,
             };
             return { sessionMessages: msgs };
           } else {
@@ -2080,12 +2097,16 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           toolCalls: m.toolCalls,
         }));
 
-        set((state) => ({
-          sessionMessages: [...olderMsgs, ...state.sessionMessages],
-          messagesOffset: state.messagesOffset + rawList.length,
-          hasMoreMessages: Boolean(resp?.hasMore),
-          isLoadingOlderMessages: false,
-        }));
+        set((state) => {
+          const existingIds = new Set(state.sessionMessages.map((m) => m.id).filter(Boolean));
+          const filteredOlder = olderMsgs.filter((m) => !m.id || !existingIds.has(m.id));
+          return {
+            sessionMessages: [...filteredOlder, ...state.sessionMessages],
+            messagesOffset: state.messagesOffset + rawList.length,
+            hasMoreMessages: Boolean(resp?.hasMore),
+            isLoadingOlderMessages: false,
+          };
+        });
       } else {
         set({ hasMoreMessages: false, isLoadingOlderMessages: false });
       }
@@ -2171,8 +2192,22 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             timestamp: m.timestamp || new Date().toISOString(),
             toolCalls: m.toolCalls,
           }));
-          // Guard: Only replace if disk has at least as many messages as local state
+          // Merge reasoning and ensure messages reflect disk state accurately
           set((state) => {
+            const lastDiskMsg = msgs[msgs.length - 1];
+            const currentMsgs = [...state.sessionMessages];
+            const lastCurrentMsg = currentMsgs[currentMsgs.length - 1];
+            if (
+              lastDiskMsg &&
+              lastCurrentMsg &&
+              lastDiskMsg.role === 'assistant' &&
+              lastCurrentMsg.role === 'assistant' &&
+              lastDiskMsg.reasoning &&
+              !lastCurrentMsg.reasoning
+            ) {
+              lastCurrentMsg.reasoning = lastDiskMsg.reasoning;
+            }
+
             if (msgs.length >= state.sessionMessages.length) {
               return {
                 sessionMessages: msgs,
@@ -2180,7 +2215,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
                 hasMoreMessages: Boolean(resp?.hasMore),
               };
             }
-            return state;
+            return { sessionMessages: currentMsgs };
           });
         }
       } else {
