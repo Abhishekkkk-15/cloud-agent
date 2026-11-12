@@ -69,7 +69,8 @@ interface ToolActionTrayProps {
 
 export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action, onClose }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const translateY = useRef(new Animated.Value(SNAP_CLOSED)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -201,7 +202,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
   }
 
   const renderCategoryIcon = (category: ActionStep['category'], size = 16) => {
-    const iconColor = isLight ? '#262626' : '#ffffff';
+    const iconColor = isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff';
     switch (category) {
       case 'git':
         return <GitBranch size={size} color={iconColor} />;
@@ -278,6 +279,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
           style={[
             styles.traySheet,
             isLight && styles.traySheetLight,
+            isSwiss && styles.traySheetSwiss,
             {
               transform: [{ translateY }],
             },
@@ -290,18 +292,18 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               activeOpacity={0.8}
               onPress={handleToggleExpand}
             >
-              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
+              <View style={[styles.dragPill, isLight && styles.dragPillLight, isSwiss && styles.dragPillSwiss]} />
             </TouchableOpacity>
 
             {/* Tray Header */}
-            <View style={[styles.trayHeader, isLight && styles.trayHeaderLight]}>
+            <View style={[styles.trayHeader, isLight && styles.trayHeaderLight, isSwiss && styles.trayHeaderSwiss]}>
               <View style={styles.trayHeaderLeft}>
-                <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
+                <View style={[styles.iconCircle, isLight && styles.iconCircleLight, isSwiss && styles.iconCircleSwiss]}>
                   {renderCategoryIcon(action.category, 18)}
                 </View>
                 <View style={styles.titleColumn}>
                   <View style={styles.titleRow}>
-                    <Text style={[styles.toolNameText, isLight && styles.toolNameTextLight]} numberOfLines={1}>
+                    <Text style={[styles.toolNameText, isLight && styles.toolNameTextLight, isSwiss && styles.toolNameTextSwiss]} numberOfLines={1}>
                       {toolName}
                     </Text>
                     {/* Status Pill */}
@@ -309,28 +311,28 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                       style={[
                         styles.statusPill,
                         isRunning
-                          ? styles.statusPillRunning
+                          ? (isSwiss ? styles.statusPillRunningSwiss : styles.statusPillRunning)
                           : isSuccess
-                          ? (isLight ? styles.statusPillSuccessLight : styles.statusPillSuccess)
-                          : (isLight ? styles.statusPillErrorLight : styles.statusPillError),
+                          ? (isSwiss ? styles.statusPillSuccessSwiss : isLight ? styles.statusPillSuccessLight : styles.statusPillSuccess)
+                          : (isSwiss ? styles.statusPillErrorSwiss : isLight ? styles.statusPillErrorLight : styles.statusPillError),
                       ]}
                     >
                       {isRunning ? (
-                        <ActivityIndicator size="small" color={isLight ? '#262626' : colors.primary} style={{ transform: [{ scale: 0.65 }] }} />
+                        <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} style={{ transform: [{ scale: 0.65 }] }} />
                       ) : isSuccess ? (
-                        <CheckCircle2 size={11} color={isLight ? '#1a7f37' : colors.green} />
+                        <CheckCircle2 size={11} color={isSwiss ? '#10b981' : isLight ? '#1a7f37' : colors.green} />
                       ) : (
-                        <XCircle size={11} color={isLight ? '#cf222e' : colors.red} />
+                        <XCircle size={11} color={isSwiss ? '#DC201E' : isLight ? '#cf222e' : colors.red} />
                       )}
                       <Text
                         style={[
                           styles.statusPillText,
                           {
                             color: isRunning
-                              ? (isLight ? '#262626' : colors.primary)
+                              ? (isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary)
                               : isSuccess
-                              ? (isLight ? '#1a7f37' : colors.green)
-                              : (isLight ? '#cf222e' : colors.red),
+                              ? (isSwiss ? '#10b981' : isLight ? '#1a7f37' : colors.green)
+                              : (isSwiss ? '#DC201E' : isLight ? '#cf222e' : colors.red),
                           },
                         ]}
                       >
@@ -344,30 +346,30 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                       </Text>
                     </View>
                   </View>
-                  <Text style={[styles.categorySubtext, isLight && styles.categorySubtextLight]}>
+                  <Text style={[styles.categorySubtext, isLight && styles.categorySubtextLight, isSwiss && styles.categorySubtextSwiss]}>
                     {getCategoryLabel(action.category)}
                     {action.duration ? ` • ${action.duration}` : ''}
                   </Text>
                 </View>
               </View>
 
-              <TouchableOpacity style={[styles.closeBtn, isLight && styles.closeBtnLight]} onPress={handleClose} activeOpacity={0.7}>
-                <X size={16} color={isLight ? '#57606a' : colors.textMuted} />
+              <TouchableOpacity style={[styles.closeBtn, isLight && styles.closeBtnLight, isSwiss && styles.closeBtnSwiss]} onPress={handleClose} activeOpacity={0.7}>
+                <X size={16} color={isSwiss ? '#111010' : isLight ? '#57606a' : colors.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Tray Scrollable Content */}
           <ScrollView
-            style={[styles.trayScroll, isLight && styles.trayScrollLight]}
+            style={[styles.trayScroll, isLight && styles.trayScrollLight, isSwiss && styles.trayScrollSwiss]}
             contentContainerStyle={styles.trayScrollContent}
             showsVerticalScrollIndicator={false}
           >
             {/* Tool Purpose / Summary */}
             {action.title ? (
-              <View style={[styles.summaryBox, isLight && styles.summaryBoxLight]}>
-                <Text style={[styles.summaryLabel, isLight && styles.summaryLabelLight]}>ACTION DESCRIPTION</Text>
-                <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight]}>{action.title}</Text>
+              <View style={[styles.summaryBox, isLight && styles.summaryBoxLight, isSwiss && styles.summaryBoxSwiss]}>
+                <Text style={[styles.summaryLabel, isLight && styles.summaryLabelLight, isSwiss && styles.summaryLabelSwiss]}>ACTION DESCRIPTION</Text>
+                <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight, isSwiss && styles.summaryTitleSwiss]}>{action.title}</Text>
               </View>
             ) : null}
 
@@ -376,37 +378,37 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <Terminal size={13} color={isLight ? '#262626' : '#ffffff'} />
-                    <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>COMMAND EXECUTED</Text>
+                    <Terminal size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff'} />
+                    <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight, isSwiss && styles.sectionHeaderTitleSwiss]}>COMMAND EXECUTED</Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.copySmallBtn, isLight && styles.copySmallBtnLight]}
+                    style={[styles.copySmallBtn, isLight && styles.copySmallBtnLight, isSwiss && styles.copySmallBtnSwiss]}
                     onPress={() => handleCopyInput(commandLine)}
                     activeOpacity={0.7}
                   >
                     {copiedInput ? (
                       <>
-                        <Check size={11} color={isLight ? '#1a7f37' : colors.green} />
-                        <Text style={[styles.copySmallText, { color: isLight ? '#1a7f37' : colors.green }]}>Copied</Text>
+                        <Check size={11} color={isSwiss ? '#10b981' : isLight ? '#1a7f37' : colors.green} />
+                        <Text style={[styles.copySmallText, { color: isSwiss ? '#10b981' : isLight ? '#1a7f37' : colors.green }]}>Copied</Text>
                       </>
                     ) : (
                       <>
-                        <Copy size={11} color={isLight ? '#57606a' : colors.textMuted} />
-                        <Text style={[styles.copySmallText, isLight && styles.copySmallTextLight]}>Copy</Text>
+                        <Copy size={11} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : colors.textMuted} />
+                        <Text style={[styles.copySmallText, isLight && styles.copySmallTextLight, isSwiss && styles.copySmallTextSwiss]}>Copy</Text>
                       </>
                     )}
                   </TouchableOpacity>
                 </View>
-                <View style={[styles.commandBox, isLight && styles.commandBoxLight]}>
-                  <Text style={[styles.commandPromptPrefix, isLight && styles.commandPromptPrefixLight]}>$ </Text>
-                  <Text style={[styles.commandText, isLight && styles.commandTextLight]} selectable>
+                <View style={[styles.commandBox, isLight && styles.commandBoxLight, isSwiss && styles.commandBoxSwiss]}>
+                  <Text style={[styles.commandPromptPrefix, isLight && styles.commandPromptPrefixLight, isSwiss && styles.commandPromptPrefixSwiss]}>$ </Text>
+                  <Text style={[styles.commandText, isLight && styles.commandTextLight, isSwiss && styles.commandTextSwiss]} selectable>
                     {commandLine}
                   </Text>
                 </View>
                 {args.Cwd ? (
                   <View style={styles.cwdRow}>
-                    <Folder size={11} color={isLight ? '#57606a' : colors.textMuted} />
-                    <Text style={[styles.cwdText, isLight && styles.cwdTextLight]}>cwd: {String(args.Cwd)}</Text>
+                    <Folder size={11} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : colors.textMuted} />
+                    <Text style={[styles.cwdText, isLight && styles.cwdTextLight, isSwiss && styles.cwdTextSwiss]}>cwd: {String(args.Cwd)}</Text>
                   </View>
                 ) : null}
               </View>
@@ -417,16 +419,16 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <FileCode size={13} color={isLight ? '#262626' : '#ffffff'} />
-                    <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>TARGET FILE</Text>
+                    <FileCode size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff'} />
+                    <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight, isSwiss && styles.sectionHeaderTitleSwiss]}>TARGET FILE</Text>
                   </View>
                 </View>
-                <View style={[styles.filePathBox, isLight && styles.filePathBoxLight]}>
-                  <Text style={[styles.filePathText, isLight && styles.filePathTextLight]} selectable numberOfLines={2}>
+                <View style={[styles.filePathBox, isLight && styles.filePathBoxLight, isSwiss && styles.filePathBoxSwiss]}>
+                  <Text style={[styles.filePathText, isLight && styles.filePathTextLight, isSwiss && styles.filePathTextSwiss]} selectable numberOfLines={2}>
                     {filePath}
                   </Text>
                   {args.StartLine || args.EndLine ? (
-                    <Text style={[styles.fileLineRange, isLight && styles.fileLineRangeLight]}>
+                    <Text style={[styles.fileLineRange, isLight && styles.fileLineRangeLight, isSwiss && styles.fileLineRangeSwiss]}>
                       Lines {args.StartLine ?? 1} - {args.EndLine ?? 'end'}
                     </Text>
                   ) : null}
@@ -451,7 +453,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
             {args && Object.keys(args).length > 0 && !hasCommandLine && !filePath ? (
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
-                  <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>INPUT ARGUMENTS</Text>
+                  <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight, isSwiss && styles.sectionHeaderTitleSwiss]}>INPUT ARGUMENTS</Text>
                 </View>
                 <JsonViewer data={args} title="Arguments" />
               </View>
@@ -461,23 +463,23 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
             <View style={styles.sectionBlock}>
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionHeaderLeft}>
-                  <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>OUTPUT / RESULT</Text>
+                  <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight, isSwiss && styles.sectionHeaderTitleSwiss]}>OUTPUT / RESULT</Text>
                 </View>
                 {rawOutputStr ? (
                   <TouchableOpacity
-                    style={[styles.copySmallBtn, isLight && styles.copySmallBtnLight]}
+                    style={[styles.copySmallBtn, isLight && styles.copySmallBtnLight, isSwiss && styles.copySmallBtnSwiss]}
                     onPress={() => handleCopyOutput(rawOutputStr)}
                     activeOpacity={0.7}
                   >
                     {copiedOutput ? (
                       <>
-                        <Check size={11} color={isLight ? '#1a7f37' : colors.green} />
-                        <Text style={[styles.copySmallText, { color: isLight ? '#1a7f37' : colors.green }]}>Copied</Text>
+                        <Check size={11} color={isSwiss ? '#10b981' : isLight ? '#1a7f37' : colors.green} />
+                        <Text style={[styles.copySmallText, { color: isSwiss ? '#10b981' : isLight ? '#1a7f37' : colors.green }]}>Copied</Text>
                       </>
                     ) : (
                       <>
-                        <Copy size={11} color={isLight ? '#57606a' : colors.textMuted} />
-                        <Text style={[styles.copySmallText, isLight && styles.copySmallTextLight]}>Copy Output</Text>
+                        <Copy size={11} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : colors.textMuted} />
+                        <Text style={[styles.copySmallText, isLight && styles.copySmallTextLight, isSwiss && styles.copySmallTextSwiss]}>Copy Output</Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -489,21 +491,21 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                   <MarkdownText content={rawOutputStr} isUser={false} />
                 </View>
               ) : isRunning ? (
-                <View style={[styles.runningOutputBox, isLight && styles.runningOutputBoxLight]}>
-                  <ActivityIndicator size="small" color={isLight ? '#262626' : colors.primary} />
-                  <Text style={[styles.runningOutputText, isLight && styles.runningOutputTextLight]}>Tool execution in progress...</Text>
+                <View style={[styles.runningOutputBox, isLight && styles.runningOutputBoxLight, isSwiss && styles.runningOutputBoxSwiss]}>
+                  <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                  <Text style={[styles.runningOutputText, isLight && styles.runningOutputTextLight, isSwiss && styles.runningOutputTextSwiss]}>Tool execution in progress...</Text>
                 </View>
               ) : (
-                <View style={[styles.emptyOutputBox, isLight && styles.emptyOutputBoxLight]}>
-                  <Check size={14} color={isLight ? '#1a7f37' : colors.green} />
-                  <Text style={[styles.emptyOutputText, isLight && styles.emptyOutputTextLight]}>Executed successfully with no terminal output.</Text>
+                <View style={[styles.emptyOutputBox, isLight && styles.emptyOutputBoxLight, isSwiss && styles.emptyOutputBoxSwiss]}>
+                  <Check size={14} color={isSwiss ? '#10b981' : isLight ? '#1a7f37' : colors.green} />
+                  <Text style={[styles.emptyOutputText, isLight && styles.emptyOutputTextLight, isSwiss && styles.emptyOutputTextSwiss]}>Executed successfully with no terminal output.</Text>
                 </View>
               )}
             </View>
 
             {/* Bottom Dismiss Drag Hint */}
             <View style={styles.dragHintRow}>
-              <Text style={[styles.dragHintText, isLight && styles.dragHintTextLight]}>Swipe down to dismiss</Text>
+              <Text style={[styles.dragHintText, isLight && styles.dragHintTextLight, isSwiss && styles.dragHintTextSwiss]}>Swipe down to dismiss</Text>
             </View>
           </ScrollView>
         </Animated.View>
@@ -883,5 +885,109 @@ const styles = StyleSheet.create({
   },
   emptyOutputTextLight: {
     color: '#57606a',
+  },
+
+  // Swiss Theme Overrides
+  traySheetSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderColor: 'rgba(17, 16, 16, 0.16)',
+    shadowOpacity: 0.1,
+  },
+  dragPillSwiss: {
+    backgroundColor: 'rgba(17, 16, 16, 0.20)',
+  },
+  trayHeaderSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderBottomColor: 'rgba(17, 16, 16, 0.12)',
+  },
+  iconCircleSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  toolNameTextSwiss: {
+    color: '#111010',
+  },
+  categorySubtextSwiss: {
+    color: '#6B665E',
+  },
+  closeBtnSwiss: {
+    backgroundColor: '#F1EBE1',
+  },
+  statusPillRunningSwiss: {
+    backgroundColor: 'rgba(220, 32, 30, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(220, 32, 30, 0.25)',
+  },
+  statusPillSuccessSwiss: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+  },
+  statusPillErrorSwiss: {
+    backgroundColor: 'rgba(220, 32, 30, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(220, 32, 30, 0.25)',
+  },
+  trayScrollSwiss: {
+    backgroundColor: '#F8F3EC',
+  },
+  summaryBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  summaryLabelSwiss: {
+    color: '#6B665E',
+  },
+  summaryTitleSwiss: {
+    color: '#111010',
+  },
+  sectionHeaderTitleSwiss: {
+    color: '#6B665E',
+  },
+  copySmallBtnSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  copySmallTextSwiss: {
+    color: '#6B665E',
+  },
+  commandBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  commandPromptPrefixSwiss: {
+    color: '#DC201E',
+  },
+  commandTextSwiss: {
+    color: '#111010',
+  },
+  cwdTextSwiss: {
+    color: '#6B665E',
+  },
+  filePathBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  filePathTextSwiss: {
+    color: '#111010',
+  },
+  fileLineRangeSwiss: {
+    color: '#6B665E',
+  },
+  runningOutputBoxSwiss: {
+    backgroundColor: 'rgba(220, 32, 30, 0.08)',
+    borderColor: 'rgba(220, 32, 30, 0.20)',
+  },
+  runningOutputTextSwiss: {
+    color: '#DC201E',
+  },
+  emptyOutputBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  emptyOutputTextSwiss: {
+    color: '#6B665E',
+  },
+  dragHintTextSwiss: {
+    color: '#9C9589',
   },
 });

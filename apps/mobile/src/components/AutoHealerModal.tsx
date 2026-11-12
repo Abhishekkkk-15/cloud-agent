@@ -48,7 +48,8 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
   const postPrReviewToGitHub = useDaemonStore((s) => s.postPrReviewToGitHub);
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const { height: windowHeight } = useWindowDimensions();
   const modalHeight = Math.min(680, Math.round(windowHeight * 0.85));
@@ -136,7 +137,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                 : "bg-destructive/10 border-destructive/20"
             )}>
               {isPrReviewMode ? (
-                <GitPullRequest size={16} color={isLight ? '#262626' : '#fafafa'} />
+                <GitPullRequest size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
               ) : (
                 <Bug size={16} color="#ef4444" />
               )}

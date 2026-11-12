@@ -111,7 +111,8 @@ type ContentBlock =
 export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser = false }) => {
   const safeContent = typeof content === 'string' ? content : String(content ?? '');
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   if (!safeContent.trim()) {
     return null;
@@ -144,20 +145,20 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser
                 key={idx}
                 style={[
                   styles.headerText,
-                  isLight && { color: '#1f2328' },
-                  block.level === 1 && [styles.h1, isLight && { borderBottomColor: '#d0d7de' }],
+                  isLight && { color: isSwiss ? '#111010' : '#1f2328' },
+                  block.level === 1 && [styles.h1, isLight && { borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }],
                   block.level === 2 && styles.h2,
                   block.level >= 3 && styles.h3,
                   isUser && { color: '#ffffff' },
                 ]}
               >
-                {renderInline(block.text, isUser, isLight)}
+                {renderInline(block.text, isUser, isLight, isSwiss)}
               </Text>
             );
           case 'quote':
             return (
-              <View key={idx} style={[styles.quoteBox, isLight && { borderLeftColor: '#262626' }]}>
-                <Text style={[styles.quoteText, isLight && { color: '#57606a' }]}>{renderInline(block.text, isUser, isLight)}</Text>
+              <View key={idx} style={[styles.quoteBox, isLight && { borderLeftColor: isSwiss ? '#DC201E' : '#262626' }]}>
+                <Text style={[styles.quoteText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>{renderInline(block.text, isUser, isLight, isSwiss)}</Text>
               </View>
             );
           case 'list':
@@ -165,11 +166,11 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser
               <View key={idx} style={styles.listBox}>
                 {block.items.map((item, itemIdx) => (
                   <View key={itemIdx} style={styles.listItemRow}>
-                    <Text style={[styles.listBullet, isLight && { color: '#57606a' }, isUser && { color: '#ffffff' }]}>
+                    <Text style={[styles.listBullet, isLight && { color: isSwiss ? '#DC201E' : '#57606a' }, isUser && { color: '#ffffff' }]}>
                       {block.ordered ? `${itemIdx + 1}.` : '•'}
                     </Text>
-                    <Text style={[styles.listItemText, isLight && { color: '#1f2328' }, isUser && { color: '#ffffff' }]}>
-                      {renderInline(item, isUser, isLight)}
+                    <Text style={[styles.listItemText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }, isUser && { color: '#ffffff' }]}>
+                      {renderInline(item, isUser, isLight, isSwiss)}
                     </Text>
                   </View>
                 ))}
@@ -178,8 +179,8 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser
           case 'paragraph':
           default:
             return (
-              <Text key={idx} style={[styles.paragraphText, isLight && { color: '#1f2328' }, isUser && { color: '#ffffff' }]}>
-                {renderInline(block.text, isUser, isLight)}
+              <Text key={idx} style={[styles.paragraphText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }, isUser && { color: '#ffffff' }]}>
+                {renderInline(block.text, isUser, isLight, isSwiss)}
               </Text>
             );
         }
@@ -226,7 +227,8 @@ export const JsonViewer: React.FC<{
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   let formatted = '';
   try {
@@ -266,10 +268,10 @@ export const JsonViewer: React.FC<{
       const valStr = kvMatch[2];
       return (
         <View key={index} style={styles.jsonLineRow}>
-          <Text style={[styles.jsonLineNumber, isLight && { color: '#8c959f' }]}>{index + 1}</Text>
+          <Text style={[styles.jsonLineNumber, isLight && { color: isSwiss ? '#9C9589' : '#8c959f' }]}>{index + 1}</Text>
           <Text style={styles.jsonIndent}>{indent}</Text>
-          <Text style={[styles.jsonKey, isLight && { color: '#0969da' }]}>{keyStr}</Text>
-          <Text style={[styles.jsonPunctuation, isLight && { color: '#24292f' }]}>: </Text>
+          <Text style={[styles.jsonKey, isLight && { color: isSwiss ? '#DC201E' : '#0969da' }]}>{keyStr}</Text>
+          <Text style={[styles.jsonPunctuation, isLight && { color: isSwiss ? '#111010' : '#24292f' }]}>: </Text>
           {renderJsonValue(valStr)}
         </View>
       );
@@ -277,7 +279,7 @@ export const JsonViewer: React.FC<{
 
     return (
       <View key={index} style={styles.jsonLineRow}>
-        <Text style={[styles.jsonLineNumber, isLight && { color: '#8c959f' }]}>{index + 1}</Text>
+        <Text style={[styles.jsonLineNumber, isLight && { color: isSwiss ? '#9C9589' : '#8c959f' }]}>{index + 1}</Text>
         <Text style={styles.jsonIndent}>{indent}</Text>
         {renderJsonValue(trimmed)}
       </View>
@@ -287,31 +289,31 @@ export const JsonViewer: React.FC<{
   const renderJsonValue = (val: string) => {
     // Strings in double quotes
     if (val.startsWith('"') && (val.endsWith('"') || val.endsWith('",'))) {
-      return <Text style={[styles.jsonString, isLight && { color: '#0a3069' }]}>{val}</Text>;
+      return <Text style={[styles.jsonString, isLight && { color: isSwiss ? '#111010' : '#0a3069' }]}>{val}</Text>;
     }
     // Numbers
     if (/^-?\d+(\.\d+)?(e[+-]?\d+)?,?$/i.test(val)) {
-      return <Text style={[styles.jsonNumber, isLight && { color: '#0550ae' }]}>{val}</Text>;
+      return <Text style={[styles.jsonNumber, isLight && { color: isSwiss ? '#DC201E' : '#0550ae' }]}>{val}</Text>;
     }
     // Booleans
     if (/^(true|false),?$/i.test(val)) {
-      return <Text style={[styles.jsonBoolean, isLight && { color: '#0550ae' }]}>{val}</Text>;
+      return <Text style={[styles.jsonBoolean, isLight && { color: isSwiss ? '#DC201E' : '#0550ae' }]}>{val}</Text>;
     }
     // Null
     if (/^null,?$/i.test(val)) {
-      return <Text style={[styles.jsonNull, isLight && { color: '#6e7681' }]}>{val}</Text>;
+      return <Text style={[styles.jsonNull, isLight && { color: isSwiss ? '#6B665E' : '#6e7681' }]}>{val}</Text>;
     }
     // Structural braces/brackets
-    return <Text style={[styles.jsonPunctuation, isLight && { color: '#24292f' }]}>{val}</Text>;
+    return <Text style={[styles.jsonPunctuation, isLight && { color: isSwiss ? '#111010' : '#24292f' }]}>{val}</Text>;
   };
 
   return (
-    <View style={[styles.codeContainer, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
-      <View style={[styles.codeHeader, isLight && { backgroundColor: '#eaedf1', borderBottomColor: '#d0d7de' }]}>
+    <View style={[styles.codeContainer, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+      <View style={[styles.codeHeader, isLight && { backgroundColor: isSwiss ? '#EBE4D8' : '#eaedf1', borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#d0d7de' }]}>
         <View style={styles.codeHeaderLeft}>
-          <FileCode size={12} color={isLight ? '#262626' : colors.primary} />
-          <Text style={[styles.codeLangText, isLight && { color: '#1f2328' }]}>{title}</Text>
-          <Text style={[styles.jsonLineCountBadge, isLight && { backgroundColor: '#e1e4e8', color: '#57606a' }]}>{lines.length} lines</Text>
+          <FileCode size={12} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+          <Text style={[styles.codeLangText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>{title}</Text>
+          <Text style={[styles.jsonLineCountBadge, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#e1e4e8', color: isSwiss ? '#6B665E' : '#57606a' }]}>{lines.length} lines</Text>
         </View>
         <TouchableOpacity style={styles.copyBtn} onPress={handleCopy} activeOpacity={0.7}>
           {copied ? (
@@ -336,19 +338,19 @@ export const JsonViewer: React.FC<{
 
       {isTruncatable ? (
         <TouchableOpacity
-          style={[styles.expandJsonBtn, isLight && { backgroundColor: '#f6f8fa', borderTopColor: '#d0d7de' }]}
+          style={[styles.expandJsonBtn, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderTopColor: isSwiss ? 'rgba(17, 16, 16, 0.14)' : '#d0d7de' }]}
           onPress={() => setIsExpanded(!isExpanded)}
           activeOpacity={0.7}
         >
           {isExpanded ? (
             <>
-              <ChevronUp size={13} color={isLight ? '#262626' : colors.primary} />
-              <Text style={[styles.expandJsonText, isLight && { color: '#262626' }]}>Collapse ({lines.length} lines)</Text>
+              <ChevronUp size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+              <Text style={[styles.expandJsonText, isLight && { color: isSwiss ? '#111010' : '#262626' }]}>Collapse ({lines.length} lines)</Text>
             </>
           ) : (
             <>
-              <ChevronDown size={13} color={isLight ? '#262626' : colors.primary} />
-              <Text style={[styles.expandJsonText, isLight && { color: '#262626' }]}>
+              <ChevronDown size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+              <Text style={[styles.expandJsonText, isLight && { color: isSwiss ? '#111010' : '#262626' }]}>
                 Show full JSON (+{lines.length - maxInitialLines} more lines)
               </Text>
             </>
@@ -363,39 +365,40 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
   const folders = block.items.filter((i) => i.isDir);
   const files = block.items.filter((i) => !i.isDir);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   return (
-    <View style={[styles.dirContainer, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
-      <View style={[styles.dirHeader, isLight && { backgroundColor: '#f6f8fa', borderBottomColor: '#d0d7de' }]}>
+    <View style={[styles.dirContainer, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+      <View style={[styles.dirHeader, isLight && { backgroundColor: isSwiss ? '#EBE4D8' : '#f6f8fa', borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#d0d7de' }]}>
         <View style={styles.dirHeaderLeft}>
-          <Folder size={14} color={isLight ? '#262626' : colors.primary} />
-          <Text style={[styles.dirTitle, isLight && { color: '#1f2328' }]}>Workspace Directory</Text>
+          <Folder size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+          <Text style={[styles.dirTitle, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>Workspace Directory</Text>
         </View>
-        <Text style={[styles.dirSummary, isLight && { color: '#6e7681' }]}>
+        <Text style={[styles.dirSummary, isLight && { color: isSwiss ? '#6B665E' : '#6e7681' }]}>
           {folders.length} folders • {files.length} files
         </Text>
       </View>
       <View style={styles.dirBody}>
         {folders.map((item, idx) => (
-          <View key={`dir_${idx}`} style={[styles.dirRow, isLight && { borderBottomColor: '#e1e4e8' }]}>
+          <View key={`dir_${idx}`} style={[styles.dirRow, isLight && { borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.10)' : '#e1e4e8' }]}>
             <View style={styles.dirRowLeft}>
-              <Folder size={13} color={isLight ? '#262626' : colors.primary} />
-              <Text style={[styles.dirFolderName, isLight && { color: '#1f2328' }]}>{item.name}</Text>
+              <Folder size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+              <Text style={[styles.dirFolderName, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>{item.name}</Text>
             </View>
-            <View style={[styles.dirBadge, isLight && { backgroundColor: 'rgba(0, 0, 0, 0.06)', borderColor: 'rgba(0, 0, 0, 0.12)' }]}>
-              <Text style={[styles.dirBadgeText, isLight && { color: '#262626' }]}>dir</Text>
+            <View style={[styles.dirBadge, isLight && { backgroundColor: isSwiss ? '#EBE4D8' : 'rgba(0, 0, 0, 0.06)', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.14)' : 'rgba(0, 0, 0, 0.12)' }]}>
+              <Text style={[styles.dirBadgeText, isLight && { color: isSwiss ? '#DC201E' : '#262626' }]}>dir</Text>
             </View>
           </View>
         ))}
         {files.map((item, idx) => (
-          <View key={`file_${idx}`} style={[styles.dirRow, isLight && { borderBottomColor: '#e1e4e8' }]}>
+          <View key={`file_${idx}`} style={[styles.dirRow, isLight && { borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.10)' : '#e1e4e8' }]}>
             <View style={styles.dirRowLeft}>
               <FileText size={13} color={isLight ? '#57606a' : '#a3a3a3'} />
-              <Text style={[styles.dirFileName, isLight && { color: '#57606a' }]}>{item.name}</Text>
+              <Text style={[styles.dirFileName, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>{item.name}</Text>
             </View>
             {item.sizeBytes ? (
-              <Text style={[styles.dirFileSize, isLight && { color: '#8c959f' }]}>{formatBytes(item.sizeBytes)}</Text>
+              <Text style={[styles.dirFileSize, isLight && { color: isSwiss ? '#9C9589' : '#8c959f' }]}>{formatBytes(item.sizeBytes)}</Text>
             ) : null}
           </View>
         ))}
@@ -407,23 +410,24 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
 const FileHeaderView: React.FC<{ block: FileHeaderBlock }> = ({ block }) => {
   const fileName = block.path.split(/[\\/]/).pop() || block.path;
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   return (
-    <View style={[styles.fileHeaderBanner, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
+    <View style={[styles.fileHeaderBanner, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
       <View style={styles.fileHeaderLeft}>
-        <FileText size={14} color={isLight ? '#262626' : colors.primary} />
-        <Text style={[styles.fileHeaderName, isLight && { color: '#1f2328' }]}>{fileName}</Text>
-        <Text style={[styles.fileHeaderPath, isLight && { color: '#6e7681' }]} numberOfLines={1}>
+        <FileText size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+        <Text style={[styles.fileHeaderName, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>{fileName}</Text>
+        <Text style={[styles.fileHeaderPath, isLight && { color: isSwiss ? '#6B665E' : '#6e7681' }]} numberOfLines={1}>
           {block.path}
         </Text>
       </View>
       <View style={styles.fileHeaderMetaBadge}>
         {block.totalLines ? (
-          <Text style={[styles.fileHeaderMetaText, isLight && { color: '#6e7681' }]}>{block.totalLines} lines</Text>
+          <Text style={[styles.fileHeaderMetaText, isLight && { color: isSwiss ? '#6B665E' : '#6e7681' }]}>{block.totalLines} lines</Text>
         ) : null}
         {block.totalBytes ? (
-          <Text style={[styles.fileHeaderMetaText, isLight && { color: '#6e7681' }]}>
+          <Text style={[styles.fileHeaderMetaText, isLight && { color: isSwiss ? '#6B665E' : '#6e7681' }]}>
             {' '}• {formatBytes(block.totalBytes)}
           </Text>
         ) : null}
@@ -434,7 +438,8 @@ const FileHeaderView: React.FC<{ block: FileHeaderBlock }> = ({ block }) => {
 
 const AlertBlockView: React.FC<{ block: AlertBlock }> = ({ block }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const getAlertProps = (variant: AlertBlock['variant']) => {
     switch (variant) {
@@ -485,38 +490,39 @@ const AlertBlockView: React.FC<{ block: AlertBlock }> = ({ block }) => {
   const alertProps = getAlertProps(block.variant);
 
   return (
-    <View style={[styles.alertContainer, { borderLeftColor: alertProps.borderColor }, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
+    <View style={[styles.alertContainer, { borderLeftColor: alertProps.borderColor }, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.14)' : '#e1e4e8' }]}>
       <View style={styles.alertHeader}>
         {alertProps.icon}
         <Text style={[styles.alertTitle, { color: alertProps.titleColor }]}>
           {alertProps.title}
         </Text>
       </View>
-      <Text style={[styles.alertBody, isLight && { color: '#24292f' }]}>{renderInline(block.text, false, isLight)}</Text>
+      <Text style={[styles.alertBody, isLight && { color: isSwiss ? '#111010' : '#24292f' }]}>{renderInline(block.text, false, isLight, isSwiss)}</Text>
     </View>
   );
 };
 
 const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   return (
-    <View style={[styles.tableWrapper, isLight && { borderColor: '#d0d7de' }]}>
+    <View style={[styles.tableWrapper, isLight && { borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={[styles.tableContainer, isLight && { backgroundColor: '#ffffff' }]}>
+        <View style={[styles.tableContainer, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff' }]}>
           {/* Table Header */}
-          <View style={[styles.tableHeaderRow, isLight && { backgroundColor: '#f6f8fa', borderBottomColor: '#d0d7de' }]}>
+          <View style={[styles.tableHeaderRow, isLight && { backgroundColor: isSwiss ? '#EBE4D8' : '#f6f8fa', borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.14)' : '#d0d7de' }]}>
             {block.headers.map((header, colIdx) => (
               <View
                 key={colIdx}
                 style={[
                   styles.tableHeaderCell,
-                  isLight && { borderRightColor: '#d0d7de' },
+                  isLight && { borderRightColor: isSwiss ? 'rgba(17, 16, 16, 0.14)' : '#d0d7de' },
                   colIdx === block.headers.length - 1 && { borderRightWidth: 0 },
                 ]}
               >
-                <Text style={[styles.tableHeaderText, isLight && { color: '#1f2328' }]}>{renderInline(header, false, isLight)}</Text>
+                <Text style={[styles.tableHeaderText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>{renderInline(header, false, isLight, isSwiss)}</Text>
               </View>
             ))}
           </View>
@@ -527,8 +533,8 @@ const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
               key={rowIdx}
               style={[
                 styles.tableRow,
-                isLight && { borderBottomColor: '#e1e4e8' },
-                rowIdx % 2 === 1 && (isLight ? { backgroundColor: '#f6f8fa' } : styles.tableRowAlt),
+                isLight && { borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.10)' : '#e1e4e8' },
+                rowIdx % 2 === 1 && (isSwiss ? { backgroundColor: '#EBE4D8' } : isLight ? { backgroundColor: '#f6f8fa' } : styles.tableRowAlt),
                 rowIdx === block.rows.length - 1 && { borderBottomWidth: 0 },
               ]}
             >
@@ -537,11 +543,11 @@ const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
                   key={colIdx}
                   style={[
                     styles.tableCell,
-                    isLight && { borderRightColor: '#e1e4e8' },
+                    isLight && { borderRightColor: isSwiss ? 'rgba(17, 16, 16, 0.10)' : '#e1e4e8' },
                     colIdx === row.length - 1 && { borderRightWidth: 0 },
                   ]}
                 >
-                  <Text style={[styles.tableCellText, isLight && { color: '#24292f' }]}>{renderInline(cell, false, isLight)}</Text>
+                  <Text style={[styles.tableCellText, isLight && { color: isSwiss ? '#111010' : '#24292f' }]}>{renderInline(cell, false, isLight, isSwiss)}</Text>
                 </View>
               ))}
             </View>
@@ -555,7 +561,8 @@ const TableBlockView: React.FC<{ block: TableBlock }> = ({ block }) => {
 const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) => {
   const [copied, setCopied] = useState(false);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const isSuccess = block.exitCode === 0;
 
   const handleCopy = () => {
@@ -567,11 +574,11 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
   };
 
   return (
-    <View style={[styles.commandOutputContainer, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
-      <View style={[styles.commandOutputHeader, isLight && { backgroundColor: '#eaedf1', borderBottomColor: '#d0d7de' }]}>
+    <View style={[styles.commandOutputContainer, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+      <View style={[styles.commandOutputHeader, isLight && { backgroundColor: isSwiss ? '#EBE4D8' : '#eaedf1', borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#d0d7de' }]}>
         <View style={styles.codeHeaderLeft}>
-          <Terminal size={12} color={isLight ? '#1f2328' : '#ffffff'} />
-          <Text style={[styles.codeLangText, isLight && { color: '#1f2328' }]}>TERMINAL OUTPUT</Text>
+          <Terminal size={12} color={isSwiss ? '#DC201E' : isLight ? '#1f2328' : '#ffffff'} />
+          <Text style={[styles.codeLangText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>TERMINAL OUTPUT</Text>
           <View
             style={[
               styles.exitCodeBadge,
@@ -606,7 +613,7 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View style={styles.codeBody}>
-          <Text style={[styles.codeText, isLight && { color: '#1f2328' }]} selectable>
+          <Text style={[styles.codeText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]} selectable>
             {block.output}
           </Text>
         </View>
@@ -618,7 +625,8 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
 const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
   const [copied, setCopied] = useState(false);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   // If the language is JSON or the code string is valid JSON, render with JsonViewer
   const isJsonLang = block.language && block.language.toLowerCase() === 'json';
@@ -648,11 +656,11 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
   const lines = block.code.split(/\r?\n/);
 
   return (
-    <View style={[styles.codeContainer, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
-      <View style={[styles.codeHeader, isLight && { backgroundColor: '#eaedf1', borderBottomColor: '#d0d7de' }]}>
+    <View style={[styles.codeContainer, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+      <View style={[styles.codeHeader, isLight && { backgroundColor: isSwiss ? '#EBE4D8' : '#eaedf1', borderBottomColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#d0d7de' }]}>
         <View style={styles.codeHeaderLeft}>
-          <Terminal size={12} color={isLight ? '#57606a' : '#ffffff'} />
-          <Text style={[styles.codeLangText, isLight && { color: '#57606a' }]}>
+          <Terminal size={12} color={isSwiss ? '#DC201E' : isLight ? '#57606a' : '#ffffff'} />
+          <Text style={[styles.codeLangText, isLight && { color: isSwiss ? '#111010' : '#57606a' }]}>
             {block.language ? block.language.toUpperCase() : 'CODE'}
           </Text>
         </View>
@@ -689,7 +697,7 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
                   <Text
                     style={[
                       styles.codeText,
-                      isLight && { color: '#1f2328' },
+                      isLight && { color: isSwiss ? '#111010' : '#1f2328' },
                       isAdd && { color: colors.green },
                       isSub && { color: colors.red },
                     ]}
@@ -701,7 +709,7 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
               );
             })
           ) : (
-            <Text style={[styles.codeText, isLight && { color: '#1f2328' }]} selectable>
+            <Text style={[styles.codeText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]} selectable>
               {block.code}
             </Text>
           )}
@@ -1120,7 +1128,7 @@ function parseBlocks(rawText: string): ContentBlock[] {
 /**
  * Parses inline elements: `inline code`, **bold**, *italic*, and [link](url).
  */
-function renderInline(text: string, isUser = false, isLight = false): React.ReactNode {
+function renderInline(text: string, isUser = false, isLight = false, isSwiss = false): React.ReactNode {
   const regex = /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g;
   const parts = text.split(regex);
 
@@ -1143,13 +1151,13 @@ function renderInline(text: string, isUser = false, isLight = false): React.Reac
               : [
                   styles.inlineCodeAssistant,
                   isLight && {
-                    backgroundColor: '#afb8c133',
-                    color: '#1f2328',
-                    borderColor: '#d0d7de',
+                    backgroundColor: isSwiss ? '#EBE4D8' : '#afb8c133',
+                    color: isSwiss ? '#111010' : '#1f2328',
+                    borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
                   },
                 ],
-            isCommitHash && [styles.commitHashBadge, isLight && { color: '#262626' }],
-            isFilePath && [styles.filePathBadge, isLight && { color: '#1f2328' }],
+            isCommitHash && [styles.commitHashBadge, isLight && { color: isSwiss ? '#DC201E' : '#262626' }],
+            isFilePath && [styles.filePathBadge, isLight && { color: isSwiss ? '#111010' : '#1f2328' }],
           ]}
         >
           {codeSnippet}
@@ -1165,7 +1173,7 @@ function renderInline(text: string, isUser = false, isLight = false): React.Reac
           key={index}
           style={[
             styles.boldText,
-            isLight && { color: '#1f2328' },
+            isLight && { color: isSwiss ? '#111010' : '#1f2328' },
             isUser && { color: '#ffffff' },
           ]}
         >
@@ -1178,7 +1186,7 @@ function renderInline(text: string, isUser = false, isLight = false): React.Reac
     if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
       const italicText = part.slice(1, -1);
       return (
-        <Text key={index} style={[styles.italicText, isLight && { color: '#57606a' }]}>
+        <Text key={index} style={[styles.italicText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
           {italicText}
         </Text>
       );
@@ -1188,7 +1196,7 @@ function renderInline(text: string, isUser = false, isLight = false): React.Reac
     const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
     if (linkMatch) {
       return (
-        <Text key={index} style={[styles.linkText, isLight && { color: '#262626' }]}>
+        <Text key={index} style={[styles.linkText, isLight && { color: isSwiss ? '#DC201E' : '#262626' }]}>
           {linkMatch[1]}
         </Text>
       );

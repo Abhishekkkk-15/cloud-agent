@@ -53,7 +53,8 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
   initialSearchQuery = '',
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const sessionArtifacts = useDaemonStore((s) => s.sessionArtifacts);
   const isLoadingArtifacts = useDaemonStore((s) => s.isLoadingArtifacts);
   const fetchSessionArtifacts = useDaemonStore((s) => s.fetchSessionArtifacts);
@@ -234,6 +235,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
           style={[
             styles.sheetContainer,
             isLight && styles.sheetContainerLight,
+            isSwiss && styles.sheetContainerSwiss,
             {
               transform: [{ translateY }],
             },
@@ -246,55 +248,55 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               activeOpacity={0.8}
               onPress={handleToggleExpand}
             >
-              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
+              <View style={[styles.dragPill, isLight && styles.dragPillLight, isSwiss && styles.dragPillSwiss]} />
             </TouchableOpacity>
 
             {/* Header */}
-            <View style={[styles.header, isLight && styles.headerLight]}>
+            <View style={[styles.header, isLight && styles.headerLight, isSwiss && styles.headerSwiss]}>
               {selectedArtifact ? (
                 <TouchableOpacity
-                  style={[styles.backButton, isLight && styles.backButtonLight]}
+                  style={[styles.backButton, isLight && styles.backButtonLight, isSwiss && styles.backButtonSwiss]}
                   onPress={handleBackToList}
                   activeOpacity={0.7}
                 >
-                  <ArrowLeft size={16} color={isLight ? '#1f2328' : '#fafafa'} />
-                  <Text style={[styles.backButtonText, isLight && styles.backButtonTextLight]}>All Artifacts</Text>
+                  <ArrowLeft size={16} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />
+                  <Text style={[styles.backButtonText, isLight && styles.backButtonTextLight, isSwiss && styles.backButtonTextSwiss]}>All Artifacts</Text>
                 </TouchableOpacity>
               ) : (
                 <View style={styles.headerLeft}>
-                  <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
-                    <Layers size={18} color={isLight ? '#262626' : '#fafafa'} />
+                  <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight, isSwiss && styles.headerIconBoxSwiss]}>
+                    <Layers size={18} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
                   </View>
                   <View>
                     <View style={styles.titleRow}>
-                      <Text style={[styles.title, isLight && styles.titleLight]}>Session Artifacts</Text>
-                      <View style={[styles.countBadge, isLight && styles.countBadgeLight]}>
-                        <Text style={[styles.countBadgeText, isLight && styles.countBadgeTextLight]}>{sessionArtifacts.length}</Text>
+                      <Text style={[styles.title, isLight && styles.titleLight, isSwiss && styles.titleSwiss]}>Session Artifacts</Text>
+                      <View style={[styles.countBadge, isLight && styles.countBadgeLight, isSwiss && styles.countBadgeSwiss]}>
+                        <Text style={[styles.countBadgeText, isLight && styles.countBadgeTextLight, isSwiss && styles.countBadgeTextSwiss]}>{sessionArtifacts.length}</Text>
                       </View>
                     </View>
-                    <Text style={[styles.subtitle, isLight && styles.subtitleLight]}>Plans, reports, and generated specs</Text>
+                    <Text style={[styles.subtitle, isLight && styles.subtitleLight, isSwiss && styles.subtitleSwiss]}>Plans, reports, and generated specs</Text>
                   </View>
                 </View>
               )}
 
               <View style={styles.headerActions}>
                 <TouchableOpacity
-                  style={[styles.actionBtn, isLight && styles.actionBtnLight]}
+                  style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
                   onPress={handleRefresh}
                   activeOpacity={0.7}
                   disabled={isRefreshing || isLoadingArtifacts}
                 >
                   <RefreshCw
                     size={16}
-                    color={isRefreshing ? (isLight ? '#262626' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')}
+                    color={isRefreshing ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa') : (isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3')}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.actionBtn, isLight && styles.actionBtnLight]}
+                  style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
                   onPress={handleClose}
                   activeOpacity={0.7}
                 >
-                  <X size={18} color={isLight ? '#57606a' : '#a3a3a3'} />
+                  <X size={18} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -303,24 +305,24 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
           {/* Modal Body */}
           {selectedArtifact ? (
             // ================== 1. READER VIEW ==================
-            <View style={[styles.readerWrapper, isLight && styles.readerWrapperLight]}>
+            <View style={[styles.readerWrapper, isLight && styles.readerWrapperLight, isSwiss && styles.readerWrapperSwiss]}>
               {/* Reader Subheader */}
-              <View style={[styles.readerSubHeader, isLight && styles.readerSubHeaderLight]}>
+              <View style={[styles.readerSubHeader, isLight && styles.readerSubHeaderLight, isSwiss && styles.readerSubHeaderSwiss]}>
                 <View style={{ flex: 1, marginRight: 12 }}>
-                  <Text style={[styles.readerTitle, isLight && styles.readerTitleLight]} numberOfLines={1}>
+                  <Text style={[styles.readerTitle, isLight && styles.readerTitleLight, isSwiss && styles.readerTitleSwiss]} numberOfLines={1}>
                     {selectedArtifact.title || selectedArtifact.id}
                   </Text>
-                  <Text style={[styles.readerMeta, isLight && styles.readerMetaLight]}>
+                  <Text style={[styles.readerMeta, isLight && styles.readerMetaLight, isSwiss && styles.readerMetaSwiss]}>
                     {selectedArtifact.language ? selectedArtifact.language.toUpperCase() : 'DOCUMENT'} • {selectedArtifact.path ? selectedArtifact.path.split(/[/\\]/).pop() : ''}
                   </Text>
                 </View>
 
                 {/* View Mode Toggle */}
-                <View style={[styles.modeToggle, isLight && styles.modeToggleLight]}>
+                <View style={[styles.modeToggle, isLight && styles.modeToggleLight, isSwiss && styles.modeToggleSwiss]}>
                   <TouchableOpacity
                     style={[
                       styles.modeTab,
-                      viewMode === 'preview' && (isLight ? styles.modeTabActiveLight : styles.modeTabActive),
+                      viewMode === 'preview' && (isSwiss ? styles.modeTabActiveSwiss : isLight ? styles.modeTabActiveLight : styles.modeTabActive),
                     ]}
                     onPress={() => setViewMode('preview')}
                     activeOpacity={0.7}
@@ -329,7 +331,8 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                       style={[
                         styles.modeTabText,
                         isLight && styles.modeTabTextLight,
-                        viewMode === 'preview' && (isLight ? styles.modeTabTextActiveLight : styles.modeTabTextActive),
+                        isSwiss && styles.modeTabTextSwiss,
+                        viewMode === 'preview' && (isSwiss ? styles.modeTabTextActiveSwiss : isLight ? styles.modeTabTextActiveLight : styles.modeTabTextActive),
                       ]}
                     >
                       Preview
@@ -338,7 +341,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   <TouchableOpacity
                     style={[
                       styles.modeTab,
-                      viewMode === 'source' && (isLight ? styles.modeTabActiveLight : styles.modeTabActive),
+                      viewMode === 'source' && (isSwiss ? styles.modeTabActiveSwiss : isLight ? styles.modeTabActiveLight : styles.modeTabActive),
                     ]}
                     onPress={() => setViewMode('source')}
                     activeOpacity={0.7}
@@ -347,7 +350,8 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                       style={[
                         styles.modeTabText,
                         isLight && styles.modeTabTextLight,
-                        viewMode === 'source' && (isLight ? styles.modeTabTextActiveLight : styles.modeTabTextActive),
+                        isSwiss && styles.modeTabTextSwiss,
+                        viewMode === 'source' && (isSwiss ? styles.modeTabTextActiveSwiss : isLight ? styles.modeTabTextActiveLight : styles.modeTabTextActive),
                       ]}
                     >
                       Source
@@ -357,15 +361,15 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
 
                 {/* Copy Button */}
                 <TouchableOpacity
-                  style={[styles.copyBtn, isLight && styles.copyBtnLight]}
+                  style={[styles.copyBtn, isLight && styles.copyBtnLight, isSwiss && styles.copyBtnSwiss]}
                   onPress={handleCopy}
                   activeOpacity={0.7}
                   disabled={!content}
                 >
                   {copied ? (
-                    <Check size={14} color={isLight ? '#262626' : '#fafafa'} />
+                    <Check size={14} color={isSwiss ? '#10b981' : isLight ? '#262626' : '#fafafa'} />
                   ) : (
-                    <Copy size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
+                    <Copy size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -373,23 +377,23 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Reader Scrollable Content */}
               {isLoadingArtifactContent ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#fafafa'} />
+                  <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
                   <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Loading artifact content...</Text>
                 </View>
               ) : (
                 <ScrollView
-                  style={[styles.readerScroll, isLight && styles.readerScrollLight]}
+                  style={[styles.readerScroll, isLight && styles.readerScrollLight, isSwiss && styles.readerScrollSwiss]}
                   contentContainerStyle={styles.readerContentContainer}
                   showsVerticalScrollIndicator={true}
                 >
                   {/* Summary Card if present */}
                   {selectedArtifact.summary ? (
-                    <View style={[styles.summaryBox, isLight && styles.summaryBoxLight]}>
+                    <View style={[styles.summaryBox, isLight && styles.summaryBoxLight, isSwiss && styles.summaryBoxSwiss]}>
                       <View style={styles.summaryHeader}>
-                        <Sparkles size={13} color={isLight ? '#262626' : '#fafafa'} />
-                        <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight]}>Summary</Text>
+                        <Sparkles size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+                        <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight, isSwiss && styles.summaryTitleSwiss]}>Summary</Text>
                       </View>
-                      <Text style={[styles.summaryText, isLight && styles.summaryTextLight]}>{selectedArtifact.summary}</Text>
+                      <Text style={[styles.summaryText, isLight && styles.summaryTextLight, isSwiss && styles.summaryTextSwiss]}>{selectedArtifact.summary}</Text>
                     </View>
                   ) : null}
 
@@ -397,8 +401,8 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   {viewMode === 'preview' ? (
                     <MarkdownText content={content || '*(Empty file)*'} />
                   ) : (
-                    <View style={[styles.sourceBox, isLight && styles.sourceBoxLight]}>
-                      <Text style={[styles.sourceText, isLight && styles.sourceTextLight]} selectable>
+                    <View style={[styles.sourceBox, isLight && styles.sourceBoxLight, isSwiss && styles.sourceBoxSwiss]}>
+                      <Text style={[styles.sourceText, isLight && styles.sourceTextLight, isSwiss && styles.sourceTextSwiss]} selectable>
                         {content || '(Empty file)'}
                       </Text>
                     </View>
@@ -408,16 +412,16 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
             </View>
           ) : (
             // ================== 2. LIST VIEW ==================
-            <View style={[styles.listWrapper, isLight && styles.listWrapperLight]}>
+            <View style={[styles.listWrapper, isLight && styles.listWrapperLight, isSwiss && styles.listWrapperSwiss]}>
               {/* Search Filter Bar */}
-              <View style={[styles.searchBarContainer, isLight && styles.searchBarContainerLight]}>
-                <Search size={15} color={isLight ? '#57606a' : '#a3a3a3'} style={styles.searchIcon} />
+              <View style={[styles.searchBarContainer, isLight && styles.searchBarContainerLight, isSwiss && styles.searchBarContainerSwiss]}>
+                <Search size={15} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} style={styles.searchIcon} />
                 <TextInput
-                  style={[styles.searchInput, isLight && styles.searchInputLight]}
+                  style={[styles.searchInput, isLight && styles.searchInputLight, isSwiss && styles.searchInputSwiss]}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                   placeholder="Filter artifacts by title, summary, or type..."
-                  placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+                  placeholderTextColor={isSwiss ? '#9C9589' : isLight ? '#8c959f' : '#737373'}
                   autoCapitalize="none"
                   autoCorrect={false}
                   clearButtonMode="while-editing"
@@ -427,7 +431,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                     onPress={() => setSearchQuery('')}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
-                    <X size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
+                    <X size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -435,18 +439,18 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Artifacts List */}
               {isLoadingArtifacts && sessionArtifacts.length === 0 ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#fafafa'} />
+                  <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
                   <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Fetching session artifacts...</Text>
                 </View>
               ) : filteredArtifacts.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <View style={[styles.emptyIconBox, isLight && styles.emptyIconBoxLight]}>
-                    <Layers size={28} color={isLight ? '#262626' : '#fafafa'} />
+                  <View style={[styles.emptyIconBox, isLight && styles.emptyIconBoxLight, isSwiss && styles.emptyIconBoxSwiss]}>
+                    <Layers size={28} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
                   </View>
-                  <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>
+                  <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight, isSwiss && styles.emptyTitleSwiss]}>
                     {searchQuery ? 'No matching artifacts' : 'No artifacts created yet'}
                   </Text>
-                  <Text style={[styles.emptySubtitle, isLight && styles.emptySubtitleLight]}>
+                  <Text style={[styles.emptySubtitle, isLight && styles.emptySubtitleLight, isSwiss && styles.emptySubtitleSwiss]}>
                     {searchQuery
                       ? `No artifacts matching "${searchQuery}" in this session.`
                       : 'When the agent generates implementation plans, markdown reports, or diagrams, they will appear here.'}
@@ -454,7 +458,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                 </View>
               ) : (
                 <ScrollView
-                  style={[styles.listScroll, isLight && styles.listScrollLight]}
+                  style={[styles.listScroll, isLight && styles.listScrollLight, isSwiss && styles.listScrollSwiss]}
                   contentContainerStyle={styles.listContentContainer}
                   showsVerticalScrollIndicator={false}
                 >
@@ -463,36 +467,36 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                     return (
                       <TouchableOpacity
                         key={item.id || item.path}
-                        style={[styles.artifactCard, isLight && styles.artifactCardLight]}
+                        style={[styles.artifactCard, isLight && styles.artifactCardLight, isSwiss && styles.artifactCardSwiss]}
                         onPress={() => handleSelectArtifact(item)}
                         activeOpacity={0.7}
                       >
-                        <View style={[styles.cardIconBox, isLight && styles.cardIconBoxLight]}>
+                        <View style={[styles.cardIconBox, isLight && styles.cardIconBoxLight, isSwiss && styles.cardIconBoxSwiss]}>
                           {renderIconForArtifact(item)}
                         </View>
 
                         <View style={styles.cardDetails}>
                           <View style={styles.cardTitleRow}>
-                            <Text style={[styles.cardTitle, isLight && styles.cardTitleLight]} numberOfLines={1}>
+                            <Text style={[styles.cardTitle, isLight && styles.cardTitleLight, isSwiss && styles.cardTitleSwiss]} numberOfLines={1}>
                               {item.title || item.id}
                             </Text>
-                            <View style={[styles.extBadge, isLight && styles.extBadgeLight]}>
-                              <Text style={[styles.extBadgeText, isLight && styles.extBadgeTextLight]}>{ext}</Text>
+                            <View style={[styles.extBadge, isLight && styles.extBadgeLight, isSwiss && styles.extBadgeSwiss]}>
+                              <Text style={[styles.extBadgeText, isLight && styles.extBadgeTextLight, isSwiss && styles.extBadgeTextSwiss]}>{ext}</Text>
                             </View>
                           </View>
 
                           {item.summary ? (
-                            <Text style={[styles.cardSummary, isLight && styles.cardSummaryLight]} numberOfLines={2}>
+                            <Text style={[styles.cardSummary, isLight && styles.cardSummaryLight, isSwiss && styles.cardSummarySwiss]} numberOfLines={2}>
                               {item.summary}
                             </Text>
                           ) : (
-                            <Text style={[styles.cardPath, isLight && styles.cardPathLight]} numberOfLines={1}>
+                            <Text style={[styles.cardPath, isLight && styles.cardPathLight, isSwiss && styles.cardPathSwiss]} numberOfLines={1}>
                               {item.path.split(/[/\\]/).pop()}
                             </Text>
                           )}
                         </View>
 
-                        <ChevronRight size={16} color={isLight ? '#8c959f' : '#737373'} />
+                        <ChevronRight size={16} color={isSwiss ? '#6B665E' : isLight ? '#8c959f' : '#737373'} />
                       </TouchableOpacity>
                     );
                   })}
@@ -521,12 +525,9 @@ const styles = StyleSheet.create({
   },
   handleContainer: {
     width: '100%',
-    paddingVertical: 9,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#161616',
-    borderBottomWidth: 1,
-    borderBottomColor: '#262626',
   },
   dragPill: {
     width: 38,
@@ -985,5 +986,135 @@ const styles = StyleSheet.create({
   },
   cardPathLight: {
     color: '#8c959f',
+  },
+
+  // Swiss Theme Overrides
+  sheetContainerSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderColor: 'rgba(17, 16, 16, 0.16)',
+  },
+  dragPillSwiss: {
+    backgroundColor: 'rgba(17, 16, 16, 0.20)',
+  },
+  headerSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderBottomColor: 'rgba(17, 16, 16, 0.12)',
+  },
+  headerIconBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+  },
+  titleSwiss: {
+    color: '#111010',
+  },
+  subtitleSwiss: {
+    color: '#6B665E',
+  },
+  countBadgeSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  countBadgeTextSwiss: {
+    color: '#111010',
+  },
+  backButtonSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  backButtonTextSwiss: {
+    color: '#111010',
+  },
+  actionBtnSwiss: {
+    backgroundColor: '#F1EBE1',
+  },
+  readerWrapperSwiss: {
+    backgroundColor: '#F8F3EC',
+  },
+  readerSubHeaderSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderBottomColor: 'rgba(17, 16, 16, 0.12)',
+  },
+  readerTitleSwiss: {
+    color: '#111010',
+  },
+  readerMetaSwiss: {
+    color: '#6B665E',
+  },
+  modeToggleSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  modeTabActiveSwiss: {
+    backgroundColor: '#DC201E',
+  },
+  modeTabTextSwiss: {
+    color: '#6B665E',
+  },
+  modeTabTextActiveSwiss: {
+    color: '#ffffff',
+  },
+  copyBtnSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  readerScrollSwiss: {
+    backgroundColor: '#F8F3EC',
+  },
+  summaryBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  summaryTitleSwiss: {
+    color: '#DC201E',
+  },
+  summaryTextSwiss: {
+    color: '#111010',
+  },
+  sourceBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  sourceTextSwiss: {
+    color: '#111010',
+  },
+  listWrapperSwiss: {
+    backgroundColor: '#F8F3EC',
+  },
+  searchBarContainerSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  searchInputSwiss: {
+    color: '#111010',
+  },
+  emptyIconBoxSwiss: {
+    backgroundColor: '#F1EBE1',
+  },
+  emptyTitleSwiss: {
+    color: '#111010',
+  },
+  emptySubtitleSwiss: {
+    color: '#6B665E',
+  },
+  listScrollSwiss: {
+    backgroundColor: '#F8F3EC',
+  },
+  artifactCardSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  cardIconBoxSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  cardTitleSwiss: {
+    color: '#111010',
+  },
+  extBadgeSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  extBadgeTextSwiss: {
+    color: '#6B665E',
+  },
+  cardSummarySwiss: {
+    color: '#6B665E',
+  },
+  cardPathSwiss: {
+    color: '#9C9589',
   },
 });

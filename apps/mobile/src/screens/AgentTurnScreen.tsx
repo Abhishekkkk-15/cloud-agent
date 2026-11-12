@@ -881,7 +881,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   return (
     <View
-      style={[styles.container, isLight && { backgroundColor: '#ffffff' }]}
+      style={[styles.container, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
       onLayout={handleContainerLayout}
     >
       {/* 0. Top Notch Background (Covers physical notch/status bar while keeping the header transparent without borders) */}
@@ -893,7 +893,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             left: 0,
             right: 0,
             height: topInset,
-            backgroundColor: isLight ? '#ffffff' : '#141414',
+            backgroundColor: isSwiss ? '#F8F3EC' : (isLight ? '#ffffff' : '#141414'),
             zIndex: 15,
           }}
           pointerEvents="none"
@@ -933,7 +933,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           <Text
             style={[
               styles.cleanHeaderTitle,
-              isLight && { color: '#1f2328' },
+              isSwiss ? { color: '#111010' } : isLight && { color: '#1f2328' },
             ]}
             numberOfLines={1}
             ellipsizeMode="tail"
@@ -960,7 +960,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
           <Menu.Content align="end" minWidth={240}>
             <Menu.Item
-              icon={<SlidersHorizontal size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              icon={<SlidersHorizontal size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
               description="Model, thinking, temperature"
               onSelect={() => setShowConfigSheet(true)}
             >
@@ -968,7 +968,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             </Menu.Item>
 
             <Menu.Item
-              icon={<Layers size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              icon={<Layers size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
               description={
                 sessionArtifacts.length > 0
                   ? `${sessionArtifacts.length} generated artifact${sessionArtifacts.length === 1 ? '' : 's'}`
@@ -976,7 +976,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               }
               trailing={
                 sessionArtifacts.length > 0 ? (
-                  <View style={[styles.dropdownBadge, isLight && { backgroundColor: '#262626' }]}>
+                  <View style={[styles.dropdownBadge, isSwiss ? { backgroundColor: '#DC201E' } : isLight && { backgroundColor: '#262626' }]}>
                     <Text style={styles.dropdownBadgeText}>{sessionArtifacts.length}</Text>
                   </View>
                 ) : undefined
@@ -991,7 +991,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             </Menu.Item>
 
             <Menu.Item
-              icon={<Terminal size={18} color={isLight ? '#1f2328' : '#fafafa'} />}
+              icon={<Terminal size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
               description="Live interactive shell"
               onSelect={() => setShowTerminal(true)}
             >
@@ -1002,7 +1002,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
             {activeSession && (
               <Menu.Item
-                icon={<Pin size={18} color={activeSession.pinned ? (isLight ? '#262626' : '#ffffff') : (isLight ? '#57606a' : '#a3a3a3')} />}
+                icon={<Pin size={18} color={activeSession.pinned ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff') : (isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3')} />}
                 onSelect={async () => {
                   await togglePinSession(activeSession.id);
                 }}
@@ -1013,7 +1013,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
             {activeSession && (
               <Menu.Item
-                icon={<Pencil size={18} color={isLight ? '#57606a' : '#a3a3a3'} />}
+                icon={<Pencil size={18} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
                 onSelect={() => {
                   setRenameTitle(activeSession.title);
                   setIsRenamingSession(true);
@@ -1058,7 +1058,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         maintainVisibleContentPosition={{
           minIndexForVisible: 1,
         }}
-        style={[styles.scroll, isLight && { backgroundColor: '#ffffff' }]}
+        style={[styles.scroll, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
         contentContainerStyle={[
           styles.scrollContent,
           {
@@ -1092,7 +1092,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             {isLoadingOlderMessages ? (
               <View style={styles.paginationLoadingRow}>
                 <Spinner size="sm" />
-                <Text style={[styles.paginationLoadingText, isLight && { color: '#57606a' }]}>
+                <Text style={[styles.paginationLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
                   Loading earlier messages…
                 </Text>
               </View>
@@ -1100,13 +1100,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               <TouchableOpacity
                 style={[
                   styles.loadOlderButton,
-                  isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' },
+                  isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' },
                 ]}
                 onPress={triggerLoadOlderMessages}
                 activeOpacity={0.7}
               >
-                <Clock size={13} color={isLight ? '#57606a' : '#8b949e'} />
-                <Text style={[styles.loadOlderButtonText, isLight && { color: '#57606a' }]}>
+                <Clock size={13} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#8b949e'} />
+                <Text style={[styles.loadOlderButtonText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
                   Load earlier messages
                 </Text>
               </TouchableOpacity>
@@ -1114,32 +1114,32 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           </View>
         ) : displayedTurns.length > 0 ? (
           <View style={styles.transcriptStartContainer}>
-            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
-            <View style={[styles.transcriptStartBadge, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
-              <Terminal size={11} color={isLight ? '#57606a' : '#8b949e'} />
-              <Text style={[styles.transcriptStartText, isLight && { color: '#57606a' }]}>
+            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#e1e4e8' }]} />
+            <View style={[styles.transcriptStartBadge, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+              <Terminal size={11} color={isSwiss ? '#DC201E' : isLight ? '#57606a' : '#8b949e'} />
+              <Text style={[styles.transcriptStartText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
                 Beginning of session
               </Text>
             </View>
-            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: '#e1e4e8' }]} />
+            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#e1e4e8' }]} />
           </View>
         ) : null}
 
         {/* 4. Turn-by-Turn Timeline (Paradev OutgoingBubble & AgentMessage) */}
         {isLoadingMessages ? (
           <View style={styles.sessionLoadingBox}>
-            <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
-              <ActivityIndicator size="small" color={isLight ? '#262626' : '#fafafa'} />
-              <Text style={[styles.sessionLoadingText, isLight && { color: '#57606a' }]}>Loading session transcript...</Text>
+            <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+              <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+              <Text style={[styles.sessionLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>Loading session transcript...</Text>
             </View>
           </View>
         ) : displayedTurns.length === 0 ? (
           <View style={styles.emptyChatBox}>
-            <View style={[styles.emptyChatIconBox, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
-              <Terminal size={22} color={isLight ? '#262626' : '#fafafa'} />
+            <View style={[styles.emptyChatIconBox, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+              <Terminal size={22} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
             </View>
-            <Text style={[styles.emptyChatTitle, isLight && { color: '#1f2328' }]}>No messages in this session yet</Text>
-            <Text style={[styles.emptyChatSubtitle, isLight && { color: '#57606a' }]}>
+            <Text style={[styles.emptyChatTitle, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>No messages in this session yet</Text>
+            <Text style={[styles.emptyChatSubtitle, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
               Send a prompt below to interact with the Antigravity agent runtime.
             </Text>
           </View>
@@ -1168,10 +1168,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                     style={[
                       styles.userOutgoingBubble,
                       isLight && {
-                        backgroundColor: '#ffffff',
+                        backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff',
                         borderWidth: 1,
-                        borderColor: '#d0d7de',
-                        shadowColor: '#000',
+                        borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
+                        shadowColor: isSwiss ? '#111010' : '#000',
                         shadowOffset: { width: 0, height: 1 },
                         shadowOpacity: 0.05,
                         shadowRadius: 3,
@@ -1179,10 +1179,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       },
                     ]}
                   >
-                    <Text style={[styles.userBubbleText, isLight && { color: '#1f2328' }]}>{turn.userMessage.content}</Text>
+                    <Text style={[styles.userBubbleText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>{turn.userMessage.content}</Text>
                   </View>
                   <View style={styles.userBubbleMeta}>
-                    <Text style={[styles.userBubbleMetaText, isLight && { color: '#8c959f' }]}>
+                    <Text style={[styles.userBubbleMetaText, isLight && { color: isSwiss ? '#6B665E' : '#8c959f' }]}>
                       {turn.userMessage.timestamp
                         ? formatTimeAgo(turn.userMessage.timestamp)
                         : `turn #${turnIdx + 1}`}
@@ -1266,7 +1266,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                                 <Text
                                   style={[
                                     styles.flatToolTitle,
-                                    isLight && styles.flatToolTitleLight,
+                                    isSwiss ? { color: '#111010' } : isLight && styles.flatToolTitleLight,
                                     action.status === 'error' && styles.flatToolTitleError,
                                   ]}
                                   numberOfLines={1}
@@ -1314,7 +1314,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                                 entering={FadeIn.duration(150)}
                                 style={styles.streamingCaretContainer}
                               >
-                                <View style={[styles.streamingDot, isLight && { backgroundColor: '#262626' }]} />
+                                <View style={[styles.streamingDot, isSwiss ? { backgroundColor: '#DC201E' } : isLight && { backgroundColor: '#262626' }]} />
                               </AnimatedReanimated.View>
                             )}
                           </AnimatedReanimated.View>
@@ -1343,7 +1343,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   {turn.assistant.content ? (
                     <View style={styles.agentActionRow}>
                       <TouchableOpacity
-                        style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
+                        style={[styles.agentActionBtn, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}
                         onPress={() =>
                           handleCopyTurnText(turn.id, turn.assistant?.content || '')
                         }
@@ -1351,25 +1351,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         accessibilityLabel="Copy message"
                       >
                         {copiedTurnId === turn.id ? (
-                          <Check size={14} color={isLight ? '#262626' : '#fafafa'} />
+                          <Check size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
                         ) : (
-                          <Copy size={14} color={isLight ? '#57606a' : '#737373'} />
+                          <Copy size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#737373'} />
                         )}
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={[styles.agentActionBtn, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}
+                        style={[styles.agentActionBtn, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}
                         onPress={() => {
                           setPromptInput(`Regarding turn #${turnIdx + 1}: `);
                         }}
                         activeOpacity={0.7}
                         accessibilityLabel="Branch from here"
                       >
-                        <GitFork size={14} color={isLight ? '#57606a' : '#737373'} />
+                        <GitFork size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#737373'} />
                       </TouchableOpacity>
 
-                      <View style={[styles.agentMetaPill, isLight && { backgroundColor: '#ffffff', borderColor: '#e1e4e8' }]}>
-                        <Text style={[styles.agentMetaPillText, isLight && { color: '#57606a' }]}>{modelStr}</Text>
+                      <View style={[styles.agentMetaPill, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}>
+                        <Text style={[styles.agentMetaPillText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>{modelStr}</Text>
                       </View>
                     </View>
                   ) : null}
@@ -1383,7 +1383,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {isSendingPrompt && (
           <View style={styles.streamingIndicatorRow}>
             <ThinkingOrb state="working" size={20} />
-            <Text style={[styles.streamingText, isLight && { color: '#57606a' }]}>Agent is thinking and executing...</Text>
+            <Text style={[styles.streamingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>Agent is thinking and executing...</Text>
           </View>
         )}
       </ScrollView>
@@ -1404,16 +1404,16 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           pointerEvents="box-none"
         >
           <TouchableOpacity
-            style={[styles.scrollFab, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}
+            style={[styles.scrollFab, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}
             activeOpacity={0.7}
             onPress={handleScrollToBottom}
           >
             <ArrowDown
               size={14}
-              color={isSendingPrompt && isAutoScrollPaused ? (isLight ? '#262626' : colors.primaryLight) : (isLight ? '#57606a' : '#a3a3a3')}
+              color={isSendingPrompt && isAutoScrollPaused ? (isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primaryLight) : (isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3')}
             />
             {isSendingPrompt && isAutoScrollPaused && (
-              <View style={[styles.scrollFabBadge, isLight && { backgroundColor: '#262626' }]} />
+              <View style={[styles.scrollFabBadge, isLight && { backgroundColor: isSwiss ? '#DC201E' : '#262626' }]} />
             )}
           </TouchableOpacity>
         </AnimatedReanimated.View>
@@ -1520,7 +1520,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   icon={
                     <Plus
                       size={15}
-                      color={showCommandPicker ? (isLight ? '#262626' : '#ffffff') : (isLight ? '#57606a' : '#a3a3a3')}
+                      color={showCommandPicker ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff') : (isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3')}
                     />
                   }
                   onPress={() => setShowCommandPicker((prev) => !prev)}
@@ -1530,7 +1530,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 <AIInput.Pill
                   label={modelPillLabel}
                   detail={modelPillDetail}
-                  indicator={<ChevronDown size={11} color={isLight ? '#686868' : '#a3a3a3'} />}
+                  indicator={<ChevronDown size={11} color={isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3'} />}
                   onPress={() => setShowConfigSheet(true)}
                   accessibilityLabel="Change AI model and parameters"
                 />
@@ -1538,14 +1538,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 {/* 3. Host Interactive Shell / Terminal */}
                 <AIInput.Action
                   label="Terminal"
-                  icon={<Terminal size={14} color={isLight ? '#57606a' : '#a3a3a3'} />}
+                  icon={<Terminal size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
                   onPress={() => setShowTerminal(true)}
                 />
 
                 {/* 4. Artifacts Drawer Sheet */}
                 <AIInput.Action
                   label="Artifacts"
-                  icon={<FileText size={14} color={isLight ? '#57606a' : '#a3a3a3'} />}
+                  icon={<FileText size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
                   onPress={() => setShowArtifactsSheet(true)}
                 />
 
@@ -1595,24 +1595,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.renameCardWrapper}
           >
-            <View style={[styles.renameCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
+            <View style={[styles.renameCard, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
               <View style={styles.renameHeader}>
-                <Text style={[styles.renameTitle, isLight && { color: '#1f2328' }]}>Rename Session</Text>
+                <Text style={[styles.renameTitle, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>Rename Session</Text>
                 <TouchableOpacity
                   onPress={() => setIsRenamingSession(false)}
                   style={styles.renameCloseBtn}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
-                  <X size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
+                  <X size={16} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
                 </TouchableOpacity>
               </View>
 
               <TextInput
-                style={[styles.renameInput, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de', color: '#1f2328' }]}
+                style={[styles.renameInput, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de', color: isSwiss ? '#111010' : '#1f2328' }]}
                 value={renameTitle}
                 onChangeText={setRenameTitle}
                 placeholder="Session title..."
-                placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+                placeholderTextColor={isSwiss ? '#9C9589' : isLight ? '#8c959f' : '#737373'}
                 autoFocus
                 selectTextOnFocus
                 returnKeyType="done"
@@ -1621,15 +1621,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
               <View style={styles.renameActionsRow}>
                 <TouchableOpacity
-                  style={[styles.renameCancelBtn, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}
+                  style={[styles.renameCancelBtn, isLight && { backgroundColor: isSwiss ? '#EBE4D8' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}
                   onPress={() => setIsRenamingSession(false)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.renameCancelText, isLight && { color: '#57606a' }]}>Cancel</Text>
+                  <Text style={[styles.renameCancelText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>Cancel</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.renameSaveBtn, isLight && { backgroundColor: '#262626' }, isSavingRename && { opacity: 0.6 }]}
+                  style={[styles.renameSaveBtn, isLight && { backgroundColor: isSwiss ? '#DC201E' : '#262626' }, isSavingRename && { opacity: 0.6 }]}
                   onPress={handleSaveRename}
                   disabled={isSavingRename || !renameTitle.trim()}
                   activeOpacity={0.7}

@@ -96,7 +96,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
   onClose,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const sessionConfig = useDaemonStore((s) => s.sessionConfig);
   const setSessionConfig = useDaemonStore((s) => s.setSessionConfig);
 
@@ -228,6 +229,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
           style={[
             styles.sheetContainer,
             isLight && styles.sheetContainerLight,
+            isSwiss && styles.sheetContainerSwiss,
             { transform: [{ translateY }] },
           ]}
         >
@@ -238,41 +240,41 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
               style={styles.handleContainer}
               onPress={handleToggleExpand}
             >
-              <View style={[styles.dragPill, isLight && styles.dragPillLight]} />
+              <View style={[styles.dragPill, isLight && styles.dragPillLight, isSwiss && styles.dragPillSwiss]} />
             </TouchableOpacity>
 
             {/* Header */}
-            <View style={[styles.header, isLight && styles.headerLight]}>
+            <View style={[styles.header, isLight && styles.headerLight, isSwiss && styles.headerSwiss]}>
               <View style={styles.headerLeft}>
-                <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
-                  <SlidersHorizontal size={16} color={isLight ? '#262626' : '#ffffff'} />
+                <View style={[styles.iconCircle, isLight && styles.iconCircleLight, isSwiss && styles.iconCircleSwiss]}>
+                  <SlidersHorizontal size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff'} />
                 </View>
                 <View>
-                  <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>SESSION PARAMETERS</Text>
-                  <Text style={[styles.headerSubtitle, isLight && styles.headerSubtitleLight]}>Configure model, reasoning, and execution mode</Text>
+                  <Text style={[styles.headerTitle, isLight && styles.headerTitleLight, isSwiss && styles.headerTitleSwiss]}>SESSION PARAMETERS</Text>
+                  <Text style={[styles.headerSubtitle, isLight && styles.headerSubtitleLight, isSwiss && styles.headerSubtitleSwiss]}>Configure model, reasoning, and execution mode</Text>
                 </View>
               </View>
 
-              <TouchableOpacity style={[styles.closeBtn, isLight && styles.closeBtnLight]} onPress={handleClose} activeOpacity={0.7}>
-                <X size={16} color={isLight ? '#57606a' : colors.textMuted} />
+              <TouchableOpacity style={[styles.closeBtn, isLight && styles.closeBtnLight, isSwiss && styles.closeBtnSwiss]} onPress={handleClose} activeOpacity={0.7}>
+                <X size={16} color={isSwiss ? '#111010' : isLight ? '#57606a' : colors.textMuted} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Scrollable Form */}
           <ScrollView
-            style={[styles.scroll, isExpanded && { flex: 1 }, isLight && styles.scrollLight]}
+            style={[styles.scroll, isExpanded && { flex: 1 }, isLight && styles.scrollLight, isSwiss && styles.scrollSwiss]}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
             {/* 1. Reasoning Effort */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Flame size={13} color={isLight ? '#262626' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>REASONING EFFORT</Text>
+                <Flame size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>REASONING EFFORT</Text>
               </View>
 
-              <View style={[styles.segmentedRow, isLight && styles.segmentedRowLight]}>
+              <View style={[styles.segmentedRow, isLight && styles.segmentedRowLight, isSwiss && styles.segmentedRowSwiss]}>
                 {EFFORT_LEVELS.map((eff) => {
                   const isSelected = (sessionConfig.effort || 'high') === eff.id;
                   return (
@@ -281,7 +283,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                       style={[
                         styles.segmentBtn,
                         isLight && styles.segmentBtnLight,
-                        isSelected && (isLight ? styles.segmentBtnActiveLight : styles.segmentBtnActive),
+                        isSelected && (isSwiss ? styles.segmentBtnActiveSwiss : isLight ? styles.segmentBtnActiveLight : styles.segmentBtnActive),
                       ]}
                       activeOpacity={0.75}
                       onPress={() => setSessionConfig({ effort: eff.id })}
@@ -290,7 +292,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                         style={[
                           styles.segmentBtnText,
                           isLight && styles.segmentBtnTextLight,
-                          isSelected && (isLight ? styles.segmentBtnTextActiveLight : styles.segmentBtnTextActive),
+                          isSwiss && styles.segmentBtnTextSwiss,
+                          isSelected && (isSwiss ? styles.segmentBtnTextActiveSwiss : isLight ? styles.segmentBtnTextActiveLight : styles.segmentBtnTextActive),
                         ]}
                       >
                         {eff.label}
@@ -299,7 +302,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                   );
                 })}
               </View>
-              <Text style={[styles.effortDescription, isLight && styles.effortDescriptionLight]}>
+              <Text style={[styles.effortDescription, isLight && styles.effortDescriptionLight, isSwiss && styles.effortDescriptionSwiss]}>
                 {EFFORT_LEVELS.find((e) => e.id === (sessionConfig.effort || 'high'))?.desc}
               </Text>
             </View>
@@ -307,8 +310,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             {/* 2. Execution Mode */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Layers size={13} color={isLight ? '#262626' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>EXECUTION MODE</Text>
+                <Layers size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>EXECUTION MODE</Text>
               </View>
 
               <View style={styles.modeCardsCol}>
@@ -320,7 +323,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                       style={[
                         styles.modeCard,
                         isLight && styles.modeCardLight,
-                        isSelected && (isLight ? styles.modeCardActiveLight : styles.modeCardActive),
+                        isSwiss && styles.modeCardSwiss,
+                        isSelected && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
                       ]}
                       activeOpacity={0.75}
                       onPress={() => setSessionConfig({ mode: m.id })}
@@ -330,22 +334,24 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                           style={[
                             styles.radioCircle,
                             isLight && styles.radioCircleLight,
-                            isSelected && (isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                            isSwiss && styles.radioCircleSwiss,
+                            isSelected && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
                           ]}
                         >
-                          {isSelected && <View style={[styles.radioDot, isLight && styles.radioDotLight]} />}
+                          {isSelected && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
                         </View>
                         <View style={styles.modeCardTextCol}>
                           <Text
                             style={[
                               styles.modeCardLabel,
                               isLight && styles.modeCardLabelLight,
-                              isSelected && (isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                              isSwiss && styles.modeCardLabelSwiss,
+                              isSelected && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
                             ]}
                           >
                             {m.label}
                           </Text>
-                          <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight]}>{m.desc}</Text>
+                          <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>{m.desc}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -357,8 +363,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             {/* 3. AI Model Selector */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Bot size={13} color={isLight ? '#262626' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>ACTIVE MODEL</Text>
+                <Bot size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>ACTIVE MODEL</Text>
               </View>
 
               <View style={styles.modelsList}>
@@ -370,7 +376,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                       style={[
                         styles.modelCard,
                         isLight && styles.modelCardLight,
-                        isSelected && (isLight ? styles.modelCardActiveLight : styles.modelCardActive),
+                        isSwiss && styles.modelCardSwiss,
+                        isSelected && (isSwiss ? styles.modelCardActiveSwiss : isLight ? styles.modelCardActiveLight : styles.modelCardActive),
                       ]}
                       activeOpacity={0.75}
                       onPress={() => setSessionConfig({ model: model.id })}
@@ -380,10 +387,11 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                           style={[
                             styles.radioCircle,
                             isLight && styles.radioCircleLight,
-                            isSelected && (isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                            isSwiss && styles.radioCircleSwiss,
+                            isSelected && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
                           ]}
                         >
-                          {isSelected && <View style={[styles.radioDot, isLight && styles.radioDotLight]} />}
+                          {isSelected && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
                         </View>
                         <View style={styles.modelCardTextCol}>
                           <View style={styles.modelTitleRow}>
@@ -391,16 +399,17 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                               style={[
                                 styles.modelName,
                                 isLight && styles.modelNameLight,
-                                isSelected && (isLight ? styles.modelNameActiveLight : styles.modelNameActive),
+                                isSwiss && styles.modelNameSwiss,
+                                isSelected && (isSwiss ? styles.modelNameActiveSwiss : isLight ? styles.modelNameActiveLight : styles.modelNameActive),
                               ]}
                             >
                               {model.name}
                             </Text>
-                            <View style={[styles.providerBadge, isLight && styles.providerBadgeLight]}>
-                              <Text style={[styles.providerBadgeText, isLight && styles.providerBadgeTextLight]}>{model.provider}</Text>
+                            <View style={[styles.providerBadge, isLight && styles.providerBadgeLight, isSwiss && styles.providerBadgeSwiss]}>
+                              <Text style={[styles.providerBadgeText, isLight && styles.providerBadgeTextLight, isSwiss && styles.providerBadgeTextSwiss]}>{model.provider}</Text>
                             </View>
                           </View>
-                          <Text style={[styles.modelDesc, isLight && styles.modelDescLight]}>{model.desc}</Text>
+                          <Text style={[styles.modelDesc, isLight && styles.modelDescLight, isSwiss && styles.modelDescSwiss]}>{model.desc}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -412,8 +421,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             {/* 4. Tool Permissions */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <ShieldCheck size={13} color={isLight ? '#262626' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>TOOL PERMISSIONS</Text>
+                <ShieldCheck size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>TOOL PERMISSIONS</Text>
               </View>
 
               <View style={styles.modeCardsCol}>
@@ -421,7 +430,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                   style={[
                     styles.modeCard,
                     isLight && styles.modeCardLight,
-                    sessionConfig.dangerouslySkipPermissions !== false && (isLight ? styles.modeCardActiveLight : styles.modeCardActive),
+                    isSwiss && styles.modeCardSwiss,
+                    sessionConfig.dangerouslySkipPermissions !== false && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
                   ]}
                   activeOpacity={0.75}
                   onPress={() => setSessionConfig({ dangerouslySkipPermissions: true })}
@@ -431,10 +441,11 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                       style={[
                         styles.radioCircle,
                         isLight && styles.radioCircleLight,
-                        sessionConfig.dangerouslySkipPermissions !== false && (isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                        isSwiss && styles.radioCircleSwiss,
+                        sessionConfig.dangerouslySkipPermissions !== false && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
                       ]}
                     >
-                      {sessionConfig.dangerouslySkipPermissions !== false && <View style={[styles.radioDot, isLight && styles.radioDotLight]} />}
+                      {sessionConfig.dangerouslySkipPermissions !== false && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
                     </View>
                     <View style={styles.modeCardTextCol}>
                       <View style={styles.permissionTitleRow}>
@@ -442,16 +453,17 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                           style={[
                             styles.modeCardLabel,
                             isLight && styles.modeCardLabelLight,
-                            sessionConfig.dangerouslySkipPermissions !== false && (isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                            isSwiss && styles.modeCardLabelSwiss,
+                            sessionConfig.dangerouslySkipPermissions !== false && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
                           ]}
                         >
                           Auto-Approve All (Default)
                         </Text>
-                        <View style={[styles.badgeRecommended, isLight && styles.badgeRecommendedLight]}>
-                          <Text style={[styles.badgeRecommendedText, isLight && styles.badgeRecommendedTextLight]}>Recommended</Text>
+                        <View style={[styles.badgeRecommended, isLight && styles.badgeRecommendedLight, isSwiss && styles.badgeRecommendedSwiss]}>
+                          <Text style={[styles.badgeRecommendedText, isLight && styles.badgeRecommendedTextLight, isSwiss && styles.badgeRecommendedTextSwiss]}>Recommended</Text>
                         </View>
                       </View>
-                      <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight]}>
+                      <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>
                         Skips confirmation prompts for automated tool execution.
                       </Text>
                     </View>
@@ -462,7 +474,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                   style={[
                     styles.modeCard,
                     isLight && styles.modeCardLight,
-                    sessionConfig.dangerouslySkipPermissions === false && (isLight ? styles.modeCardActiveLight : styles.modeCardActive),
+                    isSwiss && styles.modeCardSwiss,
+                    sessionConfig.dangerouslySkipPermissions === false && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
                   ]}
                   activeOpacity={0.75}
                   onPress={() => setSessionConfig({ dangerouslySkipPermissions: false })}
@@ -472,22 +485,24 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                       style={[
                         styles.radioCircle,
                         isLight && styles.radioCircleLight,
-                        sessionConfig.dangerouslySkipPermissions === false && (isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                        isSwiss && styles.radioCircleSwiss,
+                        sessionConfig.dangerouslySkipPermissions === false && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
                       ]}
                     >
-                      {sessionConfig.dangerouslySkipPermissions === false && <View style={[styles.radioDot, isLight && styles.radioDotLight]} />}
+                      {sessionConfig.dangerouslySkipPermissions === false && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
                     </View>
                     <View style={styles.modeCardTextCol}>
                       <Text
                         style={[
                           styles.modeCardLabel,
                           isLight && styles.modeCardLabelLight,
-                          sessionConfig.dangerouslySkipPermissions === false && (isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                          isSwiss && styles.modeCardLabelSwiss,
+                          sessionConfig.dangerouslySkipPermissions === false && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
                         ]}
                       >
                         Ask for Confirmation
                       </Text>
-                      <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight]}>
+                      <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>
                         Strict review. Elevated commands and sensitive tool calls will await your approval on mobile.
                       </Text>
                     </View>
@@ -498,8 +513,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
           </ScrollView>
 
           {/* Bottom Save Bar */}
-          <View style={[styles.bottomBar, isLight && styles.bottomBarLight]}>
-            <TouchableOpacity style={[styles.applyBtn, isLight && styles.applyBtnLight]} onPress={handleClose} activeOpacity={0.85}>
+          <View style={[styles.bottomBar, isLight && styles.bottomBarLight, isSwiss && styles.bottomBarSwiss]}>
+            <TouchableOpacity style={[styles.applyBtn, isLight && styles.applyBtnLight, isSwiss && styles.applyBtnSwiss]} onPress={handleClose} activeOpacity={0.85}>
               <Check size={16} color="#ffffff" />
               <Text style={styles.applyBtnText}>Apply Settings</Text>
             </TouchableOpacity>
@@ -905,5 +920,120 @@ const styles = StyleSheet.create({
   },
   applyBtnTextLight: {
     color: '#ffffff',
+  },
+
+  // Swiss Theme Overrides
+  sheetContainerSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderColor: 'rgba(17, 16, 16, 0.16)',
+  },
+  dragPillSwiss: {
+    backgroundColor: 'rgba(17, 16, 16, 0.20)',
+  },
+  headerSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderBottomColor: 'rgba(17, 16, 16, 0.12)',
+  },
+  iconCircleSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  headerTitleSwiss: {
+    color: '#111010',
+  },
+  headerSubtitleSwiss: {
+    color: '#6B665E',
+  },
+  closeBtnSwiss: {
+    backgroundColor: '#F1EBE1',
+  },
+  scrollSwiss: {
+    backgroundColor: '#F8F3EC',
+  },
+  sectionTitleSwiss: {
+    color: '#6B665E',
+  },
+  segmentedRowSwiss: {
+    backgroundColor: '#EBE4D8',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  segmentBtnActiveSwiss: {
+    backgroundColor: '#DC201E',
+    shadowColor: '#DC201E',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  segmentBtnTextSwiss: {
+    color: '#6B665E',
+  },
+  segmentBtnTextActiveSwiss: {
+    color: '#ffffff',
+    fontWeight: '700',
+  },
+  effortDescriptionSwiss: {
+    color: '#6B665E',
+  },
+  modeCardSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  modeCardActiveSwiss: {
+    borderColor: '#DC201E',
+    backgroundColor: 'rgba(220, 32, 30, 0.08)',
+  },
+  radioCircleSwiss: {
+    borderColor: 'rgba(17, 16, 16, 0.3)',
+  },
+  radioCircleActiveSwiss: {
+    borderColor: '#DC201E',
+  },
+  radioDotSwiss: {
+    backgroundColor: '#DC201E',
+  },
+  modeCardLabelSwiss: {
+    color: '#111010',
+  },
+  modeCardLabelActiveSwiss: {
+    color: '#DC201E',
+  },
+  modeCardDescSwiss: {
+    color: '#6B665E',
+  },
+  modelCardSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  modelCardActiveSwiss: {
+    borderColor: '#DC201E',
+    backgroundColor: 'rgba(220, 32, 30, 0.08)',
+  },
+  modelNameSwiss: {
+    color: '#111010',
+  },
+  modelNameActiveSwiss: {
+    color: '#DC201E',
+  },
+  providerBadgeSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  providerBadgeTextSwiss: {
+    color: '#6B665E',
+  },
+  modelDescSwiss: {
+    color: '#6B665E',
+  },
+  badgeRecommendedSwiss: {
+    backgroundColor: 'rgba(220, 32, 30, 0.10)',
+    borderColor: 'rgba(220, 32, 30, 0.25)',
+  },
+  badgeRecommendedTextSwiss: {
+    color: '#DC201E',
+  },
+  bottomBarSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderTopColor: 'rgba(17, 16, 16, 0.12)',
+  },
+  applyBtnSwiss: {
+    backgroundColor: '#DC201E',
   },
 });

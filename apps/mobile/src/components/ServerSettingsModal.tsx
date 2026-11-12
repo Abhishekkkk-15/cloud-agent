@@ -50,7 +50,8 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
   onClose,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   // Gateway Store State
   const currentGatewayUrl = useDaemonStore((s) => s.gatewayUrl);
@@ -259,9 +260,9 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
           <View className="flex-row items-center gap-2.5 flex-1 mr-2">
             <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
               {activeTab === 'gateway' ? (
-                <Globe size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                <Globe size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
               ) : (
-                <Bell size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                <Bell size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
               )}
             </View>
             <View className="flex-1">

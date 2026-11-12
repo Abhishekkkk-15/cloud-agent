@@ -134,7 +134,8 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   onClose,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   // Filter commands by search query
   const filteredCommands = useMemo(() => {
@@ -157,7 +158,7 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   if (!visible) return null;
 
   const renderIcon = (cmd: SlashCommandItem) => {
-    const iconColor = isLight ? '#262626' : '#f5f5f5';
+    const iconColor = isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5';
     switch (cmd.category) {
       case 'workflow':
         return <Sparkles size={14} color={iconColor} />;
@@ -174,7 +175,7 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
       {/* Header Bar */}
       <View className="px-3.5 py-2.5 bg-surface border-b border-border flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
-          <Command size={13} color={isLight ? '#262626' : '#f5f5f5'} />
+          <Command size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
           <Text className="text-xs font-semibold text-foreground tracking-wider uppercase">
             Commands
           </Text>

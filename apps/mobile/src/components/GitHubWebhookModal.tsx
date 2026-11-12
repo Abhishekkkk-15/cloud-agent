@@ -57,7 +57,8 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
   const testGithubConnection = useDaemonStore((s) => s.testGithubConnection);
   const removeGithubToken = useDaemonStore((s) => s.removeGithubToken);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const [tokenInput, setTokenInput] = useState('');
   const [userNameInput, setUserNameInput] = useState('');
@@ -196,7 +197,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
         <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
           <View className="flex-row items-center gap-2.5 flex-1 mr-2">
             <View className="w-8 h-8 rounded-lg bg-surface-secondary border border-border items-center justify-center">
-              <Github size={16} color={isLight ? '#262626' : '#fafafa'} />
+              <Github size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
             </View>
             <View className="flex-1">
               <Dialog.Title className="text-base font-semibold text-foreground">
@@ -233,7 +234,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                 value="git"
                 className="flex-1 py-1.5 px-2 flex-row items-center justify-center gap-1.5"
               >
-                <Key size={13} color={activeTab === 'git' ? (isLight ? '#262626' : '#f5f5f5') : '#888888'} />
+                <Key size={13} color={activeTab === 'git' ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5') : (isSwiss ? '#6B665E' : '#888888')} />
                 <Text className={cn("text-xs font-medium", activeTab === 'git' ? "text-foreground font-semibold" : "text-muted-foreground")}>
                   Git Credentials
                 </Text>
@@ -242,7 +243,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                 value="webhooks"
                 className="flex-1 py-1.5 px-2 flex-row items-center justify-center gap-1.5"
               >
-                <GitPullRequest size={13} color={activeTab === 'webhooks' ? (isLight ? '#262626' : '#f5f5f5') : '#888888'} />
+                <GitPullRequest size={13} color={activeTab === 'webhooks' ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5') : (isSwiss ? '#6B665E' : '#888888')} />
                 <Text className={cn("text-xs font-medium", activeTab === 'webhooks' ? "text-foreground font-semibold" : "text-muted-foreground")}>
                   Webhooks & Events
                 </Text>

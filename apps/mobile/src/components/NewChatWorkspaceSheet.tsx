@@ -38,7 +38,8 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   onStartSession,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
   const knownWorkspaces = useDaemonStore((s) => s.knownWorkspaces);
@@ -99,7 +100,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
           <BottomSheet.Header className="px-4 py-3.5 border-b border-border bg-surface">
             <View className="flex-row items-center gap-2.5">
               <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
-                <FolderGit2 size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                <FolderGit2 size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
               </View>
               <View className="flex-1">
                 <Text className="text-base font-semibold text-foreground">
@@ -125,7 +126,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
                   onPress={() => setShowFolderPicker(true)}
                   className="flex-row items-center gap-1 px-2 py-0.5"
                 >
-                  <Folder size={11} color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Folder size={11} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
                   <Text className="text-xs font-medium text-foreground">Browse Host</Text>
                 </Button>
               </View>
@@ -208,7 +209,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
             {/* Model & Reasoning Preferences */}
             <View className="mb-2">
               <View className="flex-row items-center gap-1.5 mb-2">
-                <SlidersHorizontal size={13} color={isLight ? '#262626' : '#f5f5f5'} />
+                <SlidersHorizontal size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
                 <Text className="text-xs font-semibold text-foreground">
                   Reasoning & Execution Mode
                 </Text>
@@ -256,7 +257,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
               disabled={!pathInput.trim()}
               className="flex-1 flex-row items-center justify-center gap-1.5"
             >
-              <Play size={13} color={isLight ? '#fafafa' : '#262626'} />
+              <Play size={13} color={isSwiss ? '#ffffff' : (isLight ? '#fafafa' : '#262626')} />
               <Text className="text-xs font-semibold text-primary-foreground">
                 Launch Session
               </Text>

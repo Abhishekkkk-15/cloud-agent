@@ -32,7 +32,8 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
   onDelete,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -103,7 +104,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
               size="sm"
               className="w-7 h-7 p-0 items-center justify-center rounded-lg"
             >
-              <X size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+              <X size={15} color={isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3'} />
             </Button>
           </Dialog.Close>
         </View>
@@ -142,7 +143,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
                   disabled={isLoading || !newTitle.trim()}
                 >
                   {isLoading ? (
-                    <Spinner size="sm" color={isLight ? '#fafafa' : '#262626'} />
+                    <Spinner size="sm" color={isSwiss ? '#ffffff' : (isLight ? '#fafafa' : '#262626')} />
                   ) : (
                     'Save'
                   )}
@@ -162,7 +163,7 @@ export const SessionActionModal: React.FC<SessionActionModalProps> = ({
                 <Item.Media variant="icon">
                   <Pin
                     size={16}
-                    color={session.pinned ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')}
+                    color={session.pinned ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5') : (isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3')}
                   />
                 </Item.Media>
                 <Item.Content>

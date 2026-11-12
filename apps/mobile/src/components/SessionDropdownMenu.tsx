@@ -29,7 +29,8 @@ export const SessionDropdownMenu: React.FC<SessionDropdownMenuProps> = ({
   iconSize = 14,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
@@ -122,13 +123,13 @@ export const SessionDropdownMenu: React.FC<SessionDropdownMenuProps> = ({
           className="w-48 bg-popover border border-border rounded-xl p-1 shadow-xl"
         >
           <Menu.Item
-            icon={<Pencil size={14} color={isLight ? '#262626' : '#f5f5f5'} />}
+            icon={<Pencil size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />}
             onSelect={handleOpenRename}
           >
             Rename
           </Menu.Item>
           <Menu.Item
-            icon={<Pin size={14} color={isLight ? '#262626' : '#f5f5f5'} />}
+            icon={<Pin size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />}
             onSelect={handleTogglePin}
           >
             {session.pinned ? 'Unpin from Top' : 'Pin to Top'}

@@ -118,7 +118,8 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
   const activeSession = useDaemonStore((s) => s.activeSession);
   const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const [inputCommand, setInputCommand] = useState('');
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -188,8 +189,8 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
             style={[
               styles.monoText,
               isCmd
-                ? [styles.commandPromptText, isLight && { color: '#0969da' }]
-                : [styles.systemInfoText, isLight && { color: '#57606a' }],
+                ? [styles.commandPromptText, isSwiss ? { color: '#DC201E' } : isLight && { color: '#0969da' }]
+                : [styles.systemInfoText, isSwiss ? { color: '#6B665E' } : isLight && { color: '#57606a' }],
             ]}
           >
             {line.text}
@@ -198,12 +199,12 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
       );
     }
 
-    const defaultColor = line.stream === 'stderr' ? '#f85149' : (isLight ? '#1f2328' : '#d4d4d4');
+    const defaultColor = line.stream === 'stderr' ? '#f85149' : (isSwiss ? '#111010' : isLight ? '#1f2328' : '#d4d4d4');
     const segments = parseAnsi(line.text, defaultColor);
 
     return (
       <View key={line.id} style={styles.lineWrapper}>
-        <Text style={styles.monoText}>
+        <Text style={[styles.monoText, isSwiss && { color: '#111010' }]}>
           {segments.map((seg, idx) => (
             <Text
               key={idx}
@@ -227,25 +228,25 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
       transparent={false}
       onRequestClose={onClose}
     >
-      <SafeAreaView style={[styles.safeArea, isLight && { backgroundColor: '#ffffff' }]}>
+      <SafeAreaView style={[styles.safeArea, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}>
         <KeyboardAvoidingView
-          style={[styles.container, isLight && { backgroundColor: '#ffffff' }]}
+          style={[styles.container, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           {/* Header */}
-          <View style={[styles.header, isLight && styles.headerLight]}>
+          <View style={[styles.header, isLight && styles.headerLight, isSwiss && styles.headerSwiss]}>
             <View style={styles.headerLeft}>
-              <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
-                <Terminal size={16} color={isLight ? '#0969da' : '#fafafa'} />
+              <View style={[styles.iconCircle, isLight && styles.iconCircleLight, isSwiss && styles.iconCircleSwiss]}>
+                <Terminal size={16} color={isSwiss ? '#DC201E' : isLight ? '#0969da' : '#fafafa'} />
               </View>
               <View style={styles.titleCol}>
                 <View style={styles.titleRow}>
-                  <Text style={[styles.title, isLight && { color: '#1f2328' }]}>Terminal</Text>
-                  <Text style={[styles.statusText, isLight && { color: '#57606a' }]}>
+                  <Text style={[styles.title, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>Terminal</Text>
+                  <Text style={[styles.statusText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
                     {isTerminalRunning ? 'Executing...' : 'Ready'}
                   </Text>
                 </View>
-                <Text style={[styles.subtitle, isLight && { color: '#57606a' }]} numberOfLines={1}>
+                <Text style={[styles.subtitle, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]} numberOfLines={1}>
                   cwd: ~/{activeCwd}
                 </Text>
               </View>
@@ -253,7 +254,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
 
             <View style={styles.headerRight}>
               <TouchableOpacity
-                style={[styles.actionBtn, isLight && styles.actionBtnLight]}
+                style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
                 onPress={handleCopyOutput}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Copy all terminal output"
@@ -261,30 +262,30 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
                 {copied ? (
                   <Check size={15} color="#56d364" />
                 ) : (
-                  <Copy size={15} color={isLight ? '#57606a' : '#a3a3a3'} />
+                  <Copy size={15} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
                 )}
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionBtn, isLight && styles.actionBtnLight]}
+                style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
                 onPress={clearTerminal}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Clear terminal"
               >
-                <Trash2 size={16} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <Trash2 size={16} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.closeBtn, isLight && styles.closeBtnLight]}
+                style={[styles.closeBtn, isLight && styles.closeBtnLight, isSwiss && styles.closeBtnSwiss]}
                 onPress={onClose}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel="Close terminal"
               >
-                <X size={18} color={isLight ? '#1f2328' : '#fafafa'} />
+                <X size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Quick Command Pills */}
-          <View style={[styles.quickBar, isLight && styles.quickBarLight]}>
+          <View style={[styles.quickBar, isLight && styles.quickBarLight, isSwiss && styles.quickBarSwiss]}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -293,12 +294,12 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
               {QUICK_COMMANDS.map((cmd) => (
                 <TouchableOpacity
                   key={cmd}
-                  style={[styles.quickPill, isLight && styles.quickPillLight]}
+                  style={[styles.quickPill, isLight && styles.quickPillLight, isSwiss && styles.quickPillSwiss]}
                   onPress={() => handleRun(cmd)}
                   disabled={isTerminalRunning}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.quickPillText, isLight && styles.quickPillTextLight]}>
+                  <Text style={[styles.quickPillText, isLight && styles.quickPillTextLight, isSwiss && styles.quickPillTextSwiss]}>
                     {cmd}
                   </Text>
                 </TouchableOpacity>
@@ -307,7 +308,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
           </View>
 
           {/* Terminal Console Output */}
-          <View style={[styles.consoleContainer, isLight && styles.consoleContainerLight]}>
+          <View style={[styles.consoleContainer, isLight && styles.consoleContainerLight, isSwiss && styles.consoleContainerSwiss]}>
             <ScrollView
               ref={scrollRef}
               style={styles.consoleScroll}
@@ -317,11 +318,11 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
             >
               {terminalLines.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Terminal size={28} color={isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.10)'} />
-                  <Text style={[styles.emptyStateTitle, isLight && { color: '#57606a' }]}>
+                  <Terminal size={28} color={isSwiss ? 'rgba(17, 16, 16, 0.20)' : isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.10)'} />
+                  <Text style={[styles.emptyStateTitle, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
                     Daemon Shell Ready
                   </Text>
-                  <Text style={[styles.emptyStateSub, isLight && { color: '#8c959f' }]}>
+                  <Text style={[styles.emptyStateSub, isLight && { color: isSwiss ? '#9C9589' : '#8c959f' }]}>
                     Commands execute directly in your workspace environment on the host machine.
                   </Text>
                 </View>
@@ -332,14 +333,14 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
           </View>
 
           {/* Command Input Bar */}
-          <View style={[styles.inputBar, isLight && styles.inputBarLight]}>
-            <Text style={[styles.promptSymbol, isLight && { color: '#0969da' }]}>$</Text>
+          <View style={[styles.inputBar, isLight && styles.inputBarLight, isSwiss && styles.inputBarSwiss]}>
+            <Text style={[styles.promptSymbol, isSwiss ? { color: '#DC201E' } : isLight && { color: '#0969da' }]}>$</Text>
             <TextInput
-              style={[styles.textInput, isLight && styles.textInputLight]}
+              style={[styles.textInput, isLight && styles.textInputLight, isSwiss && styles.textInputSwiss]}
               value={inputCommand}
               onChangeText={setInputCommand}
               placeholder={isTerminalRunning ? 'Process running...' : 'Enter bash command...'}
-              placeholderTextColor={isLight ? '#8c959f' : '#737373'}
+              placeholderTextColor={isSwiss ? '#9C9589' : isLight ? '#8c959f' : '#737373'}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="send"
@@ -350,20 +351,20 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
             {/* History Stepper Buttons */}
             <View style={styles.historyBtnGroup}>
               <TouchableOpacity
-                style={[styles.historyBtn, isLight && styles.historyBtnLight]}
+                style={[styles.historyBtn, isLight && styles.historyBtnLight, isSwiss && styles.historyBtnSwiss]}
                 onPress={handleHistoryUp}
                 disabled={terminalHistory.length === 0}
                 accessibilityLabel="Previous command"
               >
-                <ChevronUp size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <ChevronUp size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.historyBtn, isLight && styles.historyBtnLight]}
+                style={[styles.historyBtn, isLight && styles.historyBtnLight, isSwiss && styles.historyBtnSwiss]}
                 onPress={handleHistoryDown}
                 disabled={historyIndex < 0}
                 accessibilityLabel="Next command"
               >
-                <ChevronDown size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
+                <ChevronDown size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
               </TouchableOpacity>
             </View>
 
@@ -382,14 +383,15 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
               <TouchableOpacity
                 style={[
                   styles.runBtn,
-                  !inputCommand.trim() && styles.runBtnDisabled,
-                  isLight && inputCommand.trim() && { backgroundColor: '#0969da' },
+                  !inputCommand.trim() && (isSwiss ? styles.runBtnDisabledSwiss : styles.runBtnDisabled),
+                  isSwiss && inputCommand.trim() && { backgroundColor: '#DC201E' },
+                  !isSwiss && isLight && inputCommand.trim() && { backgroundColor: '#0969da' },
                 ]}
                 onPress={() => handleRun()}
                 disabled={!inputCommand.trim()}
                 activeOpacity={0.8}
               >
-                <Play size={13} color={!inputCommand.trim() ? '#737373' : (isLight ? '#ffffff' : '#0a0a0a')} />
+                <Play size={13} color={!inputCommand.trim() ? (isSwiss ? '#9C9589' : '#737373') : '#ffffff'} />
               </TouchableOpacity>
             )}
           </View>
@@ -656,5 +658,53 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
+  },
+
+  // Swiss Theme Overrides
+  headerSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderBottomColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  iconCircleSwiss: {
+    backgroundColor: '#EBE4D8',
+    borderColor: 'rgba(17, 16, 16, 0.16)',
+  },
+  actionBtnSwiss: {
+    backgroundColor: '#EBE4D8',
+    borderWidth: 1,
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  closeBtnSwiss: {
+    backgroundColor: '#EBE4D8',
+    borderWidth: 1,
+    borderColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  quickBarSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderBottomColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  quickPillSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(17, 16, 16, 0.16)',
+  },
+  quickPillTextSwiss: {
+    color: '#111010',
+  },
+  consoleContainerSwiss: {
+    backgroundColor: '#F1EBE1',
+  },
+  inputBarSwiss: {
+    backgroundColor: '#F8F3EC',
+    borderTopColor: 'rgba(17, 16, 16, 0.14)',
+  },
+  textInputSwiss: {
+    color: '#111010',
+  },
+  historyBtnSwiss: {
+    backgroundColor: '#EBE4D8',
+  },
+  runBtnDisabledSwiss: {
+    backgroundColor: '#EBE4D8',
+    opacity: 0.7,
   },
 });

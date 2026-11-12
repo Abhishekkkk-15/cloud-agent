@@ -43,7 +43,8 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   onSelectFolder,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const browseDirectories = useDaemonStore((s) => s.browseDirectories);
   const createDirectory = useDaemonStore((s) => s.createDirectory);
 
@@ -176,7 +177,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
           <View className="flex-row items-center justify-between mb-2">
             <View className="flex-row items-center gap-2 flex-1 mr-2">
               <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
-                <Folder size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                <Folder size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
@@ -399,7 +400,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                 onPress={() => loadDirectory(dir.fullPath)}
               >
                 <Item.Media variant="icon">
-                  <Folder size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Folder size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
                 </Item.Media>
                 <Item.Content>
                   <Item.Title className="text-sm font-medium text-foreground">
@@ -428,7 +429,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
             disabled={!currentPath || isLoading}
             className="flex-row items-center gap-1.5 px-4"
           >
-            <Check size={14} color={isLight ? '#fafafa' : '#262626'} />
+            <Check size={14} color={isSwiss ? '#ffffff' : (isLight ? '#fafafa' : '#262626')} />
             <Text className="text-xs font-semibold text-primary-foreground">Choose This Folder</Text>
           </Button>
         </BottomSheet.Footer>

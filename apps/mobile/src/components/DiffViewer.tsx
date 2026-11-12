@@ -128,7 +128,8 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
   defaultExpanded = true,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [copied, setCopied] = useState(false);
@@ -186,7 +187,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
           activeOpacity={collapsible ? 0.7 : 1}
           onPress={collapsible ? () => setExpanded((prev) => !prev) : undefined}
         >
-          <FileCode size={14} color={isLight ? '#262626' : '#f5f5f5'} />
+          <FileCode size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
           <View className="flex-1">
             <Text className="text-xs font-mono font-semibold text-foreground" numberOfLines={1}>
               {basename}

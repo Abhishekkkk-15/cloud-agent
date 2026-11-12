@@ -8,7 +8,8 @@ import { useDaemonStore } from '../stores/useDaemonStore';
 export const OfflineBanner: React.FC = () => {
   const insets = useSafeAreaInsets();
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const isNetworkOnline = useDaemonStore((s) => s.isNetworkOnline);
   const checkNetwork = useDaemonStore((s) => s.checkNetwork);
 

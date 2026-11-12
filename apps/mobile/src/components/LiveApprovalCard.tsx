@@ -18,7 +18,8 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
   isResponding = false,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const riskLevel = approval.riskLevel ? approval.riskLevel.toUpperCase() : 'PRIVILEGED';
   const isHighRisk = riskLevel === 'PRIVILEGED' || riskLevel === 'ELEVATED' || riskLevel === 'CRITICAL';
@@ -68,7 +69,7 @@ export const LiveApprovalCard: React.FC<LiveApprovalCardProps> = ({
       {/* Code / Command Preview Box */}
       <View className="p-2.5 rounded-xl bg-surface-secondary border border-border mb-3">
         <View className="flex-row items-center gap-1.5 mb-1.5 pb-1 border-b border-border">
-          <Terminal size={12} color={isLight ? '#262626' : '#a3a3a3'} />
+          <Terminal size={12} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#a3a3a3'} />
           <Text className="text-[11px] font-mono text-muted-foreground">
             tool: {approval.tool || 'bash'}
           </Text>

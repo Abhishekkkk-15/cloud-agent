@@ -39,7 +39,8 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
   onClose,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   const { height: windowHeight } = useWindowDimensions();
   const modalHeight = Math.min(680, Math.round(windowHeight * 0.85));
@@ -202,7 +203,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
         <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
           <View className="flex-row items-center gap-2.5 flex-1 mr-2">
             <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
-              <Server size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+              <Server size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
             </View>
             <View className="flex-1">
               <Dialog.Title className="text-base font-semibold text-foreground">
@@ -219,7 +220,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
               size="sm"
               className="w-7 h-7 p-0 items-center justify-center rounded-lg"
             >
-              <X size={15} color={isLight ? '#686868' : '#a3a3a3'} />
+              <X size={15} color={isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3'} />
             </Button>
           </Dialog.Close>
         </View>
@@ -259,7 +260,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
               <Tabs.List className="w-full bg-surface-secondary border border-border p-1 rounded-xl flex-row">
                 <Tabs.Trigger
                   value="scan"
-                  icon={<Camera size={13} color={activeTab === 'scan' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />}
+                  icon={<Camera size={13} color={activeTab === 'scan' ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5') : (isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3')} />}
                   className="flex-1 px-1 py-1"
                   labelClassName="text-xs font-medium"
                 >
@@ -267,7 +268,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 </Tabs.Trigger>
                 <Tabs.Trigger
                   value="code"
-                  icon={<Code2 size={13} color={activeTab === 'code' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />}
+                  icon={<Code2 size={13} color={activeTab === 'code' ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5') : (isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3')} />}
                   className="flex-1 px-1 py-1"
                   labelClassName="text-xs font-medium"
                 >
@@ -275,7 +276,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 </Tabs.Trigger>
                 <Tabs.Trigger
                   value="cli"
-                  icon={<Terminal size={13} color={activeTab === 'cli' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />}
+                  icon={<Terminal size={13} color={activeTab === 'cli' ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5') : (isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3')} />}
                   className="flex-1 px-1 py-1"
                   labelClassName="text-xs font-medium"
                 >

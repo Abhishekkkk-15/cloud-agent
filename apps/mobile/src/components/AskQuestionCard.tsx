@@ -23,7 +23,8 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
   isSubmitting = false,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
 
   // 1. Parse questions array from action arguments safely
   const questions = useMemo<QuestionItem[]>(() => {
@@ -205,7 +206,7 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
                         )}
                       >
                         {isSelected && (
-                          <Check size={11} color={isLight ? '#fafafa' : '#262626'} />
+                          <Check size={11} color={isSwiss ? '#ffffff' : (isLight ? '#fafafa' : '#262626')} />
                         )}
                       </View>
 
@@ -249,10 +250,10 @@ export const AskQuestionCard: React.FC<AskQuestionCardProps> = ({
             disabled={!hasAnySelection || isSubmitting}
           >
             {isSubmitting ? (
-              <Spinner size="sm" color={isLight ? '#fafafa' : '#262626'} />
+              <Spinner size="sm" color={isSwiss ? '#ffffff' : (isLight ? '#fafafa' : '#262626')} />
             ) : (
               <>
-                <Send size={13} color={isLight ? '#fafafa' : '#262626'} />
+                <Send size={13} color={isSwiss ? '#ffffff' : (isLight ? '#fafafa' : '#262626')} />
                 <Text className="text-xs font-semibold text-primary-foreground">
                   Submit Selection
                 </Text>
