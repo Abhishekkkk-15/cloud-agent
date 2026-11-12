@@ -169,7 +169,7 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
               </Text>
             </View>
           ) : (
-            <GridItem.Group columns={1} gap={8} rowHeight={74} size="sm">
+            <GridItem.Group columns={1} gap={8} rowHeight={80} size="default">
               {machines.map((machine) => {
                 const isActive = activeMachine?.machineId === machine.machineId;
                 const isSwitchingThis = switchingId === machine.machineId;
@@ -181,21 +181,21 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
                     rowSpan={1}
                     onPress={() => handleSelect(machine)}
                     disabled={isSwitchingThis}
-                    className="p-2.5 flex-row items-center justify-between"
+                    className="p-3 flex-row items-center justify-between"
                     style={[
                       glossyGridItem.containerStyle,
                       isActive ? { borderColor: 'rgba(245, 245, 245, 0.4)' } : undefined,
                     ]}
                   >
-                    <View className="flex-row items-center gap-2.5 flex-1 mr-2">
+                    <View className="flex-row items-center gap-3 flex-1 mr-2.5">
                       <GridItem.Media variant="icon">
-                        <Server size={14} color={isLight ? '#262626' : '#f5f5f5'} />
+                        <Server size={16} color={isLight ? '#262626' : '#f5f5f5'} />
                       </GridItem.Media>
                       <View className="flex-1">
                         <View className="flex-row items-center gap-1.5 mb-0.5">
                           <GridItem.Title numberOfLines={1}>{machine.name}</GridItem.Title>
                           {isActive && (
-                            <Badge variant="default" size="xs">Active</Badge>
+                            <Badge variant="default" size="sm">Active</Badge>
                           )}
                         </View>
                         <GridItem.Description numberOfLines={1}>
@@ -204,13 +204,14 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
                       </View>
                     </View>
 
-                    <View className="flex-row items-center gap-1.5 shrink-0">
+                    <View className="flex-row items-center gap-2 shrink-0">
                       {isSwitchingThis ? (
                         <Spinner size="sm" />
                       ) : !isActive ? (
                         <Button
                           variant="outline"
-                          size="xs"
+                          size="sm"
+                          className="px-3.5 py-1.5"
                           onPress={() => handleSelect(machine)}
                         >
                           Switch
@@ -220,9 +221,9 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
                       <TouchableOpacity
                         onPress={() => handleUnpair(machine)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        className="p-1.5 rounded-lg"
+                        className="p-2 rounded-lg"
                       >
-                        <Trash2 size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                        <Trash2 size={15} color={isLight ? '#686868' : '#a3a3a3'} />
                       </TouchableOpacity>
                     </View>
                   </GridItem>

@@ -13,10 +13,12 @@ import {
   Text,
   Badge,
   Spinner,
+  toast,
   cn,
 } from 'panelui-native';
 import {
   Folder,
+  FolderPlus,
   ArrowUp,
   Home,
   RefreshCw,
@@ -43,6 +45,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light';
   const browseDirectories = useDaemonStore((s) => s.browseDirectories);
+  const createDirectory = useDaemonStore((s) => s.createDirectory);
 
   const [currentPath, setCurrentPath] = useState<string>('');
   const [parentPath, setParentPath] = useState<string | null>(null);
@@ -52,11 +55,19 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isSubmittingFolder, setIsSubmittingFolder] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
   useEffect(() => {
     if (visible) {
       loadDirectory(initialPath);
     } else {
       setSearchFilter('');
+      setIsCreatingFolder(false);
+      setNewFolderName('');
+      setCreateError(null);
     }
   }, [visible, initialPath]);
 
@@ -80,6 +91,43 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
     if (currentPath) {
       onSelectFolder(currentPath);
       onClose();
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    const trimmed = newFolderName.trim();
+    if (!trimmed || !currentPath || isSubmittingFolder) return;
+
+    if (/[\\/:*?"<>|]/.test(trimmed) || trimmed.includes('..')) {
+      setCreateError('Name cannot contain \\, /, :, *, ?, ", <, >, | or ".."');
+      return;
+    }
+
+    setIsSubmittingFolder(true);
+    setCreateError(null);
+    const result = await createDirectory(currentPath, trimmed);
+    setIsSubmittingFolder(false);
+
+    if (result.ok && result.fullPath) {
+      toast.show({
+        variant: 'success',
+        label: 'Folder Created',
+        description: `Created "${trimmed}" on host system`,
+        duration: 2500,
+      });
+      setIsCreatingFolder(false);
+      setNewFolderName('');
+      setCreateError(null);
+      // Navigate directly into the newly created folder
+      await loadDirectory(result.fullPath);
+    } else {
+      setCreateError(result.error || 'Failed to create folder');
+      toast.show({
+        variant: 'destructive',
+        label: 'Creation Failed',
+        description: result.error || 'Could not create folder on host system',
+        duration: 3500,
+      });
     }
   };
 
@@ -196,13 +244,93 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
                 variant="outline"
                 size="xs"
                 onPress={() => loadDirectory(parentPath)}
-                className="flex-row items-center gap-1 px-2 py-0.5 ml-auto"
+                className="flex-row items-center gap-1 px-2 py-0.5"
               >
                 <ArrowUp size={11} color={isLight ? '#262626' : '#f5f5f5'} />
                 <Text className="text-xs font-medium text-foreground">Up</Text>
               </Button>
             ) : null}
+
+            <Button
+              variant={isCreatingFolder ? 'secondary' : 'outline'}
+              size="xs"
+              onPress={() => {
+                setIsCreatingFolder((prev) => !prev);
+                setNewFolderName('');
+                setCreateError(null);
+              }}
+              className="flex-row items-center gap-1 px-2 py-0.5 ml-auto"
+            >
+              <FolderPlus size={11} color={isLight ? '#262626' : '#f5f5f5'} />
+              <Text className="text-xs font-medium text-foreground">New Folder</Text>
+            </Button>
           </View>
+
+          {/* New Folder Inline Form */}
+          {isCreatingFolder && (
+            <View className="mb-2 p-2.5 rounded-xl bg-surface-secondary border border-border">
+              <View className="flex-row items-center justify-between mb-1.5">
+                <View className="flex-row items-center gap-1.5">
+                  <FolderPlus size={13} color={isLight ? '#262626' : '#f5f5f5'} />
+                  <Text className="text-xs font-semibold text-foreground">
+                    Create New Folder
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    setIsCreatingFolder(false);
+                    setNewFolderName('');
+                    setCreateError(null);
+                  }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <X size={13} color={isLight ? '#686868' : '#a3a3a3'} />
+                </TouchableOpacity>
+              </View>
+
+              <View className="flex-row items-center gap-1.5">
+                <View className="flex-1">
+                  <Input
+                    value={newFolderName}
+                    onChangeText={(t) => {
+                      setNewFolderName(t);
+                      if (createError) setCreateError(null);
+                    }}
+                    placeholder="Enter folder name..."
+                    size="sm"
+                    autoFocus
+                    variant="outline"
+                    className="w-full text-xs"
+                    returnKeyType="done"
+                    onSubmitEditing={handleCreateFolder}
+                  />
+                </View>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onPress={handleCreateFolder}
+                  disabled={!newFolderName.trim() || isSubmittingFolder}
+                  className="px-3 h-8 flex-row items-center gap-1"
+                >
+                  {isSubmittingFolder ? (
+                    <Spinner size="sm" />
+                  ) : (
+                    <>
+                      <Check size={12} color={isLight ? '#fafafa' : '#262626'} />
+                      <Text className="text-xs font-semibold text-primary-foreground">Create</Text>
+                    </>
+                  )}
+                </Button>
+              </View>
+
+              {createError ? (
+                <Text className="text-[11px] text-destructive mt-1 font-medium">
+                  {createError}
+                </Text>
+              ) : null}
+            </View>
+          )}
 
           {/* Breadcrumbs Trail */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="py-1">

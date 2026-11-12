@@ -199,3 +199,48 @@ export function listDirectories(parentPath?: string): ListDirectoriesResult {
     };
   }
 }
+
+export interface CreateDirectoryResult {
+  ok: boolean;
+  fullPath: string;
+  name: string;
+}
+
+/**
+ * Creates a new directory on the host filesystem directly from remote client requests.
+ */
+export function createDirectory(parentPath: string, folderName?: string): CreateDirectoryResult {
+  const cleanParent = parentPath.trim();
+  const cleanName = (folderName || "").trim();
+
+  if (!cleanParent) {
+    throw new Error("Missing parent directory path");
+  }
+
+  let targetPath: string;
+  let finalName: string;
+
+  if (cleanName) {
+    // Disallow directory traversal or prohibited filesystem characters in the folder name
+    if (/[\\/:*?"<>|]/.test(cleanName) || cleanName.includes("..")) {
+      throw new Error(`Invalid folder name "${cleanName}". Folder names cannot contain slashes, colons, or "..".`);
+    }
+    targetPath = path.join(cleanParent, cleanName);
+    finalName = cleanName;
+  } else {
+    targetPath = path.resolve(cleanParent);
+    finalName = path.basename(targetPath) || targetPath;
+  }
+
+  if (fs.existsSync(targetPath)) {
+    throw new Error(`A folder or file named "${finalName}" already exists at this location.`);
+  }
+
+  fs.mkdirSync(targetPath, { recursive: true });
+
+  return {
+    ok: true,
+    fullPath: targetPath,
+    name: finalName,
+  };
+}

@@ -402,6 +402,7 @@ interface DaemonStoreState {
   fetchArtifactContent: (artifactPath: string) => Promise<string>;
   fetchDirectorySuggestions: (parentPath?: string) => Promise<Array<{ name: string; fullPath: string }>>;
   browseDirectories: (path?: string) => Promise<DirectoryBrowseResult | null>;
+  createDirectory: (parentPath: string, folderName: string) => Promise<{ ok: boolean; fullPath?: string; error?: string }>;
   startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => void;
   fetchMachines: () => Promise<MachineInfo[]>;
   selectMachine: (machine: MachineInfo) => Promise<void>;
@@ -1574,6 +1575,19 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch (err) {
       console.error('[DaemonStore] browseDirectories error:', err);
       return null;
+    }
+  },
+
+  createDirectory: async (parentPath: string, folderName: string) => {
+    try {
+      const res = await mobileP2P.sendRpc<{ ok: boolean; fullPath: string; name: string }>('fs.createDir', {
+        parentPath,
+        name: folderName,
+      });
+      return { ok: true, fullPath: res.fullPath };
+    } catch (err: any) {
+      console.error('[DaemonStore] createDirectory error:', err);
+      return { ok: false, error: err?.message || 'Failed to create directory on host' };
     }
   },
 

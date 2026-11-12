@@ -12,7 +12,7 @@ import {
   handleSessionPin,
 } from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
-import { buildFileTree, readFileContent, writeFileContent, listDirectories } from "./fs.js";
+import { buildFileTree, readFileContent, writeFileContent, listDirectories, createDirectory } from "./fs.js";
 import { loadConfig } from "../config.js";
 import { proxyLocalHttp } from "../tunnel.js";
 import {
@@ -649,6 +649,17 @@ export class RpcDispatcher {
         case "fs.listDirs": {
           const targetPath = params.parentPath || params.path;
           const result = listDirectories(targetPath);
+          return { id: req.id, result };
+        }
+
+        case "fs.createDir":
+        case "fs.mkdir": {
+          const parent = params.parentPath || params.path;
+          const name = params.name || params.folderName;
+          if (!parent) {
+            throw new Error("Missing parentPath param");
+          }
+          const result = createDirectory(parent, name);
           return { id: req.id, result };
         }
 

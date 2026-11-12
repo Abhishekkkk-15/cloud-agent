@@ -321,26 +321,48 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               </Animated.View>
             )}
 
-            {/* 2. Compact Machine Selector Capsule */}
+            {/* 2. Compute Node Selector Card */}
             <TouchableOpacity
               onPress={() => setShowMachineSwitcher(true)}
               activeOpacity={0.7}
-              className="flex-row items-center justify-between px-3 py-2 rounded-xl bg-surface border border-border mb-3"
+              className="flex-row items-center justify-between px-3.5 py-3 rounded-2xl bg-surface border border-border mb-3.5"
             >
-              <View className="flex-row items-center gap-2 flex-1 mr-2">
-                <View className="w-2 h-2 rounded-full bg-emerald-500" />
-                <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
-                  {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
-                </Text>
-                {pingRtt ? (
-                  <Text className="text-[11px] text-muted-foreground font-mono">
-                    • {pingRtt}
+              <View className="flex-row items-center gap-3 flex-1 mr-2.5">
+                <View className="relative">
+                  <View className="w-9 h-9 rounded-xl bg-surface-secondary border border-border items-center justify-center">
+                    <Server size={17} color={isLight ? '#262626' : '#f5f5f5'} />
+                  </View>
+                  <View
+                    className={cn(
+                      'absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-surface',
+                      activeMachine?.isOnline !== false ? 'bg-emerald-500' : 'bg-amber-500'
+                    )}
+                  />
+                </View>
+
+                <View className="flex-1 justify-center">
+                  <Text className="text-[14px] font-semibold text-foreground leading-tight" numberOfLines={1}>
+                    {activeMachine?.name || daemonStatus?.hostname || 'Compute Node'}
                   </Text>
-                ) : null}
+                  <View className="flex-row items-center gap-1.5 mt-0.5">
+                    <Text className="text-xs text-muted-foreground">
+                      {activeMachine?.platform || daemonStatus?.platform || 'Host'}
+                    </Text>
+                    {pingRtt ? (
+                      <>
+                        <Text className="text-xs text-muted-foreground">•</Text>
+                        <Text className="text-xs text-muted-foreground font-mono">
+                          {pingRtt}
+                        </Text>
+                      </>
+                    ) : null}
+                  </View>
+                </View>
               </View>
-              <View className="flex-row items-center gap-1 shrink-0">
-                <Text className="text-[11px] text-muted-foreground font-medium">Switch</Text>
-                <ChevronsUpDown size={12} color={isLight ? '#686868' : '#a3a3a3'} />
+
+              <View className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary shrink-0">
+                <Text className="text-xs font-semibold text-foreground">Switch</Text>
+                <ChevronsUpDown size={13} color={isLight ? '#262626' : '#f5f5f5'} />
               </View>
             </TouchableOpacity>
 
@@ -520,90 +542,90 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 </Tree>
               )}
             </View>
-
-            {/* 6. Essential Management & Tools */}
-            <View className="pt-3 mt-2 border-t border-border mb-2">
-              <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
-                Management & Tools
-              </Text>
-
-              {/* Command Approvals */}
-              <Item
-                variant="default"
-                size="sm"
-                className={cn(
-                  'px-2.5 py-2 rounded-xl my-0.5',
-                  currentScreen === 'approvals' && 'bg-secondary'
-                )}
-                onPress={() => handleNavScreen('approvals')}
-              >
-                <Item.Media variant="icon">
-                  <ShieldAlert size={18} color={pendingApproval ? '#ef4444' : (isLight ? '#686868' : '#a3a3a3')} />
-                </Item.Media>
-                <Item.Content>
-                  <Item.Title className={cn('text-[15px]', currentScreen === 'approvals' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
-                    Command Approvals
-                  </Item.Title>
-                </Item.Content>
-                <Item.Actions>
-                  {pendingApproval ? (
-                    <Badge variant="destructive" size="sm" className="px-2 py-0.5">
-                      <Text className="text-xs font-semibold text-destructive-foreground">1 Action</Text>
-                    </Badge>
-                  ) : null}
-                </Item.Actions>
-              </Item>
-
-              {/* Machine Health & Telemetry */}
-              <Item
-                variant="default"
-                size="sm"
-                className={cn(
-                  'px-2.5 py-2 rounded-xl my-0.5',
-                  currentScreen === 'health' && 'bg-secondary'
-                )}
-                onPress={() => handleNavScreen('health')}
-              >
-                <Item.Media variant="icon">
-                  <Activity size={18} color={currentScreen === 'health' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
-                </Item.Media>
-                <Item.Content>
-                  <Item.Title className={cn('text-[15px]', currentScreen === 'health' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
-                    Machine Health & Fleet
-                  </Item.Title>
-                </Item.Content>
-              </Item>
-
-              {/* Server & Notifications Settings */}
-              <Item
-                variant="default"
-                size="sm"
-                className="px-2.5 py-2 rounded-xl my-0.5"
-                onPress={() => setShowServerSettings(true)}
-              >
-                <Item.Media variant="icon">
-                  <Bell size={18} color={isPushRegistered ? '#10b981' : (isLight ? '#686868' : '#a3a3a3')} />
-                </Item.Media>
-                <Item.Content>
-                  <Item.Title className="text-[15px] font-medium text-foreground">
-                    Settings & Push Alerts
-                  </Item.Title>
-                </Item.Content>
-                <Item.Actions className="flex-row items-center gap-2">
-                  <Badge
-                    variant={isPushRegistered ? 'success' : 'secondary'}
-                    size="sm"
-                    className="px-1.5 py-0"
-                  >
-                    <Text className="text-[10px] font-medium">
-                      {isPushRegistered ? 'Active' : 'Offline'}
-                    </Text>
-                  </Badge>
-                  <ChevronRight size={15} color={isLight ? '#686868' : '#a3a3a3'} />
-                </Item.Actions>
-              </Item>
-            </View>
           </Drawer.Body>
+
+          {/* Sticky Management & Tools (Pinned right above user profile) */}
+          <View className="border-t border-border px-3 pt-2 pb-1 bg-card">
+            <Text className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 px-1">
+              Management & Tools
+            </Text>
+
+            {/* Command Approvals */}
+            <Item
+              variant="default"
+              size="sm"
+              className={cn(
+                'px-2.5 py-1.5 rounded-xl my-0.5',
+                currentScreen === 'approvals' && 'bg-secondary'
+              )}
+              onPress={() => handleNavScreen('approvals')}
+            >
+              <Item.Media variant="icon">
+                <ShieldAlert size={17} color={pendingApproval ? '#ef4444' : (isLight ? '#686868' : '#a3a3a3')} />
+              </Item.Media>
+              <Item.Content>
+                <Item.Title className={cn('text-[14px]', currentScreen === 'approvals' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
+                  Command Approvals
+                </Item.Title>
+              </Item.Content>
+              <Item.Actions>
+                {pendingApproval ? (
+                  <Badge variant="destructive" size="sm" className="px-2 py-0.5">
+                    <Text className="text-xs font-semibold text-destructive-foreground">1 Action</Text>
+                  </Badge>
+                ) : null}
+              </Item.Actions>
+            </Item>
+
+            {/* Machine Health & Telemetry */}
+            <Item
+              variant="default"
+              size="sm"
+              className={cn(
+                'px-2.5 py-1.5 rounded-xl my-0.5',
+                currentScreen === 'health' && 'bg-secondary'
+              )}
+              onPress={() => handleNavScreen('health')}
+            >
+              <Item.Media variant="icon">
+                <Activity size={17} color={currentScreen === 'health' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
+              </Item.Media>
+              <Item.Content>
+                <Item.Title className={cn('text-[14px]', currentScreen === 'health' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
+                  Machine Health & Fleet
+                </Item.Title>
+              </Item.Content>
+            </Item>
+
+            {/* Server & Notifications Settings */}
+            <Item
+              variant="default"
+              size="sm"
+              className="px-2.5 py-1.5 rounded-xl my-0.5"
+              onPress={() => setShowServerSettings(true)}
+            >
+              <Item.Media variant="icon">
+                <Bell size={17} color={isPushRegistered ? '#10b981' : (isLight ? '#686868' : '#a3a3a3')} />
+              </Item.Media>
+              <Item.Content>
+                <Item.Title className="text-[14px] font-medium text-foreground">
+                  Settings & Push Alerts
+                </Item.Title>
+              </Item.Content>
+              <Item.Actions className="flex-row items-center gap-2">
+                <Badge
+                  variant={isPushRegistered ? 'success' : 'secondary'}
+                  size="sm"
+                  className="px-1.5 py-0"
+                >
+                  <Text className="text-[10px] font-medium">
+                    {isPushRegistered ? 'Active' : 'Offline'}
+                  </Text>
+                </Badge>
+                <ChevronRight size={14} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Item.Actions>
+            </Item>
+          </View>
 
           {/* 7. Drawer Footer: User Profile */}
           <Drawer.Footer className="border-t border-border px-4 py-3 flex-row items-center justify-between">
