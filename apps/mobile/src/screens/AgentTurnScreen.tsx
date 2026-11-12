@@ -18,6 +18,7 @@ import {
   Easing,
   LayoutAnimation,
   UIManager,
+  LayoutChangeEvent,
 } from 'react-native';
 import AnimatedReanimated, {
   useSharedValue,
@@ -196,9 +197,55 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [effectiveKeyboardHeight, setEffectiveKeyboardHeight] = useState(0);
   const keyboardAnim = useSharedValue(0);
 
+  const maxContainerHeightRef = useRef(0);
+  const currentContainerHeightRef = useRef(0);
+  const rawKeyboardHeightRef = useRef(0);
+
   const isKeyboardActive = keyboardHeight > 0;
+
+  const updateKeyboardOffset = useCallback((kbH: number, animDuration = 250) => {
+    rawKeyboardHeightRef.current = kbH;
+    setKeyboardHeight(kbH);
+
+    if (kbH <= 0) {
+      setEffectiveKeyboardHeight(0);
+      keyboardAnim.value = withTiming(0, {
+        duration: animDuration > 0 ? animDuration : 200,
+        easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
+      });
+      return;
+    }
+
+    // On Android, check how much the window already shrank (e.g. adjustResize in Expo Go)
+    // In standalone APK with translucent status bar, Android OS does NOT shrink the window,
+    // so windowShrank is 0 and neededLift is the full keyboard height.
+    let windowShrank = 0;
+    if (Platform.OS === 'android' && maxContainerHeightRef.current > 0 && currentContainerHeightRef.current > 0) {
+      windowShrank = Math.max(0, maxContainerHeightRef.current - currentContainerHeightRef.current);
+    }
+
+    const neededLift = Math.max(0, kbH - windowShrank);
+    setEffectiveKeyboardHeight(neededLift);
+
+    keyboardAnim.value = withTiming(neededLift, {
+      duration: animDuration,
+      easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
+    });
+  }, [keyboardAnim]);
+
+  const handleContainerLayout = useCallback((e: LayoutChangeEvent) => {
+    const h = e.nativeEvent.layout.height;
+    currentContainerHeightRef.current = h;
+    if (h > maxContainerHeightRef.current) {
+      maxContainerHeightRef.current = h;
+    } else if (rawKeyboardHeightRef.current > 0) {
+      // If layout resized while keyboard is open, adjust lift dynamically
+      updateKeyboardOffset(rawKeyboardHeightRef.current, 100);
+    }
+  }, [updateKeyboardOffset]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -206,17 +253,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
     const showSub = Keyboard.addListener(showEvent, (e) => {
       const rawKbH = e.endCoordinates ? e.endCoordinates.height : 0;
-      setKeyboardHeight(rawKbH);
-
-      // On iOS, window does not resize, so animate translateY by rawKbH.
-      // On Android, windowSoftInputMode="adjustResize" automatically resizes the window,
-      // so translateY is kept at 0 to avoid double spacing.
-      if (Platform.OS === 'ios') {
-        keyboardAnim.value = withTiming(rawKbH, {
-          duration: e.duration || 250,
-          easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
-        });
-      }
+      updateKeyboardOffset(rawKbH, e.duration || (Platform.OS === 'ios' ? 250 : 180));
 
       if (isNearBottomRef.current) {
         setTimeout(() => {
@@ -226,20 +263,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     });
 
     const hideSub = Keyboard.addListener(hideEvent, (e) => {
-      setKeyboardHeight(0);
-      if (Platform.OS === 'ios') {
-        keyboardAnim.value = withTiming(0, {
-          duration: e?.duration || 200,
-          easing: ReanimatedEasing.out(ReanimatedEasing.cubic),
-        });
-      }
+      updateKeyboardOffset(0, e?.duration || 200);
     });
 
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, [keyboardAnim]);
+  }, [updateKeyboardOffset]);
 
   const animatedKeyboardStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: -keyboardAnim.value }],
@@ -848,7 +879,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   };
 
   return (
-    <View style={[styles.container, isLight && { backgroundColor: '#ffffff' }]}>
+    <View
+      style={[styles.container, isLight && { backgroundColor: '#ffffff' }]}
+      onLayout={handleContainerLayout}
+    >
       {/* 0. Top Notch Background (Covers physical notch/status bar while keeping the header transparent without borders) */}
       {topInset > 0 && (
         <View
@@ -1028,7 +1062,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             paddingBottom:
               composerMeasuredHeight +
               Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) +
-              (Platform.OS === 'ios' ? keyboardHeight : 0) +
+              effectiveKeyboardHeight +
               18,
           },
         ]}
@@ -1390,7 +1424,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 Math.max(insets.bottom, 12) +
                 12,
             },
-            Platform.OS === 'ios' ? animatedKeyboardStyle : null,
+            animatedKeyboardStyle,
           ]}
           pointerEvents="box-none"
         >
@@ -1414,7 +1448,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <AnimatedReanimated.View
         style={[
           styles.keyboardAvoidingInputWrapper,
-          Platform.OS === 'ios' ? animatedKeyboardStyle : null,
+          animatedKeyboardStyle,
         ]}
         pointerEvents="box-none"
       >
