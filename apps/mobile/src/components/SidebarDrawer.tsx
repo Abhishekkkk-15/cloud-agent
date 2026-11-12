@@ -74,6 +74,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const isLoadingSessions = useDaemonStore((s) => s.isLoadingSessions);
   const activeSession = useDaemonStore((s) => s.activeSession);
   const workspaces = useDaemonStore((s) => s.workspaces);
+  const knownWorkspaces = useDaemonStore((s) => s.knownWorkspaces);
+  const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const selectSession = useDaemonStore((s) => s.selectSession);
   const startNewSessionInWorkspace = useDaemonStore((s) => s.startNewSessionInWorkspace);
   const logout = useDaemonStore((s) => s.logout);
@@ -117,16 +119,17 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     }
   }, [isOpen, drawerSearch]);
 
-  // Auto-expand active session's workspace folder
+  // Auto-expand active session's or target workspace folder
   useEffect(() => {
-    if (activeSession?.workspaceName) {
+    const currentWs =
+      activeSession?.workspaceName ||
+      (targetWorkspacePath ? targetWorkspacePath.replace(/\\/g, '/').split('/').filter(Boolean).pop() : null);
+    if (currentWs) {
       setExpandedWorkspaces((prev) =>
-        prev.includes(activeSession.workspaceName || 'Default')
-          ? prev
-          : [...prev, activeSession.workspaceName || 'Default']
+        prev.includes(currentWs) ? prev : [...prev, currentWs]
       );
     }
-  }, [activeSession?.id, activeSession?.workspaceName]);
+  }, [activeSession?.id, activeSession?.workspaceName, targetWorkspacePath]);
 
   const handleStartSessionInWorkspace = (workspacePath: string) => {
     onClose();
@@ -171,7 +174,32 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       }
     }
 
-    // 2. Group sessions by workspaceName
+    // 2. Seed with known workspaces from host
+    for (const kw of knownWorkspaces) {
+      if (kw.name) {
+        const existing = groupedMap.get(kw.name);
+        if (existing) {
+          if (!existing.path && kw.path) existing.path = kw.path;
+        } else {
+          groupedMap.set(kw.name, { name: kw.name, path: kw.path || '', items: [] });
+        }
+      }
+    }
+
+    // 3. Seed active targetWorkspacePath if set
+    if (targetWorkspacePath) {
+      const clean = targetWorkspacePath.replace(/\\/g, '/');
+      const parts = clean.split('/').filter(Boolean);
+      const wsName = parts.length > 0 ? parts[parts.length - 1] : clean;
+      if (!groupedMap.has(wsName)) {
+        groupedMap.set(wsName, { name: wsName, path: targetWorkspacePath, items: [] });
+      } else {
+        const existing = groupedMap.get(wsName)!;
+        if (!existing.path) existing.path = targetWorkspacePath;
+      }
+    }
+
+    // 4. Group sessions by workspaceName
     for (const s of searchedSessions) {
       const key = s.workspaceName || 'Default';
       const existing = groupedMap.get(key);
@@ -187,7 +215,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       }
     }
 
-    // 3. Filter and assemble groups
+    // 5. Filter and assemble groups
     const query = drawerSearch.trim().toLowerCase();
     const groups: Array<{ name: string; path: string; items: RealSessionItem[] }> = [];
 
@@ -197,19 +225,20 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           groups.push(val);
         }
       } else {
-        if (val.items.length > 0 || workspaces.includes(name)) {
-          groups.push(val);
-        }
+        groups.push(val);
       }
     }
 
-    // Sort so activeSession's workspace is on top, then alphabetical
+    // Sort so activeSession's workspace (or target workspace) is on top, then alphabetical
+    const activeWs =
+      activeSession?.workspaceName ||
+      (targetWorkspacePath ? targetWorkspacePath.replace(/\\/g, '/').split('/').filter(Boolean).pop() : undefined);
     return groups.sort((a, b) => {
-      if (activeSession?.workspaceName === a.name) return -1;
-      if (activeSession?.workspaceName === b.name) return 1;
+      if (activeWs === a.name) return -1;
+      if (activeWs === b.name) return 1;
       return a.name.localeCompare(b.name);
     });
-  }, [workspaces, searchedSessions, drawerSearch, activeSession?.workspaceName]);
+  }, [workspaces, knownWorkspaces, targetWorkspacePath, searchedSessions, drawerSearch, activeSession?.workspaceName]);
 
   const operatorInitial = currentUser?.name
     ? currentUser.name[0].toUpperCase()

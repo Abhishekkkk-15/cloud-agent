@@ -169,7 +169,7 @@ export const FolderPickerModal: React.FC<FolderPickerModalProps> = ({
   return (
     <BottomSheet open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
       <BottomSheet.Content
-        size="85%"
+        size="full"
         showClose={false}
         className="bg-popover border-t border-border p-0 overflow-hidden"
       >

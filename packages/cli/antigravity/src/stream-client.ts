@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 import type { CliRunOptions, CliEvent } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath, getBrainDir } from "./paths.js";
 import { mapAntigravityStreamEvent } from "./mapper.js";
-import { getBrainSession } from "./transcript-reader.js";
+import { getBrainSession, writeSessionMeta } from "./transcript-reader.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -825,9 +825,20 @@ export class AntigravityStreamClient {
       }
     }
 
+    const finalCwd = effectiveCwd || options.cwd || process.cwd();
+    if (finalCwd) {
+      try {
+        const brainDir = getBrainDir();
+        const sessionDir = path.join(brainDir, sessionId);
+        writeSessionMeta(sessionDir, { workspacePath: finalCwd });
+      } catch {
+        // ignore
+      }
+    }
+
     const effectiveOptions: CliRunOptions = {
       ...options,
-      cwd: effectiveCwd || options.cwd || process.cwd(),
+      cwd: finalCwd,
       // Auto-approve in headless agy worker because operator permission was already resolved above
       dangerouslySkipPermissions: true,
     };

@@ -1700,16 +1700,26 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   },
 
   startNewSessionInWorkspace: (workspacePath: string, config?: Partial<SessionConfig>) => {
-    set((state) => ({
-      activeSession: null,
-      targetWorkspacePath: workspacePath,
-      sessionMessages: [],
-      sessionArtifacts: [],
-      messagesOffset: 0,
-      hasMoreMessages: false,
-      isLoadingOlderMessages: false,
-      sessionConfig: config ? { ...state.sessionConfig, ...config } : state.sessionConfig,
-    }));
+    const cleanPath = (workspacePath || '').replace(/\\/g, '/');
+    const parts = cleanPath.split('/').filter(Boolean);
+    const workspaceName = parts.length > 0 ? parts[parts.length - 1] : 'default';
+
+    set((state) => {
+      const updatedWorkspaces = state.workspaces.includes(workspaceName)
+        ? state.workspaces
+        : [...state.workspaces, workspaceName];
+      return {
+        activeSession: null,
+        targetWorkspacePath: workspacePath,
+        workspaces: updatedWorkspaces,
+        sessionMessages: [],
+        sessionArtifacts: [],
+        messagesOffset: 0,
+        hasMoreMessages: false,
+        isLoadingOlderMessages: false,
+        sessionConfig: config ? { ...state.sessionConfig, ...config } : state.sessionConfig,
+      };
+    });
   },
 
   generateMachinePairingToken: async (machineName?: string) => {
@@ -1950,7 +1960,16 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           };
         });
 
-        const uniqueWorkspaces = Array.from(new Set(parsed.map((s) => s.workspaceName)));
+        const targetWsName = get().targetWorkspacePath
+          ? (get().targetWorkspacePath || '').replace(/\\/g, '/').split('/').filter(Boolean).pop() || ''
+          : '';
+        const uniqueWorkspaces = Array.from(
+          new Set([
+            ...parsed.map((s) => s.workspaceName),
+            ...get().knownWorkspaces.map((k) => k.name),
+            ...(targetWsName ? [targetWsName] : []),
+          ].filter(Boolean))
+        );
 
         set({
           sessions: parsed,
@@ -2386,7 +2405,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         }
       } else {
         // Newly initiated session: refresh sessions from disk transcripts
+        const newSessionId = runResult?.sessionId || runResult?.result?.sessionId;
         await get().fetchSessions();
+        if (newSessionId) {
+          const matching = get().sessions.find((s) => s.id === newSessionId);
+          if (matching) {
+            set({
+              activeSession: matching,
+              targetWorkspacePath: matching.workspacePath || targetWorkspacePath,
+            });
+          }
+        }
       }
       get().fetchSessionArtifacts();
     } catch (err: any) {

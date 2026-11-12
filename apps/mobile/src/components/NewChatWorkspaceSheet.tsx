@@ -101,7 +101,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   return (
     <>
       <BottomSheet open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
-        <BottomSheet.Content size="80%" className="bg-popover border-t border-border p-0">
+        <BottomSheet.Content size="full" className="bg-popover border-t border-border p-0">
           <BottomSheet.Header className="px-4 py-3.5 border-b border-border bg-surface">
             <View className="flex-row items-center gap-2.5">
               <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">

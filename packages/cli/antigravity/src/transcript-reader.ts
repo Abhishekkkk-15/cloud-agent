@@ -121,6 +121,7 @@ function resolveWorkspaceRoot(rawCandidate: string): string {
 interface SessionMeta {
   customTitle?: string;
   pinned?: boolean;
+  workspacePath?: string;
   updatedAt?: string;
 }
 
@@ -142,6 +143,9 @@ export function readSessionMeta(sessionDir: string): SessionMeta | null {
 
 export function writeSessionMeta(sessionDir: string, meta: Partial<SessionMeta>): void {
   try {
+    if (!fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true });
+    }
     const metaPath = getSessionMetaPath(sessionDir);
     const existing = readSessionMeta(sessionDir) || {};
     const updated: SessionMeta = {
@@ -323,6 +327,9 @@ async function extractSessionSummary(
     title = meta.customTitle;
   }
   const pinned = Boolean(meta?.pinned);
+  if (!workspacePath && meta?.workspacePath) {
+    workspacePath = meta.workspacePath;
+  }
 
   return {
     id: sessionId,
