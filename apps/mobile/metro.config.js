@@ -74,5 +74,5 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 module.exports = withUniwindConfig(config, {
   cssEntryFile: './src/global.css',
   dtsFile: './uniwind-types.d.ts',
-  extraThemes: ['moon', 'moon-dark', 'grass', 'grass-dark'],
+  extraThemes: ['moon', 'moon-dark', 'grass', 'grass-dark', 'swiss', 'swiss-dark'],
 });

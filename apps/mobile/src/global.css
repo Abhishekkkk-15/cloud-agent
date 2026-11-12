@@ -4,3 +4,164 @@
 
 @source '../node_modules/panelui-native/src';
 @source './**/*.{ts,tsx}';
+
+@custom-variant swiss (&:where(.swiss, .swiss *));
+@custom-variant swiss-dark (&:where(.swiss-dark, .swiss-dark *));
+
+:root {
+  @variant swiss {
+    /* Swiss Minimalist Tactile Paper & Signal Red Palette */
+    --color-background: #F8F3EC;
+    --color-foreground: #111010;
+
+    --color-card: #F1EBE1;
+    --color-card-foreground: #111010;
+
+    --color-popover: #F8F3EC;
+    --color-popover-foreground: #111010;
+
+    --color-overlay: #F8F3EC;
+    --color-overlay-foreground: #111010;
+    --color-inset: rgba(17, 16, 16, 0.04);
+
+    --color-primary: #DC201E;
+    --color-primary-foreground: #FFFFFF;
+
+    --color-secondary: #EBE4D8;
+    --color-secondary-foreground: #111010;
+
+    --color-muted: #EBE4D8;
+    --color-muted-foreground: #6B665E;
+
+    --color-accent: #E5DDD0;
+    --color-accent-foreground: #111010;
+
+    --color-destructive: #DC201E;
+    --color-destructive-foreground: #DC201E;
+    --color-destructive-solid-foreground: #FFFFFF;
+
+    --color-info: #3b82f6;
+    --color-info-foreground: #1d4ed8;
+    --color-info-solid-foreground: #FFFFFF;
+
+    --color-success: #10b981;
+    --color-success-foreground: #047857;
+    --color-success-solid-foreground: #FFFFFF;
+
+    --color-warning: #f59e0b;
+    --color-warning-foreground: #b45309;
+    --color-warning-solid-foreground: #FFFFFF;
+
+    --color-border: rgba(17, 16, 16, 0.16);
+    --color-input: rgba(17, 16, 16, 0.20);
+    --color-ring: #DC201E;
+
+    --color-surface: #F1EBE1;
+    --color-surface-secondary: #EBE4D8;
+    --color-surface-tertiary: #E5DDD0;
+    --color-skeleton: rgba(17, 16, 16, 0.08);
+
+    --color-info-soft: rgba(59, 130, 246, 0.10);
+    --color-info-subtle: rgba(59, 130, 246, 0.08);
+    --color-success-soft: rgba(16, 185, 129, 0.10);
+    --color-success-subtle: rgba(16, 185, 129, 0.08);
+    --color-warning-soft: rgba(245, 158, 11, 0.12);
+    --color-warning-subtle: rgba(245, 158, 11, 0.08);
+    --color-destructive-soft: rgba(220, 32, 30, 0.10);
+    --color-destructive-subtle: rgba(220, 32, 30, 0.08);
+
+    --color-code-keyword: #DC201E;
+    --color-code-string: #166534;
+    --color-code-number: #0f766e;
+    --color-code-comment: #8C8880;
+    --color-code-function: #111010;
+    --color-code-property: #7c2d12;
+    --color-code-punctuation: #111010;
+    --color-code-inserted: #166534;
+    --color-code-deleted: #DC201E;
+
+    --color-chart-1: #DC201E;
+    --color-chart-2: #111010;
+    --color-chart-3: #8C8880;
+    --color-chart-4: #4A4640;
+    --color-chart-5: #B83025;
+  }
+
+  @variant swiss-dark {
+    /* Swiss Minimalist Obsidian Paper & Signal Red Palette */
+    --color-background: #141312;
+    --color-foreground: #F8F3EC;
+
+    --color-card: #1c1b19;
+    --color-card-foreground: #F8F3EC;
+
+    --color-popover: #201f1d;
+    --color-popover-foreground: #F8F3EC;
+
+    --color-overlay: #262522;
+    --color-overlay-foreground: #F8F3EC;
+    --color-inset: rgba(0, 0, 0, 0.25);
+
+    --color-primary: #DC201E;
+    --color-primary-foreground: #FFFFFF;
+
+    --color-secondary: rgba(248, 243, 236, 0.08);
+    --color-secondary-foreground: #F8F3EC;
+
+    --color-muted: rgba(248, 243, 236, 0.08);
+    --color-muted-foreground: #8C8880;
+
+    --color-accent: rgba(248, 243, 236, 0.08);
+    --color-accent-foreground: #F8F3EC;
+
+    --color-destructive: #f15757;
+    --color-destructive-foreground: #f87171;
+    --color-destructive-solid-foreground: #FFFFFF;
+
+    --color-info: #3b82f6;
+    --color-info-foreground: #60a5fa;
+    --color-info-solid-foreground: #FFFFFF;
+
+    --color-success: #10b981;
+    --color-success-foreground: #34d399;
+    --color-success-solid-foreground: #FFFFFF;
+
+    --color-warning: #f59e0b;
+    --color-warning-foreground: #fbbf24;
+    --color-warning-solid-foreground: #FFFFFF;
+
+    --color-border: rgba(248, 243, 236, 0.12);
+    --color-input: rgba(248, 243, 236, 0.15);
+    --color-ring: #DC201E;
+
+    --color-surface: #1e1d1b;
+    --color-surface-secondary: #242320;
+    --color-surface-tertiary: #2a2926;
+    --color-skeleton: rgba(248, 243, 236, 0.08);
+
+    --color-info-soft: rgba(59, 130, 246, 0.10);
+    --color-info-subtle: rgba(59, 130, 246, 0.08);
+    --color-success-soft: rgba(16, 185, 129, 0.10);
+    --color-success-subtle: rgba(16, 185, 129, 0.08);
+    --color-warning-soft: rgba(245, 158, 11, 0.14);
+    --color-warning-subtle: rgba(245, 158, 11, 0.10);
+    --color-destructive-soft: rgba(220, 32, 30, 0.15);
+    --color-destructive-subtle: rgba(220, 32, 30, 0.10);
+
+    --color-code-keyword: #DC201E;
+    --color-code-string: #4ade80;
+    --color-code-number: #2dd4bf;
+    --color-code-comment: #8C8880;
+    --color-code-function: #F8F3EC;
+    --color-code-property: #fb923c;
+    --color-code-punctuation: #F8F3EC;
+    --color-code-inserted: #4ade80;
+    --color-code-deleted: #f87171;
+
+    --color-chart-1: #DC201E;
+    --color-chart-2: #F8F3EC;
+    --color-chart-3: #8C8880;
+    --color-chart-4: #A39E96;
+    --color-chart-5: #B83025;
+  }
+}

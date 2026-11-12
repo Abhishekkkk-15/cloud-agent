@@ -86,6 +86,16 @@ When working on `apps/mobile` or client UI components:
     - **Borders & Dividers**: `rgba(0, 0, 0, 0.08)` (`border-border`)
     - **Primary Accent / Actions**: High-contrast `#262626` (`bg-primary`, `text-primary-foreground: #fafafa`)
     - **Secondary / Subtles**: `rgba(0, 0, 0, 0.06)` (`bg-secondary`, `bg-muted`)
+  - **Swiss Minimalist Palette (Tactile Newsprint / Paper)**:
+    - **Background**: `#F8F3EC` (`bg-background`) / Obsidian Dark: `#141312`
+    - **Card Surface**: `#F1EBE1` (`bg-card`) / Obsidian Dark: `#1C1B19`
+    - **Popover / Modal Surface**: `#EDE6DB` (`bg-popover`)
+    - **Nested Surfaces**: `#EBE4D8` (`bg-surface`), `#E4DCD0` (`bg-surface-secondary`)
+    - **Primary Text**: `#111010` (`text-foreground`) / Obsidian Dark: `#F4F0E8`
+    - **Muted Text**: `#6B665E` (`text-muted-foreground`) / Obsidian Dark: `#9C9589`
+    - **Borders & Dividers**: `rgba(17, 16, 16, 0.16)` (`border-border`)
+    - **Primary Accent / Actions**: Swiss Signal Red `#DC201E` (`bg-primary`, `text-primary-foreground: #ffffff`)
+    - **Secondary / Subtles**: `rgba(17, 16, 16, 0.06)` (`bg-secondary`, `bg-muted`)
   - **Status & Telemetry Only**:
     - **Info**: `#3b82f6`
     - **Success / Live**: `#10b981`

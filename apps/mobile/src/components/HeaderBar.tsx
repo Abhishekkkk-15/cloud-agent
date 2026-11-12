@@ -30,7 +30,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   return (

@@ -62,7 +62,7 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [searchQuery, setSearchQuery] = useState('');

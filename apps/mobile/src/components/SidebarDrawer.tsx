@@ -37,6 +37,7 @@ import {
   ChevronsUpDown,
   Sun,
   Moon,
+  Palette,
 } from './Icons';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
@@ -90,7 +91,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const deleteSession = useDaemonStore((s) => s.deleteSession);
   const theme = useDaemonStore((s) => s.theme);
   const toggleTheme = useDaemonStore((s) => s.toggleTheme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [drawerSearch, setDrawerSearch] = useState<string>('');
@@ -589,16 +590,24 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 onPress={toggleTheme}
               >
                 <Item.Media variant="icon">
-                  {isLight ? <Sun size={18} color="#262626" /> : <Moon size={18} color="#f5f5f5" />}
+                  {theme === 'swiss' ? (
+                    <Palette size={18} color="#DC201E" />
+                  ) : isLight ? (
+                    <Sun size={18} color="#262626" />
+                  ) : (
+                    <Moon size={18} color="#f5f5f5" />
+                  )}
                 </Item.Media>
                 <Item.Content>
                   <Item.Title className="text-[15px] font-medium text-foreground">
-                    {isLight ? 'Theme: White' : 'Theme: Dark'}
+                    {theme === 'swiss' ? 'Theme: Swiss' : isLight ? 'Theme: White' : 'Theme: Dark'}
                   </Item.Title>
                 </Item.Content>
                 <Item.Actions>
                   <Badge variant="outline" size="sm" className="px-2 py-0.5">
-                    <Text className="text-xs font-medium text-foreground">{isLight ? 'White' : 'Dark'}</Text>
+                    <Text className="text-xs font-medium text-foreground">
+                      {theme === 'swiss' ? 'Swiss' : isLight ? 'White' : 'Dark'}
+                    </Text>
                   </Badge>
                 </Item.Actions>
               </Item>
@@ -753,7 +762,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 className="w-8 h-8 p-0 items-center justify-center rounded-lg"
                 accessibilityLabel="Toggle Theme"
               >
-                {isLight ? <Sun size={15} color="#262626" /> : <Moon size={15} color="#a3a3a3" />}
+                {theme === 'swiss' ? (
+                  <Palette size={15} color="#DC201E" />
+                ) : isLight ? (
+                  <Sun size={15} color="#262626" />
+                ) : (
+                  <Moon size={15} color="#a3a3a3" />
+                )}
               </Button>
               <Button
                 variant="ghost"

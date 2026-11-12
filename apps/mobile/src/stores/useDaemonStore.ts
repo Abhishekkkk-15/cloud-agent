@@ -360,11 +360,11 @@ interface DaemonStoreState {
   githubStatus: GithubAuthStatus | null;
   isCheckingGithub: boolean;
   isSavingGithubToken: boolean;
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'swiss';
 
   // Actions
   init: () => Promise<void>;
-  setTheme: (theme: 'dark' | 'light') => void;
+  setTheme: (theme: 'dark' | 'light' | 'swiss') => void;
   toggleTheme: () => void;
   registerPushNotifications: () => Promise<void>;
   triggerTestPushNotification: () => Promise<{ success: boolean; message: string }>;
@@ -494,13 +494,14 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isSavingGithubToken: false,
   theme: 'dark',
 
-  setTheme: (theme: 'dark' | 'light') => {
+  setTheme: (theme: 'dark' | 'light' | 'swiss') => {
     set({ theme });
     AsyncStorage.setItem('cloud_agent_theme', theme).catch(() => {});
   },
 
   toggleTheme: () => {
-    const next = get().theme === 'light' ? 'dark' : 'light';
+    const current = get().theme;
+    const next = current === 'dark' ? 'light' : current === 'light' ? 'swiss' : 'dark';
     set({ theme: next });
     AsyncStorage.setItem('cloud_agent_theme', next).catch(() => {});
   },
@@ -787,7 +788,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     // Restore persisted theme
     try {
       const savedTheme = await AsyncStorage.getItem('cloud_agent_theme');
-      if (savedTheme === 'light' || savedTheme === 'dark') {
+      if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'swiss') {
         set({ theme: savedTheme });
       }
     } catch {

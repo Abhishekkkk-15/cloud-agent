@@ -34,7 +34,7 @@ function MainApp() {
   const isInitializingAuth = useDaemonStore((s) => s.isInitializingAuth);
   const token = useDaemonStore((s) => s.token);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
 
   useEffect(() => {
     init();
@@ -47,7 +47,7 @@ function MainApp() {
 
   // Synchronize PanelUI and Uniwind with store theme
   useEffect(() => {
-    PanelUITheme.setTheme(theme);
+    PanelUITheme.setTheme(theme as any);
   }, [theme]);
 
   // Auto-reconnect and session reconciliation when app returns to foreground

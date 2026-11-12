@@ -141,7 +141,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const isAutoHealerModalVisible = useDaemonStore((s) => s.isAutoHealerModalVisible);
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [promptInput, setPromptInput] = useState('');

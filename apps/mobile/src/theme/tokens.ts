@@ -1,4 +1,4 @@
-export type ThemeMode = 'dark' | 'light';
+export type ThemeMode = 'dark' | 'light' | 'swiss';
 
 /**
  * Official Default PanelUI Dark Theme Palette
@@ -192,12 +192,109 @@ export const lightColors: typeof darkColors = {
   redBorder: 'rgba(239, 68, 68, 0.25)',
 };
 
+/**
+ * Official Swiss Minimalist Theme Palette
+ * (Matches apps/web swiss newsprint & signal red style)
+ */
+export const swissColors: typeof darkColors = {
+  // Surfaces & Backgrounds
+  bgPrimary: '#F8F3EC',
+  bgCanvasInset: '#F1EBE1',
+  bgCard: '#F1EBE1',
+  bgSurface: '#F1EBE1',
+  bgSurfaceSecondary: '#EBE4D8',
+  bgSurfaceTertiary: '#E5DDD0',
+  bgOverlay: '#F8F3EC',
+  bgHover: '#EBE4D8',
+  bgInput: 'rgba(17, 16, 16, 0.10)',
+  bgModal: '#F8F3EC',
+  bgUserBubble: '#F1EBE1',
+
+  // Surface Tiers
+  surfaceContainerLowest: '#F8F3EC',
+  surfaceContainerLow: '#F1EBE1',
+  surfaceContainer: '#F1EBE1',
+  surfaceContainerHigh: '#EBE4D8',
+  surfaceContainerHighest: '#E5DDD0',
+
+  // Borders & Dividers
+  borderDefault: 'rgba(17, 16, 16, 0.16)',
+  borderMuted: 'rgba(17, 16, 16, 0.08)',
+  borderSubtle: 'rgba(17, 16, 16, 0.12)',
+
+  // Typography
+  textPrimary: '#111010',
+  textSecondary: '#4A4640',
+  textMuted: '#6B665E',
+  textCode: '#111010',
+  textMutedOutline: '#6B665E',
+  textSecondaryOutline: '#4A4640',
+  textDisabled: '#8C8880',
+
+  // High-Contrast Primary Accent: Swiss Signal Red
+  primary: '#DC201E',
+  primaryForeground: '#FFFFFF',
+  primaryLight: '#EF4444',
+  primarySubtle: 'rgba(220, 32, 30, 0.10)',
+  primaryBorder: 'rgba(220, 32, 30, 0.25)',
+  primaryHover: 'rgba(220, 32, 30, 0.15)',
+
+  // Live Status / Telemetry
+  statusLive: '#10b981',
+  statusLivePulse: '#34d399',
+  statusLiveSubtle: 'rgba(16, 185, 129, 0.10)',
+  statusLiveBorder: 'rgba(16, 185, 129, 0.25)',
+
+  // Status Tokens
+  info: '#3b82f6',
+  infoSubtle: 'rgba(59, 130, 246, 0.10)',
+  infoBorder: 'rgba(59, 130, 246, 0.25)',
+
+  success: '#10b981',
+  successSubtle: 'rgba(16, 185, 129, 0.10)',
+  successBorder: 'rgba(16, 185, 129, 0.25)',
+
+  warning: '#f59e0b',
+  warningSubtle: 'rgba(245, 158, 11, 0.10)',
+  warningBorder: 'rgba(245, 158, 11, 0.25)',
+
+  destructive: '#DC201E',
+  destructiveSubtle: 'rgba(220, 32, 30, 0.10)',
+  destructiveBorder: 'rgba(220, 32, 30, 0.25)',
+
+  // Color aliases
+  blue: '#3b82f6',
+  blueLight: '#2563eb',
+  blueBg: '#eff6ff',
+  blueSubtle: 'rgba(59, 130, 246, 0.10)',
+  blueBorder: 'rgba(59, 130, 246, 0.25)',
+
+  green: '#10b981',
+  greenLight: '#059669',
+  greenWhitish: '#047857',
+  greenBg: '#ecfdf5',
+  greenHover: '#d1fae5',
+  greenSubtle: 'rgba(16, 185, 129, 0.10)',
+  greenBorder: 'rgba(16, 185, 129, 0.25)',
+
+  purple: '#8b5cf6',
+  purpleBg: '#f5f3ff',
+  purpleSubtle: 'rgba(139, 92, 246, 0.10)',
+  purpleBorder: 'rgba(139, 92, 246, 0.25)',
+
+  red: '#DC201E',
+  redBg: '#fef2f2',
+  redSubtle: 'rgba(220, 32, 30, 0.10)',
+  redBorder: 'rgba(220, 32, 30, 0.25)',
+};
+
 export type ThemeColors = typeof darkColors;
 
 // Default exported colors (PanelUI Dark by default)
 export const colors = darkColors;
 
 export function getThemeColors(mode?: ThemeMode | null): ThemeColors {
+  if (mode === 'swiss') return swissColors;
   return mode === 'light' ? lightColors : darkColors;
 }
 

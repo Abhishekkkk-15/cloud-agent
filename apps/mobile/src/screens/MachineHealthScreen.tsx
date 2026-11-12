@@ -71,7 +71,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
   const openAutoPrReview = useDaemonStore((s) => s.openAutoPrReview);
   const githubStatus = useDaemonStore((s) => s.githubStatus);
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
 
   const [isPinging, setIsPinging] = useState(false);

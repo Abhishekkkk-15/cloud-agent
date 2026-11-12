@@ -21,6 +21,7 @@ import {
 import {
   Sun,
   Moon,
+  Palette,
   Globe,
   WifiOff,
   RefreshCw,
@@ -201,7 +202,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const isNetworkOnline = useDaemonStore((s) => s.isNetworkOnline);
   const checkNetwork = useDaemonStore((s) => s.checkNetwork);
 
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
   const isExpoGo = isRunningInExpoGo();
 
@@ -357,7 +358,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           activeOpacity={0.7}
           accessibilityLabel="Toggle Dark / Light Theme"
         >
-          {isLight ? (
+          {theme === 'swiss' ? (
+            <Palette size={22} color="#DC201E" />
+          ) : isLight ? (
             <Moon size={22} color="#262626" />
           ) : (
             <Sun size={22} color="#f5f5f5" />
