@@ -43,7 +43,7 @@ export function setupWebSocketUpgrades(server: import("node:http").Server): void
           });
 
           ws.on("close", () => {
-            daemonHub.unregister(session.machineId);
+            daemonHub.unregister(session.machineId, ws);
           });
 
           ws.on("error", (err) => {

@@ -75,9 +75,13 @@ export class DaemonHub {
     return session;
   }
 
-  unregister(machineId: string): void {
+  unregister(machineId: string, ws?: WebSocket): void {
     const session = this.daemons.get(machineId);
     if (session) {
+      if (ws && session.ws !== ws) {
+        console.log(`[DaemonHub] Ignoring stale unregister for machine [${machineId}] (connection already replaced)`);
+        return;
+      }
       this.daemons.delete(machineId);
       updateMachineStatus(machineId, "offline").catch(() => {});
       console.log(`[DaemonHub] Machine disconnected: ${session.name} (${machineId})`);

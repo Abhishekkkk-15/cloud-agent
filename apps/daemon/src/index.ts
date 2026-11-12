@@ -14,6 +14,8 @@ import {
   uninstallService,
   savePid,
   removePid,
+  getStoredPid,
+  isPidAlive,
 } from "./service.js";
 import { exposePort } from "./tunnel.js";
 import { showDaemonStatus, runDoctor } from "./doctor.js";
@@ -255,11 +257,13 @@ async function pairMachine(flags: Record<string, string>) {
 
             if (flags.foreground || flags["fg"]) {
               console.log(`\x1b[36m✔ Connecting to Cloud Agent Gateway in foreground...\x1b[0m\n`);
+              await stopService();
               await startDaemon(flags);
               return;
             }
 
             console.log(`\x1b[36m✔ Configuring Cloud Agent as a persistent 24/7 background service...\x1b[0m`);
+            await stopService();
             await installService();
             await startService();
             console.log(`\n\x1b[1m\x1b[32m════════════════════════════════════════════════════════════════\x1b[0m`);
@@ -288,6 +292,21 @@ async function pairMachine(flags: Record<string, string>) {
 
 async function startDaemon(flags: Record<string, string>) {
   initDaemonLogger();
+
+  const currentPid = getStoredPid();
+  if (currentPid && isPidAlive(currentPid) && currentPid !== process.pid) {
+    if (flags.force || flags.f) {
+      console.log(`[Daemon] Stopping existing running daemon process (PID: ${currentPid})...`);
+      await stopService();
+      await new Promise((r) => setTimeout(r, 1000));
+    } else {
+      console.warn(`\x1b[33m[!] Another Cloud Agent daemon is already running (PID: ${currentPid}).\x1b[0m`);
+      console.warn(`    Running multiple daemon instances causes connection flapping and offline status.`);
+      console.warn(`    Use 'ca service restart' or pass '--force' to replace the existing instance.\n`);
+      process.exit(1);
+    }
+  }
+
   const config = loadConfig();
 
   // Apply CLI flag overrides
