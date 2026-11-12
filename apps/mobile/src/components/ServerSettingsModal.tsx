@@ -93,8 +93,11 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
       setStatusMessage(null);
       setPushFeedbackMessage(null);
       setTokenCopied(false);
+      if (activeTab === 'notifications' && !isExpoGo && !isPushRegistered) {
+        registerPushNotifications().catch(() => {});
+      }
     }
-  }, [visible, currentGatewayUrl]);
+  }, [visible, currentGatewayUrl, activeTab, isExpoGo, isPushRegistered]);
 
   const handleApplyPreset = (gateway: string) => {
     setInputGatewayUrl(gateway);
@@ -289,7 +292,13 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
             defaultValue="gateway"
             value={activeTab}
             size="xs"
-            onValueChange={(val) => setActiveTab(val as any)}
+            onValueChange={(val) => {
+              const tab = val as 'gateway' | 'notifications';
+              setActiveTab(tab);
+              if (tab === 'notifications' && !isExpoGo && !isPushRegistered) {
+                registerPushNotifications().catch(() => {});
+              }
+            }}
             className="w-full"
           >
             <Tabs.List className="w-full bg-surface-secondary border border-border p-1 rounded-xl">
@@ -480,12 +489,12 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                   </View>
 
                   <Badge
-                    variant={isPushRegistered ? 'success' : isExpoGo ? 'warning' : 'secondary'}
+                    variant={isPushRegistered ? 'success' : isExpoGo ? 'warning' : isSyncingPush ? 'outline' : 'secondary'}
                     size="sm"
                     className="px-2 py-0.5"
                   >
                     <Text className="text-[11px] font-medium">
-                      {isPushRegistered ? 'Active & Synced' : isExpoGo ? 'Expo Go Preview' : 'Offline'}
+                      {isPushRegistered ? 'Active & Synced' : isExpoGo ? 'Expo Go Preview' : isSyncingPush ? 'Syncing...' : 'Standby'}
                     </Text>
                   </Badge>
                 </View>

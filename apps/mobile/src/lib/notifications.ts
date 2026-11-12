@@ -1,5 +1,5 @@
 import { Platform } from 'react-native';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import Constants from 'expo-constants';
 
 export interface NotificationPayload {
   id: string;
@@ -52,18 +52,22 @@ export function isRunningInExpoGo(): boolean {
   if (Platform.OS === 'web') return false;
   try {
     const c = (Constants as any)?.default || Constants;
-    return Boolean(
-      c?.appOwnership === 'expo' ||
-      c?.executionEnvironment === ExecutionEnvironment.StoreClient ||
-      c?.executionEnvironment === 'storeClient' ||
-      c?.expoVersion != null ||
-      c?.expoGoConfig != null ||
-      (Constants as any)?.appOwnership === 'expo' ||
-      (Constants as any)?.executionEnvironment === ExecutionEnvironment.StoreClient ||
-      (Constants as any)?.executionEnvironment === 'storeClient' ||
-      (Constants as any)?.expoVersion != null ||
-      (Constants as any)?.expoGoConfig != null
-    );
+    // AppOwnership.Expo ('expo') is strictly set ONLY when running inside the Expo Go app.
+    // In standalone APKs, preview APKs, and custom dev builds, appOwnership is null or 'standalone'.
+    if (c?.appOwnership === 'expo' || (Constants as any)?.appOwnership === 'expo') {
+      return true;
+    }
+    // Secondary check: verify if the package identifier matches the official Expo Go client
+    try {
+      const Application = require('expo-application');
+      const appId = Application?.applicationId;
+      if (appId === 'host.exp.exponent' || appId === 'host.exp.Exponent') {
+        return true;
+      }
+    } catch {
+      // expo-application not available or threw
+    }
+    return false;
   } catch {
     return false;
   }
@@ -139,7 +143,7 @@ function getNativeModules() {
     };
   } catch (err) {
     console.warn('[Notifications] Could not load native notifications module:', err);
-    return { isExpoGo: true, notifications: null, device: null };
+    return { isExpoGo: false, notifications: null, device: null };
   }
 }
 
@@ -314,9 +318,12 @@ export async function registerForPushNotificationsAsync(options?: {
     let token: string | null = null;
     let tokenErrorDetails: string | null = null;
     try {
+      const c = (Constants as any)?.default || Constants;
       const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ||
-        Constants?.easConfig?.projectId ||
+        c?.expoConfig?.extra?.eas?.projectId ||
+        c?.easConfig?.projectId ||
+        (Constants as any)?.expoConfig?.extra?.eas?.projectId ||
+        (Constants as any)?.easConfig?.projectId ||
         'a3cb31cf-6c3f-4979-babe-45a2ea20a75e';
 
       const tokenResponse = await notifications.getExpoPushTokenAsync({
