@@ -116,7 +116,14 @@ export class RpcDispatcher {
     try {
       switch (req.method) {
         case "ping":
-          return { id: req.id, result: { pong: true, timestamp: new Date().toISOString() } };
+          return {
+            id: req.id,
+            result: {
+              pong: true,
+              timestamp: new Date().toISOString(),
+              uptime: process.uptime(),
+            },
+          };
 
         case "daemon.status": {
           const avail = await registry.checkAll();
