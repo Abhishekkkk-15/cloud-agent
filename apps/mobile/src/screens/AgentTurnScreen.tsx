@@ -347,11 +347,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   // Infinite Scroll & Synchronous Scroll Compensation Refs
   const isFetchingOlderRef = useRef<boolean>(false);
+  const isPrependPendingRef = useRef<boolean>(false);
+  const prevScrollHeightRef = useRef<number>(0);
+  const anchorScrollYRef = useRef<number>(0);
+  const anchorTurnIdRef = useRef<string | null>(null);
+  const anchorTurnOldYRef = useRef<number>(0);
   const turnYPositionsRef = useRef<Map<string, number>>(new Map());
   const liveScrollYRef = useRef<number>(0);
   const lastContentHeightRef = useRef<number>(0);
   const hasInitialScrolledRef = useRef<string | null>(null);
   const displayedTurnsRef = useRef<any[]>([]);
+  const lastPaginationTriggerTimeRef = useRef<number>(0);
 
   // Initial scroll to bottom when session messages load
   useEffect(() => {
@@ -359,6 +365,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       if (hasInitialScrolledRef.current !== activeSession.id) {
         hasInitialScrolledRef.current = activeSession.id;
         turnYPositionsRef.current.clear();
+        isPrependPendingRef.current = false;
+        anchorTurnIdRef.current = null;
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: false });
         }, 120);
@@ -431,13 +439,43 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       return;
     }
 
+    const now = Date.now();
+    if (now - lastPaginationTriggerTimeRef.current < 1500) {
+      return;
+    }
+    lastPaginationTriggerTimeRef.current = now;
+
     isFetchingOlderRef.current = true;
+    isPrependPendingRef.current = true;
+
+    // Snapshot scroll position & top anchor before store mutation
+    prevScrollHeightRef.current = lastContentHeightRef.current;
+    anchorScrollYRef.current = liveScrollYRef.current;
+
+    // Find the topmost visible turn relative to the current viewport
+    const visibleAnchor =
+      displayedTurnsRef.current.find((t) => {
+        const y = turnYPositionsRef.current.get(t.id);
+        return y !== undefined && y >= liveScrollYRef.current - 120;
+      }) || displayedTurnsRef.current[0];
+
+    if (visibleAnchor) {
+      anchorTurnIdRef.current = visibleAnchor.id || null;
+      anchorTurnOldYRef.current = turnYPositionsRef.current.get(visibleAnchor.id) ?? 0;
+    } else {
+      anchorTurnIdRef.current = null;
+      anchorTurnOldYRef.current = 0;
+    }
+
     try {
       await loadOlderMessages();
     } finally {
+      // Keep compensation active across multi-pass layout measuring
       setTimeout(() => {
+        isPrependPendingRef.current = false;
+        anchorTurnIdRef.current = null;
         isFetchingOlderRef.current = false;
-      }, 400);
+      }, 600);
     }
   }, [hasMoreMessages, isLoadingOlderMessages, activeSession?.id, loadOlderMessages]);
 
@@ -463,14 +501,17 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       pauseAutoScroll();
     }
 
-    // Smooth Infinite scroll: trigger when user scrolls near the top (< 120px) and not bouncing negatively
+    // Smooth Infinite scroll: trigger only when user deliberately scrolls near the top edge
+    const now = Date.now();
     if (
-      contentOffset.y <= 120 &&
+      contentOffset.y <= 60 &&
       contentOffset.y >= 0 &&
       hasMoreMessages &&
       !isLoadingOlderMessages &&
       !isFetchingOlderRef.current &&
-      contentSize.height > layoutMeasurement.height
+      !isPrependPendingRef.current &&
+      now - lastPaginationTriggerTimeRef.current >= 1500 &&
+      contentSize.height > layoutMeasurement.height + 100
     ) {
       triggerLoadOlderMessages();
     }
@@ -1061,9 +1102,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       <ScrollView
         ref={scrollViewRef}
-        maintainVisibleContentPosition={{
-          minIndexForVisible: 1,
-        }}
         style={[styles.scroll, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
         contentContainerStyle={[
           styles.scrollContent,
@@ -1085,7 +1123,21 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         onTouchStart={pauseAutoScroll}
         onScrollBeginDrag={pauseAutoScroll}
         onContentSizeChange={(_w, h) => {
+          const prevH = prevScrollHeightRef.current;
           lastContentHeightRef.current = h;
+
+          if (isPrependPendingRef.current && prevH > 0 && h > prevH) {
+            const heightDelta = h - prevH;
+            const targetY = currentScrollYRef.current + heightDelta;
+            scrollViewRef.current?.scrollTo({
+              y: targetY,
+              animated: false,
+            });
+            liveScrollYRef.current = targetY;
+            currentScrollYRef.current = targetY;
+            anchorScrollYRef.current = targetY;
+            prevScrollHeightRef.current = h;
+          }
 
           if (isSendingPrompt && !isAutoScrollPausedRef.current) {
             triggerAutoScroll();
@@ -1162,6 +1214,19 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               onLayout={(e) => {
                 const turnY = e.nativeEvent.layout.y;
                 turnYPositionsRef.current.set(turn.id, turnY);
+
+                if (isPrependPendingRef.current && anchorTurnIdRef.current === turn.id) {
+                  const oldY = anchorTurnOldYRef.current;
+                  if (oldY > 0 && turnY > oldY) {
+                    const shift = turnY - oldY;
+                    const targetY = anchorScrollYRef.current + shift;
+                    if (Math.abs(liveScrollYRef.current - targetY) > 2) {
+                      scrollViewRef.current?.scrollTo({ y: targetY, animated: false });
+                      liveScrollYRef.current = targetY;
+                      currentScrollYRef.current = targetY;
+                    }
+                  }
+                }
 
                 if (turnIdx === activePromptTurnIndexRef.current && userJustSubmittedRef.current) {
                   userJustSubmittedRef.current = false;
