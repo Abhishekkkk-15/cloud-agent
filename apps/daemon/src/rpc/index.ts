@@ -1,7 +1,7 @@
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn, type ChildProcess } from "node:child_process";
+import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { registry } from "../registry.js";
 import {
   handleSessionsList,
@@ -585,10 +585,18 @@ export class RpcDispatcher {
           const targetId = params.targetId || req.id;
           const child = activeTerminalProcesses.get(targetId);
           if (child && !child.killed) {
-            child.kill("SIGTERM");
-            setTimeout(() => {
-              if (!child.killed) child.kill("SIGKILL");
-            }, 1000);
+            if (process.platform === "win32" && child.pid) {
+              try {
+                execSync(`taskkill /pid ${child.pid} /T /F`, { stdio: "ignore" });
+              } catch {
+                // Process may have already exited
+              }
+            } else {
+              child.kill("SIGTERM");
+              setTimeout(() => {
+                if (!child.killed) child.kill("SIGKILL");
+              }, 1000);
+            }
             activeTerminalProcesses.delete(targetId);
             return { id: req.id, result: { killed: true, targetId } };
           }
