@@ -171,7 +171,10 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   };
 
   return (
-    <Card className="absolute left-3 right-3 bottom-20 z-50 bg-popover border border-border p-0 rounded-2xl overflow-hidden shadow-2xl">
+    <Card
+      pointerEvents="auto"
+      className="absolute left-3 right-3 bottom-20 z-50 bg-popover border border-border p-0 rounded-2xl overflow-hidden shadow-2xl"
+    >
       {/* Header Bar */}
       <View className="px-3.5 py-2.5 bg-surface border-b border-border flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
@@ -198,10 +201,13 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
 
       {/* Commands List */}
       <ScrollView
-        style={{ maxHeight: 240 }}
-        contentContainerStyle={{ padding: 6 }}
-        keyboardShouldPersistTaps="always"
-        showsVerticalScrollIndicator={false}
+        style={{ maxHeight: 290 }}
+        contentContainerStyle={{ padding: 6, flexGrow: 1 }}
+        nestedScrollEnabled={true}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
+        bounces={true}
+        overScrollMode="always"
       >
         {filteredCommands.length === 0 ? (
           <View className="py-6 items-center justify-center">
