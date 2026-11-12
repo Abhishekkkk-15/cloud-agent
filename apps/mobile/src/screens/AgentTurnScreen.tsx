@@ -1175,8 +1175,19 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   );
 
   // ListHeaderComponent renders at the BOTTOM of the inverted list (near composer)
+  // CRUCIAL: In an inverted FlatList, children in ListHeaderComponent flow top-to-bottom.
+  // The streaming indicator MUST BE FIRST so it renders physically ABOVE the composer spacer,
+  // clearly visible above the chat input bar instead of hidden behind it!
   const renderListHeader = useCallback(() => (
     <View>
+      {isSendingPrompt && (
+        <View style={styles.streamingIndicatorRow}>
+          <ThinkingOrb state="working" size={23} />
+          <Text style={[styles.streamingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
+            Agent is thinking and executing...
+          </Text>
+        </View>
+      )}
       <View
         style={{
           height:
@@ -1186,14 +1197,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             18,
         }}
       />
-      {isSendingPrompt && (
-        <View style={styles.streamingIndicatorRow}>
-          <ThinkingOrb state="working" size={20} />
-          <Text style={[styles.streamingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
-            Agent is thinking and executing...
-          </Text>
-        </View>
-      )}
     </View>
   ), [isSendingPrompt, isLight, isSwiss, composerMeasuredHeight, insets.bottom, effectiveKeyboardHeight]);
 
@@ -2247,7 +2250,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
   },
   streamingText: {
     fontSize: 13,
