@@ -34,7 +34,7 @@ import {
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { SessionActionModal } from '../components/SessionActionModal';
 import { SessionDropdownMenu } from '../components/SessionDropdownMenu';
-import { getGlossyHeaderTokens } from '../theme/tokens';
+import { getGlossyHeaderTokens, getGlossyGridItemTokens } from '../theme/tokens';
 
 interface SessionsScreenProps {
   onBack?: () => void;
@@ -63,7 +63,9 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
   const deleteSession = useDaemonStore((s) => s.deleteSession);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
+  const glossyGridItem = useMemo(() => getGlossyGridItemTokens(isLight, isSwiss), [isLight, isSwiss]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
@@ -227,7 +229,12 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
         {/* 1. Overview Bento Grid */}
         <GridItem.Group columns={2} gap={10} rowHeight={130} size="sm">
           {/* Host Tile */}
-          <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+          <GridItem
+            colSpan={1}
+            rowSpan={1}
+            className="p-3"
+            style={glossyGridItem.containerStyle}
+          >
             <GridItem.Media variant="icon">
               <Server size={15} color={isLight ? '#262626' : '#f5f5f5'} />
             </GridItem.Media>
@@ -241,7 +248,12 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           </GridItem>
 
           {/* Active Sessions Tile */}
-          <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+          <GridItem
+            colSpan={1}
+            rowSpan={1}
+            className="p-3"
+            style={glossyGridItem.containerStyle}
+          >
             <GridItem.Media variant="icon">
               <Zap size={15} color="#10b981" />
             </GridItem.Media>
@@ -255,7 +267,12 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           </GridItem>
 
           {/* Workspaces Tile */}
-          <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+          <GridItem
+            colSpan={1}
+            rowSpan={1}
+            className="p-3"
+            style={glossyGridItem.containerStyle}
+          >
             <GridItem.Media variant="icon">
               <FolderGit2 size={15} color={isLight ? '#262626' : '#f5f5f5'} />
             </GridItem.Media>
@@ -269,7 +286,12 @@ export const SessionsScreen: React.FC<SessionsScreenProps> = ({
           </GridItem>
 
           {/* Total Turns Tile */}
-          <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+          <GridItem
+            colSpan={1}
+            rowSpan={1}
+            className="p-3"
+            style={glossyGridItem.containerStyle}
+          >
             <GridItem.Media variant="icon">
               <Activity size={15} color={isLight ? '#262626' : '#f5f5f5'} />
             </GridItem.Media>

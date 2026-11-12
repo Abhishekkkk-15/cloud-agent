@@ -340,3 +340,40 @@ export function getGlossyHeaderTokens(isLight: boolean) {
     },
   };
 }
+
+/**
+ * Glossy Bento Grid Item & Card Design Tokens
+ * Provides subtle glass elevation with a lit top-border refraction
+ */
+export function getGlossyGridItemTokens(isLight: boolean, isSwiss?: boolean) {
+  if (isSwiss) {
+    return {
+      containerStyle: {
+        backgroundColor: 'rgba(241, 235, 225, 0.95)',
+        borderWidth: 1,
+        borderColor: 'rgba(17, 16, 16, 0.12)',
+        borderTopColor: '#FFFFFF',
+        shadowColor: '#111010',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 2,
+      },
+    };
+  }
+  return {
+    containerStyle: {
+      backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.06)',
+      borderWidth: 1,
+      borderColor: isLight ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.12)',
+      borderTopColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.22)',
+      shadowColor: isLight ? 'rgba(0, 0, 0, 0.12)' : '#000000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isLight ? 0.06 : 0.22,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+  };
+}
+
+export const getGlossyCardTokens = getGlossyGridItemTokens;

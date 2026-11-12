@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   ScrollView,
@@ -24,6 +24,7 @@ import {
   Trash2,
 } from './Icons';
 import { useDaemonStore, type MachineInfo } from '../stores/useDaemonStore';
+import { getGlossyGridItemTokens } from '../theme/tokens';
 
 interface MachineSwitcherModalProps {
   visible: boolean;
@@ -37,7 +38,9 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
   onPairNew,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
-  const isLight = theme === 'light';
+  const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
+  const glossyGridItem = useMemo(() => getGlossyGridItemTokens(isLight, isSwiss), [isLight, isSwiss]);
   const machines = useDaemonStore((s) => s.machines);
   const activeMachine = useDaemonStore((s) => s.activeMachine);
   const isLoadingMachines = useDaemonStore((s) => s.isLoadingMachines);
@@ -178,10 +181,11 @@ export const MachineSwitcherModal: React.FC<MachineSwitcherModalProps> = ({
                     rowSpan={1}
                     onPress={() => handleSelect(machine)}
                     disabled={isSwitchingThis}
-                    className={cn(
-                      'p-2.5 border-border flex-row items-center justify-between',
-                      isActive ? 'bg-surface-secondary border-primary/40' : 'bg-surface'
-                    )}
+                    className="p-2.5 flex-row items-center justify-between"
+                    style={[
+                      glossyGridItem.containerStyle,
+                      isActive ? { borderColor: 'rgba(245, 245, 245, 0.4)' } : undefined,
+                    ]}
                   >
                     <View className="flex-row items-center gap-2.5 flex-1 mr-2">
                       <GridItem.Media variant="icon">

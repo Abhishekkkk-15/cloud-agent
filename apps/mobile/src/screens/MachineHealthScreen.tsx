@@ -39,7 +39,7 @@ import {
 } from '../components/Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MachineSwitcherModal } from '../components/MachineSwitcherModal';
-import { getGlossyHeaderTokens } from '../theme/tokens';
+import { getGlossyHeaderTokens, getGlossyGridItemTokens } from '../theme/tokens';
 import { PairMachineModal } from '../components/PairMachineModal';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 import { AutoHealerModal } from '../components/AutoHealerModal';
@@ -72,7 +72,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
   const githubStatus = useDaemonStore((s) => s.githubStatus);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light' || theme === 'swiss';
+  const isSwiss = theme === 'swiss';
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
+  const glossyGridItem = useMemo(() => getGlossyGridItemTokens(isLight, isSwiss), [isLight, isSwiss]);
 
   const [isPinging, setIsPinging] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -261,7 +263,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
 
           <GridItem.Group columns={2} gap={10} rowHeight={135} size="sm">
             {/* CPU Metric */}
-            <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+            <GridItem
+              colSpan={1}
+              rowSpan={1}
+              className="p-3"
+              style={glossyGridItem.containerStyle}
+            >
               <GridItem.Media variant="icon">
                 <Cpu size={16} color={isLight ? '#262626' : '#f5f5f5'} />
               </GridItem.Media>
@@ -287,7 +294,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
             </GridItem>
 
             {/* RAM Metric */}
-            <GridItem colSpan={1} rowSpan={1} className="p-3 bg-card border-border">
+            <GridItem
+              colSpan={1}
+              rowSpan={1}
+              className="p-3"
+              style={glossyGridItem.containerStyle}
+            >
               <GridItem.Media variant="icon">
                 <Layers size={16} color={isLight ? '#262626' : '#f5f5f5'} />
               </GridItem.Media>
@@ -308,7 +320,12 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
             </GridItem>
 
             {/* Persistent Storage Volume Metric (Full Width Bento Card) */}
-            <GridItem colSpan={2} rowSpan={1} className="p-3 bg-card border-border">
+            <GridItem
+              colSpan={2}
+              rowSpan={1}
+              className="p-3"
+              style={glossyGridItem.containerStyle}
+            >
               <View className="flex-row items-center justify-between w-full">
                 <View className="flex-row items-center gap-2 flex-1 mr-2">
                   <GridItem.Media variant="icon">
@@ -586,7 +603,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
               rowSpan={1}
               onPress={handlePing}
               disabled={isPinging}
-              className="p-3 pb-3.5 bg-card border-border"
+              className="p-3 pb-3.5 justify-between"
+              style={glossyGridItem.containerStyle}
             >
               <GridItem.Media variant="icon">
                 {isPinging ? (
@@ -616,7 +634,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
                 });
               }}
               disabled={isRefreshing}
-              className="p-3 pb-3.5 bg-card border-border"
+              className="p-3 pb-3.5 justify-between"
+              style={glossyGridItem.containerStyle}
             >
               <GridItem.Media variant="icon">
                 <RefreshCw size={16} color={isLight ? '#262626' : '#f5f5f5'} />
@@ -634,7 +653,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
               colSpan={1}
               rowSpan={1}
               onPress={() => onNavigateTab && onNavigateTab('sessions')}
-              className="p-3 pb-3.5 bg-card border-border"
+              className="p-3 pb-3.5 justify-between"
+              style={glossyGridItem.containerStyle}
             >
               <GridItem.Media variant="icon">
                 <Zap size={16} color={isLight ? '#262626' : '#f5f5f5'} />
@@ -658,7 +678,11 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
                   description: `Restart command dispatched to ${hostName}.`,
                 });
               }}
-              className="p-3 pb-3.5 bg-card border-border border-destructive/30"
+              className="p-3 pb-3.5 justify-between"
+              style={[
+                glossyGridItem.containerStyle,
+                { borderColor: 'rgba(239, 68, 68, 0.35)' },
+              ]}
             >
               <GridItem.Media variant="icon" className="bg-destructive/10 border-destructive/20">
                 <Power size={16} color="#ef4444" />
