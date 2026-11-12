@@ -85,12 +85,15 @@ export class SessionStreamHub {
     state.subscribers.clear();
 
     // Keep buffer briefly in case a client reconnects right as the turn completes, then clean up
-    setTimeout(() => {
+    const cleanupTimer = setTimeout(() => {
       const curr = this.activeTurns.get(sessionId);
       if (curr && curr.subscribers.size === 0) {
         this.activeTurns.delete(sessionId);
       }
     }, 30000);
+    if (typeof cleanupTimer.unref === "function") {
+      cleanupTimer.unref();
+    }
   }
 
   /**
