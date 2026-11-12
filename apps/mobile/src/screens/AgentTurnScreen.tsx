@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   TouchableWithoutFeedback,
   TextInput,
@@ -113,6 +114,270 @@ interface ChatTurn {
     elements: AssistantTurnElement[];
   };
 }
+
+const formatTimeAgo = (isoDate?: string) => {
+  if (!isoDate) return '1 hour ago';
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  if (isNaN(diffMs)) return '1 hour ago';
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays > 0) return `${diffDays} hour${diffDays > 1 ? 's' : ''} ago`;
+  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffMins > 0) return `${diffMins}m ago`;
+  return 'Just now';
+};
+
+interface TurnCardProps {
+  turn: ChatTurn;
+  turnIdx: number;
+  isLastTurn: boolean;
+  isSendingPrompt: boolean;
+  isLight: boolean;
+  isSwiss: boolean;
+  isCopied: boolean;
+  modelStr: string;
+  onSelectAction: (action: ActionStep) => void;
+  onCopyText: (text: string) => void;
+  onBranch: () => void;
+  onSendPrompt: (text: string) => Promise<void>;
+  renderActionIcon: (category: ActionStep['category']) => React.ReactNode;
+}
+
+const TurnCard = React.memo<TurnCardProps>(
+  ({
+    turn,
+    turnIdx,
+    isLastTurn,
+    isSendingPrompt,
+    isLight,
+    isSwiss,
+    isCopied,
+    modelStr,
+    onSelectAction,
+    onCopyText,
+    onBranch,
+    onSendPrompt,
+    renderActionIcon,
+  }) => {
+    // Entering animations must strictly trigger ONLY for the live incoming streaming turn.
+    // Static historical turns & paginated turns render instantly with zero opacity blink or layout flash.
+    const isLiveStreaming = isSendingPrompt && isLastTurn;
+    const enteringAnim = isLiveStreaming ? FadeInDown.duration(180) : undefined;
+
+    return (
+      <View key={turn.id} style={styles.turnCardContainer}>
+        {/* User Prompt: Paradev OutgoingBubble */}
+        {turn.userMessage?.content ? (
+          <View style={styles.userBubbleWrapper}>
+            <View
+              style={[
+                styles.userOutgoingBubble,
+                isLight && {
+                  backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff',
+                  borderWidth: 1,
+                  borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
+                  shadowColor: isSwiss ? '#111010' : '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 3,
+                  elevation: 1,
+                },
+              ]}
+            >
+              <Text style={[styles.userBubbleText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>
+                {turn.userMessage.content}
+              </Text>
+            </View>
+            <View style={styles.userBubbleMeta}>
+              <Text style={[styles.userBubbleMetaText, isLight && { color: isSwiss ? '#6B665E' : '#8c959f' }]}>
+                {turn.userMessage.timestamp
+                  ? formatTimeAgo(turn.userMessage.timestamp)
+                  : `turn #${turnIdx + 1}`}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Assistant Turn: Natural Borderless Flow matching Reference */}
+        {turn.assistant ? (
+          <View style={styles.assistantTurnWrapper}>
+            {turn.assistant.elements && turn.assistant.elements.length > 0 ? (
+              turn.assistant.elements.map((element) => {
+                if (element.type === 'reasoning') {
+                  let isCurrentlyThinking = false;
+                  if (isSendingPrompt && isLastTurn && turn.assistant?.elements) {
+                    let hasFollowingActionOrContent = false;
+                    const elIdx = turn.assistant.elements.indexOf(element);
+                    if (elIdx >= 0) {
+                      for (let k = elIdx + 1; k < turn.assistant.elements.length; k++) {
+                        const nextEl = turn.assistant.elements[k];
+                        if (nextEl.type === 'action' || nextEl.type === 'content') {
+                          hasFollowingActionOrContent = true;
+                          break;
+                        }
+                      }
+                    }
+                    isCurrentlyThinking = !hasFollowingActionOrContent;
+                  }
+
+                  return (
+                    <AnimatedReanimated.View
+                      key={element.id}
+                      entering={enteringAnim}
+                    >
+                      <Reasoning
+                        isStreaming={isCurrentlyThinking}
+                        className="my-1.5"
+                      >
+                        <Reasoning.Trigger
+                          label={(isStreaming, duration) =>
+                            isStreaming ? (
+                              <Shimmer textClassName={isLight ? 'text-xs text-primary font-medium' : 'text-xs text-primary font-medium'}>
+                                Thinking…
+                              </Shimmer>
+                            ) : (
+                              <Text className="text-xs text-muted-foreground">
+                                {duration === undefined ? 'Thought' : `Thought for ${duration}s`}
+                              </Text>
+                            )
+                          }
+                        />
+                        <Reasoning.Content>
+                          {element.text.trim()}
+                        </Reasoning.Content>
+                      </Reasoning>
+                    </AnimatedReanimated.View>
+                  );
+                }
+
+                if (element.type === 'action') {
+                  const action = element.action;
+                  return (
+                    <AnimatedReanimated.View
+                      key={action.id}
+                      entering={enteringAnim}
+                      style={styles.flatToolItemWrapper}
+                    >
+                      <TouchableOpacity
+                        style={styles.flatToolRow}
+                        activeOpacity={0.65}
+                        onPress={() => onSelectAction(action)}
+                      >
+                        <View style={styles.flatToolLeft}>
+                          <View style={styles.flatToolIconWrap}>
+                            {renderActionIcon(action.category)}
+                          </View>
+                          <Text
+                            style={[
+                              styles.flatToolTitle,
+                              isSwiss ? { color: '#111010' } : isLight && styles.flatToolTitleLight,
+                              action.status === 'error' && styles.flatToolTitleError,
+                            ]}
+                            numberOfLines={1}
+                            ellipsizeMode="middle"
+                          >
+                            {action.title}
+                          </Text>
+                        </View>
+
+                        <View style={styles.flatToolRight}>
+                          {action.status === 'running' && (
+                            <Spinner size="sm" />
+                          )}
+                          <ChevronRight size={14} color={isLight ? '#8c959f' : '#6e7681'} />
+                        </View>
+                      </TouchableOpacity>
+
+                      {/* Interactive Clarification & Choice Cards (ask_question) */}
+                      {action.toolName === 'ask_question' && (
+                        <AskQuestionCard
+                          action={action}
+                          onSubmitAnswer={async (answerText) => {
+                            await onSendPrompt(answerText);
+                          }}
+                          isSubmitting={isSendingPrompt}
+                        />
+                      )}
+                    </AnimatedReanimated.View>
+                  );
+                }
+
+                if (element.type === 'content') {
+                  return (
+                    <AnimatedReanimated.View
+                      key={element.id}
+                      entering={enteringAnim}
+                      style={styles.resolutionContainer}
+                    >
+                      <Response isStreaming={isSendingPrompt && isLastTurn}>
+                        {element.text}
+                      </Response>
+                      {isSendingPrompt && isLastTurn && (
+                        <AnimatedReanimated.View
+                          entering={FadeIn.duration(150)}
+                          style={styles.streamingCaretContainer}
+                        >
+                          <View style={[styles.streamingDot, isSwiss ? { backgroundColor: '#DC201E' } : isLight && { backgroundColor: '#262626' }]} />
+                        </AnimatedReanimated.View>
+                      )}
+                    </AnimatedReanimated.View>
+                  );
+                }
+
+                return null;
+              })
+            ) : (
+              <>
+                {turn.assistant.content ? (
+                  <AnimatedReanimated.View
+                    entering={enteringAnim}
+                    style={styles.resolutionContainer}
+                  >
+                    <Response isStreaming={isSendingPrompt && isLastTurn}>
+                      {turn.assistant.content}
+                    </Response>
+                  </AnimatedReanimated.View>
+                ) : null}
+              </>
+            )}
+
+            {/* Paradev Action Row (Copy Message & Branch Icon Buttons) */}
+            {turn.assistant.content ? (
+              <View style={styles.agentActionRow}>
+                <TouchableOpacity
+                  style={[styles.agentActionBtn, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}
+                  onPress={() => onCopyText(turn.assistant?.content || '')}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Copy message"
+                >
+                  {isCopied ? (
+                    <Check size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+                  ) : (
+                    <Copy size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#737373'} />
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.agentActionBtn, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}
+                  onPress={onBranch}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Branch from here"
+                >
+                  <GitFork size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#737373'} />
+                </TouchableOpacity>
+
+                <View style={[styles.agentMetaPill, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}>
+                  <Text style={[styles.agentMetaPillText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>{modelStr}</Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+);
 
 export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   onBack,
@@ -286,7 +551,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       if (isNearBottomRef.current) {
         setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
         }, 80);
       }
     });
@@ -326,7 +591,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [selectedActionForTray, setSelectedActionForTray] = useState<ActionStep | null>(null);
   const [copiedTurnId, setCopiedTurnId] = useState<string | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState<boolean>(false);
-  const scrollViewRef = useRef<any>(null);
+  const flatListRef = useRef<FlatList<ChatTurn>>(null);
 
   // Auto-scrolling state & throttle controls during live agent writing
   const isAutoScrollPausedRef = useRef<boolean>(false);
@@ -345,16 +610,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const activePromptTurnIndexRef = useRef<number>(-1);
   const activePromptLayoutYRef = useRef<number>(0);
 
-  // Infinite Scroll & Synchronous Scroll Compensation Refs
+  // Infinite Scroll & Inverted FlatList State Refs
   const isFetchingOlderRef = useRef<boolean>(false);
-  const isPrependPendingRef = useRef<boolean>(false);
-  const prevScrollHeightRef = useRef<number>(0);
-  const anchorScrollYRef = useRef<number>(0);
-  const anchorTurnIdRef = useRef<string | null>(null);
-  const anchorTurnOldYRef = useRef<number>(0);
   const turnYPositionsRef = useRef<Map<string, number>>(new Map());
-  const liveScrollYRef = useRef<number>(0);
-  const lastContentHeightRef = useRef<number>(0);
   const hasInitialScrolledRef = useRef<string | null>(null);
   const displayedTurnsRef = useRef<any[]>([]);
   const lastPaginationTriggerTimeRef = useRef<number>(0);
@@ -365,11 +623,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       if (hasInitialScrolledRef.current !== activeSession.id) {
         hasInitialScrolledRef.current = activeSession.id;
         turnYPositionsRef.current.clear();
-        isPrependPendingRef.current = false;
-        anchorTurnIdRef.current = null;
         setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: false });
-        }, 120);
+          flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+        }, 50);
       }
     }
   }, [activeSession?.id, sessionMessages.length, isLoadingMessages]);
@@ -377,16 +633,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const handleComposerLayout = (event: any) => {
     const newHeight = Math.round(event.nativeEvent.layout.height);
     if (newHeight > 0 && Math.abs(newHeight - prevComposerHeightRef.current) > 2) {
-      const delta = newHeight - prevComposerHeightRef.current;
       prevComposerHeightRef.current = newHeight;
       setComposerMeasuredHeight(newHeight);
-
-      // Vercel v0 Pattern: If user is reading near the bottom, compensate scroll offset so content never gets covered
-      if (isNearBottomRef.current && scrollViewRef.current) {
-        scrollViewRef.current.scrollTo({
-          y: Math.max(0, currentScrollYRef.current + delta),
-          animated: true,
-        });
+      if (isNearBottomRef.current && flatListRef.current) {
+        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
       }
     }
   };
@@ -418,7 +668,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         scrollTimeoutRef.current = setTimeout(() => {
           scrollTimeoutRef.current = null;
           if (isSendingPrompt && !isAutoScrollPausedRef.current) {
-            scrollViewRef.current?.scrollToEnd({ animated: true });
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
             lastScrollTimeRef.current = Date.now();
           }
         }, 50);
@@ -426,7 +676,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       return;
     }
     lastScrollTimeRef.current = now;
-    scrollViewRef.current?.scrollToEnd({ animated: true });
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
   const triggerLoadOlderMessages = useCallback(async () => {
@@ -446,80 +696,37 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     lastPaginationTriggerTimeRef.current = now;
 
     isFetchingOlderRef.current = true;
-    isPrependPendingRef.current = true;
-
-    // Snapshot scroll position & top anchor before store mutation
-    prevScrollHeightRef.current = lastContentHeightRef.current;
-    anchorScrollYRef.current = liveScrollYRef.current;
-
-    // Find the topmost visible turn relative to the current viewport
-    const visibleAnchor =
-      displayedTurnsRef.current.find((t) => {
-        const y = turnYPositionsRef.current.get(t.id);
-        return y !== undefined && y >= liveScrollYRef.current - 120;
-      }) || displayedTurnsRef.current[0];
-
-    if (visibleAnchor) {
-      anchorTurnIdRef.current = visibleAnchor.id || null;
-      anchorTurnOldYRef.current = turnYPositionsRef.current.get(visibleAnchor.id) ?? 0;
-    } else {
-      anchorTurnIdRef.current = null;
-      anchorTurnOldYRef.current = 0;
-    }
-
     try {
       await loadOlderMessages();
     } finally {
-      // Keep compensation active across multi-pass layout measuring
-      setTimeout(() => {
-        isPrependPendingRef.current = false;
-        anchorTurnIdRef.current = null;
-        isFetchingOlderRef.current = false;
-      }, 600);
+      isFetchingOlderRef.current = false;
     }
   }, [hasMoreMessages, isLoadingOlderMessages, activeSession?.id, loadOlderMessages]);
 
   const handleScroll = (event: any) => {
-    const { contentOffset, layoutMeasurement, contentSize } = event?.nativeEvent || event || {};
-    if (!contentOffset || !layoutMeasurement || !contentSize) return;
+    const { contentOffset } = event?.nativeEvent || event || {};
+    if (!contentOffset) return;
     currentScrollYRef.current = contentOffset.y;
-    liveScrollYRef.current = contentOffset.y;
-    lastContentHeightRef.current = contentSize.height;
 
-    const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
-    const isNear = distanceFromBottom <= 45;
+    // In an inverted FlatList, offset 0 is the bottom (latest messages)
+    const isNear = contentOffset.y <= 40;
     isNearBottomRef.current = isNear;
 
-    const isScrolledUp = distanceFromBottom > 140 && contentOffset.y > 60;
+    const isScrolledUp = contentOffset.y > 100;
     setShowScrollToBottom(isScrolledUp);
 
-    // If user scrolled back down near the bottom (within 45px), resume auto-scroll
+    // If user scrolled back down near the bottom (within 40px), resume auto-scroll
     if (isNear) {
       resumeAutoScroll();
-    } else if (distanceFromBottom > 80 && isSendingPrompt) {
+    } else if (contentOffset.y > 80 && isSendingPrompt) {
       // User scrolled up away from the bottom while agent is writing
       pauseAutoScroll();
-    }
-
-    // Smooth Infinite scroll: trigger only when user deliberately scrolls near the top edge
-    const now = Date.now();
-    if (
-      contentOffset.y <= 60 &&
-      contentOffset.y >= 0 &&
-      hasMoreMessages &&
-      !isLoadingOlderMessages &&
-      !isFetchingOlderRef.current &&
-      !isPrependPendingRef.current &&
-      now - lastPaginationTriggerTimeRef.current >= 1500 &&
-      contentSize.height > layoutMeasurement.height + 100
-    ) {
-      triggerLoadOlderMessages();
     }
   };
 
   const handleScrollToBottom = () => {
     resumeAutoScroll();
-    scrollViewRef.current?.scrollToEnd({ animated: true });
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
   };
 
   // Reset auto-scroll pause when prompt execution finishes
@@ -635,20 +842,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
     setPromptInput('');
     resumeAutoScroll();
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     await sendPrompt(text);
-  };
-
-  const formatTimeAgo = (isoDate?: string) => {
-    if (!isoDate) return '1 hour ago';
-    const diffMs = Date.now() - new Date(isoDate).getTime();
-    if (isNaN(diffMs)) return '1 hour ago';
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays > 0) return `${diffDays} hour${diffDays > 1 ? 's' : ''} ago`;
-    if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffMins > 0) return `${diffMins}m ago`;
-    return 'Just now';
   };
 
   const workspaceTitle =
@@ -675,12 +870,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
     for (let i = 0; i < sessionMessages.length; i++) {
       const msg = sessionMessages[i];
+      // Deterministic, position-independent message key to ensure keys never change when prepending pages
+      const msgKey = msg.id || (msg.timestamp ? `${msg.role}_${msg.timestamp}` : `msg_${i}`);
 
       if (msg.role === 'user') {
         currentTurn = {
-          id: msg.id || `turn_${i}`,
+          id: `turn_${msgKey}`,
           userMessage: {
-            id: msg.id || `usr_${i}`,
+            id: `usr_${msgKey}`,
             content: msg.content,
             timestamp: msg.timestamp,
           },
@@ -689,14 +886,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       } else if (msg.role === 'assistant') {
         if (!currentTurn) {
           currentTurn = {
-            id: msg.id || `turn_${i}`,
+            id: `turn_a_${msgKey}`,
           };
           turns.push(currentTurn);
         }
 
         if (!currentTurn.assistant) {
           currentTurn.assistant = {
-            id: msg.id || `asst_${i}`,
+            id: `asst_${msgKey}`,
             timestamp: msg.timestamp,
             actions: [],
             content: '',
@@ -707,21 +904,22 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
         const asstObj = currentTurn.assistant;
 
-        // 1. Process reasoning
+        // 1. Process reasoning with stable identifier
         if (msg.reasoning && msg.reasoning.trim()) {
           asstObj.reasoning = asstObj.reasoning
             ? asstObj.reasoning + '\n' + msg.reasoning
             : msg.reasoning;
 
+          const reasoningKey = `${msgKey}_reasoning`;
           const existingReasoning = asstObj.elements.find(
-            (el) => el.type === 'reasoning' && el.id.startsWith(`${msg.id || i}_reasoning`)
+            (el) => el.type === 'reasoning' && el.id === reasoningKey
           );
           if (existingReasoning && existingReasoning.type === 'reasoning') {
             existingReasoning.text = msg.reasoning;
           } else {
             asstObj.elements.push({
               type: 'reasoning',
-              id: `${msg.id || i}_reasoning_${asstObj.elements.length}`,
+              id: reasoningKey,
               text: msg.reasoning,
             });
           }
@@ -830,8 +1028,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               }
             }
 
+            const toolCallId = tc.id || `${msgKey}_${tcIdx}`;
             const actionStep: ActionStep = {
-              id: `action_${tc.id || `${i}_${tcIdx}`}`,
+              id: `action_${toolCallId}`,
               title,
               category,
               toolName: name,
@@ -850,6 +1049,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               asstObj.actions.push(actionStep);
             }
 
+            const elementId = `el_${actionStep.id}`;
             const existingEl = asstObj.elements.find(
               (el) => el.type === 'action' && el.action.id === actionStep.id
             );
@@ -858,28 +1058,29 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             } else {
               asstObj.elements.push({
                 type: 'action',
-                id: `${actionStep.id}_${asstObj.elements.length}`,
+                id: elementId,
                 action: actionStep,
               });
             }
           });
         }
 
-        // 3. Process content
+        // 3. Process content with stable identifier
         if (msg.content && msg.content.trim()) {
           asstObj.content = asstObj.content
             ? asstObj.content + '\n' + msg.content
             : msg.content;
 
+          const contentKey = `${msgKey}_content`;
           const existingContent = asstObj.elements.find(
-            (el) => el.type === 'content' && el.id.startsWith(`${msg.id || i}_content`)
+            (el) => el.type === 'content' && el.id === contentKey
           );
           if (existingContent && existingContent.type === 'content') {
             existingContent.text = msg.content;
           } else {
             asstObj.elements.push({
               type: 'content',
-              id: `${msg.id || i}_content_${asstObj.elements.length}`,
+              id: contentKey,
               text: msg.content,
             });
           }
@@ -904,7 +1105,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const displayedTurns = chatTurns;
   displayedTurnsRef.current = displayedTurns;
 
-  const renderActionIcon = (category: ActionStep['category']) => {
+  const renderActionIcon = useCallback((category: ActionStep['category']) => {
     const iconColor = isLight ? '#57606a' : '#c9d1d9';
     switch (category) {
       case 'git':
@@ -924,7 +1125,159 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       default:
         return <Terminal size={15} color={iconColor} />;
     }
-  };
+  }, [isLight]);
+
+  const reversedTurns = useMemo(() => {
+    if (!displayedTurns || displayedTurns.length === 0) return [];
+    return [...displayedTurns].reverse();
+  }, [displayedTurns]);
+
+  const handleBranchFromTurn = useCallback((targetTurnNumber: number) => {
+    setPromptInput(`Regarding turn #${targetTurnNumber}: `);
+  }, []);
+
+  const renderTurnItem = useCallback(
+    ({ item: turn, index }: { item: ChatTurn; index: number }) => {
+      const turnIdx = displayedTurns.length - 1 - index;
+      const isLastTurn = index === 0;
+
+      return (
+        <TurnCard
+          turn={turn}
+          turnIdx={turnIdx}
+          isLastTurn={isLastTurn}
+          isSendingPrompt={isSendingPrompt}
+          isLight={isLight}
+          isSwiss={isSwiss}
+          isCopied={copiedTurnId === turn.id}
+          modelStr={modelStr}
+          onSelectAction={setSelectedActionForTray}
+          onCopyText={(text) => handleCopyTurnText(turn.id, text)}
+          onBranch={() => handleBranchFromTurn(turnIdx + 1)}
+          onSendPrompt={sendPrompt}
+          renderActionIcon={renderActionIcon}
+        />
+      );
+    },
+    [
+      displayedTurns.length,
+      isSendingPrompt,
+      isLight,
+      isSwiss,
+      copiedTurnId,
+      modelStr,
+      setSelectedActionForTray,
+      handleCopyTurnText,
+      handleBranchFromTurn,
+      sendPrompt,
+      renderActionIcon,
+    ]
+  );
+
+  // ListHeaderComponent renders at the BOTTOM of the inverted list (near composer)
+  const renderListHeader = useCallback(() => (
+    <View>
+      <View
+        style={{
+          height:
+            composerMeasuredHeight +
+            Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) +
+            effectiveKeyboardHeight +
+            18,
+        }}
+      />
+      {isSendingPrompt && (
+        <View style={styles.streamingIndicatorRow}>
+          <ThinkingOrb state="working" size={20} />
+          <Text style={[styles.streamingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
+            Agent is thinking and executing...
+          </Text>
+        </View>
+      )}
+    </View>
+  ), [isSendingPrompt, isLight, isSwiss, composerMeasuredHeight, insets.bottom, effectiveKeyboardHeight]);
+
+  // ListFooterComponent renders at the TOP of the inverted list (below header bar)
+  // CRUCIAL: The header clearance spacer MUST BE FIRST so the loading indicator or
+  // "Beginning of session" badge is rendered comfortably below the transparent header bar,
+  // never hidden behind the notch, status bar, or pushed off screen!
+  const renderListFooter = useCallback(() => (
+    <View style={styles.paginationFooterWrapper}>
+      {/* 1. Header clearance spacer at the physical top of the scrollable content */}
+      <View style={{ height: topInset + (Platform.OS === 'ios' ? 64 : 58) }} />
+
+      {/* 2. Pagination loading row, Load earlier messages button, or Beginning of session */}
+      {hasMoreMessages ? (
+        <View style={styles.paginationHeaderContainer}>
+          {isLoadingOlderMessages ? (
+            <View
+              style={[
+                styles.paginationLoadingRow,
+                isLight && {
+                  backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa',
+                  borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
+                },
+              ]}
+            >
+              <Spinner size="sm" />
+              <Text style={[styles.paginationLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
+                Loading earlier messages…
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.loadOlderButton,
+                isLight && {
+                  backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa',
+                  borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
+                },
+              ]}
+              onPress={triggerLoadOlderMessages}
+              activeOpacity={0.7}
+            >
+              <Clock size={13} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#8b949e'} />
+              <Text style={[styles.loadOlderButtonText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
+                Load earlier messages
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : displayedTurns.length > 0 ? (
+        <View style={styles.transcriptStartContainer}>
+          <View
+            style={[
+              styles.transcriptStartDivider,
+              isLight && { backgroundColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#e1e4e8' },
+            ]}
+          />
+          <View
+            style={[
+              styles.transcriptStartBadge,
+              isLight && {
+                backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa',
+                borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
+              },
+            ]}
+          >
+            <Terminal size={11} color={isSwiss ? '#DC201E' : isLight ? '#57606a' : '#8b949e'} />
+            <Text style={[styles.transcriptStartText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
+              Beginning of session
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.transcriptStartDivider,
+              isLight && { backgroundColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#e1e4e8' },
+            ]}
+          />
+        </View>
+      ) : null}
+
+      {/* 3. Small buffer before the oldest message */}
+      <View style={{ height: 10 }} />
+    </View>
+  ), [hasMoreMessages, isLoadingOlderMessages, isLight, isSwiss, triggerLoadOlderMessages, displayedTurns.length, topInset]);
 
   return (
     <View
@@ -977,16 +1330,21 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
         {/* Center: Clean Title (No pill container, no borders) */}
         <View style={styles.cleanHeaderCenter} pointerEvents="box-none">
-          <Text
-            style={[
-              styles.cleanHeaderTitle,
-              isSwiss ? { color: '#111010' } : isLight && { color: '#1f2328' },
-            ]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {workspaceTitle}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            {isLoadingOlderMessages && (
+              <Spinner size="sm" />
+            )}
+            <Text
+              style={[
+                styles.cleanHeaderTitle,
+                isSwiss ? { color: '#111010' } : isLight && { color: '#1f2328' },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {workspaceTitle}
+            </Text>
+          </View>
         </View>
 
         {/* Right: Circular Three Dots Action Button with PanelUI Dropdown Menu */}
@@ -1100,369 +1458,72 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         </Menu>
       </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        style={[styles.scroll, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
-            paddingBottom:
-              composerMeasuredHeight +
-              Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) +
-              effectiveKeyboardHeight +
-              18,
-          },
-          displayedTurns.length === 0 && { flexGrow: 1, justifyContent: 'center' },
-        ]}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
-        onTouchStart={pauseAutoScroll}
-        onScrollBeginDrag={pauseAutoScroll}
-        onContentSizeChange={(_w, h) => {
-          const prevH = prevScrollHeightRef.current;
-          lastContentHeightRef.current = h;
-
-          if (isPrependPendingRef.current && prevH > 0 && h > prevH) {
-            const heightDelta = h - prevH;
-            const targetY = currentScrollYRef.current + heightDelta;
-            scrollViewRef.current?.scrollTo({
-              y: targetY,
-              animated: false,
-            });
-            liveScrollYRef.current = targetY;
-            currentScrollYRef.current = targetY;
-            anchorScrollYRef.current = targetY;
-            prevScrollHeightRef.current = h;
-          }
-
-          if (isSendingPrompt && !isAutoScrollPausedRef.current) {
-            triggerAutoScroll();
-          }
-        }}
-      >
-
-        {/* Infinite Scroll / Top Pagination Header */}
-        {hasMoreMessages ? (
-          <View style={styles.paginationHeaderContainer}>
-            {isLoadingOlderMessages ? (
-              <View style={styles.paginationLoadingRow}>
-                <Spinner size="sm" />
-                <Text style={[styles.paginationLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
-                  Loading earlier messages…
-                </Text>
+      {displayedTurns.length === 0 ? (
+        <ScrollView
+          style={[styles.scroll, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              flexGrow: 1,
+              justifyContent: 'center',
+              paddingTop: topInset + (Platform.OS === 'ios' ? 60 : 56),
+              paddingBottom:
+                composerMeasuredHeight +
+                Math.max(insets.bottom, Platform.OS === 'ios' ? 14 : 10) +
+                effectiveKeyboardHeight +
+                18,
+            },
+          ]}
+        >
+          {isLoadingMessages ? (
+            <View style={styles.sessionLoadingBox}>
+              <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
+                <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+                <Text style={[styles.sessionLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>Loading session transcript...</Text>
               </View>
-            ) : (
-              <TouchableOpacity
-                style={[
-                  styles.loadOlderButton,
-                  isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' },
-                ]}
-                onPress={triggerLoadOlderMessages}
-                activeOpacity={0.7}
-              >
-                <Clock size={13} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#8b949e'} />
-                <Text style={[styles.loadOlderButtonText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
-                  Load earlier messages
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ) : displayedTurns.length > 0 ? (
-          <View style={styles.transcriptStartContainer}>
-            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#e1e4e8' }]} />
-            <View style={[styles.transcriptStartBadge, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
-              <Terminal size={11} color={isSwiss ? '#DC201E' : isLight ? '#57606a' : '#8b949e'} />
-              <Text style={[styles.transcriptStartText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
-                Beginning of session
-              </Text>
             </View>
-            <View style={[styles.transcriptStartDivider, isLight && { backgroundColor: isSwiss ? 'rgba(17, 16, 16, 0.12)' : '#e1e4e8' }]} />
-          </View>
-        ) : null}
-
-        {/* 4. Turn-by-Turn Timeline (Paradev OutgoingBubble & AgentMessage) */}
-        {isLoadingMessages ? (
-          <View style={styles.sessionLoadingBox}>
-            <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
-              <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
-              <Text style={[styles.sessionLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>Loading session transcript...</Text>
-            </View>
-          </View>
-        ) : displayedTurns.length === 0 ? (
-          <EmptyState variant="default" size="lg" className="py-8">
-            <EmptyState.Header>
-              <EmptyState.Media variant="icon">
-                <Terminal size={22} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
-              </EmptyState.Media>
-              <EmptyState.Title style={isSwiss ? { color: '#111010' } : isLight ? { color: '#1f2328' } : undefined}>
-                No messages in this session yet
-              </EmptyState.Title>
-              <EmptyState.Description style={isSwiss ? { color: '#6B665E' } : isLight ? { color: '#57606a' } : undefined}>
-                Send a prompt below to interact with the Antigravity agent runtime.
-              </EmptyState.Description>
-            </EmptyState.Header>
-          </EmptyState>
-        ) : (
-          displayedTurns.map((turn, turnIdx) => (
-            <View
-              key={turn.id || turnIdx}
-              style={styles.turnCardContainer}
-              onLayout={(e) => {
-                const turnY = e.nativeEvent.layout.y;
-                turnYPositionsRef.current.set(turn.id, turnY);
-
-                if (isPrependPendingRef.current && anchorTurnIdRef.current === turn.id) {
-                  const oldY = anchorTurnOldYRef.current;
-                  if (oldY > 0 && turnY > oldY) {
-                    const shift = turnY - oldY;
-                    const targetY = anchorScrollYRef.current + shift;
-                    if (Math.abs(liveScrollYRef.current - targetY) > 2) {
-                      scrollViewRef.current?.scrollTo({ y: targetY, animated: false });
-                      liveScrollYRef.current = targetY;
-                      currentScrollYRef.current = targetY;
-                    }
-                  }
-                }
-
-                if (turnIdx === activePromptTurnIndexRef.current && userJustSubmittedRef.current) {
-                  userJustSubmittedRef.current = false;
-                  activePromptLayoutYRef.current = turnY;
-                  // Vercel v0 Pattern: Smoothly anchor the user prompt comfortably below the header
-                  const targetY = Math.max(0, turnY - (topInset + 52));
-                  scrollViewRef.current?.scrollTo({ y: targetY, animated: true });
-                }
-              }}
-            >
-              {/* User Prompt: Paradev OutgoingBubble */}
-              {turn.userMessage?.content ? (
-                <View style={styles.userBubbleWrapper}>
-                  <View
-                    style={[
-                      styles.userOutgoingBubble,
-                      isLight && {
-                        backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff',
-                        borderWidth: 1,
-                        borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
-                        shadowColor: isSwiss ? '#111010' : '#000',
-                        shadowOffset: { width: 0, height: 1 },
-                        shadowOpacity: 0.05,
-                        shadowRadius: 3,
-                        elevation: 1,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.userBubbleText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>{turn.userMessage.content}</Text>
-                  </View>
-                  <View style={styles.userBubbleMeta}>
-                    <Text style={[styles.userBubbleMetaText, isLight && { color: isSwiss ? '#6B665E' : '#8c959f' }]}>
-                      {turn.userMessage.timestamp
-                        ? formatTimeAgo(turn.userMessage.timestamp)
-                        : `turn #${turnIdx + 1}`}
-                    </Text>
-                  </View>
-                </View>
-              ) : null}
-
-              {/* Assistant Turn: Natural Borderless Flow matching Reference */}
-              {turn.assistant ? (
-                <View style={styles.assistantTurnWrapper}>
-                  {/* Sequential chronological stream elements (Thoughts, Tool Actions, Markdown resolution) */}
-                  {turn.assistant.elements && turn.assistant.elements.length > 0 ? (
-                    turn.assistant.elements.map((element) => {
-                      if (element.type === 'reasoning') {
-                        const isLastTurn = turnIdx === displayedTurns.length - 1;
-                        let isCurrentlyThinking = false;
-                        if (isSendingPrompt && isLastTurn && turn.assistant?.elements) {
-                          // Check if any action or content follows this element in elements
-                          let hasFollowingActionOrContent = false;
-                          const elIdx = turn.assistant.elements.indexOf(element);
-                          if (elIdx >= 0) {
-                            for (let k = elIdx + 1; k < turn.assistant.elements.length; k++) {
-                              const nextEl = turn.assistant.elements[k];
-                              if (nextEl.type === 'action' || nextEl.type === 'content') {
-                                hasFollowingActionOrContent = true;
-                                break;
-                              }
-                            }
-                          }
-                          isCurrentlyThinking = !hasFollowingActionOrContent;
-                        }
-
-                        return (
-                          <AnimatedReanimated.View
-                            key={element.id}
-                            entering={FadeInDown.duration(180)}
-                          >
-                            <Reasoning
-                              isStreaming={isCurrentlyThinking}
-                              className="my-1.5"
-                            >
-                              <Reasoning.Trigger
-                                label={(isStreaming, duration) =>
-                                  isStreaming ? (
-                                    <Shimmer textClassName={isLight ? 'text-xs text-primary font-medium' : 'text-xs text-primary font-medium'}>
-                                      Thinking…
-                                    </Shimmer>
-                                  ) : (
-                                    <Text className="text-xs text-muted-foreground">
-                                      {duration === undefined ? 'Thought' : `Thought for ${duration}s`}
-                                    </Text>
-                                  )
-                                }
-                              />
-                              <Reasoning.Content>
-                                {element.text.trim()}
-                              </Reasoning.Content>
-                            </Reasoning>
-                          </AnimatedReanimated.View>
-                        );
-                      }
-
-                      if (element.type === 'action') {
-                        const action = element.action;
-                        return (
-                          <AnimatedReanimated.View
-                            key={action.id}
-                            entering={FadeInDown.duration(180)}
-                            style={styles.flatToolItemWrapper}
-                          >
-                            <TouchableOpacity
-                              style={styles.flatToolRow}
-                              activeOpacity={0.65}
-                              onPress={() => setSelectedActionForTray(action)}
-                            >
-                              <View style={styles.flatToolLeft}>
-                                <View style={styles.flatToolIconWrap}>
-                                  {renderActionIcon(action.category)}
-                                </View>
-                                <Text
-                                  style={[
-                                    styles.flatToolTitle,
-                                    isSwiss ? { color: '#111010' } : isLight && styles.flatToolTitleLight,
-                                    action.status === 'error' && styles.flatToolTitleError,
-                                  ]}
-                                  numberOfLines={1}
-                                  ellipsizeMode="middle"
-                                >
-                                  {action.title}
-                                </Text>
-                              </View>
-
-                              <View style={styles.flatToolRight}>
-                                {action.status === 'running' && (
-                                  <Spinner size="sm" />
-                                )}
-                                <ChevronRight size={14} color={isLight ? '#8c959f' : '#6e7681'} />
-                              </View>
-                            </TouchableOpacity>
-
-                            {/* Interactive Clarification & Choice Cards (ask_question) */}
-                            {action.toolName === 'ask_question' && (
-                              <AskQuestionCard
-                                action={action}
-                                onSubmitAnswer={async (answerText) => {
-                                  await sendPrompt(answerText);
-                                }}
-                                isSubmitting={isSendingPrompt}
-                              />
-                            )}
-                          </AnimatedReanimated.View>
-                        );
-                      }
-
-                      if (element.type === 'content') {
-                        const isLastTurn = turnIdx === displayedTurns.length - 1;
-                        return (
-                          <AnimatedReanimated.View
-                            key={element.id}
-                            entering={FadeInDown.duration(180)}
-                            style={styles.resolutionContainer}
-                          >
-                            <Response isStreaming={isSendingPrompt && isLastTurn}>
-                              {element.text}
-                            </Response>
-                            {isSendingPrompt && isLastTurn && (
-                              <AnimatedReanimated.View
-                                entering={FadeIn.duration(150)}
-                                style={styles.streamingCaretContainer}
-                              >
-                                <View style={[styles.streamingDot, isSwiss ? { backgroundColor: '#DC201E' } : isLight && { backgroundColor: '#262626' }]} />
-                              </AnimatedReanimated.View>
-                            )}
-                          </AnimatedReanimated.View>
-                        );
-                      }
-
-                      return null;
-                    })
-                  ) : (
-                    // Fallback if elements not yet populated
-                    <>
-                      {turn.assistant.content ? (
-                        <AnimatedReanimated.View
-                          entering={FadeInDown.duration(180)}
-                          style={styles.resolutionContainer}
-                        >
-                          <Response isStreaming={isSendingPrompt && turnIdx === displayedTurns.length - 1}>
-                            {turn.assistant.content}
-                          </Response>
-                        </AnimatedReanimated.View>
-                      ) : null}
-                    </>
-                  )}
-
-                  {/* Paradev Action Row (Copy Message & Branch Icon Buttons) */}
-                  {turn.assistant.content ? (
-                    <View style={styles.agentActionRow}>
-                      <TouchableOpacity
-                        style={[styles.agentActionBtn, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}
-                        onPress={() =>
-                          handleCopyTurnText(turn.id, turn.assistant?.content || '')
-                        }
-                        activeOpacity={0.7}
-                        accessibilityLabel="Copy message"
-                      >
-                        {copiedTurnId === turn.id ? (
-                          <Check size={14} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
-                        ) : (
-                          <Copy size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#737373'} />
-                        )}
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={[styles.agentActionBtn, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}
-                        onPress={() => {
-                          setPromptInput(`Regarding turn #${turnIdx + 1}: `);
-                        }}
-                        activeOpacity={0.7}
-                        accessibilityLabel="Branch from here"
-                      >
-                        <GitFork size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#737373'} />
-                      </TouchableOpacity>
-
-                      <View style={[styles.agentMetaPill, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#e1e4e8' }]}>
-                        <Text style={[styles.agentMetaPillText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>{modelStr}</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
-          ))
-        )}
-
-        {/* 5. Streaming Live Indicator */}
-        {isSendingPrompt && (
-          <View style={styles.streamingIndicatorRow}>
-            <ThinkingOrb state="working" size={20} />
-            <Text style={[styles.streamingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>Agent is thinking and executing...</Text>
-          </View>
-        )}
-      </ScrollView>
+          ) : (
+            <EmptyState variant="default" size="lg" className="py-8">
+              <EmptyState.Header>
+                <EmptyState.Media variant="icon">
+                  <Terminal size={22} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+                </EmptyState.Media>
+                <EmptyState.Title style={isSwiss ? { color: '#111010' } : isLight ? { color: '#1f2328' } : undefined}>
+                  No messages in this session yet
+                </EmptyState.Title>
+                <EmptyState.Description style={isSwiss ? { color: '#6B665E' } : isLight ? { color: '#57606a' } : undefined}>
+                  Send a prompt below to interact with the Antigravity agent runtime.
+                </EmptyState.Description>
+              </EmptyState.Header>
+            </EmptyState>
+          )}
+        </ScrollView>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={reversedTurns}
+          keyExtractor={(turn) => turn.id}
+          inverted
+          style={[styles.scroll, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: 0, paddingBottom: 0 }]}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          onTouchStart={pauseAutoScroll}
+          onScrollBeginDrag={pauseAutoScroll}
+          onEndReachedThreshold={0.15}
+          onEndReached={() => {
+            if (hasMoreMessages && !isLoadingOlderMessages && !isFetchingOlderRef.current) {
+              triggerLoadOlderMessages();
+            }
+          }}
+          renderItem={renderTurnItem}
+          ListHeaderComponent={renderListHeader}
+          ListFooterComponent={renderListFooter}
+        />
+      )}
 
       {/* 6. Floating Scroll FAB (Visible when user scrolled up or paused auto-scroll mid-stream) */}
       {(showScrollToBottom || (isSendingPrompt && isAutoScrollPaused)) && (
@@ -1951,11 +2012,17 @@ const styles = StyleSheet.create({
   },
 
   // Infinite scroll & transcript pagination header
-  paginationHeaderContainer: {
-    paddingVertical: 8,
+  paginationFooterWrapper: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+  },
+  paginationHeaderContainer: {
+    paddingVertical: 8,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
   },
   paginationLoadingRow: {
     flexDirection: 'row',
@@ -1963,6 +2030,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: '#1e1e1e',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   paginationLoadingText: {
     fontSize: 12,
