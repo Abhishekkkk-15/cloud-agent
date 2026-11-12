@@ -207,7 +207,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
   if (!visible) return null;
 
   const renderIconForArtifact = (item: CliArtifact) => {
-    const iconColor = isLight ? '#0077b6' : '#fafafa';
+    const iconColor = isLight ? '#262626' : '#fafafa';
     const lang = (item.language || '').toLowerCase();
     if (lang === 'md' || lang === 'markdown') {
       return <FileText size={16} color={iconColor} />;
@@ -263,7 +263,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               ) : (
                 <View style={styles.headerLeft}>
                   <View style={[styles.headerIconBox, isLight && styles.headerIconBoxLight]}>
-                    <Layers size={18} color={isLight ? '#0077b6' : '#fafafa'} />
+                    <Layers size={18} color={isLight ? '#262626' : '#fafafa'} />
                   </View>
                   <View>
                     <View style={styles.titleRow}>
@@ -286,7 +286,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                 >
                   <RefreshCw
                     size={16}
-                    color={isRefreshing ? (isLight ? '#0077b6' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')}
+                    color={isRefreshing ? (isLight ? '#262626' : '#fafafa') : (isLight ? '#57606a' : '#a3a3a3')}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -363,7 +363,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   disabled={!content}
                 >
                   {copied ? (
-                    <Check size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+                    <Check size={14} color={isLight ? '#262626' : '#fafafa'} />
                   ) : (
                     <Copy size={14} color={isLight ? '#57606a' : '#a3a3a3'} />
                   )}
@@ -373,7 +373,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Reader Scrollable Content */}
               {isLoadingArtifactContent ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#fafafa'} />
                   <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Loading artifact content...</Text>
                 </View>
               ) : (
@@ -386,7 +386,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   {selectedArtifact.summary ? (
                     <View style={[styles.summaryBox, isLight && styles.summaryBoxLight]}>
                       <View style={styles.summaryHeader}>
-                        <Sparkles size={13} color={isLight ? '#0077b6' : '#fafafa'} />
+                        <Sparkles size={13} color={isLight ? '#262626' : '#fafafa'} />
                         <Text style={[styles.summaryTitle, isLight && styles.summaryTitleLight]}>Summary</Text>
                       </View>
                       <Text style={[styles.summaryText, isLight && styles.summaryTextLight]}>{selectedArtifact.summary}</Text>
@@ -435,13 +435,13 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
               {/* Artifacts List */}
               {isLoadingArtifacts && sessionArtifacts.length === 0 ? (
                 <View style={styles.loadingBox}>
-                  <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+                  <ActivityIndicator size="small" color={isLight ? '#262626' : '#fafafa'} />
                   <Text style={[styles.loadingText, isLight && styles.loadingTextLight]}>Fetching session artifacts...</Text>
                 </View>
               ) : filteredArtifacts.length === 0 ? (
                 <View style={styles.emptyContainer}>
                   <View style={[styles.emptyIconBox, isLight && styles.emptyIconBoxLight]}>
-                    <Layers size={28} color={isLight ? '#0077b6' : '#fafafa'} />
+                    <Layers size={28} color={isLight ? '#262626' : '#fafafa'} />
                   </View>
                   <Text style={[styles.emptyTitle, isLight && styles.emptyTitleLight]}>
                     {searchQuery ? 'No matching artifacts' : 'No artifacts created yet'}
@@ -867,7 +867,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e1e4e8',
   },
   headerIconBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   titleLight: {
     color: '#1f2328',
@@ -908,7 +908,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#eaeef2',
   },
   modeTabActiveLight: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#262626',
   },
   modeTabTextLight: {
     color: '#57606a',
@@ -930,7 +930,7 @@ const styles = StyleSheet.create({
     borderColor: '#e1e4e8',
   },
   summaryTitleLight: {
-    color: '#0077b6',
+    color: '#262626',
   },
   summaryTextLight: {
     color: '#1f2328',
@@ -953,7 +953,7 @@ const styles = StyleSheet.create({
     color: '#1f2328',
   },
   emptyIconBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   emptyTitleLight: {
     color: '#1f2328',

@@ -941,7 +941,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               }
               trailing={
                 sessionArtifacts.length > 0 ? (
-                  <View style={[styles.dropdownBadge, isLight && { backgroundColor: '#0077b6' }]}>
+                  <View style={[styles.dropdownBadge, isLight && { backgroundColor: '#262626' }]}>
                     <Text style={styles.dropdownBadgeText}>{sessionArtifacts.length}</Text>
                   </View>
                 ) : undefined
@@ -967,7 +967,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
             {activeSession && (
               <Menu.Item
-                icon={<Pin size={18} color={activeSession.pinned ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')} />}
+                icon={<Pin size={18} color={activeSession.pinned ? (isLight ? '#262626' : '#ffffff') : (isLight ? '#57606a' : '#a3a3a3')} />}
                 onSelect={async () => {
                   await togglePinSession(activeSession.id);
                 }}
@@ -1107,14 +1107,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         {isLoadingMessages ? (
           <View style={styles.sessionLoadingBox}>
             <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
-              <ActivityIndicator size="small" color={isLight ? '#0077b6' : '#fafafa'} />
+              <ActivityIndicator size="small" color={isLight ? '#262626' : '#fafafa'} />
               <Text style={[styles.sessionLoadingText, isLight && { color: '#57606a' }]}>Loading session transcript...</Text>
             </View>
           </View>
         ) : displayedTurns.length === 0 ? (
           <View style={styles.emptyChatBox}>
             <View style={[styles.emptyChatIconBox, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
-              <Terminal size={22} color={isLight ? '#0077b6' : '#fafafa'} />
+              <Terminal size={22} color={isLight ? '#262626' : '#fafafa'} />
             </View>
             <Text style={[styles.emptyChatTitle, isLight && { color: '#1f2328' }]}>No messages in this session yet</Text>
             <Text style={[styles.emptyChatSubtitle, isLight && { color: '#57606a' }]}>
@@ -1305,7 +1305,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                                 entering={FadeIn.duration(150)}
                                 style={styles.streamingCaretContainer}
                               >
-                                <View style={[styles.streamingDot, isLight && { backgroundColor: '#0077b6' }]} />
+                                <View style={[styles.streamingDot, isLight && { backgroundColor: '#262626' }]} />
                               </AnimatedReanimated.View>
                             )}
                           </AnimatedReanimated.View>
@@ -1342,7 +1342,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                         accessibilityLabel="Copy message"
                       >
                         {copiedTurnId === turn.id ? (
-                          <Check size={14} color={isLight ? '#0077b6' : '#fafafa'} />
+                          <Check size={14} color={isLight ? '#262626' : '#fafafa'} />
                         ) : (
                           <Copy size={14} color={isLight ? '#57606a' : '#737373'} />
                         )}
@@ -1401,10 +1401,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           >
             <ArrowDown
               size={14}
-              color={isSendingPrompt && isAutoScrollPaused ? (isLight ? '#0077b6' : colors.primaryLight) : (isLight ? '#57606a' : '#a3a3a3')}
+              color={isSendingPrompt && isAutoScrollPaused ? (isLight ? '#262626' : colors.primaryLight) : (isLight ? '#57606a' : '#a3a3a3')}
             />
             {isSendingPrompt && isAutoScrollPaused && (
-              <View style={[styles.scrollFabBadge, isLight && { backgroundColor: '#0077b6' }]} />
+              <View style={[styles.scrollFabBadge, isLight && { backgroundColor: '#262626' }]} />
             )}
           </TouchableOpacity>
         </AnimatedReanimated.View>
@@ -1478,7 +1478,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 icon={
                   <Plus
                     size={16}
-                    color={showCommandPicker ? '#0077b6' : (isLight ? '#57606a' : '#a3a3a3')}
+                    color={showCommandPicker ? (isLight ? '#262626' : '#ffffff') : (isLight ? '#57606a' : '#a3a3a3')}
                   />
                 }
                 onPress={() => setShowCommandPicker((prev) => !prev)}
@@ -1571,7 +1571,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.renameSaveBtn, isLight && { backgroundColor: '#0077b6' }, isSavingRename && { opacity: 0.6 }]}
+                  style={[styles.renameSaveBtn, isLight && { backgroundColor: '#262626' }, isSavingRename && { opacity: 0.6 }]}
                   onPress={handleSaveRename}
                   disabled={isSavingRename || !renameTitle.trim()}
                   activeOpacity={0.7}
@@ -1679,7 +1679,7 @@ const styles = StyleSheet.create({
   },
   // Dropdown Badge
   dropdownBadge: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#262626',
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 2,

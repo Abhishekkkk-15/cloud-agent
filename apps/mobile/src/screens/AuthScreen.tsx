@@ -358,9 +358,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
           accessibilityLabel="Toggle Dark / Light Theme"
         >
           {isLight ? (
-            <Moon size={22} color="#0077b6" />
+            <Moon size={22} color="#262626" />
           ) : (
-            <Sun size={22} color="#38bdf8" />
+            <Sun size={22} color="#f5f5f5" />
           )}
         </TouchableOpacity>
       </View>
@@ -420,7 +420,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
               size="sm"
               fullWidth
               loading={isLoadingDev}
-              startContent={<Zap size={14} color="#0077b6" />}
+              startContent={<Zap size={14} color={isLight ? '#262626' : '#f5f5f5'} />}
               endContent={
                 <Badge variant="secondary" size="sm" className="px-1.5 py-0 ml-1">
                   <Text className="text-[10px] font-medium text-muted-foreground">Dev Only</Text>

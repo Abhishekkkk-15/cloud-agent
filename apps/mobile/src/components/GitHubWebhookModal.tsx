@@ -195,8 +195,8 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
         {/* Header */}
         <View className="px-4 py-3.5 border-b border-border flex-row items-center justify-between bg-surface">
           <View className="flex-row items-center gap-2.5 flex-1 mr-2">
-            <View className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 items-center justify-center">
-              <Github size={16} color={isLight ? '#0077b6' : '#38bdf8'} />
+            <View className="w-8 h-8 rounded-lg bg-surface-secondary border border-border items-center justify-center">
+              <Github size={16} color={isLight ? '#262626' : '#fafafa'} />
             </View>
             <View className="flex-1">
               <Dialog.Title className="text-base font-semibold text-foreground">
@@ -347,7 +347,7 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                   </View>
                 ) : (
                   <View className="flex-row items-center gap-2.5 p-3 rounded-lg bg-surface border border-border">
-                    <ShieldAlert size={16} color={isLight ? '#0077b6' : '#38bdf8'} />
+                    <ShieldAlert size={16} color={isLight ? '#262626' : '#fafafa'} />
                     <View className="flex-1">
                       <Text className="text-xs font-semibold text-foreground">
                         No GitHub Token Configured

@@ -51,7 +51,7 @@ This document provides development instructions, operational rules, code style s
      2. `panelui-native` genuinely lacks a component for that specific capability.
    - **Styling via Uniwind / Tailwind CSS v4**:
      - Style `panelui-native` components using Tailwind utility classes (`className="..."`) and `panelui-native` theme tokens.
-     - Strictly adhere to the Black, White, Gray, and `#0077b6` palette (`#0d1117` canvas, `#161b22` card surface, `#0077b6` accent).
+     - Strictly adhere to the Black, White, and Gray monochrome palette (with high-contrast primary accents `#f5f5f5` / `#262626` and semantic status indicators).
      - Avoid creating bulky manual `StyleSheet.create` rules for layouts easily handled by Tailwind utility classes.
    - **Gesture & Reanimated Integrity**:
      - Leverage `panelui-native`'s built-in `react-native-reanimated` and `react-native-gesture-handler` integration for 60fps UI-thread interactions.

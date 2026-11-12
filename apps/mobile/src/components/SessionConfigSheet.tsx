@@ -245,7 +245,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             <View style={[styles.header, isLight && styles.headerLight]}>
               <View style={styles.headerLeft}>
                 <View style={[styles.iconCircle, isLight && styles.iconCircleLight]}>
-                  <SlidersHorizontal size={16} color={isLight ? '#0077b6' : '#ffffff'} />
+                  <SlidersHorizontal size={16} color={isLight ? '#262626' : '#ffffff'} />
                 </View>
                 <View>
                   <Text style={[styles.headerTitle, isLight && styles.headerTitleLight]}>SESSION PARAMETERS</Text>
@@ -268,7 +268,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             {/* 1. Reasoning Effort */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Flame size={13} color={isLight ? '#0077b6' : colors.green} />
+                <Flame size={13} color={isLight ? '#262626' : colors.primary} />
                 <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>REASONING EFFORT</Text>
               </View>
 
@@ -307,7 +307,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             {/* 2. Execution Mode */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Layers size={13} color={isLight ? '#0077b6' : colors.green} />
+                <Layers size={13} color={isLight ? '#262626' : colors.primary} />
                 <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>EXECUTION MODE</Text>
               </View>
 
@@ -357,7 +357,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             {/* 3. AI Model Selector */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Bot size={13} color={isLight ? '#0077b6' : colors.green} />
+                <Bot size={13} color={isLight ? '#262626' : colors.primary} />
                 <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>ACTIVE MODEL</Text>
               </View>
 
@@ -412,7 +412,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             {/* 4. Tool Permissions */}
             <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <ShieldCheck size={13} color={isLight ? '#0077b6' : colors.primary} />
+                <ShieldCheck size={13} color={isLight ? '#262626' : colors.primary} />
                 <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight]}>TOOL PERMISSIONS</Text>
               </View>
 
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e1e4e8',
   },
   iconCircleLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
     borderColor: '#d0d7de',
   },
   headerTitleLight: {
@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
     color: '#57606a',
   },
   segmentBtnTextActiveLight: {
-    color: '#0077b6',
+    color: '#262626',
     fontWeight: '700',
   },
   effortDescriptionLight: {
@@ -845,23 +845,23 @@ const styles = StyleSheet.create({
     borderColor: '#d0d7de',
   },
   modeCardActiveLight: {
-    borderColor: '#0077b6',
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: '#262626',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   radioCircleLight: {
     borderColor: '#8c959f',
   },
   radioCircleActiveLight: {
-    borderColor: '#0077b6',
+    borderColor: '#262626',
   },
   radioDotLight: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#262626',
   },
   modeCardLabelLight: {
     color: '#1f2328',
   },
   modeCardLabelActiveLight: {
-    color: '#0077b6',
+    color: '#262626',
   },
   modeCardDescLight: {
     color: '#6e7681',
@@ -871,14 +871,14 @@ const styles = StyleSheet.create({
     borderColor: '#d0d7de',
   },
   modelCardActiveLight: {
-    borderColor: '#0077b6',
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
+    borderColor: '#262626',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
   },
   modelNameLight: {
     color: '#1f2328',
   },
   modelNameActiveLight: {
-    color: '#0077b6',
+    color: '#262626',
   },
   providerBadgeLight: {
     backgroundColor: '#eaeef2',
@@ -890,18 +890,18 @@ const styles = StyleSheet.create({
     color: '#6e7681',
   },
   badgeRecommendedLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.10)',
-    borderColor: 'rgba(0, 119, 182, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.06)',
+    borderColor: 'rgba(0, 0, 0, 0.12)',
   },
   badgeRecommendedTextLight: {
-    color: '#0077b6',
+    color: '#262626',
   },
   bottomBarLight: {
     backgroundColor: '#ffffff',
     borderTopColor: '#e1e4e8',
   },
   applyBtnLight: {
-    backgroundColor: '#0077b6',
+    backgroundColor: '#262626',
   },
   applyBtnTextLight: {
     color: '#ffffff',

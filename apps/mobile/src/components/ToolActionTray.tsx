@@ -201,7 +201,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
   }
 
   const renderCategoryIcon = (category: ActionStep['category'], size = 16) => {
-    const iconColor = isLight ? '#0077b6' : '#ffffff';
+    const iconColor = isLight ? '#262626' : '#ffffff';
     switch (category) {
       case 'git':
         return <GitBranch size={size} color={iconColor} />;
@@ -316,7 +316,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                       ]}
                     >
                       {isRunning ? (
-                        <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.green} style={{ transform: [{ scale: 0.65 }] }} />
+                        <ActivityIndicator size="small" color={isLight ? '#262626' : colors.primary} style={{ transform: [{ scale: 0.65 }] }} />
                       ) : isSuccess ? (
                         <CheckCircle2 size={11} color={isLight ? '#1a7f37' : colors.green} />
                       ) : (
@@ -327,7 +327,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                           styles.statusPillText,
                           {
                             color: isRunning
-                              ? (isLight ? '#0077b6' : colors.green)
+                              ? (isLight ? '#262626' : colors.primary)
                               : isSuccess
                               ? (isLight ? '#1a7f37' : colors.green)
                               : (isLight ? '#cf222e' : colors.red),
@@ -376,7 +376,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <Terminal size={13} color={isLight ? '#0077b6' : '#ffffff'} />
+                    <Terminal size={13} color={isLight ? '#262626' : '#ffffff'} />
                     <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>COMMAND EXECUTED</Text>
                   </View>
                   <TouchableOpacity
@@ -417,7 +417,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
               <View style={styles.sectionBlock}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionHeaderLeft}>
-                    <FileCode size={13} color={isLight ? '#0077b6' : '#ffffff'} />
+                    <FileCode size={13} color={isLight ? '#262626' : '#ffffff'} />
                     <Text style={[styles.sectionHeaderTitle, isLight && styles.sectionHeaderTitleLight]}>TARGET FILE</Text>
                   </View>
                 </View>
@@ -490,7 +490,7 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
                 </View>
               ) : isRunning ? (
                 <View style={[styles.runningOutputBox, isLight && styles.runningOutputBoxLight]}>
-                  <ActivityIndicator size="small" color={isLight ? '#0077b6' : colors.green} />
+                  <ActivityIndicator size="small" color={isLight ? '#262626' : colors.primary} />
                   <Text style={[styles.runningOutputText, isLight && styles.runningOutputTextLight]}>Tool execution in progress...</Text>
                 </View>
               ) : (
@@ -852,7 +852,7 @@ const styles = StyleSheet.create({
     borderColor: '#d0d7de',
   },
   commandPromptPrefixLight: {
-    color: '#0077b6',
+    color: '#262626',
   },
   commandTextLight: {
     color: '#1f2328',
@@ -865,17 +865,17 @@ const styles = StyleSheet.create({
     borderColor: '#d0d7de',
   },
   filePathTextLight: {
-    color: '#0077b6',
+    color: '#262626',
   },
   fileLineRangeLight: {
     color: '#6e7681',
   },
   runningOutputBoxLight: {
-    backgroundColor: 'rgba(0, 119, 182, 0.08)',
-    borderColor: 'rgba(0, 119, 182, 0.25)',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: 'rgba(0, 0, 0, 0.12)',
   },
   runningOutputTextLight: {
-    color: '#0077b6',
+    color: '#262626',
   },
   emptyOutputBoxLight: {
     backgroundColor: '#f6f8fa',

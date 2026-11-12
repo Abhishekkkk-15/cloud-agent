@@ -63,7 +63,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#0077b6",
+          "color": "#141414",
           "defaultChannel": "agent-alerts"
         }
       ],

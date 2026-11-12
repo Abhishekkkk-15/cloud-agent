@@ -180,7 +180,7 @@ export async function ensureNotificationChannelsAsync(): Promise<void> {
     const channelConfig = {
       importance: notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#0077b6',
+      lightColor: '#ffffff',
       sound: 'default',
       enableVibrate: true,
       showBadge: true,

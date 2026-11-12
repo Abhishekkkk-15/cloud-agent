@@ -156,7 +156,7 @@ export const MarkdownText: React.FC<MarkdownTextProps> = ({ content = '', isUser
             );
           case 'quote':
             return (
-              <View key={idx} style={[styles.quoteBox, isLight && { borderLeftColor: '#0077b6' }]}>
+              <View key={idx} style={[styles.quoteBox, isLight && { borderLeftColor: '#262626' }]}>
                 <Text style={[styles.quoteText, isLight && { color: '#57606a' }]}>{renderInline(block.text, isUser, isLight)}</Text>
               </View>
             );
@@ -309,7 +309,7 @@ export const JsonViewer: React.FC<{
     <View style={[styles.codeContainer, isLight && { backgroundColor: '#f6f8fa', borderColor: '#d0d7de' }]}>
       <View style={[styles.codeHeader, isLight && { backgroundColor: '#eaedf1', borderBottomColor: '#d0d7de' }]}>
         <View style={styles.codeHeaderLeft}>
-          <FileCode size={12} color={isLight ? '#0077b6' : colors.primary} />
+          <FileCode size={12} color={isLight ? '#262626' : colors.primary} />
           <Text style={[styles.codeLangText, isLight && { color: '#1f2328' }]}>{title}</Text>
           <Text style={[styles.jsonLineCountBadge, isLight && { backgroundColor: '#e1e4e8', color: '#57606a' }]}>{lines.length} lines</Text>
         </View>
@@ -342,13 +342,13 @@ export const JsonViewer: React.FC<{
         >
           {isExpanded ? (
             <>
-              <ChevronUp size={13} color={isLight ? '#0077b6' : colors.primary} />
-              <Text style={[styles.expandJsonText, isLight && { color: '#0077b6' }]}>Collapse ({lines.length} lines)</Text>
+              <ChevronUp size={13} color={isLight ? '#262626' : colors.primary} />
+              <Text style={[styles.expandJsonText, isLight && { color: '#262626' }]}>Collapse ({lines.length} lines)</Text>
             </>
           ) : (
             <>
-              <ChevronDown size={13} color={isLight ? '#0077b6' : colors.primary} />
-              <Text style={[styles.expandJsonText, isLight && { color: '#0077b6' }]}>
+              <ChevronDown size={13} color={isLight ? '#262626' : colors.primary} />
+              <Text style={[styles.expandJsonText, isLight && { color: '#262626' }]}>
                 Show full JSON (+{lines.length - maxInitialLines} more lines)
               </Text>
             </>
@@ -369,7 +369,7 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
     <View style={[styles.dirContainer, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
       <View style={[styles.dirHeader, isLight && { backgroundColor: '#f6f8fa', borderBottomColor: '#d0d7de' }]}>
         <View style={styles.dirHeaderLeft}>
-          <Folder size={14} color={isLight ? '#0077b6' : colors.primary} />
+          <Folder size={14} color={isLight ? '#262626' : colors.primary} />
           <Text style={[styles.dirTitle, isLight && { color: '#1f2328' }]}>Workspace Directory</Text>
         </View>
         <Text style={[styles.dirSummary, isLight && { color: '#6e7681' }]}>
@@ -380,11 +380,11 @@ const DirectoryBlockView: React.FC<{ block: DirectoryBlock }> = ({ block }) => {
         {folders.map((item, idx) => (
           <View key={`dir_${idx}`} style={[styles.dirRow, isLight && { borderBottomColor: '#e1e4e8' }]}>
             <View style={styles.dirRowLeft}>
-              <Folder size={13} color={isLight ? '#0077b6' : colors.primary} />
+              <Folder size={13} color={isLight ? '#262626' : colors.primary} />
               <Text style={[styles.dirFolderName, isLight && { color: '#1f2328' }]}>{item.name}</Text>
             </View>
-            <View style={[styles.dirBadge, isLight && { backgroundColor: 'rgba(0, 119, 182, 0.1)', borderColor: 'rgba(0, 119, 182, 0.3)' }]}>
-              <Text style={[styles.dirBadgeText, isLight && { color: '#0077b6' }]}>dir</Text>
+            <View style={[styles.dirBadge, isLight && { backgroundColor: 'rgba(0, 0, 0, 0.06)', borderColor: 'rgba(0, 0, 0, 0.12)' }]}>
+              <Text style={[styles.dirBadgeText, isLight && { color: '#262626' }]}>dir</Text>
             </View>
           </View>
         ))}
@@ -412,7 +412,7 @@ const FileHeaderView: React.FC<{ block: FileHeaderBlock }> = ({ block }) => {
   return (
     <View style={[styles.fileHeaderBanner, isLight && { backgroundColor: '#ffffff', borderColor: '#d0d7de' }]}>
       <View style={styles.fileHeaderLeft}>
-        <FileText size={14} color={isLight ? '#0077b6' : colors.primary} />
+        <FileText size={14} color={isLight ? '#262626' : colors.primary} />
         <Text style={[styles.fileHeaderName, isLight && { color: '#1f2328' }]}>{fileName}</Text>
         <Text style={[styles.fileHeaderPath, isLight && { color: '#6e7681' }]} numberOfLines={1}>
           {block.path}
@@ -474,10 +474,10 @@ const AlertBlockView: React.FC<{ block: AlertBlock }> = ({ block }) => {
       default:
         return {
           title: 'Note',
-          borderColor: isLight ? '#0077b6' : colors.borderDefault,
-          titleColor: isLight ? '#0077b6' : colors.textSecondary,
+          borderColor: isLight ? '#262626' : colors.primary,
+          titleColor: isLight ? '#262626' : colors.textPrimary,
           bgColor: colors.bgHover,
-          icon: <Sparkles size={14} color={isLight ? '#0077b6' : colors.green} />,
+          icon: <Sparkles size={14} color={isLight ? '#262626' : colors.textSecondary} />,
         };
     }
   };
@@ -1148,7 +1148,7 @@ function renderInline(text: string, isUser = false, isLight = false): React.Reac
                     borderColor: '#d0d7de',
                   },
                 ],
-            isCommitHash && [styles.commitHashBadge, isLight && { color: '#0077b6' }],
+            isCommitHash && [styles.commitHashBadge, isLight && { color: '#262626' }],
             isFilePath && [styles.filePathBadge, isLight && { color: '#1f2328' }],
           ]}
         >
@@ -1188,7 +1188,7 @@ function renderInline(text: string, isUser = false, isLight = false): React.Reac
     const linkMatch = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(part);
     if (linkMatch) {
       return (
-        <Text key={index} style={[styles.linkText, isLight && { color: '#0077b6' }]}>
+        <Text key={index} style={[styles.linkText, isLight && { color: '#262626' }]}>
           {linkMatch[1]}
         </Text>
       );

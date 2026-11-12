@@ -136,7 +136,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                 : "bg-destructive/10 border-destructive/20"
             )}>
               {isPrReviewMode ? (
-                <GitPullRequest size={16} color={isLight ? '#0077b6' : '#38bdf8'} />
+                <GitPullRequest size={16} color={isLight ? '#262626' : '#fafafa'} />
               ) : (
                 <Bug size={16} color="#ef4444" />
               )}
