@@ -158,6 +158,28 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [isRespondingApproval, setIsRespondingApproval] = useState(false);
   const [isDictating, setIsDictating] = useState(false);
 
+  const currentModelId = activeSession?.model || sessionConfig?.model || 'gemini-3.8-flash-high';
+  const modelPillLabel = useMemo(() => {
+    const id = currentModelId.toLowerCase();
+    if (id.includes('claude-3-5') || id.includes('sonnet-3-5') || id.includes('sonnet-3.5')) return 'Sonnet 3.5';
+    if (id.includes('claude-sonnet-4') || id.includes('sonnet-4')) return 'Sonnet 4.6';
+    if (id.includes('opus')) return 'Opus 4.6';
+    if (id.includes('gemini-3.8') || id.includes('flash-high')) return 'Gemini 3.8';
+    if (id.includes('gemini-2.5') || id.includes('gemini-2')) return 'Gemini 2.5';
+    if (id.includes('gpt-oss') || id.includes('120b')) return 'GPT-OSS';
+    if (id.includes('gpt-4o')) return 'GPT-4o';
+    const clean = currentModelId.split('/').pop()?.split(':')[0]?.replace(/-/g, ' ') || currentModelId;
+    return clean.length > 13 ? clean.slice(0, 11) + '…' : clean;
+  }, [currentModelId]);
+
+  const modelPillDetail = useMemo(() => {
+    const effort = sessionConfig?.effort;
+    if (effort) {
+      return effort.charAt(0).toUpperCase() + effort.slice(1);
+    }
+    return undefined;
+  }, [sessionConfig?.effort]);
+
   useEffect(() => {
     return () => {
       stopDictation();
@@ -1443,48 +1465,97 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             />
           )}
 
-          {/* PanelUI Native AI Composer — Vercel v0 Floating Liquid Glass Pattern */}
+          {/* PanelUI Native AI Composer — Full-Featured Default Stacked UI */}
           <AIInput
             value={promptInput}
             onValueChange={handleInputChange}
             onSubmit={handleSendPrompt}
             onStop={cancelPrompt}
             onVoice={handleToggleDictation}
+            onRecordCancel={() => {
+              stopDictation();
+              setIsDictating(false);
+            }}
+            onRecordConfirm={() => {
+              stopDictation();
+              setIsDictating(false);
+            }}
             status={isSendingPrompt ? 'streaming' : isDictating ? 'recording' : 'ready'}
             avoidKeyboard={false}
-            size="lg"
+            size="md"
+            minRows={1}
+            maxRows={5}
             className="w-full"
             style={[
               styles.floatingComposerCapsule,
-              isLight ? styles.floatingComposerLight : styles.floatingComposerDark,
+              isSwiss
+                ? styles.floatingComposerSwiss
+                : isLight
+                ? styles.floatingComposerLight
+                : styles.floatingComposerDark,
             ]}
           >
-            <AIInput.Row>
-              <AIInput.Action
-                label="Commands"
-                icon={
-                  <Plus
-                    size={16}
-                    color={showCommandPicker ? (isLight ? '#262626' : '#ffffff') : (isLight ? '#57606a' : '#a3a3a3')}
-                  />
-                }
-                onPress={() => setShowCommandPicker((prev) => !prev)}
-              />
+            <AIInput.Field
+              placeholder={
+                !isNetworkOnline
+                  ? 'Offline — waiting for connection...'
+                  : isDictating
+                  ? 'Listening... speak your prompt'
+                  : 'Ask anything, type / for commands...'
+              }
+              editable={!isSendingPrompt}
+              onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
+            />
 
-              <AIInput.Field
-                placeholder={
-                  !isNetworkOnline
-                    ? 'Offline — waiting for connection...'
-                    : isDictating
-                    ? 'Listening... speak your prompt'
-                    : 'Type a message...'
-                }
-                editable={!isSendingPrompt}
-                onSubmitEditing={Platform.OS === 'web' ? handleSendPrompt : undefined}
+            {isDictating ? (
+              <AIInput.Recording
+                cancelLabel="Cancel"
+                confirmLabel="Done"
               />
+            ) : (
+              <AIInput.Toolbar>
+                {/* 1. Commands & Slash Command Picker (+) */}
+                <AIInput.Action
+                  label="Commands"
+                  icon={
+                    <Plus
+                      size={15}
+                      color={showCommandPicker ? (isLight ? '#262626' : '#ffffff') : (isLight ? '#57606a' : '#a3a3a3')}
+                    />
+                  }
+                  onPress={() => setShowCommandPicker((prev) => !prev)}
+                />
 
-              <AIInput.Submit />
-            </AIInput.Row>
+                {/* 2. Interactive AI Model & Reasoning Effort Pill */}
+                <AIInput.Pill
+                  label={modelPillLabel}
+                  detail={modelPillDetail}
+                  indicator={<ChevronDown size={11} color={isLight ? '#686868' : '#a3a3a3'} />}
+                  onPress={() => setShowConfigSheet(true)}
+                  accessibilityLabel="Change AI model and parameters"
+                />
+
+                {/* 3. Host Interactive Shell / Terminal */}
+                <AIInput.Action
+                  label="Terminal"
+                  icon={<Terminal size={14} color={isLight ? '#57606a' : '#a3a3a3'} />}
+                  onPress={() => setShowTerminal(true)}
+                />
+
+                {/* 4. Artifacts Drawer Sheet */}
+                <AIInput.Action
+                  label="Artifacts"
+                  icon={<FileText size={14} color={isLight ? '#57606a' : '#a3a3a3'} />}
+                  onPress={() => setShowArtifactsSheet(true)}
+                />
+
+                {/* Spacer pushes Submit to trailing edge */}
+                <AIInput.Spacer />
+
+                {/* 5. Smart 3-in-1 Submit Action (Voice / Send / Stop) */}
+                <AIInput.Submit />
+              </AIInput.Toolbar>
+            )}
           </AIInput>
         </View>
       </AnimatedReanimated.View>
@@ -2118,24 +2189,33 @@ const styles = StyleSheet.create({
   },
   // Vercel v0 Liquid Glass Floating Composer Capsule
   floatingComposerCapsule: {
-    borderRadius: 28,
+    borderRadius: 22,
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
+    overflow: 'hidden',
   },
   floatingComposerDark: {
-    backgroundColor: 'rgba(25, 25, 25, 0.92)',
+    backgroundColor: 'rgba(25, 25, 25, 0.94)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   floatingComposerLight: {
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.08)',
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+    shadowOpacity: 0.10,
+    shadowRadius: 10,
+  },
+  floatingComposerSwiss: {
+    backgroundColor: 'rgba(241, 235, 225, 0.98)',
+    borderWidth: 1,
+    borderColor: 'rgba(17, 16, 16, 0.16)',
+    shadowColor: '#111010',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   composerCard: {
     flexDirection: 'row',
