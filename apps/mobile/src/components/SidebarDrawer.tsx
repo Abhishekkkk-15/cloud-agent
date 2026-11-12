@@ -12,7 +12,6 @@ import {
   Tree,
   Button,
   Input,
-  Card,
   Badge,
   Item,
   Text,
@@ -24,7 +23,6 @@ import {
   ChevronRight,
   ShieldAlert,
   Activity,
-  Layers,
   Server,
   Search,
   LogOut,
@@ -43,7 +41,6 @@ import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
 import { MachineSwitcherModal } from './MachineSwitcherModal';
-import { FolderPickerModal } from './FolderPickerModal';
 import { SessionActionModal } from './SessionActionModal';
 import { SessionDropdownMenu } from './SessionDropdownMenu';
 import { ServerSettingsModal } from './ServerSettingsModal';
@@ -71,16 +68,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const effectiveTopPadding = Math.max(topInset, Platform.OS === 'ios' ? 12 : 8) + 4;
 
   const activeMachine = useDaemonStore((s) => s.activeMachine);
-  const machines = useDaemonStore((s) => s.machines);
   const daemonStatus = useDaemonStore((s) => s.daemonStatus);
   const pingRtt = useDaemonStore((s) => s.pingRtt);
   const sessions = useDaemonStore((s) => s.sessions);
   const isLoadingSessions = useDaemonStore((s) => s.isLoadingSessions);
   const activeSession = useDaemonStore((s) => s.activeSession);
-  const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const workspaces = useDaemonStore((s) => s.workspaces);
   const selectSession = useDaemonStore((s) => s.selectSession);
-  const selectMachine = useDaemonStore((s) => s.selectMachine);
   const startNewSessionInWorkspace = useDaemonStore((s) => s.startNewSessionInWorkspace);
   const logout = useDaemonStore((s) => s.logout);
   const currentUser = useDaemonStore((s) => s.currentUser);
@@ -103,7 +97,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
   const [showMachineSwitcher, setShowMachineSwitcher] = useState<boolean>(false);
-  const [showDirectFolderPicker, setShowDirectFolderPicker] = useState<boolean>(false);
   const [showServerSettings, setShowServerSettings] = useState<boolean>(false);
 
   const avatarUri =
@@ -217,8 +210,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     });
   }, [workspaces, searchedSessions, drawerSearch, activeSession?.workspaceName]);
 
-  const standbyMachines = machines.filter((m) => m.machineId !== activeMachine?.machineId);
-
   const operatorInitial = currentUser?.name
     ? currentUser.name[0].toUpperCase()
     : currentUser?.email
@@ -226,10 +217,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       : 'U';
   const operatorName = currentUser?.name || (currentUser?.email ? currentUser.email.split('@')[0] : 'User');
   const operatorEmail = currentUser?.email || '';
-
-  const cpuCores = daemonStatus?.telemetry?.cpu?.cores || 8;
-  const ramGb = daemonStatus?.telemetry?.ram?.totalGb || 32;
-  const nodePlatform = activeMachine?.platform || daemonStatus?.platform || 'Host';
 
   const displayedExpanded = drawerSearch.trim()
     ? workspaceGroups.map((g) => g.name)
@@ -334,70 +321,28 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               </Animated.View>
             )}
 
-            {/* 2. Compute Node Fleet Widget */}
-            <Card className="p-3 mb-3 bg-surface border border-border rounded-xl">
-              <View className="flex-row items-center justify-between mb-2">
-                <View className="flex-row items-center gap-1.5">
-                  <Server size={12} color={isLight ? '#686868' : '#a3a3a3'} />
-                  <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    Compute Node
-                  </Text>
-                </View>
-                {pingRtt ? (
-                  <Badge variant="outline" size="sm" className="px-1.5 py-0.5">
-                    <Text className="text-xs text-muted-foreground font-mono">{pingRtt}</Text>
-                  </Badge>
-                ) : null}
-              </View>
-
-              <View className="flex-row items-center justify-between mb-1">
-                <Text className="text-sm font-semibold text-foreground flex-1 mr-2" numberOfLines={1}>
+            {/* 2. Compact Machine Selector Capsule */}
+            <TouchableOpacity
+              onPress={() => setShowMachineSwitcher(true)}
+              activeOpacity={0.7}
+              className="flex-row items-center justify-between px-3 py-2 rounded-xl bg-surface border border-border mb-3"
+            >
+              <View className="flex-row items-center gap-2 flex-1 mr-2">
+                <View className="w-2 h-2 rounded-full bg-emerald-500" />
+                <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
                   {activeMachine?.name || daemonStatus?.hostname || 'Local Machine'}
                 </Text>
-                <Button
-                  variant="outline"
-                  size="xs"
-                  onPress={() => setShowMachineSwitcher(true)}
-                  className="flex-row items-center gap-1 px-2 py-1"
-                >
-                  <ChevronsUpDown size={11} color={isLight ? '#262626' : '#f5f5f5'} />
-                  <Text className="text-xs font-medium text-foreground">Switch</Text>
-                </Button>
+                {pingRtt ? (
+                  <Text className="text-[11px] text-muted-foreground font-mono">
+                    • {pingRtt}
+                  </Text>
+                ) : null}
               </View>
-
-              <Text className="text-xs text-muted-foreground" numberOfLines={1}>
-                {cpuCores} vCPU • {ramGb}GB RAM • {nodePlatform}
-              </Text>
-
-              {/* Standby Nodes Grid */}
-              <View className="flex-row gap-2 mt-2.5 pt-2.5 border-t border-border">
-                {standbyMachines.slice(0, 2).map((m) => (
-                  <TouchableOpacity
-                    key={m.machineId}
-                    onPress={() => selectMachine(m)}
-                    className="flex-1 p-2 rounded-lg bg-surface-secondary border border-border"
-                    activeOpacity={0.7}
-                  >
-                    <Text className="text-xs font-semibold text-foreground" numberOfLines={1}>
-                      {m.name}
-                    </Text>
-                    <Text className="text-xs text-muted-foreground mt-0.5" numberOfLines={1}>
-                      {m.isOnline ? 'Standby' : 'Offline'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                {standbyMachines.length < 2 && (
-                  <TouchableOpacity
-                    onPress={() => setShowPairModal(true)}
-                    className="flex-1 p-2 rounded-lg border border-dashed border-border items-center justify-center flex-row gap-1"
-                    activeOpacity={0.7}
-                  >
-                    <Plus size={12} color={isLight ? '#686868' : '#a3a3a3'} />
-                    <Text className="text-xs text-muted-foreground font-medium">Pair Node</Text>
-                  </TouchableOpacity>
-                )}
+              <View className="flex-row items-center gap-1 shrink-0">
+                <Text className="text-[11px] text-muted-foreground font-medium">Switch</Text>
+                <ChevronsUpDown size={12} color={isLight ? '#686868' : '#a3a3a3'} />
               </View>
-            </Card>
+            </TouchableOpacity>
 
             {/* 3. Primary Action: + New Session */}
             <Button
@@ -576,43 +521,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               )}
             </View>
 
-            {/* 6. Management & Navigation Links (PanelUI Item) */}
+            {/* 6. Essential Management & Tools */}
             <View className="pt-3 mt-2 border-t border-border mb-2">
               <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-1">
                 Management & Tools
               </Text>
 
-              {/* Theme Toggle */}
-              <Item
-                variant="default"
-                size="sm"
-                className="px-2.5 py-2 rounded-xl my-0.5"
-                onPress={toggleTheme}
-              >
-                <Item.Media variant="icon">
-                  {theme === 'swiss' ? (
-                    <Palette size={18} color="#DC201E" />
-                  ) : isLight ? (
-                    <Sun size={18} color="#262626" />
-                  ) : (
-                    <Moon size={18} color="#f5f5f5" />
-                  )}
-                </Item.Media>
-                <Item.Content>
-                  <Item.Title className="text-[15px] font-medium text-foreground">
-                    {theme === 'swiss' ? 'Theme: Swiss' : isLight ? 'Theme: White' : 'Theme: Dark'}
-                  </Item.Title>
-                </Item.Content>
-                <Item.Actions>
-                  <Badge variant="outline" size="sm" className="px-2 py-0.5">
-                    <Text className="text-xs font-medium text-foreground">
-                      {theme === 'swiss' ? 'Swiss' : isLight ? 'White' : 'Dark'}
-                    </Text>
-                  </Badge>
-                </Item.Actions>
-              </Item>
-
-              {/* Security Approvals */}
+              {/* Command Approvals */}
               <Item
                 variant="default"
                 size="sm"
@@ -659,46 +574,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 </Item.Content>
               </Item>
 
-              {/* Workspace & Fleets Screen */}
-              <Item
-                variant="default"
-                size="sm"
-                className={cn(
-                  'px-2.5 py-2 rounded-xl my-0.5',
-                  currentScreen === 'sessions' && 'bg-secondary'
-                )}
-                onPress={() => handleNavScreen('sessions')}
-              >
-                <Item.Media variant="icon">
-                  <Layers size={18} color={currentScreen === 'sessions' ? (isLight ? '#262626' : '#f5f5f5') : (isLight ? '#686868' : '#a3a3a3')} />
-                </Item.Media>
-                <Item.Content>
-                  <Item.Title className={cn('text-[15px]', currentScreen === 'sessions' ? 'text-foreground font-semibold' : 'text-foreground font-medium')}>
-                    Workspace & Fleet Tree
-                  </Item.Title>
-                </Item.Content>
-              </Item>
-
-              {/* Remote Folder Picker */}
-              <Item
-                variant="default"
-                size="sm"
-                className="px-2.5 py-2 rounded-xl my-0.5"
-                onPress={() => setShowDirectFolderPicker(true)}
-              >
-                <Item.Media variant="icon">
-                  <Folder size={18} color={isLight ? '#686868' : '#a3a3a3'} />
-                </Item.Media>
-                <Item.Content>
-                  <Item.Title className="text-[15px] font-medium text-foreground">
-                    Browse Node Folders
-                  </Item.Title>
-                </Item.Content>
-                <Item.Actions>
-                  <ChevronRight size={15} color={isLight ? '#686868' : '#a3a3a3'} />
-                </Item.Actions>
-              </Item>
-
               {/* Server & Notifications Settings */}
               <Item
                 variant="default"
@@ -711,7 +586,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 </Item.Media>
                 <Item.Content>
                   <Item.Title className="text-[15px] font-medium text-foreground">
-                    Push & Server Settings
+                    Settings & Push Alerts
                   </Item.Title>
                 </Item.Content>
                 <Item.Actions className="flex-row items-center gap-2">
@@ -802,14 +677,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
         visible={showMachineSwitcher}
         onClose={() => setShowMachineSwitcher(false)}
         onPairNew={() => setShowPairModal(true)}
-      />
-
-      {/* Direct Remote Folder Browser Modal */}
-      <FolderPickerModal
-        visible={showDirectFolderPicker}
-        initialPath={targetWorkspacePath || activeSession?.workspacePath || undefined}
-        onClose={() => setShowDirectFolderPicker(false)}
-        onSelectFolder={handleStartSessionInWorkspace}
       />
 
       {/* Server & Network Endpoints Modal */}
