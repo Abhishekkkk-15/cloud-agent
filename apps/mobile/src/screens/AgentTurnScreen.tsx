@@ -318,11 +318,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   // Infinite Scroll & Synchronous Scroll Compensation Refs
   const isFetchingOlderRef = useRef<boolean>(false);
-  const isPrependPendingRef = useRef<boolean>(false);
-  const prevScrollHeightRef = useRef<number>(0);
-  const anchorScrollYRef = useRef<number>(0);
-  const anchorTurnIdRef = useRef<string | null>(null);
-  const anchorTurnOldYRef = useRef<number>(0);
   const turnYPositionsRef = useRef<Map<string, number>>(new Map());
   const liveScrollYRef = useRef<number>(0);
   const lastContentHeightRef = useRef<number>(0);
@@ -335,8 +330,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       if (hasInitialScrolledRef.current !== activeSession.id) {
         hasInitialScrolledRef.current = activeSession.id;
         turnYPositionsRef.current.clear();
-        isPrependPendingRef.current = false;
-        anchorTurnIdRef.current = null;
         setTimeout(() => {
           scrollViewRef.current?.scrollToEnd({ animated: false });
         }, 120);
@@ -410,27 +403,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     }
 
     isFetchingOlderRef.current = true;
-
-    // Snapshot current scroll offset & top turn anchor BEFORE store mutation
-    isPrependPendingRef.current = true;
-    prevScrollHeightRef.current = lastContentHeightRef.current;
-    anchorScrollYRef.current = liveScrollYRef.current;
-
-    const firstTurn = displayedTurnsRef.current[0];
-    if (firstTurn) {
-      anchorTurnIdRef.current = firstTurn.id || null;
-      anchorTurnOldYRef.current = turnYPositionsRef.current.get(firstTurn.id) ?? 0;
-    } else {
-      anchorTurnIdRef.current = null;
-      anchorTurnOldYRef.current = 0;
-    }
-
     try {
       await loadOlderMessages();
     } finally {
       setTimeout(() => {
         isFetchingOlderRef.current = false;
-      }, 500);
+      }, 400);
     }
   }, [hasMoreMessages, isLoadingOlderMessages, activeSession?.id, loadOlderMessages]);
 
@@ -1054,6 +1032,9 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
       <ScrollView
         ref={scrollViewRef}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 1,
+        }}
         style={[styles.scroll, isLight && { backgroundColor: '#ffffff' }]}
         contentContainerStyle={[
           styles.scrollContent,
@@ -1074,23 +1055,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         onTouchStart={pauseAutoScroll}
         onScrollBeginDrag={pauseAutoScroll}
         onContentSizeChange={(_w, h) => {
-          const previousHeight = lastContentHeightRef.current;
           lastContentHeightRef.current = h;
-
-          if (isPrependPendingRef.current && previousHeight > 0) {
-            const heightDelta = h - previousHeight;
-            if (heightDelta > 0) {
-              const targetY = anchorScrollYRef.current + heightDelta;
-              scrollViewRef.current?.scrollTo({
-                y: targetY,
-                animated: false,
-              });
-              liveScrollYRef.current = targetY;
-              currentScrollYRef.current = targetY;
-            }
-            isPrependPendingRef.current = false;
-            anchorTurnIdRef.current = null;
-          }
 
           if (isSendingPrompt && !isAutoScrollPausedRef.current) {
             triggerAutoScroll();
@@ -1163,19 +1128,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               onLayout={(e) => {
                 const turnY = e.nativeEvent.layout.y;
                 turnYPositionsRef.current.set(turn.id, turnY);
-
-                if (isPrependPendingRef.current && anchorTurnIdRef.current === turn.id) {
-                  const oldY = anchorTurnOldYRef.current;
-                  if (turnY > oldY) {
-                    const shift = turnY - oldY;
-                    const targetY = anchorScrollYRef.current + shift;
-                    scrollViewRef.current?.scrollTo({ y: targetY, animated: false });
-                    liveScrollYRef.current = targetY;
-                    currentScrollYRef.current = targetY;
-                    isPrependPendingRef.current = false;
-                    anchorTurnIdRef.current = null;
-                  }
-                }
 
                 if (turnIdx === activePromptTurnIndexRef.current && userJustSubmittedRef.current) {
                   userJustSubmittedRef.current = false;
