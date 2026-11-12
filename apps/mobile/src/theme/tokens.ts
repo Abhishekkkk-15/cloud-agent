@@ -328,13 +328,12 @@ export function getGlossyHeaderTokens(isLight: boolean) {
   return {
     iconColor: isLight ? '#262626' : '#f5f5f5',
     containerStyle: {
-      backgroundColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.08)',
+      backgroundColor: isLight ? 'rgba(255, 255, 255, 0.92)' : 'rgba(255, 255, 255, 0.08)',
       borderWidth: 1,
-      borderColor: isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.14)',
-      borderTopColor: isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.25)',
-      shadowColor: isLight ? 'rgba(0, 0, 0, 0.15)' : '#000000',
+      borderColor: isLight ? 'rgba(0, 0, 0, 0.09)' : 'rgba(255, 255, 255, 0.16)',
+      shadowColor: isLight ? 'rgba(0, 0, 0, 0.12)' : '#000000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isLight ? 0.08 : 0.25,
+      shadowOpacity: isLight ? 0.06 : 0.25,
       shadowRadius: 6,
       elevation: 3,
     },

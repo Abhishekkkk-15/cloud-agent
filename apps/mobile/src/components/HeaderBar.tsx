@@ -35,13 +35,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <View
-      style={{ paddingTop: topInset, height: 52 + topInset }}
+      style={{ paddingTop: topInset, height: 56 + topInset }}
       className={cn(
         'w-full bg-background px-4 flex-row items-center justify-between z-50',
         className
       )}
     >
-      <View className="flex-row items-center flex-1 mr-2 overflow-hidden">
+      <View className="flex-row items-center flex-1 mr-2">
         {onBack && (
           <TouchableOpacity
             style={[
