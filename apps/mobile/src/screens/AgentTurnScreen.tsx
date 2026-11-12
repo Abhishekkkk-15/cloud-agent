@@ -617,6 +617,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const displayedTurnsRef = useRef<any[]>([]);
   const lastPaginationTriggerTimeRef = useRef<number>(0);
 
+  // Track list container & content heights to align short conversations at the top
+  const [listViewportHeight, setListViewportHeight] = useState<number>(0);
+  const [listContentHeight, setListContentHeight] = useState<number>(0);
+
+  // When a session is new (few messages), align content to the physical top rather than anchoring at the bottom
+  const isShortContent =
+    (listViewportHeight > 0 && listContentHeight > 0 && listContentHeight < listViewportHeight) ||
+    (listViewportHeight === 0 && sessionMessages.length <= 4);
+
   // Initial scroll to bottom when session messages load
   useEffect(() => {
     if (activeSession?.id && sessionMessages.length > 0 && !isLoadingMessages) {
@@ -1213,19 +1222,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       {hasMoreMessages ? (
         <View style={styles.paginationHeaderContainer}>
           {isLoadingOlderMessages ? (
-            <View
-              style={[
-                styles.paginationLoadingRow,
-                isLight && {
-                  backgroundColor: isSwiss ? '#F1EBE1' : '#f6f8fa',
-                  borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de',
-                },
-              ]}
-            >
-              <Spinner size="sm" />
-              <Text style={[styles.paginationLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
-                Loading earlier messages…
-              </Text>
+            <View style={styles.paginationLoadingRow}>
+              <Spinner size="md" />
             </View>
           ) : (
             <TouchableOpacity
@@ -1508,7 +1506,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           keyExtractor={(turn) => turn.id}
           inverted
           style={[styles.scroll, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
-          contentContainerStyle={[styles.scrollContent, { paddingTop: 0, paddingBottom: 0 }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: 0,
+              paddingBottom: 0,
+              flexGrow: 1,
+              justifyContent: isShortContent ? 'flex-end' : undefined,
+            },
+          ]}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -1516,6 +1522,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           keyboardDismissMode="interactive"
           onTouchStart={pauseAutoScroll}
           onScrollBeginDrag={pauseAutoScroll}
+          onLayout={(e) => {
+            const h = Math.round(e.nativeEvent.layout.height);
+            if (h > 0 && Math.abs(h - listViewportHeight) > 2) {
+              setListViewportHeight(h);
+            }
+          }}
+          onContentSizeChange={(_w, h) => {
+            const roundedH = Math.round(h);
+            if (roundedH > 0 && Math.abs(roundedH - listContentHeight) > 2) {
+              setListContentHeight(roundedH);
+            }
+          }}
           onEndReachedThreshold={0.15}
           onEndReached={() => {
             if (hasMoreMessages && !isLoadingOlderMessages && !isFetchingOlderRef.current) {
@@ -2028,21 +2046,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   paginationLoadingRow: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-    backgroundColor: '#1e1e1e',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  paginationLoadingText: {
-    fontSize: 12,
-    color: '#8b949e',
-    fontWeight: '500',
+    paddingVertical: 8,
   },
   loadOlderButton: {
     flexDirection: 'row',
