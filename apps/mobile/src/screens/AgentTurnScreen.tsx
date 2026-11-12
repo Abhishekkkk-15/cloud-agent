@@ -74,6 +74,7 @@ import {
   Shimmer,
   Spinner,
   toast,
+  EmptyState,
 } from 'panelui-native';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
@@ -1069,6 +1070,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               effectiveKeyboardHeight +
               18,
           },
+          displayedTurns.length === 0 && { flexGrow: 1, justifyContent: 'center' },
         ]}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
@@ -1134,15 +1136,19 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             </View>
           </View>
         ) : displayedTurns.length === 0 ? (
-          <View style={styles.emptyChatBox}>
-            <View style={[styles.emptyChatIconBox, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
-              <Terminal size={22} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
-            </View>
-            <Text style={[styles.emptyChatTitle, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>No messages in this session yet</Text>
-            <Text style={[styles.emptyChatSubtitle, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
-              Send a prompt below to interact with the Antigravity agent runtime.
-            </Text>
-          </View>
+          <EmptyState variant="default" size="lg" className="py-8">
+            <EmptyState.Header>
+              <EmptyState.Media variant="icon">
+                <Terminal size={22} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+              </EmptyState.Media>
+              <EmptyState.Title style={isSwiss ? { color: '#111010' } : isLight ? { color: '#1f2328' } : undefined}>
+                No messages in this session yet
+              </EmptyState.Title>
+              <EmptyState.Description style={isSwiss ? { color: '#6B665E' } : isLight ? { color: '#57606a' } : undefined}>
+                Send a prompt below to interact with the Antigravity agent runtime.
+              </EmptyState.Description>
+            </EmptyState.Header>
+          </EmptyState>
         ) : (
           displayedTurns.map((turn, turnIdx) => (
             <View
@@ -2105,39 +2111,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#fafafa',
     fontStyle: 'italic',
-  },
-
-  // Empty chat state
-  emptyChatBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  emptyChatIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  emptyChatTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#fafafa',
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  emptyChatSubtitle: {
-    fontSize: 13,
-    color: '#737373',
-    textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 280,
   },
 
   // Floating Action Buttons
