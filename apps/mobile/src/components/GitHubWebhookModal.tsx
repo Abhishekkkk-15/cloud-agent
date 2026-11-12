@@ -606,16 +606,16 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
                     Setup in GitHub Repository:
                   </Text>
                   <Text className="text-xs text-muted-foreground">
-                    1. Repo <Text className="text-foreground font-medium">Settings → Webhooks → Add webhook</Text>
+                    1. Repo <Text className="text-xs text-foreground font-semibold">Settings → Webhooks → Add webhook</Text>
                   </Text>
                   <Text className="text-xs text-muted-foreground">
-                    2. Payload URL: <Text className="text-foreground">Paste the URL above</Text>
+                    2. Payload URL: <Text className="text-xs text-foreground">Paste the URL above</Text>
                   </Text>
                   <Text className="text-xs text-muted-foreground">
-                    3. Content type: <Text className="text-foreground font-semibold">application/json</Text>
+                    3. Content type: <Text className="text-xs text-foreground font-semibold">application/json</Text>
                   </Text>
                   <Text className="text-xs text-muted-foreground">
-                    4. Events: Select <Text className="text-foreground font-medium">Pull requests</Text> and <Text className="text-foreground font-medium">Issues</Text>
+                    4. Events: Select <Text className="text-xs text-foreground font-semibold">Pull requests</Text> and <Text className="text-xs text-foreground font-semibold">Issues</Text>
                   </Text>
                 </View>
               </Card>

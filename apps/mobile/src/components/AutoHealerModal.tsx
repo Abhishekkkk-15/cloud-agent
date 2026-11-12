@@ -214,7 +214,7 @@ export const AutoHealerModal: React.FC<AutoHealerModalProps> = ({ visible, onClo
                 {activeProposal.testsPassed ? 'Fix Verified: Test Suite Passing' : 'Fix Applied: Manual Review Advised'}
               </Text>
               <Text className="text-[11px] text-muted-foreground mt-0.5">
-                Branch: <Text className="font-mono text-primary">{activeProposal.branchName}</Text>
+                Branch: <Text className="text-[11px] font-mono text-primary font-semibold">{activeProposal.branchName}</Text>
               </Text>
             </View>
             <Badge variant={activeProposal.testsPassed ? 'success' : 'destructive'} size="xs">

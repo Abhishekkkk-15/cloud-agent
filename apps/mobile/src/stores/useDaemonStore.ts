@@ -493,7 +493,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   githubStatus: null,
   isCheckingGithub: false,
   isSavingGithubToken: false,
-  theme: 'dark',
+  theme: 'swiss',
 
   setTheme: (theme: 'dark' | 'light' | 'swiss') => {
     set({ theme });
@@ -502,7 +502,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   toggleTheme: () => {
     const current = get().theme;
-    const next = current === 'dark' ? 'light' : current === 'light' ? 'swiss' : 'dark';
+    const next = current === 'swiss' ? 'dark' : current === 'dark' ? 'light' : 'swiss';
     set({ theme: next });
     AsyncStorage.setItem('cloud_agent_theme', next).catch(() => {});
   },
@@ -786,11 +786,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   init: async () => {
     const { apiUrl, gatewayUrl } = get();
 
-    // Restore persisted theme
+    // Restore persisted theme (defaults to Swiss)
     try {
       const savedTheme = await AsyncStorage.getItem('cloud_agent_theme');
       if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'swiss') {
         set({ theme: savedTheme });
+      } else {
+        set({ theme: 'swiss' });
       }
     } catch {
       // ignore

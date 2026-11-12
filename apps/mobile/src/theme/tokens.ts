@@ -324,7 +324,22 @@ export const typography = {
 /**
  * Glossy Header Action Button & Icon Design Tokens
  */
-export function getGlossyHeaderTokens(isLight: boolean) {
+export function getGlossyHeaderTokens(isLight: boolean, isSwiss?: boolean) {
+  if (isSwiss) {
+    return {
+      iconColor: '#111010',
+      containerStyle: {
+        backgroundColor: '#F1EBE1',
+        borderWidth: 1,
+        borderColor: 'rgba(17, 16, 16, 0.16)',
+        shadowColor: '#111010',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 2,
+      },
+    };
+  }
   return {
     iconColor: isLight ? '#262626' : '#f5f5f5',
     containerStyle: {

@@ -6,11 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0d1117"
+      "backgroundColor": "#F8F3EC"
     },
     "android": {
       "package": "com.cloudagent.mobile",
@@ -19,7 +19,7 @@
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0d1117"
+        "backgroundColor": "#F8F3EC"
       },
       "permissions": [
         "INTERNET",
@@ -32,13 +32,13 @@
         "RECORD_AUDIO"
       ],
       "androidNavigationBar": {
-        "backgroundColor": "#0d1117",
-        "barStyle": "light-content"
+        "backgroundColor": "#F8F3EC",
+        "barStyle": "dark-content"
       },
       "androidStatusBar": {
         "backgroundColor": "#00000000",
         "translucent": true,
-        "barStyle": "light-content"
+        "barStyle": "dark-content"
       }
     },
     "web": {

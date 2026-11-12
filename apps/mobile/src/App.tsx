@@ -19,10 +19,23 @@ import { MachineHealthScreen } from './screens/MachineHealthScreen';
 import { ApprovalsScreen } from './screens/ApprovalsScreen';
 import { AgentTurnScreen } from './screens/AgentTurnScreen';
 import { SessionsScreen } from './screens/SessionsScreen';
-import { AuthScreen, CloudAgentLogo } from './screens/AuthScreen';
+import { AuthScreen } from './screens/AuthScreen';
+import { BrandLogo } from './components/BrandLogo';
 import { useDaemonStore } from './stores/useDaemonStore';
 import { mobileP2P } from './lib/p2p-client';
 import { isRunningInExpoGo } from './lib/notifications';
+
+const getRootBackgroundColor = (theme: 'dark' | 'light' | 'swiss') => {
+  if (theme === 'swiss') return '#F8F3EC';
+  if (theme === 'light') return '#ffffff';
+  return '#141414';
+};
+
+const getScreenBackgroundColor = (theme: 'dark' | 'light' | 'swiss') => {
+  if (theme === 'swiss') return '#F8F3EC';
+  if (theme === 'light') return '#f6f8fa';
+  return '#141414';
+};
 
 function MainApp() {
   // Default screen is Chat with the last opened session
@@ -201,12 +214,12 @@ function MainApp() {
   ).current;
 
   return (
-    <View style={[styles.rootContainer, isLight && { backgroundColor: '#ffffff' }]}>
+    <View style={[styles.rootContainer, { backgroundColor: getRootBackgroundColor(theme) }]}>
       <ExpoStatusBar style={isLight ? "dark" : "light"} />
 
       {isInitializingAuth ? (
         <View className="flex-1 bg-background items-center justify-center p-6 gap-4">
-          <CloudAgentLogo color={isLight ? '#262626' : '#f5f5f5'} size={110} />
+          <BrandLogo size={80} />
           <Spinner size="lg" />
           <Text className="text-xs font-medium text-muted-foreground tracking-wide mt-2">
             Initializing Cloud Agent...
@@ -220,7 +233,7 @@ function MainApp() {
           <View
             style={[
               styles.screenContainer,
-              isLight && { backgroundColor: '#f6f8fa' },
+              { backgroundColor: getScreenBackgroundColor(theme) },
             ]}
             {...edgeSwipePanResponder.panHandlers}
           >
@@ -283,10 +296,10 @@ export default function App() {
 const styles = StyleSheet.create({
   rootContainer: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: '#F8F3EC',
   },
   screenContainer: {
     flex: 1,
-    backgroundColor: '#141414',
+    backgroundColor: '#F8F3EC',
   },
 });

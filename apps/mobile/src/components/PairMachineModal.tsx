@@ -286,7 +286,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
               {/* 1. Camera Scan Tab */}
               <Tabs.Content value="scan" className="mt-2">
                 <Text className="text-xs text-muted-foreground mb-2.5">
-                  Run <Text className="font-mono text-foreground font-semibold">ca pair</Text> in your terminal and point the camera at the QR code:
+                  Run <Text className="text-xs font-mono text-foreground font-semibold">ca pair</Text> in your terminal and point the camera at the QR code:
                 </Text>
 
                 <View className="w-full h-56 rounded-xl overflow-hidden bg-surface-secondary border border-border items-center justify-center relative">
@@ -367,7 +367,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
               {/* 2. Enter Code Tab */}
               <Tabs.Content value="code" className="mt-2">
                 <Text className="text-xs text-muted-foreground mb-2">
-                  Run <Text className="font-mono text-foreground font-semibold">ca pair</Text> in your terminal and enter the 6-character code:
+                  Run <Text className="text-xs font-mono text-foreground font-semibold">ca pair</Text> in your terminal and enter the 6-character code:
                 </Text>
 
                 <Input
@@ -407,7 +407,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                 </Button>
 
                 <Text className="text-[11px] text-muted-foreground text-center">
-                  Codes expire in 10 minutes. If expired, run <Text className="font-mono font-medium">ca pair</Text> again.
+                  Codes expire in 10 minutes. If expired, run <Text className="text-[11px] font-mono font-medium text-foreground">ca pair</Text> again.
                 </Text>
               </Tabs.Content>
 
@@ -457,7 +457,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
                     </Card>
 
                     <Text className="text-xs text-muted-foreground mb-1.5">
-                      Or paste a machine token or <Text className="font-mono text-foreground">ca_pair://</Text> link:
+                      Or paste a machine token or <Text className="text-xs font-mono text-foreground font-medium">ca_pair://</Text> link:
                     </Text>
 
                     <Input

@@ -32,60 +32,11 @@ import { useDaemonStore } from '../stores/useDaemonStore';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 import { isRunningInExpoGo } from '../lib/notifications';
 import { getGlossyHeaderTokens } from '../theme/tokens';
+import { BrandLogo, CloudAgentLogo } from '../components/BrandLogo';
+
+export { BrandLogo, CloudAgentLogo };
 
 WebBrowser.maybeCompleteAuthSession();
-
-/**
- * Pixel-perfect Cloud Agent Logo:
- * Outlined cloud shape with inner terminal prompt (> _) and sparkle star ✦ at top right.
- */
-interface CloudAgentLogoProps {
-  color?: string;
-  size?: number;
-}
-
-export const CloudAgentLogo: React.FC<CloudAgentLogoProps> = ({
-  color = '#f5f5f5',
-  size = 130,
-}) => {
-  const width = size;
-  const height = (size * 100) / 130;
-
-  return (
-    <Svg width={width} height={height} viewBox="0 0 130 100" fill="none">
-      {/* Cloud Outline */}
-      <Path
-        d="M 40 68 L 82 68 C 93 68, 101 60, 101 49 C 101 39, 93 32, 83 32 C 82 32, 80 32, 79 33 C 76 21, 65 14, 53 14 C 40 14, 30 23, 28 35 C 27 35, 26 35, 25 35 C 16 35, 9 42, 9 51 C 9 60, 16 68, 26 68 Z"
-        stroke={color}
-        strokeWidth={4.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Terminal Prompt: > _ */}
-      <Path
-        d="M 44 45 L 51 51 L 44 57"
-        stroke={color}
-        strokeWidth={4.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M 58 57 L 70 57"
-        stroke={color}
-        strokeWidth={4.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* Sparkle Star ✦ at top-right curve */}
-      <Path
-        d="M 98 12 Q 98 22 106 22 Q 98 22 98 32 Q 98 22 90 22 Q 98 22 98 12 Z"
-        fill={color}
-      />
-    </Svg>
-  );
-};
 
 /**
  * Google 4-Color Flat Brand Mark
@@ -203,7 +154,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
   const checkNetwork = useDaemonStore((s) => s.checkNetwork);
 
   const isLight = theme === 'light' || theme === 'swiss';
-  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
+  const isSwiss = theme === 'swiss';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight, isSwiss), [isLight, isSwiss]);
   const isExpoGo = isRunningInExpoGo();
 
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(false);
@@ -370,12 +322,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess }) => {
 
       {/* Main Center Content */}
       <View className="w-full max-w-sm items-center">
-        {/* Cloud Agent Outline Logo */}
+        {/* Cloud Agent Brand Logo */}
         <View className="mb-6 items-center justify-center">
-          <CloudAgentLogo
-            color={isLight ? '#262626' : '#f5f5f5'}
-            size={132}
-          />
+          <BrandLogo size={84} />
         </View>
 
         {/* Brand Headline */}

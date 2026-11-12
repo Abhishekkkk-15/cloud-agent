@@ -45,7 +45,7 @@ import { SessionActionModal } from './SessionActionModal';
 import { SessionDropdownMenu } from './SessionDropdownMenu';
 import { ServerSettingsModal } from './ServerSettingsModal';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { CloudAgentLogo } from '../screens/AuthScreen';
+import { BrandLogo } from './BrandLogo';
 import { getGlossyHeaderTokens } from '../theme/tokens';
 
 export type AppScreen = 'agent' | 'health' | 'approvals' | 'sessions';
@@ -86,7 +86,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const toggleTheme = useDaemonStore((s) => s.toggleTheme);
   const isLight = theme === 'light' || theme === 'swiss';
-  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
+  const isSwiss = theme === 'swiss';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight, isSwiss), [isLight, isSwiss]);
 
   const [drawerSearch, setDrawerSearch] = useState<string>('');
   const [isSearchActive, setIsSearchActive] = useState<boolean>(false);
@@ -254,15 +255,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 className="flex-row items-center justify-between mb-3 h-10"
               >
                 <View className="flex-row items-center gap-2.5">
-                  <View
-                    style={[
-                      { width: 38, height: 38, borderRadius: 12 },
-                      glossyHeader.containerStyle,
-                    ]}
-                    className="items-center justify-center"
-                  >
-                    <CloudAgentLogo color={glossyHeader.iconColor} size={26} />
-                  </View>
+                  <BrandLogo size={36} />
                   <Text className="text-[17px] font-bold text-foreground tracking-tight">
                     Cloud Agent
                   </Text>

@@ -73,7 +73,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light' || theme === 'swiss';
   const isSwiss = theme === 'swiss';
-  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight, isSwiss), [isLight, isSwiss]);
   const glossyGridItem = useMemo(() => getGlossyGridItemTokens(isLight, isSwiss), [isLight, isSwiss]);
 
   const [isPinging, setIsPinging] = useState(false);
@@ -580,7 +580,7 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
 
               <View className="pt-2 border-t border-border flex-row items-center justify-between">
                 <Text className="text-[11px] text-muted-foreground">
-                  Host: <Text className="font-semibold text-foreground">{hostName}</Text>
+                  Host: <Text className="text-[11px] font-semibold text-foreground">{hostName}</Text>
                 </Text>
                 <View className="flex-row items-center gap-1">
                   <Text className="text-xs font-medium text-foreground">Configure Identity</Text>

@@ -44,7 +44,8 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light' || theme === 'swiss';
-  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight), [isLight]);
+  const isSwiss = theme === 'swiss';
+  const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight, isSwiss), [isLight, isSwiss]);
 
   const [rememberRule, setRememberRule] = useState(false);
   const [copied, setCopied] = useState(false);
