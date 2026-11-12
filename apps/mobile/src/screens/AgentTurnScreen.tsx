@@ -228,6 +228,7 @@ const TurnCard = React.memo<TurnCardProps>(
                     >
                       <Reasoning
                         isStreaming={isCurrentlyThinking}
+                        defaultOpen={isCurrentlyThinking}
                         className="my-1.5"
                       >
                         <Reasoning.Trigger

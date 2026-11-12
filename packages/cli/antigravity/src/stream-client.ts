@@ -375,16 +375,15 @@ class PersistentWorker {
   private checkTranscriptForThoughts(): void {
     try {
       const brainDir = getBrainDir();
-      const transcriptPath = path.join(
-        brainDir,
-        this.sessionId,
-        ".system_generated",
-        "logs",
-        "transcript.jsonl"
-      );
+      const logsDir = path.join(brainDir, this.sessionId, ".system_generated", "logs");
+      const transcriptFullPath = path.join(logsDir, "transcript_full.jsonl");
+      const transcriptPath = path.join(logsDir, "transcript.jsonl");
 
-      if (!fs.existsSync(transcriptPath)) return;
-      const raw = fs.readFileSync(transcriptPath, "utf-8");
+      // Prefer transcript_full.jsonl because it retains all thinking tokens without truncation
+      const targetPath = fs.existsSync(transcriptFullPath) ? transcriptFullPath : transcriptPath;
+      if (!fs.existsSync(targetPath)) return;
+
+      const raw = fs.readFileSync(targetPath, "utf-8");
       const lines = raw.trim().split("\n");
       if (lines.length > this.lastCheckedTranscriptLine) {
         for (let i = this.lastCheckedTranscriptLine; i < lines.length; i++) {
@@ -392,18 +391,36 @@ class PersistentWorker {
           if (!l) continue;
           try {
             const parsed = JSON.parse(l);
-            if (
-              parsed.type === "PLANNER_RESPONSE" &&
-              typeof parsed.thinking === "string" &&
-              parsed.thinking.trim().length > 0
-            ) {
+            let thinking = typeof parsed.thinking === "string" ? parsed.thinking : "";
+            if (!thinking && typeof parsed.reasoning === "string") {
+              thinking = parsed.reasoning;
+            }
+            if (!thinking && typeof parsed.thought === "string") {
+              thinking = parsed.thought;
+            }
+            if (!thinking && fs.existsSync(transcriptFullPath) && targetPath !== transcriptFullPath) {
+              try {
+                const fullRaw = fs.readFileSync(transcriptFullPath, "utf-8");
+                const fullLines = fullRaw.trim().split("\n");
+                if (fullLines[i]) {
+                  const fullParsed = JSON.parse(fullLines[i].trim());
+                  if (typeof fullParsed.thinking === "string") {
+                    thinking = fullParsed.thinking;
+                  }
+                }
+              } catch {
+                // ignore
+              }
+            }
+
+            if (thinking && thinking.trim().length > 0) {
               this.pushItem({
                 event: {
                   type: "thought",
                   sessionId: this.sessionId,
                   timestamp: parsed.created_at || new Date().toISOString(),
                   data: {
-                    thought: parsed.thinking,
+                    thought: thinking,
                     delta: false,
                   },
                 },
@@ -427,15 +444,12 @@ class PersistentWorker {
     // Initialize transcript cursor for new turn
     try {
       const brainDir = getBrainDir();
-      const transcriptPath = path.join(
-        brainDir,
-        this.sessionId,
-        ".system_generated",
-        "logs",
-        "transcript.jsonl"
-      );
-      if (fs.existsSync(transcriptPath)) {
-        const raw = fs.readFileSync(transcriptPath, "utf-8");
+      const logsDir = path.join(brainDir, this.sessionId, ".system_generated", "logs");
+      const fullPath = path.join(logsDir, "transcript_full.jsonl");
+      const normalPath = path.join(logsDir, "transcript.jsonl");
+      const targetPath = fs.existsSync(fullPath) ? fullPath : normalPath;
+      if (fs.existsSync(targetPath)) {
+        const raw = fs.readFileSync(targetPath, "utf-8");
         this.lastCheckedTranscriptLine = raw.trim().split("\n").length;
       } else {
         this.lastCheckedTranscriptLine = 0;

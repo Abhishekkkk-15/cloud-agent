@@ -37,6 +37,7 @@ function getDefaultHost(): string {
 
 const defaultHost = getDefaultHost();
 let activeSubscriptionSessionId: string | null = null;
+let hasInitializedGlobalListeners = false;
 
 const STORAGE_KEY_TOKEN = 'cloud_agent_token';
 const STORAGE_KEY_USER = 'cloud_agent_user';
@@ -877,273 +878,297 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       // ignore
     }
 
-    // Initialize notification channels and request permission immediately on app startup
-    get().registerPushNotifications().catch(() => {});
+    // Initialize notification channels and singletons only once across app lifecycle
+    if (!hasInitializedGlobalListeners) {
+      hasInitializedGlobalListeners = true;
 
-    // Subscribe to network connectivity state
-    networkMonitor.subscribe((isOnline) => {
-      const prev = get().isNetworkOnline;
-      set({ isNetworkOnline: isOnline });
-      if (!prev && isOnline) {
-        console.log('[DaemonStore] Network connectivity recovered. Reconnecting...');
-        mobileP2P.reconnectNow();
-        if (get().token) {
+      // Initialize notification channels and request permission immediately on app startup
+      get().registerPushNotifications().catch(() => {});
+
+      // Subscribe to network connectivity state
+      networkMonitor.subscribe((isOnline) => {
+        const prev = get().isNetworkOnline;
+        set({ isNetworkOnline: isOnline });
+        if (!prev && isOnline) {
+          console.log('[DaemonStore] Network connectivity recovered. Reconnecting...');
+          mobileP2P.reconnectNow();
+          if (get().token) {
+            get().refreshStatus();
+            get().fetchSessions();
+            get().reconcileActiveSession();
+          }
+        }
+      });
+
+      // Subscribe to connection state
+      mobileP2P.onStateChange((state) => {
+        set({ connectionState: state });
+        if (state === 'disconnected' || state === 'error') {
+          // Clear active subscription lock so reconnect can seamlessly re-attach
+          activeSubscriptionSessionId = null;
+        } else if (state === 'connected') {
+          activeSubscriptionSessionId = null;
           get().refreshStatus();
           get().fetchSessions();
+          get().fetchKnownWorkspaces();
+          get().fetchMachines();
+          get().fetchCliCapabilities();
+          get().fetchCliModels();
           get().reconcileActiveSession();
+          get().registerPushNotifications().catch(() => {});
         }
-      }
-    });
+      });
 
-    // Subscribe to connection state
-    mobileP2P.onStateChange((state) => {
-      set({ connectionState: state });
-      if (state === 'disconnected' || state === 'error') {
-        // Clear active subscription lock so reconnect can seamlessly re-attach
-        activeSubscriptionSessionId = null;
-      } else if (state === 'connected') {
-        activeSubscriptionSessionId = null;
-        get().refreshStatus();
-        get().fetchSessions();
-        get().fetchKnownWorkspaces();
-        get().fetchMachines();
-        get().fetchCliCapabilities();
-        get().fetchCliModels();
-        get().reconcileActiveSession();
-        get().registerPushNotifications().catch(() => {});
-      }
-    });
+      // Subscribe to live agent events
+      mobileP2P.onEvent((event: any) => {
+        if (!event) return;
 
-    // Subscribe to live agent events
-    mobileP2P.onEvent((event: any) => {
-      if (!event) return;
-
-      if (event.type === 'auto_healer.proposal' && event.proposal) {
-        get().openAutoHealerProposal(event.proposal);
-        return;
-      }
-      if (event.type === 'auto_healer.pr_review' && event.review) {
-        get().openAutoPrReview(event.review);
-        return;
-      }
-
-      if (event.type === 'tool_approval_required' || event.type === 'ask_user' || event.type === 'permission_request') {
-        const data = event.data || event;
-        const tool = event.tool || data.toolName || data.tool || 'bash';
-        const cmd = event.command || data.command || event.prompt || data.prompt || (data.details ? JSON.stringify(data.details) : '');
-        set({
-          pendingApproval: {
-            id: event.approvalId || data.id || `appr_${Date.now()}`,
-            sessionId: event.sessionId || data.sessionId,
-            tool,
-            command: cmd,
-            description: event.description || data.description || 'Elevated command requires approval',
-            requestedAt: 'Just now',
-            targetNode: get().activeMachine?.name || get().daemonStatus?.hostname || 'Local Machine',
-            caller: 'Google Antigravity CLI',
-            riskLevel: 'high',
-          },
-        });
-        notifyApprovalRequired(tool, cmd).catch(() => {});
-      } else {
-        // Ensure session-scoped streaming events apply strictly to the active session
-        const activeSessionId = get().activeSession?.id;
-        if (
-          event.sessionId &&
-          activeSessionId &&
-          event.sessionId !== activeSessionId &&
-          (event.type === 'text_chunk' ||
-            event.type === 'thought' ||
-            event.type === 'tool_call' ||
-            event.type === 'tool_result' ||
-            event.type === 'status' ||
-            event.type === 'artifact')
-        ) {
+        if (event.type === 'auto_healer.proposal' && event.proposal) {
+          get().openAutoHealerProposal(event.proposal);
+          return;
+        }
+        if (event.type === 'auto_healer.pr_review' && event.review) {
+          get().openAutoPrReview(event.review);
           return;
         }
 
-        if (event.type === 'text_chunk') {
-        const text = typeof event.data === 'string'
-          ? event.data
-          : event.data?.text ?? event.text ?? '';
-        const isDelta = typeof event.data === 'object' && event.data !== null && 'delta' in event.data
-          ? (event.data as any).delta
-          : true;
-        if (!text) return;
+        if (event.type === 'tool_approval_required' || event.type === 'ask_user' || event.type === 'permission_request') {
+          const data = event.data || event;
+          const tool = event.tool || data.toolName || data.tool || 'bash';
+          const cmd = event.command || data.command || event.prompt || data.prompt || (data.details ? JSON.stringify(data.details) : '');
+          set({
+            pendingApproval: {
+              id: event.approvalId || data.id || `appr_${Date.now()}`,
+              sessionId: event.sessionId || data.sessionId,
+              tool,
+              command: cmd,
+              description: event.description || data.description || 'Elevated command requires approval',
+              requestedAt: 'Just now',
+              targetNode: get().activeMachine?.name || get().daemonStatus?.hostname || 'Local Machine',
+              caller: 'Google Antigravity CLI',
+              riskLevel: 'high',
+            },
+          });
+          notifyApprovalRequired(tool, cmd).catch(() => {});
+        } else {
+          // Ensure session-scoped streaming events apply strictly to the active session
+          const activeSessionId = get().activeSession?.id;
+          if (
+            event.sessionId &&
+            activeSessionId &&
+            event.sessionId !== activeSessionId &&
+            (event.type === 'text_chunk' ||
+              event.type === 'thought' ||
+              event.type === 'tool_call' ||
+              event.type === 'tool_result' ||
+              event.type === 'status' ||
+              event.type === 'artifact')
+          ) {
+            return;
+          }
 
-        set((state) => {
-          const msgs = [...state.sessionMessages];
-          const lastMsg = msgs[msgs.length - 1];
-          if (lastMsg && lastMsg.role === 'assistant') {
-            const currentContent = typeof lastMsg.content === 'string' ? lastMsg.content : '';
-            msgs[msgs.length - 1] = {
-              ...lastMsg,
-              content: isDelta ? currentContent + text : text,
-            };
-            return { sessionMessages: msgs };
-          } else {
-            return {
-              sessionMessages: [
-                ...msgs,
-                {
-                  id: `asst_${Date.now()}`,
-                  role: 'assistant',
-                  content: text,
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
-          }
-        });
-      } else if (event.type === 'thought') {
-        const thought = event.data?.thought || event.thought || '';
-        if (!thought) return;
-        const isDelta =
-          typeof event.data === 'object' && event.data !== null && 'delta' in event.data
-            ? (event.data as any).delta
-            : false;
-        set((state) => {
-          const msgs = [...state.sessionMessages];
-          const lastMsg = msgs[msgs.length - 1];
-          if (lastMsg && lastMsg.role === 'assistant') {
-            msgs[msgs.length - 1] = {
-              ...lastMsg,
-              reasoning: isDelta ? (lastMsg.reasoning || '') + thought : thought,
-            };
-            return { sessionMessages: msgs };
-          } else {
-            return {
-              sessionMessages: [
-                ...msgs,
-                {
-                  id: `asst_${Date.now()}`,
-                  role: 'assistant',
-                  content: '',
-                  reasoning: thought,
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
-          }
-        });
-      } else if (event.type === 'tool_call') {
-        const tcData = event.data || event;
-        const toolCallId = tcData.id || `tc_${Date.now()}`;
-        set((state) => {
-          const msgs = [...state.sessionMessages];
-          const lastMsg = msgs[msgs.length - 1];
-          const newToolCall = {
-            id: toolCallId,
-            name: tcData.name || 'tool',
-            arguments: tcData.arguments || {},
-            status: 'running' as const,
-          };
-          if (lastMsg && lastMsg.role === 'assistant') {
-            const existingCalls = lastMsg.toolCalls || [];
-            const exists = existingCalls.some((c) => c.id === toolCallId);
-            if (!exists) {
-              msgs[msgs.length - 1] = {
-                ...lastMsg,
-                toolCalls: [...existingCalls, newToolCall],
-              };
-            }
-            return { sessionMessages: msgs };
-          } else {
-            return {
-              sessionMessages: [
-                ...msgs,
-                {
-                  id: `asst_${Date.now()}`,
-                  role: 'assistant',
-                  content: '',
-                  toolCalls: [newToolCall],
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            };
-          }
-        });
-      } else if (event.type === 'tool_result') {
-        const trData = event.data || event;
-        set((state) => {
-          const msgs = [...state.sessionMessages];
-          let updated = false;
-          for (let i = msgs.length - 1; i >= 0; i--) {
-            const msg = msgs[i];
-            if (msg.toolCalls && msg.toolCalls.length > 0) {
-              const hasMatch = msg.toolCalls.some(
-                (tc) => tc.id === trData.toolCallId || tc.name === trData.name
-              );
-              if (hasMatch) {
-                const newToolCalls = msg.toolCalls.map((tc) => {
-                  if (tc.id === trData.toolCallId || tc.name === trData.name) {
-                    return {
-                      ...tc,
-                      result: trData.output ?? trData.result ?? '',
-                      error: trData.error,
-                      status: trData.isError || trData.error ? ('error' as const) : ('success' as const),
-                      duration: trData.duration ? String(trData.duration) : tc.duration,
-                    };
-                  }
-                  return tc;
-                });
-                msgs[i] = {
-                  ...msg,
-                  toolCalls: newToolCalls,
+          if (event.type === 'text_chunk') {
+            const text = typeof event.data === 'string'
+              ? event.data
+              : event.data?.text ?? event.text ?? '';
+            const isDelta = typeof event.data === 'object' && event.data !== null && 'delta' in event.data
+              ? (event.data as any).delta
+              : true;
+            if (!text) return;
+
+            set((state) => {
+              const msgs = [...state.sessionMessages];
+              const lastMsg = msgs[msgs.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant') {
+                const currentContent = typeof lastMsg.content === 'string' ? lastMsg.content : '';
+                let newContent: string;
+                if (!isDelta) {
+                  newContent = text;
+                } else if (text.length > 2 && currentContent.endsWith(text)) {
+                  // Ignore redundant duplicate stream chunk
+                  newContent = currentContent;
+                } else {
+                  newContent = currentContent + text;
+                }
+                msgs[msgs.length - 1] = {
+                  ...lastMsg,
+                  content: newContent,
                 };
-                updated = true;
-                break;
+                return { sessionMessages: msgs };
+              } else {
+                return {
+                  sessionMessages: [
+                    ...msgs,
+                    {
+                      id: `asst_${Date.now()}`,
+                      role: 'assistant',
+                      content: text,
+                      timestamp: new Date().toISOString(),
+                    },
+                  ],
+                };
               }
+            });
+          } else if (event.type === 'thought') {
+            const thought = event.data?.thought || event.thought || '';
+            if (!thought) return;
+            const isDelta =
+              typeof event.data === 'object' && event.data !== null && 'delta' in event.data
+                ? (event.data as any).delta
+                : false;
+            set((state) => {
+              const msgs = [...state.sessionMessages];
+              const lastMsg = msgs[msgs.length - 1];
+              if (lastMsg && lastMsg.role === 'assistant') {
+                const currentReasoning = typeof lastMsg.reasoning === 'string' ? lastMsg.reasoning : '';
+                let newReasoning: string;
+                if (!isDelta) {
+                  newReasoning = thought;
+                } else if (thought.length > 2 && currentReasoning.endsWith(thought)) {
+                  // Ignore redundant duplicate thought chunk
+                  newReasoning = currentReasoning;
+                } else {
+                  newReasoning = currentReasoning + thought;
+                }
+                msgs[msgs.length - 1] = {
+                  ...lastMsg,
+                  reasoning: newReasoning,
+                };
+                return { sessionMessages: msgs };
+              } else {
+                return {
+                  sessionMessages: [
+                    ...msgs,
+                    {
+                      id: `asst_${Date.now()}`,
+                      role: 'assistant',
+                      content: '',
+                      reasoning: thought,
+                      timestamp: new Date().toISOString(),
+                    },
+                  ],
+                };
+              }
+            });
+          } else if (event.type === 'tool_call') {
+            const tcData = event.data || event;
+            const toolCallId = tcData.id || `tc_${Date.now()}`;
+            set((state) => {
+              const msgs = [...state.sessionMessages];
+              const lastMsg = msgs[msgs.length - 1];
+              const newToolCall = {
+                id: toolCallId,
+                name: tcData.name || 'tool',
+                arguments: tcData.arguments || {},
+                status: 'running' as const,
+              };
+              if (lastMsg && lastMsg.role === 'assistant') {
+                const existingCalls = lastMsg.toolCalls || [];
+                const exists = existingCalls.some((c) => c.id === toolCallId);
+                if (!exists) {
+                  msgs[msgs.length - 1] = {
+                    ...lastMsg,
+                    toolCalls: [...existingCalls, newToolCall],
+                  };
+                }
+                return { sessionMessages: msgs };
+              } else {
+                return {
+                  sessionMessages: [
+                    ...msgs,
+                    {
+                      id: `asst_${Date.now()}`,
+                      role: 'assistant',
+                      content: '',
+                      toolCalls: [newToolCall],
+                      timestamp: new Date().toISOString(),
+                    },
+                  ],
+                };
+              }
+            });
+          } else if (event.type === 'tool_result') {
+            const trData = event.data || event;
+            set((state) => {
+              const msgs = [...state.sessionMessages];
+              let updated = false;
+              for (let i = msgs.length - 1; i >= 0; i--) {
+                const msg = msgs[i];
+                if (msg.toolCalls && msg.toolCalls.length > 0) {
+                  const hasMatch = msg.toolCalls.some(
+                    (tc) => tc.id === trData.toolCallId || tc.name === trData.name
+                  );
+                  if (hasMatch) {
+                    const newToolCalls = msg.toolCalls.map((tc) => {
+                      if (tc.id === trData.toolCallId || tc.name === trData.name) {
+                        return {
+                          ...tc,
+                          result: trData.output ?? trData.result ?? '',
+                          error: trData.error,
+                          status: trData.isError || trData.error ? ('error' as const) : ('success' as const),
+                          duration: trData.duration ? String(trData.duration) : tc.duration,
+                        };
+                      }
+                      return tc;
+                    });
+                    msgs[i] = {
+                      ...msg,
+                      toolCalls: newToolCalls,
+                    };
+                    updated = true;
+                    break;
+                  }
+                }
+              }
+              return updated ? { sessionMessages: msgs } : state;
+            });
+          } else if (event.type === 'status') {
+            const statusVal = event.data?.status || event.status;
+            const msg = event.data?.message || event.message;
+            if (statusVal === 'error') {
+              notifyTurnError(msg || 'Execution failed').catch(() => {});
+              set((state) => ({
+                sessionMessages: [
+                  ...state.sessionMessages,
+                  {
+                    id: `err_${Date.now()}`,
+                    role: 'assistant',
+                    content: `⚠️ Error: ${msg || 'Execution failed'}`,
+                    timestamp: new Date().toISOString(),
+                  },
+                ],
+                isSendingPrompt: false,
+              }));
+            } else if (statusVal === 'done') {
+              if (get().isSendingPrompt) {
+                notifyTurnComplete(get().activeSession?.title || 'Active Session').catch(() => {});
+              }
+              set({ isSendingPrompt: false });
+              get().fetchSessionArtifacts();
+            }
+          } else if (event.type === 'artifact') {
+            get().fetchSessionArtifacts();
+          } else if (event.type === 'terminal.output') {
+            const trData = event.data || event;
+            const text = trData.text || '';
+            const stream = trData.stream || 'stdout';
+            if (text) {
+              set((state) => ({
+                terminalLines: [
+                  ...state.terminalLines,
+                  {
+                    id: `line_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                    text,
+                    stream,
+                    timestamp: new Date().toISOString(),
+                  },
+                ],
+              }));
             }
           }
-          return updated ? { sessionMessages: msgs } : state;
-        });
-      } else if (event.type === 'status') {
-        const statusVal = event.data?.status || event.status;
-        const msg = event.data?.message || event.message;
-        if (statusVal === 'error') {
-          notifyTurnError(msg || 'Execution failed').catch(() => {});
-          set((state) => ({
-            sessionMessages: [
-              ...state.sessionMessages,
-              {
-                id: `err_${Date.now()}`,
-                role: 'assistant',
-                content: `⚠️ Error: ${msg || 'Execution failed'}`,
-                timestamp: new Date().toISOString(),
-              },
-            ],
-            isSendingPrompt: false,
-          }));
-        } else if (statusVal === 'done') {
-          if (get().isSendingPrompt) {
-            notifyTurnComplete(get().activeSession?.title || 'Active Session').catch(() => {});
-          }
-          set({ isSendingPrompt: false });
-          get().fetchSessionArtifacts();
         }
-      } else if (event.type === 'artifact') {
-        get().fetchSessionArtifacts();
-      } else if (event.type === 'terminal.output') {
-        const trData = event.data || event;
-        const text = trData.text || '';
-        const stream = trData.stream || 'stdout';
-        if (text) {
-          set((state) => ({
-            terminalLines: [
-              ...state.terminalLines,
-              {
-                id: `line_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                text,
-                stream,
-                timestamp: new Date().toISOString(),
-              },
-            ],
-          }));
-        }
-      }
+      });
     }
-  });
 
     try {
       requestNotificationPermission().catch(() => {});

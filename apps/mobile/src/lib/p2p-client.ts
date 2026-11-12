@@ -80,6 +80,7 @@ export class MobileP2PClient {
   private isExplicitlyDisconnected = false;
   private heartbeatTimer: any = null;
   private lastPongAt = Date.now();
+  private recentEventSignatures = new Set<string>();
 
   constructor() {}
 
@@ -293,6 +294,26 @@ export class MobileP2PClient {
     }
   }
 
+  private dispatchEvent(event: any): void {
+    if (!event) return;
+    // Generate signature to deduplicate identical streaming chunks delivered over multiple RPC channels (e.g. agent.run + agent.subscribe)
+    const eventSig = event.id
+      ? `${event.sessionId || ''}_${event.id}`
+      : `${event.sessionId || ''}_${event.type}_${event.timestamp || ''}_${
+          typeof event.data === 'string' ? event.data : JSON.stringify(event.data || {})
+        }`;
+
+    if (this.recentEventSignatures.has(eventSig)) {
+      return; // Drop duplicate chunk from secondary subscription/channel
+    }
+    this.recentEventSignatures.add(eventSig);
+    if (this.recentEventSignatures.size > 300) {
+      const first = this.recentEventSignatures.values().next().value;
+      if (first) this.recentEventSignatures.delete(first);
+    }
+    this.eventListeners.forEach((listener) => listener(event));
+  }
+
   private handleIncomingMessage(rawText: string) {
     try {
       const data = JSON.parse(rawText);
@@ -310,14 +331,14 @@ export class MobileP2PClient {
           }
         }
         if (data.event) {
-          this.eventListeners.forEach((listener) => listener(data.event));
+          this.dispatchEvent(data.event);
         }
         return;
       }
 
       // Deliver general background events
       if (data.event) {
-        this.eventListeners.forEach((listener) => listener(data.event));
+        this.dispatchEvent(data.event);
       }
 
       // Handle final RPC response

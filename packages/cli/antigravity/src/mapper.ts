@@ -75,15 +75,19 @@ export function mapAntigravityStreamEvent(
       const su = raw.step_update as Record<string, unknown>;
       const convId = (su.conversation_id as string) || sessionId;
 
-      // Text delta
-      if (typeof su.text_delta === "string" && su.text_delta.length > 0) {
-        events.push(
-          createCliEvent<TextChunkEventData>("text_chunk", convId, {
-            text: su.text_delta,
-            delta: true,
-          })
-        );
-      }
+      const isThoughtStep =
+        su.step_type === "thought" ||
+        su.step_type === "thinking" ||
+        su.step_type === "reasoning" ||
+        raw.type === "thought" ||
+        raw.type === "thinking";
+
+      const thoughtFromStep = isThoughtStep
+        ? (typeof su.text_delta === "string" && su.text_delta) ||
+          (typeof su.text === "string" && su.text) ||
+          (typeof su.content === "string" && su.content) ||
+          ""
+        : "";
 
       // Thought / reasoning delta
       const thoughtText =
@@ -93,16 +97,28 @@ export function mapAntigravityStreamEvent(
         (typeof su.thinking === "string" && su.thinking) ||
         (typeof su.thought === "string" && su.thought) ||
         (typeof su.reasoning === "string" && su.reasoning) ||
-        "";
+        thoughtFromStep;
+
       if (thoughtText.length > 0) {
         const isDelta =
           su.thought_delta !== undefined ||
           su.thinking_delta !== undefined ||
-          su.reasoning_delta !== undefined;
+          su.reasoning_delta !== undefined ||
+          (isThoughtStep && su.text_delta !== undefined);
         events.push(
           createCliEvent<ThoughtEventData>("thought", convId, {
             thought: thoughtText,
             delta: isDelta,
+          })
+        );
+      }
+
+      // Text delta (only when not a pure thought step)
+      if (!isThoughtStep && typeof su.text_delta === "string" && su.text_delta.length > 0) {
+        events.push(
+          createCliEvent<TextChunkEventData>("text_chunk", convId, {
+            text: su.text_delta,
+            delta: true,
           })
         );
       }
@@ -222,6 +238,14 @@ export function mapAntigravityStreamEvent(
           })
         );
       } else {
+        if (typeof res.thinking === "string" && res.thinking.length > 0) {
+          events.push(
+            createCliEvent<ThoughtEventData>("thought", convId, {
+              thought: res.thinking,
+              delta: false,
+            })
+          );
+        }
         // If response string exists and was not streamed, emit it
         if (typeof res.response === "string" && res.response.length > 0) {
           events.push(
