@@ -121,6 +121,13 @@ export class RpcDispatcher {
         case "daemon.status": {
           const avail = await registry.checkAll();
           const telemetry = getSystemTelemetry();
+          let capabilities = null;
+          try {
+            const activeAdapter = registry.get(params.cli);
+            capabilities = await activeAdapter.getCapabilities();
+          } catch {
+            // ignore if no adapter registered yet
+          }
           return {
             id: req.id,
             result: {
@@ -133,14 +140,32 @@ export class RpcDispatcher {
               telemetry,
               adapters: registry.list(),
               availability: avail,
+              capabilities,
             },
           };
+        }
+
+        case "cli.capabilities": {
+          const adapter = registry.get(params.cli);
+          const capabilities = await adapter.getCapabilities();
+          return { id: req.id, result: capabilities };
+        }
+
+        case "cli.models": {
+          const adapter = registry.get(params.cli);
+          const models =
+            typeof adapter.listModels === "function"
+              ? await adapter.listModels()
+              : (await adapter.getCapabilities()).models.fallbackModels;
+          return { id: req.id, result: { models } };
         }
 
         case "sessions.list": {
           const result = await handleSessionsList({
             cli: params.cli,
             workspaceFilter: params.workspaceFilter,
+            limit: params.limit,
+            offset: params.offset,
           });
           return { id: req.id, result };
         }

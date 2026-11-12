@@ -48,6 +48,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   const setSessionConfig = useDaemonStore((s) => s.setSessionConfig);
   const fetchKnownWorkspaces = useDaemonStore((s) => s.fetchKnownWorkspaces);
   const fetchDirectorySuggestions = useDaemonStore((s) => s.fetchDirectorySuggestions);
+  const cliCapabilities = useDaemonStore((s) => s.cliCapabilities);
 
   const [pathInput, setPathInput] = useState<string>('');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
@@ -56,6 +57,10 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   const [selectedModel, setSelectedModel] = useState(sessionConfig.model);
   const [selectedEffort, setSelectedEffort] = useState<ReasoningEffort>(sessionConfig.effort);
   const [selectedMode, setSelectedMode] = useState<ExecutionMode>(sessionConfig.mode);
+
+  const availableModes: ExecutionMode[] = cliCapabilities?.supportedModes || ['auto', 'plan', 'accept-edits'];
+  const supportedEfforts = cliCapabilities?.supportedEffortLevels?.filter((e) => ['low', 'medium', 'high', 'xhigh'].includes(e)) || ['low', 'medium', 'high'];
+  const supportsEffort = cliCapabilities?.supportsEffort !== false;
 
   useEffect(() => {
     if (visible) {
@@ -215,22 +220,24 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
                 </Text>
               </View>
 
-              <View className="flex-row gap-1.5 mb-2">
-                {(['low', 'medium', 'high'] as ReasoningEffort[]).map((eff) => (
-                  <Button
-                    key={eff}
-                    variant={selectedEffort === eff ? 'secondary' : 'outline'}
-                    size="xs"
-                    onPress={() => setSelectedEffort(eff)}
-                    className="flex-1 capitalize"
-                  >
-                    {eff} Effort
-                  </Button>
-                ))}
-              </View>
+              {supportsEffort && (
+                <View className="flex-row gap-1.5 mb-2">
+                  {supportedEfforts.map((eff) => (
+                    <Button
+                      key={eff}
+                      variant={selectedEffort === eff ? 'secondary' : 'outline'}
+                      size="xs"
+                      onPress={() => setSelectedEffort(eff)}
+                      className="flex-1 capitalize"
+                    >
+                      {eff} Effort
+                    </Button>
+                  ))}
+                </View>
+              )}
 
               <View className="flex-row gap-1.5">
-                {(['code', 'plan', 'chat'] as ExecutionMode[]).map((m) => (
+                {availableModes.map((m) => (
                   <Button
                     key={m}
                     variant={selectedMode === m ? 'secondary' : 'outline'}
@@ -238,7 +245,7 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
                     onPress={() => setSelectedMode(m)}
                     className="flex-1 capitalize"
                   >
-                    {m} Mode
+                    {m === 'accept-edits' ? 'Review' : m}
                   </Button>
                 ))}
               </View>

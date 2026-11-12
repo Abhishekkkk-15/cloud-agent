@@ -13,6 +13,8 @@ import {
   type CliSessionListOptions,
   type CliGetSessionOptions,
   type CliPaginationOptions,
+  type CliCapabilities,
+  type CliModelCapability,
 } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath } from "./paths.js";
 import {
@@ -26,6 +28,57 @@ import {
 import { AntigravityStreamClient } from "./stream-client.js";
 
 const execFileAsync = promisify(execFile);
+
+const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
+  {
+    id: "gemini-3.8-flash-high",
+    name: "Gemini 3.8 Flash (High)",
+    description: "Default: high speed, deep coding comprehension with deep thinking tokens",
+    provider: "Google",
+    supportsEffort: true,
+    supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    isDefault: true,
+  },
+  {
+    id: "gemini-3.8-flash-medium",
+    name: "Gemini 3.8 Flash (Medium)",
+    description: "Balanced reasoning for fast edits and standard agent turns",
+    provider: "Google",
+    supportsEffort: true,
+    supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+  },
+  {
+    id: "gemini-3.8-flash-low",
+    name: "Gemini 3.8 Flash (Low)",
+    description: "Lowest latency and token consumption for quick queries",
+    provider: "Google",
+    supportsEffort: true,
+    supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+  },
+  {
+    id: "claude-sonnet-4-6",
+    name: "Claude Sonnet 4.6 (Thinking)",
+    description: "Extended chain-of-thought and architectural planning",
+    provider: "Anthropic",
+    supportsEffort: true,
+    supportedEffortLevels: ["low", "medium", "high", "max"],
+  },
+  {
+    id: "claude-opus-4-6-thinking",
+    name: "Claude Opus 4.6 (Thinking)",
+    description: "Maximum depth reasoning for complex refactoring",
+    provider: "Anthropic",
+    supportsEffort: true,
+    supportedEffortLevels: ["low", "medium", "high", "max"],
+  },
+  {
+    id: "gpt-oss-120b-medium",
+    name: "GPT-OSS 120B (Medium)",
+    description: "Open weights model running locally or hybrid",
+    provider: "OSS",
+    supportsEffort: false,
+  },
+];
 
 /**
  * Adapter for Google Antigravity CLI (agy).
@@ -143,6 +196,94 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
     const delivered = this.client.respondPermission(sessionId, requestId, allow);
     if (!delivered) {
       console.warn(`[AntigravityAdapter] No active worker found for session ${sessionId} to respond permission`);
+    }
+  }
+
+  /**
+   * Returns Antigravity capability manifest.
+   */
+  async getCapabilities(): Promise<CliCapabilities> {
+    return {
+      cliId: this.id,
+      displayName: this.displayName,
+      supportedModes: ["auto", "plan", "accept-edits"],
+      defaultMode: "auto",
+      supportsEffort: true,
+      supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+      defaultEffort: "high",
+      permissions: {
+        supportsHeadlessHitl: false,
+        requiresBypassInHeadless: true,
+        bypassFlagName: "--dangerously-skip-permissions",
+        warningMessage:
+          "Google Antigravity runs headlessly in daemon mode without a TTY terminal device. Auto-approving permissions is required to prevent the background agent worker from freezing on unhandled interactive confirmation prompts.",
+        defaultAutoApprove: true,
+      },
+      models: {
+        supportsDynamicDiscovery: true,
+        fallbackModels: ANTIGRAVITY_FALLBACK_MODELS,
+      },
+    };
+  }
+
+  /**
+   * Dynamically lists available models via `agy models` on the host machine.
+   */
+  async listModels(): Promise<CliModelCapability[]> {
+    const binPath = getAgyBinaryPath();
+    if (!binPath) return ANTIGRAVITY_FALLBACK_MODELS;
+
+    try {
+      const { stdout } = await execFileAsync(binPath, ["models"], {
+        timeout: 10000,
+      });
+
+      const lines = stdout
+        .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
+        .replace(/Fetching available models\.\.\./g, "")
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      const parsedModels: CliModelCapability[] = [];
+
+      for (const line of lines) {
+        // Line format from `agy models`: "<model-id>\t<Model Display Name>" or "<model-id>  <name>"
+        const parts = line.split(/\t+|\s{2,}/);
+        const id = parts[0]?.trim();
+        if (!id || id.startsWith("/") || id.startsWith("#")) continue;
+
+        const name = parts[1]?.trim() || id;
+        const lowerId = id.toLowerCase();
+
+        let provider = "Google";
+        if (lowerId.includes("claude") || lowerId.includes("sonnet") || lowerId.includes("opus")) {
+          provider = "Anthropic";
+        } else if (lowerId.includes("gpt") || lowerId.includes("oss")) {
+          provider = "OSS";
+        }
+
+        const supportsEffort =
+          lowerId.includes("flash") ||
+          lowerId.includes("thinking") ||
+          lowerId.includes("sonnet") ||
+          lowerId.includes("opus");
+
+        parsedModels.push({
+          id,
+          name,
+          provider,
+          supportsEffort,
+          supportedEffortLevels: supportsEffort
+            ? ["low", "medium", "high", "xhigh", "max"]
+            : undefined,
+          isDefault: lowerId === "gemini-3.8-flash-high",
+        });
+      }
+
+      return parsedModels.length > 0 ? parsedModels : ANTIGRAVITY_FALLBACK_MODELS;
+    } catch {
+      return ANTIGRAVITY_FALLBACK_MODELS;
     }
   }
 }

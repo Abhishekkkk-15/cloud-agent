@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { NativeModules, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CliArtifact } from '@cloud-agent/cli-interface';
+import type { CliArtifact, CliCapabilities, CliModelCapability } from '@cloud-agent/cli-interface';
 import { mobileP2P, ConnectionState, DaemonStatusResult } from '../lib/p2p-client';
 import { networkMonitor } from '../lib/network';
 import {
@@ -301,7 +301,81 @@ export interface GithubTestResult {
   error?: string;
 }
 
+export const DEFAULT_ANTIGRAVITY_CAPABILITIES: CliCapabilities = {
+  cliId: 'antigravity',
+  displayName: 'Google Antigravity',
+  supportedModes: ['auto', 'plan', 'accept-edits'],
+  defaultMode: 'auto',
+  supportsEffort: true,
+  supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+  defaultEffort: 'high',
+  permissions: {
+    supportsHeadlessHitl: false,
+    requiresBypassInHeadless: true,
+    bypassFlagName: '--dangerously-skip-permissions',
+    warningMessage:
+      'Google Antigravity in headless daemon mode requires auto-approval to prevent background workers from freezing on unhandled interactive confirmation prompts.',
+    defaultAutoApprove: true,
+  },
+  models: {
+    supportsDynamicDiscovery: true,
+    fallbackModels: [
+      {
+        id: 'gemini-3.8-flash-high',
+        name: 'Gemini 3.8 Flash (High)',
+        description: 'Recommended default: high speed, deep coding comprehension',
+        provider: 'Google',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        isDefault: true,
+      },
+      {
+        id: 'gemini-3.8-flash-medium',
+        name: 'Gemini 3.8 Flash (Medium)',
+        description: 'Balanced reasoning for quick edits and queries',
+        provider: 'Google',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      {
+        id: 'gemini-3.8-flash-low',
+        name: 'Gemini 3.8 Flash (Low)',
+        description: 'Lowest latency and token usage for rapid tasks',
+        provider: 'Google',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      {
+        id: 'claude-sonnet-4-6',
+        name: 'Claude Sonnet 4.6 (Thinking)',
+        description: 'Extended chain-of-thought and architectural planning',
+        provider: 'Anthropic',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'max'],
+      },
+      {
+        id: 'claude-opus-4-6-thinking',
+        name: 'Claude Opus 4.6 (Thinking)',
+        description: 'Maximum depth reasoning for complex refactoring',
+        provider: 'Anthropic',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'max'],
+      },
+      {
+        id: 'gpt-oss-120b-medium',
+        name: 'GPT-OSS 120B (Medium)',
+        description: 'Open weights model running locally/hybrid',
+        provider: 'OSS',
+        supportsEffort: false,
+      },
+    ],
+  },
+};
+
 interface DaemonStoreState {
+  cliCapabilities: CliCapabilities | null;
+  availableModels: CliModelCapability[];
+  isLoadingCapabilities: boolean;
   apiUrl: string;
   gatewayUrl: string;
   token: string | null;
@@ -426,6 +500,8 @@ interface DaemonStoreState {
   pingHeartbeat: () => Promise<void>;
   setSelectedWorkspace: (ws: string) => void;
   setSessionConfig: (config: Partial<SessionConfig>) => void;
+  fetchCliCapabilities: () => Promise<void>;
+  fetchCliModels: () => Promise<void>;
   setServerEndpoints: (urls: { apiUrl: string; gatewayUrl: string }) => Promise<void>;
   resetServerEndpoints: () => Promise<void>;
   testServerEndpoints: (apiUrl: string, gatewayUrl: string) => Promise<EndpointTestResult>;
@@ -444,6 +520,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isLoadingMachines: false,
   connectionState: 'disconnected',
   isNetworkOnline: networkMonitor.getIsOnline(),
+  cliCapabilities: DEFAULT_ANTIGRAVITY_CAPABILITIES,
+  availableModels: DEFAULT_ANTIGRAVITY_CAPABILITIES.models.fallbackModels,
+  isLoadingCapabilities: false,
   daemonStatus: null,
   pingRtt: '',
   sessions: [],
@@ -828,6 +907,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         get().fetchSessions();
         get().fetchKnownWorkspaces();
         get().fetchMachines();
+        get().fetchCliCapabilities();
+        get().fetchCliModels();
         get().reconcileActiveSession();
         get().registerPushNotifications().catch(() => {});
       }
@@ -1768,9 +1849,52 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       const result = await mobileP2P.sendRpc<DaemonStatusResult>('daemon.status');
       if (result) {
         set({ daemonStatus: result });
+        if (result.capabilities) {
+          set({
+            cliCapabilities: result.capabilities,
+            availableModels:
+              result.capabilities.models?.fallbackModels && result.capabilities.models.fallbackModels.length > 0
+                ? result.capabilities.models.fallbackModels
+                : get().availableModels,
+          });
+        }
       }
     } catch (err) {
       console.error('[DaemonStore] refreshStatus error:', err);
+    }
+  },
+
+  fetchCliCapabilities: async () => {
+    try {
+      set({ isLoadingCapabilities: true });
+      const caps = await mobileP2P.sendRpc<CliCapabilities>('cli.capabilities');
+      if (caps) {
+        set({
+          cliCapabilities: caps,
+          availableModels:
+            caps.models?.fallbackModels && caps.models.fallbackModels.length > 0
+              ? caps.models.fallbackModels
+              : get().availableModels,
+        });
+      }
+    } catch (err) {
+      console.warn('[DaemonStore] fetchCliCapabilities error:', err);
+      if (!get().cliCapabilities) {
+        set({ cliCapabilities: DEFAULT_ANTIGRAVITY_CAPABILITIES });
+      }
+    } finally {
+      set({ isLoadingCapabilities: false });
+    }
+  },
+
+  fetchCliModels: async () => {
+    try {
+      const res = await mobileP2P.sendRpc<{ models: CliModelCapability[] }>('cli.models');
+      if (res?.models && Array.isArray(res.models) && res.models.length > 0) {
+        set({ availableModels: res.models });
+      }
+    } catch (err) {
+      console.warn('[DaemonStore] fetchCliModels error:', err);
     }
   },
 

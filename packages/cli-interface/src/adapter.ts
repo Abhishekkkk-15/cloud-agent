@@ -10,6 +10,8 @@ import type {
   CliSessionListOptions,
   CliGetSessionOptions,
   CliPaginationOptions,
+  CliCapabilities,
+  CliModelCapability,
 } from "./types.js";
 import type { CliEvent } from "./events.js";
 
@@ -29,6 +31,18 @@ export interface ICliAdapter {
 
   /** Checks if the CLI is installed, authenticated, and ready on this host */
   checkAvailability(): Promise<CliAvailability>;
+
+  /**
+   * Retrieves the capability manifest declared by this CLI adapter.
+   * Defines supported execution modes, effort levels, dynamic models, and headless HITL rules.
+   */
+  getCapabilities(): Promise<CliCapabilities>;
+
+  /**
+   * Optional dynamic model listing from the host CLI (e.g. `agy models`).
+   * Falls back to `getCapabilities().models.fallbackModels` if not supported.
+   */
+  listModels?(): Promise<CliModelCapability[]>;
 
   /**
    * Discovers and lists sessions directly from the CLI's local disk storage.
@@ -116,6 +130,32 @@ export abstract class BaseCliAdapter implements ICliAdapter {
   ): Promise<CliPaginatedResult<CliMessage>>;
   abstract run(options: CliRunOptions): AsyncIterable<CliEvent>;
   abstract cancel(sessionId: string): Promise<void>;
+
+  async getCapabilities(): Promise<CliCapabilities> {
+    return {
+      cliId: this.id,
+      displayName: this.displayName,
+      supportedModes: ["auto"],
+      defaultMode: "auto",
+      supportsEffort: false,
+      supportedEffortLevels: [],
+      defaultEffort: "high",
+      permissions: {
+        supportsHeadlessHitl: false,
+        requiresBypassInHeadless: true,
+        bypassFlagName: "--dangerously-skip-permissions",
+        defaultAutoApprove: true,
+      },
+      models: {
+        supportsDynamicDiscovery: false,
+        fallbackModels: [],
+      },
+    };
+  }
+
+  async listModels?(): Promise<CliModelCapability[]> {
+    return [];
+  }
 
   isTurnRunning(sessionId: string): boolean {
     return false;

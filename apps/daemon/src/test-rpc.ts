@@ -53,6 +53,30 @@ async function runLocalTests() {
   });
   const nodes = (fsRes.result as any[]) || [];
   console.log(`Workspace root files/directories found: ${nodes.length}`);
+
+  console.log("\n=== 6. Testing cli.capabilities ===");
+  const capRes = await rpcDispatcher.handle({
+    id: "test-6",
+    method: "cli.capabilities",
+  });
+  const caps = capRes.result as any;
+  console.log(`CLI ID             : ${caps.cliId}`);
+  console.log(`Display Name       : ${caps.displayName}`);
+  console.log(`Supported Modes    : ${caps.supportedModes.join(", ")}`);
+  console.log(`Supports Effort    : ${caps.supportsEffort} (${caps.supportedEffortLevels.join(", ")})`);
+  console.log(`Headless HITL      : ${caps.permissions.supportsHeadlessHitl}`);
+  console.log(`Requires Bypass    : ${caps.permissions.requiresBypassInHeadless} (${caps.permissions.bypassFlagName})`);
+
+  console.log("\n=== 7. Testing cli.models ===");
+  const modelsRes = await rpcDispatcher.handle({
+    id: "test-7",
+    method: "cli.models",
+  });
+  const modelsData = modelsRes.result as any;
+  console.log(`Total Models found : ${modelsData.models.length}`);
+  for (const m of modelsData.models) {
+    console.log(` - [${m.provider}] ${m.id} -> "${m.name}" (effort: ${m.supportsEffort ? 'yes' : 'no'})`);
+  }
 }
 
 runLocalTests().catch((err) => {

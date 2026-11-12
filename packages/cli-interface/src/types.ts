@@ -80,6 +80,51 @@ export interface CliSessionDetail extends CliSessionSummary {
 export type CliEffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
 export type CliExecutionMode = "auto" | "plan" | "accept-edits";
 
+export interface CliModelCapability {
+  id: string;
+  name: string;
+  description?: string;
+  provider?: string;
+  supportsEffort?: boolean;
+  supportedEffortLevels?: CliEffortLevel[];
+  isDefault?: boolean;
+}
+
+export interface CliPermissionCapability {
+  /** Whether the CLI natively supports structured HITL approvals when running headless without a TTY */
+  supportsHeadlessHitl: boolean;
+  /** Whether bypassing permissions is mandatory in headless mode to prevent stdin readline hang */
+  requiresBypassInHeadless: boolean;
+  /** Display label for the bypass flag (e.g. "--dangerously-skip-permissions" or "--yes") */
+  bypassFlagName: string;
+  /** Warning message if user attempts to disable auto-approval on non-HITL CLI */
+  warningMessage?: string;
+  defaultAutoApprove: boolean;
+}
+
+export interface CliCapabilities {
+  /** Unique ID of the CLI adapter (e.g. "antigravity", "claude") */
+  cliId: string;
+  /** Human-readable display name (e.g. "Google Antigravity") */
+  displayName: string;
+  /** Supported execution modes (e.g. ['auto', 'plan', 'accept-edits']) */
+  supportedModes: CliExecutionMode[];
+  defaultMode: CliExecutionMode;
+  /** Whether reasoning effort is supported by this CLI */
+  supportsEffort: boolean;
+  supportedEffortLevels: CliEffortLevel[];
+  defaultEffort: CliEffortLevel;
+  /** Tool execution permission & HITL capabilities */
+  permissions: CliPermissionCapability;
+  /** Model discovery capabilities */
+  models: {
+    supportsDynamicDiscovery: boolean;
+    fallbackModels: CliModelCapability[];
+  };
+  /** Custom CLI-specific parameters (optional) */
+  customOptions?: Record<string, unknown>;
+}
+
 export interface CliRunOptions {
   prompt: string;
   sessionId?: string;

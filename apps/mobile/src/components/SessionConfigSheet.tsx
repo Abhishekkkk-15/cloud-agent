@@ -24,6 +24,8 @@ import {
   Layers,
   ShieldCheck,
   ShieldAlert,
+  RefreshCw,
+  AlertTriangle,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import {
@@ -45,47 +47,15 @@ interface SessionConfigSheetProps {
   onClose: () => void;
 }
 
-const AVAILABLE_MODELS = [
-  {
-    id: 'gemini-3.8-flash-high',
-    name: 'Gemini 3.8 Flash (High)',
-    desc: 'Recommended default: high speed, deep coding comprehension',
-    provider: 'Google',
-  },
-  {
-    id: 'gemini-3.8-flash-medium',
-    name: 'Gemini 3.8 Flash (Medium)',
-    desc: 'Balanced reasoning for quick edits and queries',
-    provider: 'Google',
-  },
-  {
-    id: 'claude-sonnet-4-6',
-    name: 'Claude Sonnet 4.6 (Thinking)',
-    desc: 'Extended chain-of-thought and architectural planning',
-    provider: 'Anthropic',
-  },
-  {
-    id: 'claude-opus-4-6-thinking',
-    name: 'Claude Opus 4.6 (Thinking)',
-    desc: 'Maximum depth reasoning for complex refactoring',
-    provider: 'Anthropic',
-  },
-  {
-    id: 'gpt-oss-120b-medium',
-    name: 'GPT-OSS 120B (Medium)',
-    desc: 'Open weights model running locally/hybrid',
-    provider: 'OSS',
-  },
-];
-
-const EFFORT_LEVELS: { id: ReasoningEffort; label: string; desc: string }[] = [
+const ALL_EFFORT_LEVELS: { id: ReasoningEffort; label: string; desc: string }[] = [
   { id: 'low', label: 'Low', desc: 'Fastest turns, minimal thinking tokens' },
   { id: 'medium', label: 'Medium', desc: 'Balanced reasoning for standard tasks' },
   { id: 'high', label: 'High', desc: 'In-depth multi-step verification (Recommended)' },
+  { id: 'xhigh', label: 'X-High', desc: 'Extended reasoning depth for challenging logic' },
   { id: 'max', label: 'Max', desc: 'Exhaustive deliberation on critical code' },
 ];
 
-const EXECUTION_MODES: { id: ExecutionMode; label: string; desc: string }[] = [
+const ALL_EXECUTION_MODES: { id: ExecutionMode; label: string; desc: string }[] = [
   { id: 'auto', label: 'Auto', desc: 'Directly edit files & execute tools' },
   { id: 'plan', label: 'Plan Only', desc: 'Agent produces implementation plan without modifying code' },
   { id: 'accept-edits', label: 'Review Edits', desc: 'Step-by-step confirmation for file modifications' },
@@ -100,6 +70,23 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
   const isSwiss = theme === 'swiss';
   const sessionConfig = useDaemonStore((s) => s.sessionConfig);
   const setSessionConfig = useDaemonStore((s) => s.setSessionConfig);
+  const cliCapabilities = useDaemonStore((s) => s.cliCapabilities);
+  const availableModels = useDaemonStore((s) => s.availableModels);
+  const fetchCliModels = useDaemonStore((s) => s.fetchCliModels);
+
+  const [isRefreshingModels, setIsRefreshingModels] = useState(false);
+
+  // Dynamic capabilities resolution
+  const supportedEffortIds = cliCapabilities?.supportedEffortLevels || ['low', 'medium', 'high', 'xhigh', 'max'];
+  const effortLevels = ALL_EFFORT_LEVELS.filter((e) => supportedEffortIds.includes(e.id));
+  const supportsEffort = cliCapabilities?.supportsEffort !== false;
+
+  const supportedModeIds = cliCapabilities?.supportedModes || ['auto', 'plan', 'accept-edits'];
+  const executionModes = ALL_EXECUTION_MODES.filter((m) => supportedModeIds.includes(m.id));
+
+  const models = availableModels.length > 0 ? availableModels : (cliCapabilities?.models?.fallbackModels || []);
+  const permissionsCap = cliCapabilities?.permissions;
+  const requiresBypassInHeadless = permissionsCap?.requiresBypassInHeadless ?? true;
 
   const [isExpanded, setIsExpanded] = useState(false);
   const isExpandedRef = useRef(false);
@@ -268,108 +255,130 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             showsVerticalScrollIndicator={false}
           >
             {/* 1. Reasoning Effort */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Flame size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>REASONING EFFORT</Text>
-              </View>
+            {supportsEffort && effortLevels.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Flame size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                  <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>REASONING EFFORT</Text>
+                </View>
 
-              <View style={[styles.segmentedRow, isLight && styles.segmentedRowLight, isSwiss && styles.segmentedRowSwiss]}>
-                {EFFORT_LEVELS.map((eff) => {
-                  const isSelected = (sessionConfig.effort || 'high') === eff.id;
-                  return (
-                    <TouchableOpacity
-                      key={eff.id}
-                      style={[
-                        styles.segmentBtn,
-                        isLight && styles.segmentBtnLight,
-                        isSelected && (isSwiss ? styles.segmentBtnActiveSwiss : isLight ? styles.segmentBtnActiveLight : styles.segmentBtnActive),
-                      ]}
-                      activeOpacity={0.75}
-                      onPress={() => setSessionConfig({ effort: eff.id })}
-                    >
-                      <Text
+                <View style={[styles.segmentedRow, isLight && styles.segmentedRowLight, isSwiss && styles.segmentedRowSwiss]}>
+                  {effortLevels.map((eff) => {
+                    const isSelected = (sessionConfig.effort || 'high') === eff.id;
+                    return (
+                      <TouchableOpacity
+                        key={eff.id}
                         style={[
-                          styles.segmentBtnText,
-                          isLight && styles.segmentBtnTextLight,
-                          isSwiss && styles.segmentBtnTextSwiss,
-                          isSelected && (isSwiss ? styles.segmentBtnTextActiveSwiss : isLight ? styles.segmentBtnTextActiveLight : styles.segmentBtnTextActive),
+                          styles.segmentBtn,
+                          isLight && styles.segmentBtnLight,
+                          isSelected && (isSwiss ? styles.segmentBtnActiveSwiss : isLight ? styles.segmentBtnActiveLight : styles.segmentBtnActive),
                         ]}
+                        activeOpacity={0.75}
+                        onPress={() => setSessionConfig({ effort: eff.id })}
                       >
-                        {eff.label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              <Text style={[styles.effortDescription, isLight && styles.effortDescriptionLight, isSwiss && styles.effortDescriptionSwiss]}>
-                {EFFORT_LEVELS.find((e) => e.id === (sessionConfig.effort || 'high'))?.desc}
-              </Text>
-            </View>
-
-            {/* 2. Execution Mode */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Layers size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>EXECUTION MODE</Text>
-              </View>
-
-              <View style={styles.modeCardsCol}>
-                {EXECUTION_MODES.map((m) => {
-                  const isSelected = (sessionConfig.mode || 'auto') === m.id;
-                  return (
-                    <TouchableOpacity
-                      key={m.id}
-                      style={[
-                        styles.modeCard,
-                        isLight && styles.modeCardLight,
-                        isSwiss && styles.modeCardSwiss,
-                        isSelected && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
-                      ]}
-                      activeOpacity={0.75}
-                      onPress={() => setSessionConfig({ mode: m.id })}
-                    >
-                      <View style={styles.modeCardLeft}>
-                        <View
+                        <Text
                           style={[
-                            styles.radioCircle,
-                            isLight && styles.radioCircleLight,
-                            isSwiss && styles.radioCircleSwiss,
-                            isSelected && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                            styles.segmentBtnText,
+                            isLight && styles.segmentBtnTextLight,
+                            isSwiss && styles.segmentBtnTextSwiss,
+                            isSelected && (isSwiss ? styles.segmentBtnTextActiveSwiss : isLight ? styles.segmentBtnTextActiveLight : styles.segmentBtnTextActive),
                           ]}
                         >
-                          {isSelected && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
-                        </View>
-                        <View style={styles.modeCardTextCol}>
-                          <Text
+                          {eff.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={[styles.effortDescription, isLight && styles.effortDescriptionLight, isSwiss && styles.effortDescriptionSwiss]}>
+                  {effortLevels.find((e) => e.id === (sessionConfig.effort || 'high'))?.desc}
+                </Text>
+              </View>
+            )}
+
+            {/* 2. Execution Mode */}
+            {executionModes.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Layers size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                  <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>EXECUTION MODE</Text>
+                </View>
+
+                <View style={styles.modeCardsCol}>
+                  {executionModes.map((m) => {
+                    const isSelected = (sessionConfig.mode || 'auto') === m.id;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        style={[
+                          styles.modeCard,
+                          isLight && styles.modeCardLight,
+                          isSwiss && styles.modeCardSwiss,
+                          isSelected && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
+                        ]}
+                        activeOpacity={0.75}
+                        onPress={() => setSessionConfig({ mode: m.id })}
+                      >
+                        <View style={styles.modeCardLeft}>
+                          <View
                             style={[
-                              styles.modeCardLabel,
-                              isLight && styles.modeCardLabelLight,
-                              isSwiss && styles.modeCardLabelSwiss,
-                              isSelected && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                              styles.radioCircle,
+                              isLight && styles.radioCircleLight,
+                              isSwiss && styles.radioCircleSwiss,
+                              isSelected && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
                             ]}
                           >
-                            {m.label}
-                          </Text>
-                          <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>{m.desc}</Text>
+                            {isSelected && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
+                          </View>
+                          <View style={styles.modeCardTextCol}>
+                            <Text
+                              style={[
+                                styles.modeCardLabel,
+                                isLight && styles.modeCardLabelLight,
+                                isSwiss && styles.modeCardLabelSwiss,
+                                isSelected && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                              ]}
+                            >
+                              {m.label}
+                            </Text>
+                            <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>{m.desc}</Text>
+                          </View>
                         </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
-            </View>
+            )}
 
             {/* 3. AI Model Selector */}
             <View style={styles.section}>
-              <View style={styles.sectionHeaderRow}>
-                <Bot size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
-                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>ACTIVE MODEL</Text>
+              <View style={styles.sectionHeaderBetween}>
+                <View style={styles.sectionHeaderRow}>
+                  <Bot size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                  <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>ACTIVE MODEL</Text>
+                </View>
+                {cliCapabilities?.models?.supportsDynamicDiscovery && (
+                  <TouchableOpacity
+                    onPress={async () => {
+                      setIsRefreshingModels(true);
+                      await fetchCliModels();
+                      setIsRefreshingModels(false);
+                    }}
+                    disabled={isRefreshingModels}
+                    style={styles.refreshBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel="Refresh models from host"
+                  >
+                    <RefreshCw size={12} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
+                  </TouchableOpacity>
+                )}
               </View>
 
               <View style={styles.modelsList}>
-                {AVAILABLE_MODELS.map((model) => {
-                  const isSelected = (sessionConfig.model || 'gemini-3.8-flash-high') === model.id;
+                {models.map((model) => {
+                  const isSelected = (sessionConfig.model || models[0]?.id || 'gemini-3.8-flash-high') === model.id;
+                  const descText = model.description || (model as any).desc;
                   return (
                     <TouchableOpacity
                       key={model.id}
@@ -405,11 +414,15 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                             >
                               {model.name}
                             </Text>
-                            <View style={[styles.providerBadge, isLight && styles.providerBadgeLight, isSwiss && styles.providerBadgeSwiss]}>
-                              <Text style={[styles.providerBadgeText, isLight && styles.providerBadgeTextLight, isSwiss && styles.providerBadgeTextSwiss]}>{model.provider}</Text>
-                            </View>
+                            {model.provider ? (
+                              <View style={[styles.providerBadge, isLight && styles.providerBadgeLight, isSwiss && styles.providerBadgeSwiss]}>
+                                <Text style={[styles.providerBadgeText, isLight && styles.providerBadgeTextLight, isSwiss && styles.providerBadgeTextSwiss]}>{model.provider}</Text>
+                              </View>
+                            ) : null}
                           </View>
-                          <Text style={[styles.modelDesc, isLight && styles.modelDescLight, isSwiss && styles.modelDescSwiss]}>{model.desc}</Text>
+                          {descText ? (
+                            <Text style={[styles.modelDesc, isLight && styles.modelDescLight, isSwiss && styles.modelDescSwiss]}>{descText}</Text>
+                          ) : null}
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -509,6 +522,17 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                   </View>
                 </TouchableOpacity>
               </View>
+
+              {/* Headless warning if CLI requires bypass */}
+              {requiresBypassInHeadless && sessionConfig.dangerouslySkipPermissions === false && (
+                <View style={[styles.permissionNotice, isLight && styles.permissionNoticeLight, isSwiss && styles.permissionNoticeSwiss]}>
+                  <AlertTriangle size={14} color={isSwiss ? '#DC201E' : '#f59e0b'} style={{ marginTop: 1 }} />
+                  <Text style={[styles.permissionNoticeText, isLight && styles.permissionNoticeTextLight, isSwiss && styles.permissionNoticeTextSwiss]}>
+                    {permissionsCap?.warningMessage ||
+                      'Notice: This CLI runs in headless daemon mode without an interactive terminal. Unchecked permissions may cause background agent turns to freeze waiting for terminal [y/n] inputs.'}
+                  </Text>
+                </View>
+              )}
             </View>
           </ScrollView>
 
@@ -610,6 +634,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginBottom: 4,
+  },
+  sectionHeaderBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  refreshBtn: {
+    padding: 4,
   },
   sectionTitle: {
     fontSize: 11,
@@ -799,6 +832,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fafafa',
   },
+  permissionNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 10,
+    padding: 10,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(245, 158, 11, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+  },
+  permissionNoticeText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: '#fbbf24',
+  },
 
   // Light Theme Overrides
   sheetContainerLight: {
@@ -921,6 +971,13 @@ const styles = StyleSheet.create({
   applyBtnTextLight: {
     color: '#ffffff',
   },
+  permissionNoticeLight: {
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+  },
+  permissionNoticeTextLight: {
+    color: '#92400e',
+  },
 
   // Swiss Theme Overrides
   sheetContainerSwiss: {
@@ -1035,5 +1092,12 @@ const styles = StyleSheet.create({
   },
   applyBtnSwiss: {
     backgroundColor: '#DC201E',
+  },
+  permissionNoticeSwiss: {
+    backgroundColor: '#F1EBE1',
+    borderColor: 'rgba(220, 32, 30, 0.25)',
+  },
+  permissionNoticeTextSwiss: {
+    color: '#6B665E',
   },
 });

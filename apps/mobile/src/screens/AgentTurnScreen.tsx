@@ -145,6 +145,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light' || theme === 'swiss';
   const isSwiss = theme === 'swiss';
+  const availableModels = useDaemonStore((s) => s.availableModels);
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight, isSwiss), [isLight, isSwiss]);
 
   const [promptInput, setPromptInput] = useState('');
@@ -161,6 +162,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   const currentModelId = activeSession?.model || sessionConfig?.model || 'gemini-3.8-flash-high';
   const modelPillLabel = useMemo(() => {
+    const matched = availableModels.find((m) => m.id === currentModelId);
+    if (matched) {
+      return matched.name.length > 15 ? matched.name.slice(0, 14) + '…' : matched.name;
+    }
     const id = currentModelId.toLowerCase();
     if (id.includes('claude-3-5') || id.includes('sonnet-3-5') || id.includes('sonnet-3.5')) return 'Sonnet 3.5';
     if (id.includes('claude-sonnet-4') || id.includes('sonnet-4')) return 'Sonnet 4.6';
@@ -171,7 +176,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     if (id.includes('gpt-4o')) return 'GPT-4o';
     const clean = currentModelId.split('/').pop()?.split(':')[0]?.replace(/-/g, ' ') || currentModelId;
     return clean.length > 13 ? clean.slice(0, 11) + '…' : clean;
-  }, [currentModelId]);
+  }, [currentModelId, availableModels]);
 
   const modelPillDetail = useMemo(() => {
     const effort = sessionConfig?.effort;

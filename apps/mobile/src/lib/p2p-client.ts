@@ -1,4 +1,5 @@
 import { networkMonitor } from './network';
+import type { CliCapabilities } from '@cloud-agent/cli-interface';
 
 export type ConnectionState = 'disconnected' | 'connecting' | 'signaling' | 'connected' | 'error';
 
@@ -50,6 +51,7 @@ export interface DaemonStatusResult {
     version?: string;
     binaryPath?: string;
   }>;
+  capabilities?: CliCapabilities;
 }
 
 interface PendingRpcEntry {
