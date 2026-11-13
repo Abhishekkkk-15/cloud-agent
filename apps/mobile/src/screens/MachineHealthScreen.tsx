@@ -3,6 +3,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import {
   Card,
@@ -44,6 +45,7 @@ import { PairMachineModal } from '../components/PairMachineModal';
 import { ServerSettingsModal } from '../components/ServerSettingsModal';
 import { AutoHealerModal } from '../components/AutoHealerModal';
 import { GitHubWebhookModal } from '../components/GitHubWebhookModal';
+import { ProcessManagerSheet } from '../components/ProcessManagerSheet';
 
 interface MachineHealthScreenProps {
   onBack?: () => void;
@@ -70,6 +72,9 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
   const openAutoHealerProposal = useDaemonStore((s) => s.openAutoHealerProposal);
   const openAutoPrReview = useDaemonStore((s) => s.openAutoPrReview);
   const githubStatus = useDaemonStore((s) => s.githubStatus);
+  const cliWorkers = useDaemonStore((s) => s.cliWorkers);
+  const restartDaemonService = useDaemonStore((s) => s.restartDaemonService);
+  const isRestartingDaemon = useDaemonStore((s) => s.isRestartingDaemon);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light' || theme === 'swiss';
   const isSwiss = theme === 'swiss';
@@ -82,6 +87,8 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
   const [showPairModal, setShowPairModal] = useState(false);
   const [showServerSettings, setShowServerSettings] = useState(false);
   const [showGithubModal, setShowGithubModal] = useState(false);
+  const [showProcessManager, setShowProcessManager] = useState(false);
+  const [processManagerTab, setProcessManagerTab] = useState<'daemon' | 'workers'>('daemon');
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -593,9 +600,16 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
 
         {/* Daemon Operations Bento Grid */}
         <View className="gap-2 mb-6">
-          <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
-            Daemon Operations
-          </Text>
+          <View className="flex-row items-center justify-between px-1">
+            <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Daemon Operations
+            </Text>
+            {cliWorkers.length > 0 && (
+              <Badge variant="secondary" size="xs">
+                {cliWorkers.length} Active {cliWorkers.length === 1 ? 'Worker' : 'Workers'}
+              </Badge>
+            )}
+          </View>
 
           <GridItem.Group columns={2} gap={10} rowHeight={130} size="sm">
             <GridItem
@@ -652,19 +666,22 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
             <GridItem
               colSpan={1}
               rowSpan={1}
-              onPress={() => onNavigateTab && onNavigateTab('sessions')}
+              onPress={() => {
+                setProcessManagerTab('daemon');
+                setShowProcessManager(true);
+              }}
               className="p-3 pb-3.5 justify-between"
               style={glossyGridItem.containerStyle}
             >
               <GridItem.Media variant="icon">
-                <Zap size={16} color={isLight ? '#262626' : '#f5f5f5'} />
+                <Terminal size={16} color={isLight ? '#262626' : '#f5f5f5'} />
               </GridItem.Media>
               <GridItem.Title>Daemon Logs</GridItem.Title>
               <GridItem.Value className="text-base font-semibold">
                 STDOUT
               </GridItem.Value>
               <GridItem.Description numberOfLines={1}>
-                Live stream console
+                Inspect logs & processes
               </GridItem.Description>
             </GridItem>
 
@@ -672,12 +689,29 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
               colSpan={1}
               rowSpan={1}
               onPress={() => {
-                toast.show({
-                  variant: 'warning',
-                  label: 'Restart Daemon',
-                  description: `Restart command dispatched to ${hostName}.`,
-                });
+                Alert.alert(
+                  'Restart Cloud Agent Daemon?',
+                  `Reboot the background daemon service on ${hostName}? Mobile will auto-reconnect once the service comes back online.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Restart Daemon',
+                      style: 'destructive',
+                      onPress: async () => {
+                        const ok = await restartDaemonService();
+                        if (ok) {
+                          toast.show({
+                            variant: 'default',
+                            label: 'Daemon Restart Signaled',
+                            description: `Restart command dispatched to ${hostName}.`,
+                          });
+                        }
+                      },
+                    },
+                  ]
+                );
               }}
+              disabled={isRestartingDaemon}
               className="p-3 pb-3.5 justify-between"
               style={[
                 glossyGridItem.containerStyle,
@@ -685,11 +719,15 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
               ]}
             >
               <GridItem.Media variant="icon" className="bg-destructive/10 border-destructive/20">
-                <Power size={16} color="#ef4444" />
+                {isRestartingDaemon ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Power size={16} color="#ef4444" />
+                )}
               </GridItem.Media>
               <GridItem.Title className="text-destructive">Daemon</GridItem.Title>
               <GridItem.Value className="text-base font-semibold text-destructive">
-                Restart
+                {isRestartingDaemon ? 'Restarting...' : 'Restart'}
               </GridItem.Value>
               <GridItem.Description numberOfLines={1} className="text-destructive/70">
                 Reboot host daemon
@@ -717,6 +755,13 @@ export const MachineHealthScreen: React.FC<MachineHealthScreenProps> = ({
       <ServerSettingsModal
         visible={showServerSettings}
         onClose={() => setShowServerSettings(false)}
+      />
+
+      {/* Process & Node Manager Sheet */}
+      <ProcessManagerSheet
+        isOpen={showProcessManager}
+        onClose={() => setShowProcessManager(false)}
+        initialTab={processManagerTab}
       />
 
       {/* Autonomous On-Call & PR Review Modal */}

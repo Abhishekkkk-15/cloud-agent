@@ -63,6 +63,7 @@ import {
   Trash2,
   GitBranch,
   BookOpen,
+  Cpu,
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors, getGlossyHeaderTokens } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
@@ -85,6 +86,7 @@ import { LiveApprovalCard } from '../components/LiveApprovalCard';
 import { ArtifactsSheet } from '../components/ArtifactsSheet';
 import { AutoHealerModal } from '../components/AutoHealerModal';
 import { AskQuestionCard } from '../components/AskQuestionCard';
+import { ProcessManagerSheet } from '../components/ProcessManagerSheet';
 import { startDictation, stopDictation, isSpeechRecognitionSupported } from '../lib/speech';
 
 interface AgentTurnScreenProps {
@@ -419,6 +421,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
+  const [showProcessManager, setShowProcessManager] = useState(false);
   const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
   const [isRenamingSession, setIsRenamingSession] = useState(false);
   const [renameTitle, setRenameTitle] = useState('');
@@ -1405,6 +1408,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               Terminal / PTY
             </Menu.Item>
 
+            <Menu.Item
+              icon={<Cpu size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
+              description="Manage daemon & CLI worker pool"
+              onSelect={() => setShowProcessManager(true)}
+            >
+              Process & Node Manager
+            </Menu.Item>
+
             <Menu.Separator />
 
             {activeSession && (
@@ -1810,6 +1821,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         visible={showArtifactsSheet}
         onClose={() => setShowArtifactsSheet(false)}
         initialSearchQuery={artifactFilterQuery}
+      />
+
+      {/* 12b. Process & Node Manager Bottom Sheet */}
+      <ProcessManagerSheet
+        isOpen={showProcessManager}
+        onClose={() => setShowProcessManager(false)}
       />
 
       {/* 13. Autonomous On-Call & PR Review Modal */}

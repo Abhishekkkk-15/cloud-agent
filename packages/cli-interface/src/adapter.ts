@@ -12,6 +12,7 @@ import type {
   CliPaginationOptions,
   CliCapabilities,
   CliModelCapability,
+  CliWorkerInfo,
 } from "./types.js";
 import type { CliEvent } from "./events.js";
 
@@ -102,6 +103,18 @@ export interface ICliAdapter {
   /** Checks if an agent turn is actively executing for a session */
   isTurnRunning?(sessionId: string): boolean;
 
+  /** Lists active persistent CLI worker child processes */
+  listWorkers?(): Promise<CliWorkerInfo[]>;
+
+  /** Terminates an active CLI worker by its session ID */
+  killWorker?(sessionId: string): Promise<boolean>;
+
+  /** Restarts a CLI worker by session ID */
+  restartWorker?(sessionId: string): Promise<boolean>;
+
+  /** Terminates all currently idle persistent CLI workers */
+  killAllIdleWorkers?(): Promise<number>;
+
   /**
    * Optional interactive terminal fallback (via pseudo-terminal).
    */
@@ -159,6 +172,22 @@ export abstract class BaseCliAdapter implements ICliAdapter {
 
   isTurnRunning(sessionId: string): boolean {
     return false;
+  }
+
+  async listWorkers(): Promise<CliWorkerInfo[]> {
+    return [];
+  }
+
+  async killWorker(sessionId: string): Promise<boolean> {
+    return false;
+  }
+
+  async restartWorker(sessionId: string): Promise<boolean> {
+    return false;
+  }
+
+  async killAllIdleWorkers(): Promise<number> {
+    return 0;
   }
 
   async respondPermission?(sessionId: string, requestId: string, allow: boolean): Promise<void> {

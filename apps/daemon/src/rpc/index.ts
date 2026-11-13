@@ -29,6 +29,8 @@ import {
   handleGithubRemoveToken,
 } from "./github.js";
 import { sessionStreamHub } from "./stream-hub.js";
+import { restartService, stopService } from "../service.js";
+import { getLogFilePath } from "../logger.js";
 import type { CliEvent } from "@cloud-agent/cli-interface";
 
 const activeTerminalProcesses = new Map<string, ChildProcess>();
@@ -716,6 +718,111 @@ export class RpcDispatcher {
             bodyBase64: params.bodyBase64,
           });
           return { id: req.id, result };
+        }
+
+        case "daemon.workers": {
+          const adapter = registry.get(params.cli);
+          const workers = typeof adapter.listWorkers === "function" ? await adapter.listWorkers() : [];
+          return { id: req.id, result: { workers } };
+        }
+
+        case "daemon.kill_worker": {
+          const sessionId = params.sessionId;
+          if (!sessionId || typeof sessionId !== "string") {
+            throw new Error("Missing sessionId parameter for daemon.kill_worker");
+          }
+          const adapter = registry.get(params.cli);
+
+          // Only abort turn stream if session was actively executing (Review Focus 1 & Issue 2)
+          const isTurnBusy =
+            (typeof adapter.isTurnRunning === "function" && adapter.isTurnRunning(sessionId)) ||
+            sessionStreamHub.hasActiveTurn(sessionId);
+
+          if (isTurnBusy) {
+            sessionStreamHub.broadcast(sessionId, {
+              type: "status",
+              sessionId,
+              timestamp: new Date().toISOString(),
+              data: { status: "error", message: "Process terminated by operator" },
+            });
+            sessionStreamHub.endTurn(sessionId, { error: "Process terminated by operator" });
+          }
+
+          const killed = typeof adapter.killWorker === "function" ? await adapter.killWorker(sessionId) : false;
+          return { id: req.id, result: { ok: Boolean(killed), killed, sessionId } };
+        }
+
+        case "daemon.restart_worker": {
+          const sessionId = params.sessionId;
+          if (!sessionId || typeof sessionId !== "string") {
+            throw new Error("Missing sessionId parameter for daemon.restart_worker");
+          }
+          const adapter = registry.get(params.cli);
+
+          // Only abort turn stream if session was actively executing (Review Focus 1 & Issue 2)
+          const isTurnBusy =
+            (typeof adapter.isTurnRunning === "function" && adapter.isTurnRunning(sessionId)) ||
+            sessionStreamHub.hasActiveTurn(sessionId);
+
+          if (isTurnBusy) {
+            sessionStreamHub.broadcast(sessionId, {
+              type: "status",
+              sessionId,
+              timestamp: new Date().toISOString(),
+              data: { status: "error", message: "Process restarted by operator" },
+            });
+            sessionStreamHub.endTurn(sessionId, { error: "Process restarted by operator" });
+          }
+
+          const restarted = typeof adapter.restartWorker === "function" ? await adapter.restartWorker(sessionId) : false;
+          return { id: req.id, result: { ok: Boolean(restarted), restarted, sessionId } };
+        }
+
+        case "daemon.kill_all_workers": {
+          const adapter = registry.get(params.cli);
+          const count = typeof adapter.killAllIdleWorkers === "function" ? await adapter.killAllIdleWorkers() : 0;
+          return { id: req.id, result: { count } };
+        }
+
+        case "daemon.logs": {
+          const linesRequested = typeof params.lines === "number" && params.lines > 0 ? params.lines : 100;
+          const logPath = getLogFilePath();
+          let lines: string[] = [];
+          if (fs.existsSync(logPath)) {
+            try {
+              const raw = fs.readFileSync(logPath, "utf8");
+              lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0).slice(-linesRequested);
+            } catch {
+              lines = [];
+            }
+          }
+          return { id: req.id, result: { lines, path: logPath } };
+        }
+
+        case "daemon.restart": {
+          if (!params.testDryRun) {
+            setTimeout(async () => {
+              try {
+                await restartService(true);
+              } catch (err) {
+                console.error("[RpcDispatcher] Failed to execute daemon self-restart:", err);
+              }
+            }, 350);
+          }
+          return { id: req.id, result: { ok: true, message: "Restarting daemon service..." } };
+        }
+
+        case "daemon.stop": {
+          if (!params.testDryRun) {
+            setTimeout(async () => {
+              try {
+                await stopService();
+              } catch (err) {
+                console.error("[RpcDispatcher] Failed to stop daemon service:", err);
+              }
+            }, 350);
+          }
+          return { id: req.id, result: { ok: true, message: "Stopping daemon service..." } };
         }
 
         default:

@@ -36,6 +36,7 @@ import {
   Sun,
   Moon,
   Palette,
+  Cpu,
 } from './Icons';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
@@ -44,6 +45,7 @@ import { MachineSwitcherModal } from './MachineSwitcherModal';
 import { SessionActionModal } from './SessionActionModal';
 import { SessionDropdownMenu } from './SessionDropdownMenu';
 import { ServerSettingsModal } from './ServerSettingsModal';
+import { ProcessManagerSheet } from './ProcessManagerSheet';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { BrandLogo } from './BrandLogo';
 import { getGlossyHeaderTokens } from '../theme/tokens';
@@ -82,6 +84,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const currentUser = useDaemonStore((s) => s.currentUser);
   const pendingApproval = useDaemonStore((s) => s.pendingApproval);
   const isPushRegistered = useDaemonStore((s) => s.isPushRegistered);
+  const cliWorkers = useDaemonStore((s) => s.cliWorkers);
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
@@ -101,6 +104,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
   const [showMachineSwitcher, setShowMachineSwitcher] = useState<boolean>(false);
   const [showServerSettings, setShowServerSettings] = useState<boolean>(false);
+  const [showProcessManager, setShowProcessManager] = useState<boolean>(false);
 
   const avatarUri =
     currentUser?.avatarUrl ||
@@ -619,6 +623,36 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               </Item.Content>
             </Item>
 
+            {/* Process & Daemon Control */}
+            <Item
+              variant="default"
+              size="sm"
+              className="px-2.5 py-1.5 rounded-xl my-0.5"
+              onPress={() => {
+                onClose();
+                setShowProcessManager(true);
+              }}
+            >
+              <Item.Media variant="icon">
+                <Cpu size={17} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Item.Media>
+              <Item.Content>
+                <Item.Title className="text-[14px] font-medium text-foreground">
+                  Process & Daemon Control
+                </Item.Title>
+              </Item.Content>
+              <Item.Actions className="flex-row items-center gap-1.5">
+                {cliWorkers.length > 0 && (
+                  <Badge variant="secondary" size="xs">
+                    <Text className="text-[10px] font-medium">
+                      {cliWorkers.length} {cliWorkers.length === 1 ? 'worker' : 'workers'}
+                    </Text>
+                  </Badge>
+                )}
+                <ChevronRight size={14} color={isLight ? '#686868' : '#a3a3a3'} />
+              </Item.Actions>
+            </Item>
+
             {/* Server & Notifications Settings */}
             <Item
               variant="default"
@@ -727,6 +761,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       <ServerSettingsModal
         visible={showServerSettings}
         onClose={() => setShowServerSettings(false)}
+      />
+
+      {/* Process & Daemon Manager Sheet */}
+      <ProcessManagerSheet
+        isOpen={showProcessManager}
+        onClose={() => setShowProcessManager(false)}
       />
 
       {/* Session Action Modal (Rename, Pin, Delete) */}

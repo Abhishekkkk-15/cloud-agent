@@ -151,3 +151,19 @@ export interface CliPtyProcess {
   onData(callback: (data: string) => void): { dispose: () => void };
   onExit(callback: (exitCode: number, signal?: number) => void): { dispose: () => void };
 }
+
+export interface CliWorkerInfo {
+  sessionId: string;
+  sessionTitle?: string;
+  workspacePath?: string;
+  workspaceName?: string;
+  pid?: number;
+  isRunning: boolean;
+  isBusy: boolean;
+  activeModel?: string;
+  activeEffort?: string;
+  activeMode?: string;
+  activeCwd?: string;
+  startedAt: string;
+  lastActiveAt: string;
+}

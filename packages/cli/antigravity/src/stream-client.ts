@@ -4,7 +4,7 @@ import { spawn, execFile, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
 import readline from "node:readline";
 import crypto from "node:crypto";
-import type { CliRunOptions, CliEvent } from "@cloud-agent/cli-interface";
+import type { CliRunOptions, CliEvent, CliWorkerInfo } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath, getBrainDir } from "./paths.js";
 import { mapAntigravityStreamEvent } from "./mapper.js";
 import { getBrainSession, writeSessionMeta } from "./transcript-reader.js";
@@ -152,6 +152,9 @@ type QueueItem = { event?: CliEvent; error?: Error; done?: boolean };
  */
 class PersistentWorker {
   readonly sessionId: string;
+  readonly options: CliRunOptions;
+  readonly startedAt: string = new Date().toISOString();
+  lastActiveAt: string = new Date().toISOString();
   private child: ChildProcess;
   private isAlive = true;
   private queue: QueueItem[] = [];
@@ -171,6 +174,7 @@ class PersistentWorker {
     private onExit: (worker: PersistentWorker) => void
   ) {
     this.sessionId = sessionId;
+    this.options = options;
     this.activeModel = options.model;
     this.activeEffort = options.effort;
     this.activeMode = options.mode;
@@ -227,6 +231,28 @@ class PersistentWorker {
 
   get isBusy(): boolean {
     return this.isRunning && this.isTurnRunning;
+  }
+
+  get pid(): number | undefined {
+    return this.child?.pid;
+  }
+
+  getWorkerInfo(sessionTitle?: string, workspaceName?: string): CliWorkerInfo {
+    return {
+      sessionId: this.sessionId,
+      sessionTitle,
+      workspacePath: this.options.cwd || this.activeCwd,
+      workspaceName: workspaceName || (this.activeCwd ? path.basename(this.activeCwd) : undefined),
+      pid: this.pid,
+      isRunning: this.isRunning,
+      isBusy: this.isBusy,
+      activeModel: this.activeModel,
+      activeEffort: this.activeEffort,
+      activeMode: this.activeMode,
+      activeCwd: this.activeCwd,
+      startedAt: this.startedAt,
+      lastActiveAt: this.lastActiveAt,
+    };
   }
 
   hasConfigChanged(options: CliRunOptions): boolean {
@@ -439,6 +465,7 @@ class PersistentWorker {
 
   async *executeTurn(prompt: string): AsyncIterable<CliEvent> {
     this.isTurnRunning = true;
+    this.lastActiveAt = new Date().toISOString();
     this.resetIdleTimer();
 
     // Initialize transcript cursor for new turn
@@ -510,6 +537,8 @@ class PersistentWorker {
         });
       }
     } finally {
+      this.isTurnRunning = false;
+      this.lastActiveAt = new Date().toISOString();
       clearInterval(transcriptPollTimer);
       this.checkTranscriptForThoughts();
     }
@@ -917,5 +946,137 @@ export class AntigravityStreamClient {
       return worker.respondPermission(requestId, allow);
     }
     return false;
+  }
+
+  /**
+   * Introspects and lists all active warm persistent CLI worker child processes.
+   */
+  async listWorkers(): Promise<CliWorkerInfo[]> {
+    const results: CliWorkerInfo[] = [];
+    const deadSessions: string[] = [];
+
+    for (const [sessionId, worker] of this.workers.entries()) {
+      if (typeof worker.isRunning === "boolean" && !worker.isRunning) {
+        deadSessions.push(sessionId);
+        continue;
+      }
+
+      let sessionTitle: string | undefined;
+      let workspaceName: string | undefined;
+      let workspacePath: string | undefined = worker.activeCwd;
+
+      try {
+        const brainSession = await getBrainSession(sessionId);
+        if (brainSession) {
+          sessionTitle = brainSession.title;
+          workspaceName = (brainSession as any).workspaceName || (brainSession.workspacePath ? path.basename(brainSession.workspacePath) : undefined);
+          if (brainSession.workspacePath) {
+            workspacePath = brainSession.workspacePath;
+          }
+        }
+      } catch {
+        // ignore lookup failure
+      }
+
+      if (typeof (worker as any).getWorkerInfo === "function") {
+        const info = (worker as any).getWorkerInfo(sessionTitle, workspaceName);
+        if (workspacePath) info.workspacePath = workspacePath;
+        results.push(info);
+      } else {
+        results.push({
+          sessionId: worker.sessionId || sessionId,
+          sessionTitle,
+          workspacePath: workspacePath || worker.activeCwd,
+          workspaceName,
+          pid: worker.pid,
+          isRunning: typeof worker.isRunning === "boolean" ? worker.isRunning : true,
+          isBusy: Boolean(worker.isBusy),
+          activeModel: worker.activeModel,
+          activeEffort: worker.activeEffort,
+          activeMode: worker.activeMode,
+          activeCwd: worker.activeCwd,
+          startedAt: (worker as any).startedAt || new Date().toISOString(),
+          lastActiveAt: (worker as any).lastActiveAt || new Date().toISOString(),
+        });
+      }
+    }
+
+    for (const deadId of deadSessions) {
+      const w = this.workers.get(deadId);
+      if (w) {
+        try { w.destroy(); } catch {}
+      }
+      this.workers.delete(deadId);
+    }
+
+    return results;
+  }
+
+  /**
+   * Terminates a persistent CLI worker by sessionId.
+   */
+  killWorker(sessionId: string): boolean {
+    const worker = this.workers.get(sessionId);
+    if (!worker) {
+      return false;
+    }
+    worker.destroy();
+    this.workers.delete(sessionId);
+    return true;
+  }
+
+  /**
+   * Restarts a persistent worker child process by sessionId.
+   */
+  async restartWorker(sessionId: string): Promise<boolean> {
+    const worker = this.workers.get(sessionId);
+    if (!worker) {
+      return false;
+    }
+
+    const savedOptions = (worker as any).options as CliRunOptions | undefined;
+    worker.destroy();
+    this.workers.delete(sessionId);
+
+    if (savedOptions) {
+      const binary = getAgyBinaryPath();
+      if (binary) {
+        try {
+          const freshWorker = new PersistentWorker(binary, savedOptions, sessionId, (w) => {
+            if (this.workers.get(w.sessionId) === w) {
+              this.workers.delete(w.sessionId);
+            }
+          });
+          this.workers.set(sessionId, freshWorker);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Kills all persistent workers that are not actively running a turn.
+   */
+  killAllIdleWorkers(): number {
+    let killedCount = 0;
+    const targets: string[] = [];
+
+    for (const [sessionId, worker] of this.workers.entries()) {
+      if (!worker.isBusy) {
+        targets.push(sessionId);
+      }
+    }
+
+    for (const targetId of targets) {
+      if (this.killWorker(targetId)) {
+        killedCount++;
+      }
+    }
+
+    return killedCount;
   }
 }

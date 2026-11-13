@@ -375,8 +375,72 @@ export async function stopService(): Promise<void> {
   }
 }
 
-export async function restartService(): Promise<void> {
-  console.log(`Restarting Cloud Agent background service...`);
+export async function restartService(isSelfRestart = false): Promise<void> {
+  console.log(`Restarting Cloud Agent background service (isSelfRestart=${isSelfRestart})...`);
+
+  if (process.platform === "linux") {
+    const serviceFile = getSystemdPath();
+    if (fs.existsSync(serviceFile)) {
+      try {
+        execSync("systemctl --user restart cloud-agent.service", { stdio: "inherit" });
+        console.log(`✔ systemd service restart signaled.`);
+        return;
+      } catch (err) {
+        console.warn(`systemctl restart failed, falling back:`, err);
+      }
+    }
+  } else if (process.platform === "darwin") {
+    const plistFile = getLaunchdPath();
+    if (fs.existsSync(plistFile)) {
+      try {
+        execSync("launchctl kickstart -k gui/$(id -u)/com.cloudagent.daemon", { stdio: "inherit" });
+        console.log(`✔ launchd kickstart restart signaled.`);
+        return;
+      } catch {
+        try {
+          execSync("launchctl stop com.cloudagent.daemon", { stdio: "ignore" });
+          execSync("launchctl start com.cloudagent.daemon", { stdio: "ignore" });
+          return;
+        } catch {}
+      }
+    }
+  }
+
+  // Universal Detached Process Launcher / Windows / Standalone Node
+  if (isSelfRestart) {
+    const execCmd = getExecutionCommand();
+    const logPath = getLogFilePath();
+    const outLog = fs.openSync(logPath, "a");
+
+    const spawnArgs = [...execCmd.args];
+    if (!spawnArgs.includes("--force") && !spawnArgs.includes("-f")) {
+      spawnArgs.push("--force");
+    }
+
+    const isWindowsCmd = process.platform === "win32" && /\.(cmd|bat)$/i.test(execCmd.cmd);
+    const child = spawn(execCmd.cmd, spawnArgs, {
+      detached: true,
+      stdio: ["ignore", outLog, outLog],
+      cwd: os.homedir(),
+      shell: isWindowsCmd,
+      env: { ...process.env, NODE_ENV: "production" },
+    });
+
+    if (child.pid) {
+      savePid(child.pid);
+      child.unref();
+      console.log(`Successor daemon spawned with PID ${child.pid}. Exiting current process.`);
+    }
+
+    // Remove process.exit listener so parent exit does not unlink the successor PID
+    process.removeAllListeners("exit");
+    setTimeout(() => {
+      process.exit(0);
+    }, 300);
+    return;
+  }
+
+  // External ca service restart command
   await stopService();
   await new Promise((r) => setTimeout(r, 1000));
   await startService();

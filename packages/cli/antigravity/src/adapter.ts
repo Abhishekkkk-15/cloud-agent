@@ -15,6 +15,7 @@ import {
   type CliPaginationOptions,
   type CliCapabilities,
   type CliModelCapability,
+  type CliWorkerInfo,
 } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath } from "./paths.js";
 import {
@@ -197,6 +198,34 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
     if (!delivered) {
       console.warn(`[AntigravityAdapter] No active worker found for session ${sessionId} to respond permission`);
     }
+  }
+
+  /**
+   * Lists active warm persistent CLI worker child processes.
+   */
+  async listWorkers(): Promise<CliWorkerInfo[]> {
+    return this.client.listWorkers();
+  }
+
+  /**
+   * Terminates a persistent CLI worker child process by session ID.
+   */
+  async killWorker(sessionId: string): Promise<boolean> {
+    return this.client.killWorker(sessionId);
+  }
+
+  /**
+   * Restarts a persistent CLI worker child process by session ID.
+   */
+  async restartWorker(sessionId: string): Promise<boolean> {
+    return this.client.restartWorker(sessionId);
+  }
+
+  /**
+   * Terminates all currently idle persistent CLI workers.
+   */
+  async killAllIdleWorkers(): Promise<number> {
+    return this.client.killAllIdleWorkers();
   }
 
   /**

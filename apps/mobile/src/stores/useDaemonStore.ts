@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { NativeModules, Platform, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CliArtifact, CliCapabilities, CliModelCapability } from '@cloud-agent/cli-interface';
+import type { CliArtifact, CliCapabilities, CliModelCapability, CliWorkerInfo } from '@cloud-agent/cli-interface';
 import { mobileP2P, ConnectionState, DaemonStatusResult } from '../lib/p2p-client';
 import { networkMonitor } from '../lib/network';
 import {
@@ -436,6 +436,11 @@ interface DaemonStoreState {
   isCheckingGithub: boolean;
   isSavingGithubToken: boolean;
   theme: 'dark' | 'light' | 'swiss';
+  cliWorkers: CliWorkerInfo[];
+  isLoadingWorkers: boolean;
+  isRestartingDaemon: boolean;
+  daemonLogLines: string[];
+  isLoadingDaemonLogs: boolean;
 
   // Actions
   init: () => Promise<void>;
@@ -507,6 +512,13 @@ interface DaemonStoreState {
   resetServerEndpoints: () => Promise<void>;
   testServerEndpoints: (apiUrl: string, gatewayUrl: string) => Promise<EndpointTestResult>;
   checkNetwork: () => Promise<boolean>;
+  fetchCliWorkers: () => Promise<void>;
+  killCliWorker: (sessionId: string) => Promise<boolean>;
+  restartCliWorker: (sessionId: string) => Promise<boolean>;
+  killAllIdleCliWorkers: () => Promise<number>;
+  restartDaemonService: () => Promise<boolean>;
+  stopDaemonService: () => Promise<boolean>;
+  fetchDaemonLogs: (lines?: number) => Promise<void>;
 }
 
 export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
@@ -574,6 +586,11 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isCheckingGithub: false,
   isSavingGithubToken: false,
   theme: 'swiss',
+  cliWorkers: [],
+  isLoadingWorkers: false,
+  isRestartingDaemon: false,
+  daemonLogLines: [],
+  isLoadingDaemonLogs: false,
 
   setTheme: (theme: 'dark' | 'light' | 'swiss') => {
     set({ theme });
@@ -1894,8 +1911,120 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           });
         }
       }
+      get().fetchCliWorkers().catch(() => {});
     } catch (err) {
       console.error('[DaemonStore] refreshStatus error:', err);
+    }
+  },
+
+  fetchCliWorkers: async () => {
+    set({ isLoadingWorkers: true });
+    try {
+      const res = await mobileP2P.sendRpc<{ workers: CliWorkerInfo[] }>('daemon.workers', {}, 15000);
+      if (res && Array.isArray(res.workers)) {
+        set({ cliWorkers: res.workers });
+      }
+    } catch (err) {
+      console.warn('[useDaemonStore] fetchCliWorkers error:', err);
+    } finally {
+      set({ isLoadingWorkers: false });
+    }
+  },
+
+  killCliWorker: async (sessionId: string) => {
+    try {
+      const res = await mobileP2P.sendRpc<{ ok: boolean; killed: boolean }>(
+        'daemon.kill_worker',
+        { sessionId },
+        15000
+      );
+      if (res?.ok) {
+        set((s) => ({
+          cliWorkers: s.cliWorkers.filter((w) => w.sessionId !== sessionId),
+        }));
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('[useDaemonStore] killCliWorker error:', err);
+      return false;
+    }
+  },
+
+  restartCliWorker: async (sessionId: string) => {
+    try {
+      const res = await mobileP2P.sendRpc<{ ok: boolean; restarted: boolean }>(
+        'daemon.restart_worker',
+        { sessionId },
+        20000
+      );
+      if (res?.ok) {
+        await get().fetchCliWorkers();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('[useDaemonStore] restartCliWorker error:', err);
+      return false;
+    }
+  },
+
+  killAllIdleCliWorkers: async () => {
+    try {
+      const res = await mobileP2P.sendRpc<{ count: number }>(
+        'daemon.kill_all_workers',
+        {},
+        15000
+      );
+      const count = res?.count ?? 0;
+      await get().fetchCliWorkers();
+      return count;
+    } catch (err) {
+      console.warn('[useDaemonStore] killAllIdleCliWorkers error:', err);
+      return 0;
+    }
+  },
+
+  restartDaemonService: async () => {
+    set({ isRestartingDaemon: true });
+    try {
+      const res = await mobileP2P.sendRpc<{ ok: boolean }>('daemon.restart', {}, 15000);
+      return Boolean(res?.ok);
+    } catch (err) {
+      console.warn('[useDaemonStore] restartDaemonService error:', err);
+      return false;
+    } finally {
+      setTimeout(() => {
+        set({ isRestartingDaemon: false });
+      }, 4000);
+    }
+  },
+
+  stopDaemonService: async () => {
+    try {
+      const res = await mobileP2P.sendRpc<{ ok: boolean }>('daemon.stop', {}, 15000);
+      return Boolean(res?.ok);
+    } catch (err) {
+      console.warn('[useDaemonStore] stopDaemonService error:', err);
+      return false;
+    }
+  },
+
+  fetchDaemonLogs: async (lines = 100) => {
+    set({ isLoadingDaemonLogs: true });
+    try {
+      const res = await mobileP2P.sendRpc<{ lines: string[]; path: string }>(
+        'daemon.logs',
+        { lines },
+        15000
+      );
+      if (res && Array.isArray(res.lines)) {
+        set({ daemonLogLines: res.lines });
+      }
+    } catch (err) {
+      console.warn('[useDaemonStore] fetchDaemonLogs error:', err);
+    } finally {
+      set({ isLoadingDaemonLogs: false });
     }
   },
 
