@@ -1589,8 +1589,18 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           scrollEventThrottle={16}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          onTouchStart={pauseAutoScroll}
-          onScrollBeginDrag={pauseAutoScroll}
+          onTouchStart={() => {
+            pauseAutoScroll();
+            if (showCommandPicker) {
+              setShowCommandPicker(false);
+            }
+          }}
+          onScrollBeginDrag={() => {
+            pauseAutoScroll();
+            if (showCommandPicker) {
+              setShowCommandPicker(false);
+            }
+          }}
           onLayout={(e) => {
             const h = Math.round(e.nativeEvent.layout.height);
             if (h > 0 && Math.abs(h - listViewportHeight) > 2) {
@@ -1646,6 +1656,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         </AnimatedReanimated.View>
       )}
 
+      {/* Autocomplete Slash Command Dismiss Backdrop */}
+      {showCommandPicker && (
+        <TouchableWithoutFeedback onPress={() => setShowCommandPicker(false)}>
+          <View style={[StyleSheet.absoluteFill, { zIndex: 25 }]} />
+        </TouchableWithoutFeedback>
+      )}
+
       {/* 7. Chat Input Bar: Elevation above Software Keyboard */}
       <AnimatedReanimated.View
         style={[
@@ -1654,6 +1671,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         ]}
         pointerEvents="box-none"
       >
+        {/* Autocomplete Slash Command Picker Overlay */}
+        <SlashCommandPicker
+          visible={showCommandPicker}
+          searchQuery={promptInput}
+          onSelect={handleSelectCommand}
+          onClose={() => setShowCommandPicker(false)}
+        />
+
         <View
           onLayout={handleComposerLayout}
           style={[
@@ -1666,13 +1691,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           ]}
           pointerEvents="box-none"
         >
-          {/* Autocomplete Slash Command Picker Overlay */}
-          <SlashCommandPicker
-            visible={showCommandPicker}
-            searchQuery={promptInput}
-            onSelect={handleSelectCommand}
-            onClose={() => setShowCommandPicker(false)}
-          />
 
           {/* Interactive Live Tool Approval Card (Paradev ApprovalCard) */}
           {pendingApproval && (

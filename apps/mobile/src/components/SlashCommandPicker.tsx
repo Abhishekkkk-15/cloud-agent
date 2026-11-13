@@ -3,6 +3,8 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Card, Badge, Button, Text } from 'panelui-native';
 import {
@@ -155,6 +157,12 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
     });
   }, [searchQuery, visible]);
 
+  const { height: windowHeight } = useWindowDimensions();
+  const maxListHeight = Math.min(260, Math.max(160, Math.floor(windowHeight * 0.34)));
+  const listHeight = filteredCommands.length === 0
+    ? 72
+    : Math.min(filteredCommands.length * 52 + 12, maxListHeight);
+
   if (!visible) return null;
 
   const renderIcon = (cmd: SlashCommandItem) => {
@@ -173,7 +181,10 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   return (
     <Card
       pointerEvents="auto"
-      className="absolute left-3 right-3 bottom-20 z-50 bg-popover border border-border p-0 rounded-2xl overflow-hidden shadow-2xl"
+      className="mx-3.5 mb-2 z-50 bg-popover border border-border p-0 rounded-2xl overflow-hidden shadow-2xl"
+      style={{
+        maxHeight: listHeight + 52,
+      }}
     >
       {/* Header Bar */}
       <View className="px-3.5 py-2.5 bg-surface border-b border-border flex-row items-center justify-between">
@@ -201,11 +212,12 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
 
       {/* Commands List */}
       <ScrollView
-        style={{ maxHeight: 290 }}
-        contentContainerStyle={{ padding: 6, flexGrow: 1 }}
+        style={{ height: listHeight }}
+        contentContainerStyle={{ padding: 6 }}
         nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         showsVerticalScrollIndicator={true}
+        persistentScrollbar={Platform.OS === 'android'}
         bounces={true}
         overScrollMode="always"
       >
