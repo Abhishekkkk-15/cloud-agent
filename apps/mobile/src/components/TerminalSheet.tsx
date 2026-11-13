@@ -5,12 +5,15 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   TextInput,
   ScrollView,
   Platform,
-  SafeAreaView,
-  KeyboardAvoidingView,
+  Keyboard,
+  StatusBar,
+  LayoutAnimation,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Terminal,
   X,
@@ -109,6 +112,9 @@ function parseAnsi(raw: string, defaultColor: string): TextSegment[] {
 }
 
 export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }) => {
+  const insets = useSafeAreaInsets();
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0);
+
   const terminalLines = useDaemonStore((s) => s.terminalLines);
   const isTerminalRunning = useDaemonStore((s) => s.isTerminalRunning);
   const terminalHistory = useDaemonStore((s) => s.terminalHistory);
@@ -124,6 +130,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
   const [inputCommand, setInputCommand] = useState('');
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [copied, setCopied] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const scrollRef = useRef<any>(null);
 
   const activeCwd = useMemo(() => {
@@ -133,6 +140,49 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
     return parts[parts.length - 1] || raw;
   }, [activeSession, targetWorkspacePath]);
 
+  // Keyboard avoidance handler for both iOS & Android in full-screen modals
+  useEffect(() => {
+    if (!visible) {
+      setKeyboardHeight(0);
+      return;
+    }
+
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = (e: any) => {
+      const height = e.endCoordinates ? e.endCoordinates.height : 0;
+      if (Platform.OS === 'ios') {
+        LayoutAnimation.configureNext({
+          duration: e.duration || 250,
+          update: { type: LayoutAnimation.Types.keyboard },
+        });
+      }
+      setKeyboardHeight(height);
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 60);
+    };
+
+    const onHide = (e?: any) => {
+      if (Platform.OS === 'ios') {
+        LayoutAnimation.configureNext({
+          duration: e?.duration || 200,
+          update: { type: LayoutAnimation.Types.keyboard },
+        });
+      }
+      setKeyboardHeight(0);
+    };
+
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [visible]);
+
   // Auto-scroll to bottom whenever new lines arrive
   useEffect(() => {
     if (visible && scrollRef.current) {
@@ -141,6 +191,12 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
       }, 50);
     }
   }, [terminalLines, visible]);
+
+  const handleClose = () => {
+    Keyboard.dismiss();
+    setKeyboardHeight(0);
+    onClose();
+  };
 
   const handleRun = async (cmd?: string) => {
     const commandToRun = (cmd ?? inputCommand).trim();
@@ -226,97 +282,116 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
       visible={visible}
       animationType="slide"
       transparent={false}
-      onRequestClose={onClose}
+      statusBarTranslucent={true}
+      onRequestClose={handleClose}
     >
-      <SafeAreaView style={[styles.safeArea, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}>
-        <KeyboardAvoidingView
-          style={[styles.container, isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' }]}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} />
+      <View
+        style={[
+          styles.container,
+          isLight && { backgroundColor: isSwiss ? '#F8F3EC' : '#ffffff' },
+          {
+            paddingBottom: keyboardHeight,
+          },
+        ]}
+      >
+        {/* Header with notch & status bar clearance */}
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: topInset + (Platform.OS === 'ios' ? 8 : 10),
+            },
+            isLight && styles.headerLight,
+            isSwiss && styles.headerSwiss,
+          ]}
         >
-          {/* Header */}
-          <View style={[styles.header, isLight && styles.headerLight, isSwiss && styles.headerSwiss]}>
-            <View style={styles.headerLeft}>
-              <View style={[styles.iconCircle, isLight && styles.iconCircleLight, isSwiss && styles.iconCircleSwiss]}>
-                <Terminal size={16} color={isSwiss ? '#DC201E' : isLight ? '#0969da' : '#fafafa'} />
-              </View>
-              <View style={styles.titleCol}>
-                <View style={styles.titleRow}>
-                  <Text style={[styles.title, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>Terminal</Text>
-                  <Text style={[styles.statusText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
-                    {isTerminalRunning ? 'Executing...' : 'Ready'}
-                  </Text>
-                </View>
-                <Text style={[styles.subtitle, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]} numberOfLines={1}>
-                  cwd: ~/{activeCwd}
+          <View style={styles.headerLeft}>
+            <View style={[styles.iconCircle, isLight && styles.iconCircleLight, isSwiss && styles.iconCircleSwiss]}>
+              <Terminal size={16} color={isSwiss ? '#DC201E' : isLight ? '#0969da' : '#fafafa'} />
+            </View>
+            <View style={styles.titleCol}>
+              <View style={styles.titleRow}>
+                <Text style={[styles.title, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>Terminal</Text>
+                <Text style={[styles.statusText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
+                  {isTerminalRunning ? 'Executing...' : 'Ready'}
                 </Text>
               </View>
-            </View>
-
-            <View style={styles.headerRight}>
-              <TouchableOpacity
-                style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
-                onPress={handleCopyOutput}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel="Copy all terminal output"
-              >
-                {copied ? (
-                  <Check size={15} color="#56d364" />
-                ) : (
-                  <Copy size={15} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
-                onPress={clearTerminal}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel="Clear terminal"
-              >
-                <Trash2 size={16} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.closeBtn, isLight && styles.closeBtnLight, isSwiss && styles.closeBtnSwiss]}
-                onPress={onClose}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityLabel="Close terminal"
-              >
-                <X size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />
-              </TouchableOpacity>
+              <Text style={[styles.subtitle, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]} numberOfLines={1}>
+                cwd: ~/{activeCwd}
+              </Text>
             </View>
           </View>
 
-          {/* Quick Command Pills */}
-          <View style={[styles.quickBar, isLight && styles.quickBarLight, isSwiss && styles.quickBarSwiss]}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.quickBarContent}
+          <View style={styles.headerRight}>
+            <TouchableOpacity
+              style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
+              onPress={handleCopyOutput}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Copy all terminal output"
             >
-              {QUICK_COMMANDS.map((cmd) => (
-                <TouchableOpacity
-                  key={cmd}
-                  style={[styles.quickPill, isLight && styles.quickPillLight, isSwiss && styles.quickPillSwiss]}
-                  onPress={() => handleRun(cmd)}
-                  disabled={isTerminalRunning}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.quickPillText, isLight && styles.quickPillTextLight, isSwiss && styles.quickPillTextSwiss]}>
-                    {cmd}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
+              {copied ? (
+                <Check size={15} color="#56d364" />
+              ) : (
+                <Copy size={15} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, isLight && styles.actionBtnLight, isSwiss && styles.actionBtnSwiss]}
+              onPress={clearTerminal}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Clear terminal"
+            >
+              <Trash2 size={16} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.closeBtn, isLight && styles.closeBtnLight, isSwiss && styles.closeBtnSwiss]}
+              onPress={handleClose}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Close terminal"
+            >
+              <X size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />
+            </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Terminal Console Output */}
-          <View style={[styles.consoleContainer, isLight && styles.consoleContainerLight, isSwiss && styles.consoleContainerSwiss]}>
-            <ScrollView
-              ref={scrollRef}
-              style={styles.consoleScroll}
-              contentContainerStyle={styles.consoleContent}
-              indicatorStyle={isLight ? 'black' : 'white'}
-              onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-            >
-              {terminalLines.length === 0 ? (
+        {/* Quick Command Pills */}
+        <View style={[styles.quickBar, isLight && styles.quickBarLight, isSwiss && styles.quickBarSwiss]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.quickBarContent}
+          >
+            {QUICK_COMMANDS.map((cmd) => (
+              <TouchableOpacity
+                key={cmd}
+                style={[styles.quickPill, isLight && styles.quickPillLight, isSwiss && styles.quickPillSwiss]}
+                onPress={() => handleRun(cmd)}
+                disabled={isTerminalRunning}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.quickPillText, isLight && styles.quickPillTextLight, isSwiss && styles.quickPillTextSwiss]}>
+                  {cmd}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Terminal Console Output */}
+        <View style={[styles.consoleContainer, isLight && styles.consoleContainerLight, isSwiss && styles.consoleContainerSwiss]}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.consoleScroll}
+            contentContainerStyle={styles.consoleContent}
+            indicatorStyle={isLight ? 'black' : 'white'}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          >
+            {terminalLines.length === 0 ? (
+              <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.emptyState}>
                   <Terminal size={28} color={isSwiss ? 'rgba(17, 16, 16, 0.20)' : isLight ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.10)'} />
                   <Text style={[styles.emptyStateTitle, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>
@@ -326,77 +401,88 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
                     Commands execute directly in your workspace environment on the host machine.
                   </Text>
                 </View>
-              ) : (
-                terminalLines.map(renderLine)
-              )}
-            </ScrollView>
-          </View>
-
-          {/* Command Input Bar */}
-          <View style={[styles.inputBar, isLight && styles.inputBarLight, isSwiss && styles.inputBarSwiss]}>
-            <Text style={[styles.promptSymbol, isSwiss ? { color: '#DC201E' } : isLight && { color: '#0969da' }]}>$</Text>
-            <TextInput
-              style={[styles.textInput, isLight && styles.textInputLight, isSwiss && styles.textInputSwiss]}
-              value={inputCommand}
-              onChangeText={setInputCommand}
-              placeholder={isTerminalRunning ? 'Process running...' : 'Enter bash command...'}
-              placeholderTextColor={isSwiss ? '#9C9589' : isLight ? '#8c959f' : '#737373'}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="send"
-              onSubmitEditing={() => handleRun()}
-              editable={!isTerminalRunning}
-            />
-
-            {/* History Stepper Buttons */}
-            <View style={styles.historyBtnGroup}>
-              <TouchableOpacity
-                style={[styles.historyBtn, isLight && styles.historyBtnLight, isSwiss && styles.historyBtnSwiss]}
-                onPress={handleHistoryUp}
-                disabled={terminalHistory.length === 0}
-                accessibilityLabel="Previous command"
-              >
-                <ChevronUp size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.historyBtn, isLight && styles.historyBtnLight, isSwiss && styles.historyBtnSwiss]}
-                onPress={handleHistoryDown}
-                disabled={historyIndex < 0}
-                accessibilityLabel="Next command"
-              >
-                <ChevronDown size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Run or Kill Action */}
-            {isTerminalRunning ? (
-              <TouchableOpacity
-                style={styles.killBtn}
-                onPress={killTerminalCommand}
-                activeOpacity={0.8}
-                accessibilityLabel="Kill running process"
-              >
-                <Square size={12} color="#ffffff" />
-                <Text style={styles.killBtnText}>KILL</Text>
-              </TouchableOpacity>
+              </TouchableWithoutFeedback>
             ) : (
-              <TouchableOpacity
-                style={[
-                  styles.runBtn,
-                  !inputCommand.trim() && (isSwiss ? styles.runBtnDisabledSwiss : styles.runBtnDisabled),
-                  isSwiss && inputCommand.trim() && { backgroundColor: '#DC201E' },
-                  !isSwiss && isLight && inputCommand.trim() && { backgroundColor: '#0969da' },
-                ]}
-                onPress={() => handleRun()}
-                disabled={!inputCommand.trim()}
-                activeOpacity={0.8}
-              >
-                <Play size={13} color={!inputCommand.trim() ? (isSwiss ? '#9C9589' : '#737373') : '#ffffff'} />
-              </TouchableOpacity>
+              terminalLines.map(renderLine)
             )}
+          </ScrollView>
+        </View>
+
+        {/* Command Input Bar */}
+        <View
+          style={[
+            styles.inputBar,
+            isLight && styles.inputBarLight,
+            isSwiss && styles.inputBarSwiss,
+            {
+              paddingBottom: keyboardHeight > 0
+                ? 8
+                : Math.max(insets.bottom, Platform.OS === 'ios' ? 12 : 8) + 4,
+            },
+          ]}
+        >
+          <Text style={[styles.promptSymbol, isSwiss ? { color: '#DC201E' } : isLight && { color: '#0969da' }]}>$</Text>
+          <TextInput
+            style={[styles.textInput, isLight && styles.textInputLight, isSwiss && styles.textInputSwiss]}
+            value={inputCommand}
+            onChangeText={setInputCommand}
+            placeholder={isTerminalRunning ? 'Process running...' : 'Enter bash command...'}
+            placeholderTextColor={isSwiss ? '#9C9589' : isLight ? '#8c959f' : '#737373'}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="send"
+            onSubmitEditing={() => handleRun()}
+            editable={!isTerminalRunning}
+          />
+
+          {/* History Stepper Buttons */}
+          <View style={styles.historyBtnGroup}>
+            <TouchableOpacity
+              style={[styles.historyBtn, isLight && styles.historyBtnLight, isSwiss && styles.historyBtnSwiss]}
+              onPress={handleHistoryUp}
+              disabled={terminalHistory.length === 0}
+              accessibilityLabel="Previous command"
+            >
+              <ChevronUp size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.historyBtn, isLight && styles.historyBtnLight, isSwiss && styles.historyBtnSwiss]}
+              onPress={handleHistoryDown}
+              disabled={historyIndex < 0}
+              accessibilityLabel="Next command"
+            >
+              <ChevronDown size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />
+            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+
+          {/* Run or Kill Action */}
+          {isTerminalRunning ? (
+            <TouchableOpacity
+              style={styles.killBtn}
+              onPress={killTerminalCommand}
+              activeOpacity={0.8}
+              accessibilityLabel="Kill running process"
+            >
+              <Square size={12} color="#ffffff" />
+              <Text style={styles.killBtnText}>KILL</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[
+                styles.runBtn,
+                !inputCommand.trim() && (isSwiss ? styles.runBtnDisabledSwiss : styles.runBtnDisabled),
+                isSwiss && inputCommand.trim() && { backgroundColor: '#DC201E' },
+                !isSwiss && isLight && inputCommand.trim() && { backgroundColor: '#0969da' },
+              ]}
+              onPress={() => handleRun()}
+              disabled={!inputCommand.trim()}
+              activeOpacity={0.8}
+            >
+              <Play size={13} color={!inputCommand.trim() ? (isSwiss ? '#9C9589' : '#737373') : '#ffffff'} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
     </Modal>
   );
 };
@@ -415,7 +501,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#262626',
     backgroundColor: '#161616',
