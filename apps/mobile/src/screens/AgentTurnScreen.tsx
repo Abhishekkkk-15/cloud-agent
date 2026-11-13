@@ -1333,42 +1333,99 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           <MenuIcon size={24} color={glossyHeader.iconColor} />
         </TouchableOpacity>
 
-        {/* Center: Clean Title (No pill container, no borders) */}
+        {/* Center: Progress / loading spinner if fetching older turns */}
         <View style={styles.cleanHeaderCenter} pointerEvents="box-none">
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-            {isLoadingOlderMessages && (
-              <Spinner size="sm" />
-            )}
-            <Text
-              style={[
-                styles.cleanHeaderTitle,
-                isSwiss ? { color: '#111010' } : isLight && { color: '#1f2328' },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {workspaceTitle}
-            </Text>
-          </View>
+          {isLoadingOlderMessages && (
+            <Spinner size="sm" />
+          )}
         </View>
 
-        {/* Right: Circular Three Dots Action Button with PanelUI Dropdown Menu */}
+        {/* Right: Combined Action Pill (PTY Terminal + Separator + Dropdown Menu Trigger) */}
         <Menu>
-          <Menu.Trigger>
+          <View
+            style={[
+              styles.cleanActionPill,
+              glossyHeader.containerStyle,
+            ]}
+          >
+            {/* Direct PTY Action Button */}
             <TouchableOpacity
-              style={[
-                styles.cleanCircleBtn,
-                glossyHeader.containerStyle,
-              ]}
+              onPress={() => setShowTerminal(true)}
+              style={styles.actionPillBtn}
               activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="Session Actions"
+              hitSlop={{ top: 8, bottom: 8, left: 6, right: 3 }}
+              accessibilityLabel="Open Terminal Shell"
             >
-              <MoreVertical size={24} color={glossyHeader.iconColor} />
+              <Terminal size={19} color={glossyHeader.iconColor} />
             </TouchableOpacity>
-          </Menu.Trigger>
 
-          <Menu.Content align="end" minWidth={240}>
+            {/* Separator Divider */}
+            <View
+              style={[
+                styles.actionPillSeparator,
+                {
+                  backgroundColor: isSwiss
+                    ? 'rgba(17, 16, 16, 0.15)'
+                    : isLight
+                      ? 'rgba(0, 0, 0, 0.12)'
+                      : 'rgba(255, 255, 255, 0.15)',
+                },
+              ]}
+            />
+
+            {/* Dropdown Menu Trigger */}
+            <Menu.Trigger>
+              <TouchableOpacity
+                style={styles.actionPillBtn}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 3, right: 6 }}
+                accessibilityLabel="Session Actions Menu"
+              >
+                <MoreVertical size={20} color={glossyHeader.iconColor} />
+              </TouchableOpacity>
+            </Menu.Trigger>
+          </View>
+
+          <Menu.Content align="end" minWidth={260}>
+            {/* Session Title Header inside Dropdown Menu */}
+            <View
+              style={{
+                paddingHorizontal: 14,
+                paddingTop: 12,
+                paddingBottom: 10,
+                borderBottomWidth: 1,
+                borderColor: isSwiss
+                  ? 'rgba(17, 16, 16, 0.1)'
+                  : isLight
+                    ? 'rgba(0, 0, 0, 0.08)'
+                    : 'rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa',
+                  lineHeight: 18,
+                }}
+                numberOfLines={2}
+              >
+                {workspaceTitle}
+              </Text>
+              {activeSession?.workspaceName ? (
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3',
+                    marginTop: 3,
+                  }}
+                  numberOfLines={1}
+                >
+                  Workspace: {activeSession.workspaceName}
+                </Text>
+              ) : null}
+            </View>
+
             <Menu.Item
               icon={<SlidersHorizontal size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
               description="Model, thinking, temperature"
@@ -1897,6 +1954,25 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cleanActionPill: {
+    height: 44,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  actionPillBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionPillSeparator: {
+    width: 1,
+    height: 18,
+    marginHorizontal: 1,
   },
   cleanHeaderCenter: {
     flex: 1,
