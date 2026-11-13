@@ -26,6 +26,7 @@ import {
   Code2,
 } from './Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { copyToClipboard } from '../lib/clipboard';
 
 interface PairMachineModalProps {
   visible: boolean;
@@ -112,9 +113,7 @@ export const PairMachineModal: React.FC<PairMachineModalProps> = ({
   };
 
   const handleCopy = (text: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
+    copyToClipboard(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };

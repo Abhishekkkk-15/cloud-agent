@@ -36,6 +36,7 @@ import {
   GitBranch,
 } from './Icons';
 import { useDaemonStore, type GithubTestResult } from '../stores/useDaemonStore';
+import { copyToClipboard } from '../lib/clipboard';
 
 interface GitHubWebhookModalProps {
   visible: boolean;
@@ -167,17 +168,13 @@ export const GitHubWebhookModal: React.FC<GitHubWebhookModalProps> = ({
   };
 
   const handleCopyGithubWebhook = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(githubWebhookUrl).catch(() => {});
-    }
+    copyToClipboard(githubWebhookUrl);
     setCopiedGithub(true);
     setTimeout(() => setCopiedGithub(false), 2000);
   };
 
   const handleCopySentryWebhook = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(sentryWebhookUrl).catch(() => {});
-    }
+    copyToClipboard(sentryWebhookUrl);
     setCopiedSentry(true);
     setTimeout(() => setCopiedSentry(false), 2000);
   };

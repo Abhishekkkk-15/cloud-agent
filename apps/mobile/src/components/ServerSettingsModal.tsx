@@ -39,6 +39,7 @@ import {
 } from './Icons';
 import { useDaemonStore, type EndpointTestResult } from '../stores/useDaemonStore';
 import { isRunningInExpoGo } from '../lib/notifications';
+import { copyToClipboard } from '../lib/clipboard';
 
 interface ServerSettingsModalProps {
   visible: boolean;
@@ -190,9 +191,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
 
   const handleCopyToken = () => {
     if (!pushToken) return;
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(pushToken).catch(() => {});
-    }
+    copyToClipboard(pushToken);
     setTokenCopied(true);
     toast.show({
       variant: 'default',

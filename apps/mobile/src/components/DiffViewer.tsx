@@ -7,6 +7,7 @@ import {
 import { Card, Badge, Button, Text, cn } from 'panelui-native';
 import { FileCode, Copy, Check, ChevronDown, ChevronUp } from './Icons';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { copyToClipboard } from '../lib/clipboard';
 
 export interface DiffLine {
   type: 'header' | 'hunk' | 'add' | 'delete' | 'normal';
@@ -169,9 +170,7 @@ export const DiffViewer: React.FC<DiffViewerProps> = ({
 
   const handleCopy = () => {
     const raw = parsedLines.map((l) => l.content).join('\n');
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(raw).catch(() => {});
-    }
+    copyToClipboard(raw);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

@@ -32,6 +32,7 @@ import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from './MarkdownText';
 import type { CliArtifact } from '@cloud-agent/cli-interface';
+import { copyToClipboard } from '../lib/clipboard';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
@@ -187,9 +188,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
 
   const handleCopy = () => {
     if (!content) return;
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(content).catch(() => {});
-    }
+    copyToClipboard(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

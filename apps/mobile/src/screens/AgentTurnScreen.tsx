@@ -88,6 +88,7 @@ import { AutoHealerModal } from '../components/AutoHealerModal';
 import { AskQuestionCard } from '../components/AskQuestionCard';
 import { ProcessManagerSheet } from '../components/ProcessManagerSheet';
 import { startDictation, stopDictation, isSpeechRecognitionSupported } from '../lib/speech';
+import { copyToClipboard } from '../lib/clipboard';
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -187,7 +188,7 @@ const TurnCard = React.memo<TurnCardProps>(
                 },
               ]}
             >
-              <Text style={[styles.userBubbleText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>
+              <Text selectable style={[styles.userBubbleText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>
                 {turn.userMessage.content}
               </Text>
             </View>
@@ -775,19 +776,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     }));
   };
 
-  const handleCopyTurnText = (turnId: string, text: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
+  const handleCopyTurnText = async (turnId: string, text: string) => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedTurnId(turnId);
+      toast.show({
+        variant: 'default',
+        label: 'Message copied to clipboard',
+        duration: 2000,
+      });
+      setTimeout(() => {
+        setCopiedTurnId(null);
+      }, 1500);
+    } else {
+      toast.show({
+        variant: 'destructive',
+        label: 'Failed to copy message',
+        duration: 2000,
+      });
     }
-    setCopiedTurnId(turnId);
-    toast.show({
-      variant: 'default',
-      label: 'Message copied to clipboard',
-      duration: 2000,
-    });
-    setTimeout(() => {
-      setCopiedTurnId(null);
-    }, 1500);
   };
 
   const handleInputChange = (text: string) => {

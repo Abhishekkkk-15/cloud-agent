@@ -1,5 +1,5 @@
 diff --git a/lib/module/components/response/index.js b/lib/module/components/response/index.js
-index 7bfbf8815ab0b6be6609263bab3ae0924b903575..e4f27c3338919276f5ead3a3a95d735ba4eb0ddc 100644
+index 7bfbf8815ab0b6be6609263bab3ae0924b903575..3cded4301e875c6f1489adb9adc006280c99d362 100644
 --- a/lib/module/components/response/index.js
 +++ b/lib/module/components/response/index.js
 @@ -40,7 +40,7 @@
@@ -11,7 +11,55 @@ index 7bfbf8815ab0b6be6609263bab3ae0924b903575..e4f27c3338919276f5ead3a3a95d735b
  import { Text } from "../../primitives/text.js";
  import { cn } from "../../utils/cn.js";
  import { CodeBlock } from "../code-block/index.js";
-@@ -264,7 +264,7 @@ function spans(tokens, context) {
+@@ -62,6 +62,7 @@ function ResponseRoot({
+   allowedLinkPrefixes = DEFAULT_LINK_PREFIXES,
+   components,
+   showLineNumbers = false,
++  selectable = true,
+   ...props
+ }) {
+   const speculate = isStreaming && parseIncompleteMarkdown;
+@@ -71,7 +72,8 @@ function ResponseRoot({
+     onLinkPress,
+     allowedLinkPrefixes,
+     components,
+-    showLineNumbers
++    showLineNumbers,
++    selectable
+   };
+   return /*#__PURE__*/_jsx(View, {
+     className: cn('w-full gap-3', className),
+@@ -91,7 +93,7 @@ function ResponseRoot({
+  * time. Comparing the one prop that actually decides the output keeps a long
+  * answer from re-parsing because a sibling moved.
+  */
+-export const Response = /*#__PURE__*/memo(ResponseRoot, (previous, next) => previous.children === next.children && previous.isStreaming === next.isStreaming && previous.className === next.className);
++export const Response = /*#__PURE__*/memo(ResponseRoot, (previous, next) => previous.children === next.children && previous.isStreaming === next.isStreaming && previous.className === next.className && previous.selectable === next.selectable);
+ Response.displayName = 'Response';
+ 
+ /* -------------------------------------------------------------------------- */
+@@ -106,10 +108,12 @@ function BlockView({
+     case 'heading':
+       return /*#__PURE__*/_jsx(Typography.Heading, {
+         type: HEADING_TYPE[block.level - 1],
++        selectable: context.selectable,
+         children: spans(block.inline, context)
+       });
+     case 'paragraph':
+       return /*#__PURE__*/_jsx(Typography.Paragraph, {
++        selectable: context.selectable,
+         children: spans(block.inline, context)
+       });
+     case 'code':
+@@ -238,6 +242,7 @@ function InlineRun({
+   className
+ }) {
+   return /*#__PURE__*/_jsx(Text, {
++    selectable: context.selectable,
+     className: className,
+     children: spans(tokens, context)
+   });
+@@ -264,7 +269,7 @@ function spans(tokens, context) {
        // a value in one sends the style resolver looking for a parent size that
        // is itself expressed in `em`, and it does not come back. The inherited
        // size is the right one anyway — inline code is part of its sentence.
@@ -20,7 +68,7 @@ index 7bfbf8815ab0b6be6609263bab3ae0924b903575..e4f27c3338919276f5ead3a3a95d735b
          className: cn('bg-muted font-mono', marks(token)),
          children: token.value
        }, index);
-@@ -272,14 +272,14 @@ function spans(tokens, context) {
+@@ -272,14 +277,14 @@ function spans(tokens, context) {
      if (token.kind === 'link') {
        const href = token.href ?? '';
        const openable = context.allowedLinkPrefixes.some(prefix => href.startsWith(prefix));
@@ -37,8 +85,24 @@ index 7bfbf8815ab0b6be6609263bab3ae0924b903575..e4f27c3338919276f5ead3a3a95d735b
        className: marks(token),
        children: token.value
      }, index);
+diff --git a/lib/typescript/src/components/response/index.d.ts b/lib/typescript/src/components/response/index.d.ts
+index ce49344f0c483548d00bc3a022b9af87c770f2ae..8a9574e1fb3335647880b4c73fa12f29d9640e18 100644
+--- a/lib/typescript/src/components/response/index.d.ts
++++ b/lib/typescript/src/components/response/index.d.ts
+@@ -77,8 +77,10 @@ export interface ResponseProps extends Omit<ViewProps, 'children'> {
+     components?: ResponseComponents;
+     /** Line numbers in fenced code. */
+     showLineNumbers?: boolean;
++    /** Whether the rendered text is selectable by the user. Default true. */
++    selectable?: boolean;
+ }
+-declare function ResponseRoot({ className, children, isStreaming, parseIncompleteMarkdown, onLinkPress, allowedLinkPrefixes, components, showLineNumbers, ...props }: ResponseProps): import("react").JSX.Element;
++declare function ResponseRoot({ className, children, isStreaming, parseIncompleteMarkdown, onLinkPress, allowedLinkPrefixes, components, showLineNumbers, selectable, ...props }: ResponseProps): import("react").JSX.Element;
+ /**
+  * Re-renders only when the text changes.
+  *
 diff --git a/src/components/response/index.tsx b/src/components/response/index.tsx
-index a86989c5070279496ac72f488cecf5723d1efa35..b902d9d598a9944e9b89ad612762559ddc8cc2b4 100644
+index a86989c5070279496ac72f488cecf5723d1efa35..b2d2d39ae40b2aca5dc8b2290d8c74097d804441 100644
 --- a/src/components/response/index.tsx
 +++ b/src/components/response/index.tsx
 @@ -38,7 +38,7 @@
@@ -50,7 +114,75 @@ index a86989c5070279496ac72f488cecf5723d1efa35..b902d9d598a9944e9b89ad612762559d
  import { Text } from '../../primitives/text';
  import { cn } from '../../utils/cn';
  import { CodeBlock } from '../code-block';
-@@ -341,9 +341,9 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
+@@ -90,6 +90,8 @@ export interface ResponseProps extends Omit<ViewProps, 'children'> {
+   components?: ResponseComponents;
+   /** Line numbers in fenced code. */
+   showLineNumbers?: boolean;
++  /** Whether the rendered text is selectable by the user. Default true. */
++  selectable?: boolean;
+ }
+ 
+ function ResponseRoot({
+@@ -101,6 +103,7 @@ function ResponseRoot({
+   allowedLinkPrefixes = DEFAULT_LINK_PREFIXES,
+   components,
+   showLineNumbers = false,
++  selectable = true,
+   ...props
+ }: ResponseProps) {
+   const speculate = isStreaming && parseIncompleteMarkdown;
+@@ -115,6 +118,7 @@ function ResponseRoot({
+     allowedLinkPrefixes,
+     components,
+     showLineNumbers,
++    selectable,
+   };
+ 
+   return (
+@@ -139,7 +143,8 @@ export const Response = memo(
+   (previous, next) =>
+     previous.children === next.children &&
+     previous.isStreaming === next.isStreaming &&
+-    previous.className === next.className
++    previous.className === next.className &&
++    previous.selectable === next.selectable
+ );
+ Response.displayName = 'Response';
+ 
+@@ -153,20 +158,21 @@ interface RenderContext {
+   allowedLinkPrefixes: string[];
+   components?: ResponseComponents;
+   showLineNumbers: boolean;
++  selectable?: boolean;
+ }
+ 
+ function BlockView({ block, context }: { block: Block; context: RenderContext }) {
+   switch (block.type) {
+     case 'heading':
+       return (
+-        <Typography.Heading type={HEADING_TYPE[block.level - 1]}>
++        <Typography.Heading type={HEADING_TYPE[block.level - 1]} selectable={context.selectable}>
+           {spans(block.inline, context)}
+         </Typography.Heading>
+       );
+ 
+     case 'paragraph':
+       return (
+-        <Typography.Paragraph>{spans(block.inline, context)}</Typography.Paragraph>
++        <Typography.Paragraph selectable={context.selectable}>{spans(block.inline, context)}</Typography.Paragraph>
+       );
+ 
+     case 'code': {
+@@ -317,7 +323,7 @@ function InlineRun({
+   context: RenderContext;
+   className?: string;
+ }) {
+-  return <Text className={className}>{spans(tokens, context)}</Text>;
++  return <Text selectable={context.selectable} className={className}>{spans(tokens, context)}</Text>;
+ }
+ 
+ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
+@@ -341,9 +347,9 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
        // is itself expressed in `em`, and it does not come back. The inherited
        // size is the right one anyway — inline code is part of its sentence.
        return (
@@ -62,7 +194,7 @@ index a86989c5070279496ac72f488cecf5723d1efa35..b902d9d598a9944e9b89ad612762559d
        );
      }
  
-@@ -351,7 +351,7 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
+@@ -351,7 +357,7 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
        const href = token.href ?? '';
        const openable = context.allowedLinkPrefixes.some((prefix) => href.startsWith(prefix));
        return (
@@ -71,7 +203,7 @@ index a86989c5070279496ac72f488cecf5723d1efa35..b902d9d598a9944e9b89ad612762559d
            key={index}
            className={cn('text-primary underline', marks(token))}
            onPress={
-@@ -361,16 +361,16 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
+@@ -361,16 +367,16 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
            }
          >
            {token.value}

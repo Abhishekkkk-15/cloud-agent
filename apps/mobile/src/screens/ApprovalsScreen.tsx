@@ -28,6 +28,7 @@ import {
   CheckCheck,
   Bell,
 } from '../components/Icons';
+import { copyToClipboard } from '../lib/clipboard';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { getGlossyHeaderTokens } from '../theme/tokens';
 
@@ -53,6 +54,9 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ onBack }) => {
   const [isDenying, setIsDenying] = useState(false);
 
   const handleCopy = () => {
+    if (pendingApproval?.command) {
+      copyToClipboard(pendingApproval.command);
+    }
     setCopied(true);
     toast.show({
       variant: 'default',

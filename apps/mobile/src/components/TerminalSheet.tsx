@@ -26,6 +26,7 @@ import {
   ChevronDown,
 } from './Icons';
 import { useDaemonStore, type TerminalOutputLine } from '../stores/useDaemonStore';
+import { copyToClipboard } from '../lib/clipboard';
 
 interface TerminalSheetProps {
   visible: boolean;
@@ -229,9 +230,7 @@ export const TerminalSheet: React.FC<TerminalSheetProps> = ({ visible, onClose }
 
   const handleCopyOutput = () => {
     const text = terminalLines.map((l) => l.text).join('\n');
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
+    copyToClipboard(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

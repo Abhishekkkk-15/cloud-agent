@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from '
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { DiffViewer } from './DiffViewer';
+import { copyToClipboard } from '../lib/clipboard';
 import {
   Copy,
   Check,
@@ -248,9 +249,7 @@ export const JsonViewer: React.FC<{
   const visibleLines = isTruncatable && !isExpanded ? lines.slice(0, maxInitialLines) : lines;
 
   const handleCopy = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(formatted).catch(() => {});
-    }
+    copyToClipboard(formatted);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -566,9 +565,7 @@ const CommandOutputView: React.FC<{ block: CommandOutputBlock }> = ({ block }) =
   const isSuccess = block.exitCode === 0;
 
   const handleCopy = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(block.output).catch(() => {});
-    }
+    copyToClipboard(block.output);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -640,9 +637,7 @@ const CodeBlockView: React.FC<{ block: CodeBlock }> = ({ block }) => {
   }
 
   const handleCopy = () => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(block.code).catch(() => {});
-    }
+    copyToClipboard(block.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

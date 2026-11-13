@@ -38,6 +38,7 @@ import { colors, radii, typography } from '../theme/tokens';
 import { MarkdownText, JsonViewer } from './MarkdownText';
 import { DiffViewer } from './DiffViewer';
 import { useDaemonStore } from '../stores/useDaemonStore';
+import { copyToClipboard } from '../lib/clipboard';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const TOP_INSET = Platform.OS === 'ios' ? 44 : (StatusBar.currentHeight || 28);
@@ -182,17 +183,13 @@ export const ToolActionTray: React.FC<ToolActionTrayProps> = ({ visible, action,
   };
 
   const handleCopyInput = (text: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
+    copyToClipboard(text);
     setCopiedInput(true);
     setTimeout(() => setCopiedInput(false), 2000);
   };
 
   const handleCopyOutput = (text: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(text).catch(() => {});
-    }
+    copyToClipboard(text);
     setCopiedOutput(true);
     setTimeout(() => setCopiedOutput(false), 2000);
   };
