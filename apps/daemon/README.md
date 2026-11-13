@@ -151,7 +151,7 @@ ca expose 3000
 │   │                                                │   │
 │   │  • CLI Entrypoint: 'ca' / 'cloud-agent-daemon' │   │
 │   │  • Outbound WebSocket Connection (No in ports) │   │
-│   │  • WebRTC P2P DataChannel (Direct mobile link) │   │
+│   │  • High-Speed WebSocket Streaming Relay       │   │
 │   │  • Line-by-line NDJSON transcript streaming   │   │
 │   │  • Warm Persistent Process Pool (No re-reads)  │   │
 │   └──────────────────────┬─────────────────────────┘   │

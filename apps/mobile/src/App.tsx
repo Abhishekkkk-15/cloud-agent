@@ -112,7 +112,7 @@ function MainApp() {
             }).catch((err) => console.warn('[NotificationAction] Gateway approve error:', err));
           }
 
-          // If connected via WebRTC, also trigger store handler
+          // If connected, also trigger store handler
           if (store.connectionState === 'connected') {
             store.respondApproval(isAllowed).catch(() => {});
           } else {

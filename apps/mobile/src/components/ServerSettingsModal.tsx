@@ -364,7 +364,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
                     Central Relay Hub
                   </Text>
                   <Text className="text-xs text-muted-foreground leading-relaxed">
-                    Routes WebRTC signaling, live terminal streams, tool approvals, and physical push alerts to your device.
+                    Routes WebSocket relay communication, live terminal streams, tool approvals, and physical push alerts to your device.
                   </Text>
                 </View>
               </Card>

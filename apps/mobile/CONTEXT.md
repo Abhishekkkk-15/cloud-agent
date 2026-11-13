@@ -15,10 +15,10 @@
 │   │             (stores/useDaemonStore)            │   │
 │   └───────▲───────────────────────────────▲────────┘   │
 │           │                               │            │
-│   ┌───────┴───────────────┐       ┌───────┴────────┐   │
-│   │  WebRTC P2P DataChannel │      │ Gateway WS RPC │   │
-│   │   (lib/p2p-client.ts)  │      │  (Fallback)    │   │
-│   └───────▲───────────────┘       └───────▲────────┘   │
+│   ┌───────────────────────────────────────────────┐   │
+│   │       Gateway WebSocket RPC Relay Client      │   │
+│   │              (lib/p2p-client.ts)              │   │
+│   └───────────────────────▲───────────────────────┘   │
 │           │                               │            │
 │   ┌───────┴───────────────────────────────┴────────┐   │
 │   │                 UI Layer                       │   │
@@ -54,7 +54,7 @@ apps/mobile/src/
 ├── stores/
 │   └── useDaemonStore.ts        # Central Zustand state (auth, machines, sessions, turns, artifacts)
 ├── lib/
-│   ├── p2p-client.ts            # WebRTC P2P DataChannel client with WebSocket fallback
+│   ├── p2p-client.ts            # Persistent WebSocket RPC client (mobileP2P)
 │   └── notifications.ts         # Expo notifications and Android high-importance channels
 └── theme/
     └── tokens.ts                # Design tokens (Pacific Azure Blue #0077b6, canvas, typography)
@@ -76,6 +76,6 @@ apps/mobile/src/
 ## ⚡ Runtime Data Flow
 
 1. **Authentication**: Handled via Google OAuth redirect (`cloud-agent://auth`) or developer token. Profile and credentials persisted via `AsyncStorage`.
-2. **Machine Discovery & Connectivity**: Connects to Gateway, receives list of online machines, and attempts direct WebRTC P2P DataChannel connection with the active machine.
-3. **Turn Streaming**: Prompts are sent via DataChannel or Gateway RPC. Real-time chunks (`text_chunk`, `thought`, `tool_call`, `tool_result`) progressively update the chat state without blocking.
+2. **Machine Discovery & Connectivity**: Connects to Gateway over persistent WebSocket (`/client/ws`), receives list of online machines, and routes RPCs dynamically by `machineId`.
+3. **Turn Streaming**: Prompts are sent via Gateway RPC. Real-time chunks (`text_chunk`, `thought`, `tool_call`, `tool_result`) progressively update the chat state without blocking.
 4. **Tool Visualizers**: Shell commands, file edits, git actions, and web fetches are categorized and visually formatted into expandable tool cards.

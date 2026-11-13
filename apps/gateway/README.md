@@ -19,7 +19,7 @@ The high-throughput nervous system bridging mobile clients, web workspaces, and 
 2. **Instant Node Pairing (`/pair/*`)**: Generates short pairing codes and QR tokens (`ca pair`) and securely exchanges machine credentials with mobile clients.
 3. **Ephemeral Dev Server Tunnels (`/preview/:tunnelId/*`)**: Proxies mobile preview requests over active daemon WebSockets to view local dev servers (`ca expose <port>`).
 4. **Installer Script Host (`/install.sh`, `/install.ps1`)**: Serves single-line curl/PowerShell installation scripts directly from the gateway server.
-5. **WebRTC Signaling**: Coordinates ICE candidate exchange and SDP offers/answers between mobile clients and host daemons.
+5. **Persistent WebSocket Relay (`/client/ws`)**: High-speed JSON-RPC and streaming event relay connecting mobile clients to host daemons.
 
 ---
 

@@ -1,7 +1,5 @@
 import type { WebSocket } from "ws";
 import { rpcRouter, type ClientRpcRequest } from "./rpc-router.js";
-import { daemonHub } from "./daemon-hub.js";
-import { findMachineById } from "../db/machine-repo.js";
 import type { AuthenticatedUser } from "../auth/jwt.js";
 
 export class ClientHub {
@@ -57,38 +55,7 @@ export class ClientHub {
           return;
         }
 
-        // 1. WebRTC Signaling: Client -> Gateway -> Daemon
-        if (msg.type === "webrtc.offer" || msg.type === "webrtc.candidate") {
-          const { machineId } = msg;
-          if (!machineId) {
-            ws.send(JSON.stringify({ error: "Missing machineId in WebRTC signal" }));
-            return;
-          }
-
-          // Security check: verify machine ownership
-          const activeSession = daemonHub.getSession(machineId);
-          let ownerId: string | undefined = activeSession?.userId;
-          if (!ownerId) {
-            const doc = await findMachineById(machineId);
-            ownerId = doc?.userId;
-          }
-
-          if (ownerId !== user.userId && user.role !== "admin") {
-            ws.send(JSON.stringify({ error: "Access denied: You do not own this machine." }));
-            return;
-          }
-
-          // Forward WebRTC signal to target VPS daemon
-          daemonHub.sendSignalToDaemon(machineId, {
-            type: msg.type,
-            clientId,
-            sdp: msg.sdp,
-            candidate: msg.candidate,
-          });
-          return;
-        }
-
-        // 2. Standard Fallback JSON-RPC over WebSocket
+        // 1. Standard JSON-RPC over WebSocket
         const req: ClientRpcRequest = msg;
         if (!req.id) {
           ws.send(JSON.stringify({ error: "Missing 'id' in request" }));
@@ -138,15 +105,6 @@ export class ClientHub {
       }
       console.log(`[ClientHub] User client disconnected: ${user.userId}`);
     });
-  }
-
-  sendSignalToClient(clientId: string, signal: unknown): boolean {
-    const ws = this.clientSockets.get(clientId);
-    if (ws && ws.readyState === 1) {
-      ws.send(JSON.stringify(signal));
-      return true;
-    }
-    return false;
   }
 
   broadcastToUser(userId: string, data: unknown): void {

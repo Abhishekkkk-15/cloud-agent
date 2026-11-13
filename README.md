@@ -63,7 +63,7 @@ Scan the terminal QR code from your **Cloud Agent Mobile** app or enter the 6-ch
 - **Background Service**: Self-installs as a native system service (`systemd`, `launchd`, Windows scheduled task).
 
 ### 🌐 Gateway Hub (`apps/gateway`)
-- **Central Multiplexer**: High-speed Node.js + Express + WebSocket hub handling device pairing, WebRTC signaling, streaming RPCs, and script hosting.
+- **Central Multiplexer**: High-speed Node.js + Express + WebSocket hub handling device pairing, streaming RPC relay, and script hosting.
 - **Ephemeral HTTP Proxy**: Reverse proxies dev server preview tunnels from daemons to mobile browsers.
 - **Self-Hosted Installer Endpoints**: Hosts `/install.sh` and `/install.ps1` for instant zero-dependency deployment.
 
@@ -104,7 +104,7 @@ flowchart TD
         DockerDaemon["Docker Sandbox Containers"]
     end
 
-    MobileApp <-->|WebRTC or WebSocket| GW
+    MobileApp <-->|Persistent WebSocket Relay| GW
     GW <-->|Outbound WebSocket| Daemon
     Daemon --> PersistentPool
     PersistentPool --> AgyCLI
@@ -128,7 +128,7 @@ cloud-agent/
 │   │   └── AGENTS.md         # Daemon developer & subagent operational rules
 │   │
 │   ├── mobile/               # React Native / Expo iOS & Android client
-│   │   ├── CONTEXT.md        # Mobile navigation, store, and WebRTC architecture
+│   │   ├── CONTEXT.md        # Mobile navigation, store, and WebSocket client architecture
 │   │   └── AGENTS.md         # Mobile UI styling guidelines & invariants
 │   │
 │   ├── gateway/              # WebSocket hub, pairing manager & tunnel proxy

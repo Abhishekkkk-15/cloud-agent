@@ -29,7 +29,7 @@
 │   │            WebSocket Hub (routes/ws.ts)        │   │
 │   │  • /daemon/ws  <-->  DaemonHub (VPS Nodes)     │   │
 │   │  • /client/ws  <-->  ClientHub (Mobile Clients)│   │
-│   │  • WebRTC Signaling (SDP Offer / Answer Relay) │   │
+│   │  • Bidirectional Streaming RPC Relay           │   │
 │   └──────────────────────┬─────────────────────────┘   │
 └──────────────────────────┼─────────────────────────────┘
                            │
@@ -73,6 +73,5 @@ apps/gateway/src/
 
 1. **Daemon Connection**: VPS and workstations connect to `/daemon/ws` using machine bearer tokens (`ca_mach_...`). Validated against MongoDB.
 2. **Reverse Pairing Flow**: Terminal runs `ca pair` -> calls `/api/machines/pair/init` -> mobile scans QR or enters 6-character code (`CA-XXXX`) -> calls `/api/machines/pair/claim` -> Gateway stores credentials and returns token to the waiting daemon.
-3. **WebRTC Signaling**: Gateway exchanges SDP offers, answers, and ICE candidates between mobile clients and daemons.
-4. **Fallback RPC Proxy**: If WebRTC fails or is establishing, RPC requests from clients are routed through Gateway to the target daemon over WebSocket.
-5. **Web Preview Tunnel Proxy**: Incoming `/preview/:tunnelId/*` requests are proxied over WebSocket to the daemon on port 3000, 5173, etc.
+3. **Bidirectional RPC Relay**: Mobile clients send JSON-RPC requests via `/client/ws` specifying the target `machineId`. Gateway routes them directly to the matching daemon WebSocket and streams events/chunks back to the client.
+4. **Web Preview Tunnel Proxy**: Incoming `/preview/:tunnelId/*` requests are proxied over WebSocket to the daemon on port 3000, 5173, etc.

@@ -1,6 +1,5 @@
 import type { WebSocket } from "ws";
 import { updateMachineStatus, type MachineDocument } from "../db/machine-repo.js";
-import { clientHub } from "./client-hub.js";
 import { notifyMachineSubscribers } from "../routes/push.js";
 
 export interface DaemonSession {
@@ -97,26 +96,11 @@ export class DaemonHub {
     return s !== undefined && s.ws.readyState === 1;
   }
 
-  sendSignalToDaemon(machineId: string, signal: unknown): boolean {
-    const session = this.daemons.get(machineId);
-    if (session && session.ws.readyState === 1) {
-      session.ws.send(JSON.stringify(signal));
-      return true;
-    }
-    return false;
-  }
-
   handleDaemonMessage(machineId: string, raw: string): void {
     try {
       const data = JSON.parse(raw);
 
-      // 1. WebRTC Signaling response from Daemon -> forward to Client
-      if ((data.type === "webrtc.answer" || data.type === "webrtc.candidate") && data.clientId) {
-        clientHub.sendSignalToClient(data.clientId, data);
-        return;
-      }
-
-      // 2. Heartbeat ping from daemon
+      // 1. Heartbeat ping from daemon
       if (data.type === "heartbeat") {
         const session = this.daemons.get(machineId);
         if (session) {

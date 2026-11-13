@@ -9,7 +9,7 @@ This document is the single source of truth outlining the platform architecture,
 **Cloud Agent** is a next-generation autonomous AI Cloud IDE and distributed remote coding agent platform. It enables software engineers to:
 1. Orchestrate autonomous AI coding agents inside isolated Docker sandboxes with live preview proxies and git synchronization.
 2. Remotely operate and command self-hosted machines (VPS, local workstations, or cloud instances) via a zero-database host **Daemon**.
-3. Connect securely from anywhere via native mobile/web interfaces through **Zero-Trust WebRTC P2P DataChannels** requiring **0 open inbound firewall ports**.
+3. Connect securely from anywhere via native mobile/web interfaces through **Zero-Inbound Persistent WebSocket Relay** requiring **0 open inbound firewall ports**.
 4. Stream multi-turn agent execution with near-instant responsiveness via warm **Persistent Session Process Pools**.
 
 ---
@@ -37,9 +37,8 @@ flowchart TD
         Docker["Docker Sandbox Daemon"]
     end
 
-    Mobile <-->|WebRTC DataChannel P2P (Direct Tunnel)| Daemon
+    Mobile <-->|Persistent WebSocket RPC Relay| Gateway
     Web <-->|REST & WebSocket| API
-    Mobile <-->|Signaling & Machines List| Gateway
     Daemon <-->|Outbound Tunnel /daemon/ws| Gateway
     API <--> Mongo
     Daemon --> Adapter
@@ -72,9 +71,9 @@ cloud-agent/
 │   │   │   └── types/            # TypeScript interfaces & WebSocket events
 │   │   └── vite.config.ts        # Bundler configuration
 │   │
-│   ├── gateway/                  # Gateway Hub & Signaling server (:8080)
+│   ├── gateway/                  # Gateway Hub & RPC Relay server (:8080)
 │   │   ├── src/
-│   │   │   ├── ws/               # Daemon & Client WebRTC signaling handlers
+│   │   │   ├── ws/               # Daemon & Client WebSocket routing and relay
 │   │   │   ├── routes/           # Machine inventory & health REST APIs
 │   │   │   └── lib/              # JWT verification & machine registry
 │   │   └── package.json
@@ -82,7 +81,7 @@ cloud-agent/
 │   ├── daemon/                   # Zero-DB Host Daemon runner
 │   │   ├── src/
 │   │   │   ├── adapters/         # Registered CLI adapters (Antigravity, Aider, Claude)
-│   │   │   ├── tunnel/           # WebRTC DataChannel & Gateway WebSocket tunnel
+│   │   │   ├── connection.ts     # Outbound Gateway WebSocket connection
 │   │   │   ├── rpc/              # JSON-RPC method dispatchers (agent.run, daemon.status)
 │   │   │   └── telemetry/        # Native CPU, RAM, Disk, and Process monitoring
 │   │   └── package.json
@@ -91,7 +90,7 @@ cloud-agent/
 │   │   ├── src/
 │   │   │   ├── screens/          # AgentTurn, MachineHealth, Approvals, Sessions
 │   │   │   ├── components/       # Primer Dark HeaderBar, MarkdownText, BottomNavBar
-│   │   │   ├── lib/              # WebRTC DataChannel P2P client (mobileP2P)
+│   │   │   ├── lib/              # WebSocket RPC client (mobileP2P)
 │   │   │   ├── stores/           # Zustand store (useDaemonStore)
 │   │   │   └── theme/            # Primer dark design tokens (colors, radii, typography)
 │   │   └── package.json
@@ -117,14 +116,12 @@ cloud-agent/
 - Transcripts and sessions are stream-parsed directly from disk (`.system_generated/logs/transcript.jsonl`) via high-speed line-by-line file streaming.
 - Host telemetry (CPU, RAM, Disk, Uptime) is collected natively from the OS via standard platform APIs.
 
-### 2. Zero-Trust WebRTC P2P DataChannels
+### 2. Zero-Inbound WebSocket Relay Architecture
 - The Daemon never opens listening inbound ports on the host.
 - Connection sequence:
   1. Daemon establishes an outbound secure WebSocket to `Gateway` (`/daemon/ws`).
   2. Mobile/Web client connects to `Gateway` (`/client/ws`).
-  3. Gateway exchanges WebRTC SDP offer, answer, and ICE candidates.
-  4. Direct encrypted WebRTC DataChannel opens between client and daemon.
-  5. All subsequent RPC methods (`agent.run`, `daemon.status`, `sessions.list`, `agent.approve`) execute peer-to-peer with sub-20ms latency.
+  3. All RPC methods (`agent.run`, `daemon.status`, `sessions.list`, `agent.approve`) route bidirectionally through Gateway with sub-millisecond relay latency and real-time streaming chunks.
 
 ### 3. Persistent Session Process Pool
 - Spawning a new CLI process per turn caused 10+ second delays due to re-reading 5,000+ line transcript files on disk.
@@ -150,7 +147,7 @@ cloud-agent/
 | :--- | :--- | :--- | :--- |
 | **FastAPI Backend** | `http://127.0.0.1:8000` | HTTP / WS | REST endpoints, WebSocket chat, Docker sandboxes |
 | **Preview Proxy** | `http://*.lvh.me:8000` | HTTP | Subdomain reverse proxy to running container ports |
-| **Gateway Hub** | `http://localhost:8080` | HTTP / WS | WebRTC signaling hub, machine authentication |
+| **Gateway Hub** | `http://localhost:8080` | HTTP / WS | RPC relay hub, machine authentication, dev tunnels |
 | **Web UI** | `http://localhost:3000` | HTTP | React 19 web IDE & Monaco editor |
 | **Mobile Web App** | `http://localhost:8081` | HTTP | Expo / React Native mobile workspace interface |
 | **Daemon Tunnel** | `ws://localhost:8080/daemon/ws` | Outbound WS | Secure reverse tunnel to Gateway |

@@ -15,7 +15,7 @@
 │   │                                                │   │
 │   │  • CLI Entrypoint: 'ca' / 'cloud-agent-daemon' │   │
 │   │  • GatewayConnection: Outbound WS dialer       │   │
-│   │  • WebRTC P2P DataChannel: Direct mobile link  │   │
+│   │  • Persistent WS Relay: Direct mobile link     │   │
 │   │  • RPC Dispatcher: Remote file/agent executor  │   │
 │   │  • Process Pool: Persistent warm CLI workers   │   │
 │   │  • Service Manager: systemd / launchd / win    │   │
@@ -27,7 +27,7 @@
 │   │     Local Git Repositories & Workspaces        │   │
 │   └────────────────────────────────────────────────┘   │
 └──────────────────────────┬─────────────────────────────┘
-                           │ Outbound WebSocket & WebRTC
+                           │ Outbound WebSocket Relay
                            ▼
                ┌───────────────────────┐
                │      apps/gateway     │
@@ -41,8 +41,7 @@
 ```
 apps/daemon/src/
 ├── index.ts        # CLI commander ('start', 'pair', 'workspace', 'service', 'logs', 'expose', 'doctor', 'status')
-├── connection.ts   # Outbound WebSocket connection to Gateway hub, heartbeat & signaling
-├── webrtc.ts       # Peer-to-peer WebRTC connection manager (werift)
+├── connection.ts   # Outbound WebSocket connection to Gateway hub & heartbeat
 ├── config.ts       # ~/.cloud-agent/daemon.json configuration loader and serializer
 ├── registry.ts     # CLI adapter registry (pluggable Antigravity, Claude, etc.)
 ├── workspace.ts    # Multi-workspace tracking, git branch inspection, and fleet synchronization
@@ -64,6 +63,6 @@ apps/daemon/src/
 ## ⚡ Runtime Data Flow
 
 1. **Outbound Dialing**: The daemon dials outbound to `wss://gateway.cloud-agent.abhishekkkk.in/daemon/ws` using machine credentials stored in `~/.cloud-agent/daemon.json`.
-2. **WebRTC Direct Signaling**: Gateway coordinates WebRTC signaling (SDP offer/answer) between daemon and mobile client. Once connected, mobile communicates directly with daemon over low-latency DataChannels.
+2. **Persistent WebSocket Relay**: The Gateway hub routes RPC requests and streaming events directly between the mobile client and daemon over low-latency persistent WebSockets.
 3. **RPC Execution**: Mobile issues RPC requests (`sessions.list`, `agent.run`, `fs.read`, `auto_healer.approve`). The daemon invokes local tools and streams execution events (`text_chunk`, `thought`, `tool_call`, `tool_result`).
 4. **Zero-DB Invariant**: Transcripts are streamed line-by-line directly from the CLI's native disk storage (e.g. `~/.gemini/antigravity-cli/brain/...`).

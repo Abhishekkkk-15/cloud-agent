@@ -111,9 +111,10 @@ When working on `apps/mobile` or client UI components:
 
 ---
 
-## 🌐 WebRTC P2P & Networking Conventions
+## 🌐 Networking & WebSocket Conventions
 
 - **Zero Inbound Ports on Daemon**: Never add listening HTTP or socket servers to the Daemon. The daemon only dials outbound to the Gateway Hub (`/daemon/ws`).
+- **Pure WebSocket Relay Architecture**: All communication between mobile clients and host daemons routes through the persistent Gateway WebSocket relay (`/client/ws` and `/daemon/ws`). This completely eliminates WebRTC/NAT traversal complexity and STUN/TURN overhead while providing deterministic sub-millisecond local forwarding and robust streaming RPCs.
 - **0.0.0.0 Server Bind Rule**: Always bind backend services (`apps/api` on `:8000`, `apps/gateway` on `:8080`) to `0.0.0.0`, **never** `127.0.0.1`. Binding to `127.0.0.1` restricts traffic to loopback and causes `ConnectException` when mobile clients (Expo Go) connect over local Wi-Fi.
 - **Dynamic Host Resolution in Mobile**: Never hardcode `127.0.0.1` or `localhost` in `apps/mobile` store URLs. On Android and iOS devices, `127.0.0.1` refers to the device itself. Always extract the host dynamically from `NativeModules.SourceCode.scriptURL` with fallbacks for web (`window.location.hostname`).
 - **Metro Monorepo & Pnpm Compatibility**:

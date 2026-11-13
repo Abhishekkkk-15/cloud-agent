@@ -19,7 +19,7 @@ Pair with workstations, cloud servers, and Docker sandboxes to direct autonomous
 - **Sidebar Drawer Navigation**: Left-edge swipeable drawer to switch connected host machines, active workspaces, and past chat sessions.
 - **Live Tool Execution Trays**: Real-time inspection trays for agent tool executions (`run_command`, `read_file`, `edit_file`, `web_search`) with syntax-highlighted diffs and bash outputs.
 - **Instant Node Pairing**: Connect to host daemons via QR code scan or 6-character short code (`ca pair`).
-- **WebRTC P2P & Streaming RPCs**: Direct peer-to-peer data channels when available, with automatic WebSocket fallback through Gateway.
+- **Persistent WebSocket Streaming RPCs**: Low-latency bidirectional RPC calls and real-time streaming chunks over persistent Gateway WebSockets.
 
 ---
 
