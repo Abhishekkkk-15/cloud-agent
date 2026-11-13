@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  panelui-native:
+    hash: 5ucqvcsswch75ndgk22edwsuie
+    path: patches/panelui-native.patch
+
 importers:
 
   .:
@@ -261,7 +266,7 @@ importers:
         version: 0.475.0(react-native-svg@15.16.0(react-native@0.88.0(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.8))(react@19.2.8))(react-native@0.88.0(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)
       panelui-native:
         specifier: ^1.4.0
-        version: 1.4.0(xgkpsjlrqgxvni5lqmwbsfyzuq)
+        version: 1.4.0(patch_hash=5ucqvcsswch75ndgk22edwsuie)(xgkpsjlrqgxvni5lqmwbsfyzuq)
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -10769,7 +10774,7 @@ snapshots:
 
   p-try@2.2.0: {}
 
-  panelui-native@1.4.0(xgkpsjlrqgxvni5lqmwbsfyzuq):
+  panelui-native@1.4.0(patch_hash=5ucqvcsswch75ndgk22edwsuie)(xgkpsjlrqgxvni5lqmwbsfyzuq):
     dependencies:
       '@hugeicons/core-free-icons': 4.4.0
       '@hugeicons/react-native': 1.0.16(react-native-svg@15.16.0(react-native@0.88.0(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.8))(react@19.2.8))(react-native@0.88.0(@babel/core@7.29.7)(@react-native/metro-config@0.88.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.8))(react@19.2.8)

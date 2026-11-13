@@ -2,3 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "packages/cli/*"
+
+patchedDependencies:
+  panelui-native: patches/panelui-native.patch

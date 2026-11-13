@@ -1,0 +1,93 @@
+diff --git a/lib/module/components/response/index.js b/lib/module/components/response/index.js
+index 7bfbf8815ab0b6be6609263bab3ae0924b903575..e4f27c3338919276f5ead3a3a95d735ba4eb0ddc 100644
+--- a/lib/module/components/response/index.js
++++ b/lib/module/components/response/index.js
+@@ -40,7 +40,7 @@
+  * paragraph under it in another, and neither knows about the other.
+  */
+ import { memo, useMemo } from 'react';
+-import { Linking, View } from 'react-native';
++import { Linking, View, Text as RNText } from 'react-native';
+ import { Text } from "../../primitives/text.js";
+ import { cn } from "../../utils/cn.js";
+ import { CodeBlock } from "../code-block/index.js";
+@@ -264,7 +264,7 @@ function spans(tokens, context) {
+       // a value in one sends the style resolver looking for a parent size that
+       // is itself expressed in `em`, and it does not come back. The inherited
+       // size is the right one anyway — inline code is part of its sentence.
+-      return /*#__PURE__*/_jsx(Text, {
++      return /*#__PURE__*/_jsx(RNText, {
+         className: cn('bg-muted font-mono', marks(token)),
+         children: token.value
+       }, index);
+@@ -272,14 +272,14 @@ function spans(tokens, context) {
+     if (token.kind === 'link') {
+       const href = token.href ?? '';
+       const openable = context.allowedLinkPrefixes.some(prefix => href.startsWith(prefix));
+-      return /*#__PURE__*/_jsx(Text, {
++      return /*#__PURE__*/_jsx(RNText, {
+         className: cn('text-primary underline', marks(token)),
+         onPress: openable ? () => (context.onLinkPress ?? defaultOpen)(href) : undefined,
+         children: token.value
+       }, index);
+     }
+     if (!token.bold && !token.italic && !token.strike) return token.value;
+-    return /*#__PURE__*/_jsx(Text, {
++    return /*#__PURE__*/_jsx(RNText, {
+       className: marks(token),
+       children: token.value
+     }, index);
+diff --git a/src/components/response/index.tsx b/src/components/response/index.tsx
+index a86989c5070279496ac72f488cecf5723d1efa35..b902d9d598a9944e9b89ad612762559ddc8cc2b4 100644
+--- a/src/components/response/index.tsx
++++ b/src/components/response/index.tsx
+@@ -38,7 +38,7 @@
+  * paragraph under it in another, and neither knows about the other.
+  */
+ import { memo, useMemo, type ComponentType, type ReactNode } from 'react';
+-import { Linking, View, type ViewProps } from 'react-native';
++import { Linking, View, Text as RNText, type ViewProps } from 'react-native';
+ import { Text } from '../../primitives/text';
+ import { cn } from '../../utils/cn';
+ import { CodeBlock } from '../code-block';
+@@ -341,9 +341,9 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
+       // is itself expressed in `em`, and it does not come back. The inherited
+       // size is the right one anyway — inline code is part of its sentence.
+       return (
+-        <Text key={index} className={cn('bg-muted font-mono', marks(token))}>
++        <RNText key={index} className={cn('bg-muted font-mono', marks(token))}>
+           {token.value}
+-        </Text>
++        </RNText>
+       );
+     }
+ 
+@@ -351,7 +351,7 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
+       const href = token.href ?? '';
+       const openable = context.allowedLinkPrefixes.some((prefix) => href.startsWith(prefix));
+       return (
+-        <Text
++        <RNText
+           key={index}
+           className={cn('text-primary underline', marks(token))}
+           onPress={
+@@ -361,16 +361,16 @@ function spans(tokens: InlineToken[], context: RenderContext): ReactNode {
+           }
+         >
+           {token.value}
+-        </Text>
++        </RNText>
+       );
+     }
+ 
+     if (!token.bold && !token.italic && !token.strike) return token.value;
+ 
+     return (
+-      <Text key={index} className={marks(token)}>
++      <RNText key={index} className={marks(token)}>
+         {token.value}
+-      </Text>
++      </RNText>
+     );
+   });
+ }
