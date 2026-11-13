@@ -42,7 +42,6 @@ import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
 import { PairMachineModal } from './PairMachineModal';
 import { MachineSwitcherModal } from './MachineSwitcherModal';
-import { SessionActionModal } from './SessionActionModal';
 import { SessionDropdownMenu } from './SessionDropdownMenu';
 import { ServerSettingsModal } from './ServerSettingsModal';
 import { ProcessManagerSheet } from './ProcessManagerSheet';
@@ -99,7 +98,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const [avatarError, setAvatarError] = useState(false);
   const [expandedWorkspaces, setExpandedWorkspaces] = useState<string[]>([]);
 
-  const [actionSession, setActionSession] = useState<RealSessionItem | null>(null);
   const [showNewChatSheet, setShowNewChatSheet] = useState<boolean>(false);
   const [showPairModal, setShowPairModal] = useState<boolean>(false);
   const [showMachineSwitcher, setShowMachineSwitcher] = useState<boolean>(false);
@@ -418,16 +416,18 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 {pinnedSessions.map((session) => {
                   const isActive = activeSession?.id === session.id && currentScreen === 'agent';
                   return (
-                    <TouchableOpacity
+                    <View
                       key={session.id}
-                      onPress={() => handleSelectSession(session)}
                       className={cn(
-                        'flex-row items-center justify-between py-2.5 px-3 rounded-xl my-0.5',
+                        'flex-row items-center justify-between rounded-xl my-0.5',
                         isActive ? 'bg-secondary' : 'hover:bg-secondary/40'
                       )}
-                      activeOpacity={0.7}
                     >
-                      <View className="flex-row items-center flex-1 mr-2">
+                      <TouchableOpacity
+                        onPress={() => handleSelectSession(session)}
+                        className="flex-row items-center flex-1 py-2.5 pl-3 pr-2"
+                        activeOpacity={0.7}
+                      >
                         <Pin size={13} color={isLight ? '#262626' : '#f5f5f5'} style={{ marginRight: 8 }} />
                         <Text
                           className={cn(
@@ -438,15 +438,12 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                         >
                           {session.title}
                         </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => setActionSession(session)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        className="p-1.5"
-                      >
-                        <MoreVertical size={15} color={isLight ? '#686868' : '#a3a3a3'} />
                       </TouchableOpacity>
-                    </TouchableOpacity>
+
+                      <View className="pr-1.5">
+                        <SessionDropdownMenu session={session} iconSize={15} triggerClassName="p-1.5" />
+                      </View>
+                    </View>
                   );
                 })}
               </View>
@@ -767,22 +764,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       <ProcessManagerSheet
         isOpen={showProcessManager}
         onClose={() => setShowProcessManager(false)}
-      />
-
-      {/* Session Action Modal (Rename, Pin, Delete) */}
-      <SessionActionModal
-        visible={Boolean(actionSession)}
-        session={actionSession}
-        onClose={() => setActionSession(null)}
-        onRename={async (sess, title) => {
-          await renameSession(sess.id, title);
-        }}
-        onTogglePin={async (sess) => {
-          await togglePinSession(sess.id);
-        }}
-        onDelete={async (sess) => {
-          await deleteSession(sess.id);
-        }}
       />
     </>
   );
