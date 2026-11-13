@@ -96,27 +96,20 @@ BIN_DIR="$INSTALL_DIR/bin"
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$BIN_DIR"
 
-# 4. Clone or Update Runtime (Sparse-checkout: apps/daemon, packages, scripts)
+# 4. Clone or Update Runtime
 REPO_URL="https://github.com/Abhishekkkk-15/cloud-agent.git"
 
 if [ -d "$RUNTIME_DIR/.git" ]; then
   echo -e "${CYAN}Updating Cloud Agent Daemon runtime...${RESET}"
   cd "$RUNTIME_DIR"
-  git sparse-checkout set apps/daemon packages scripts >/dev/null 2>&1 || true
+  git sparse-checkout disable >/dev/null 2>&1 || true
   git fetch --depth=1 origin main
   git reset --hard origin/main
 else
   echo -e "${CYAN}Cloning Cloud Agent Daemon into ${RUNTIME_DIR}...${RESET}"
   rm -rf "$RUNTIME_DIR"
-  if git clone --depth=1 --filter=blob:none --sparse "$REPO_URL" "$RUNTIME_DIR" 2>/dev/null; then
-    cd "$RUNTIME_DIR"
-    git sparse-checkout set apps/daemon packages scripts >/dev/null 2>&1 || true
-  else
-    # Fallback if older git lacks blob filter or sparse clone
-    git clone --depth=1 "$REPO_URL" "$RUNTIME_DIR"
-    cd "$RUNTIME_DIR"
-    git sparse-checkout set apps/daemon packages scripts >/dev/null 2>&1 || true
-  fi
+  git clone --depth=1 "$REPO_URL" "$RUNTIME_DIR"
+  cd "$RUNTIME_DIR"
 fi
 
 # Self-update delegation: hand off to local authoritative script if piped from curl
@@ -125,12 +118,10 @@ if [ -z "$CA_INSTALLER_INTERNAL" ] && [ -f "$RUNTIME_DIR/scripts/install.sh" ]; 
   exec bash "$RUNTIME_DIR/scripts/install.sh" "$@"
 fi
 
-# 5. Build Daemon Package (Only daemon and internal package dependencies)
+# 5. Build Daemon Package
 echo -e "${CYAN}Building Cloud Agent Daemon dependencies...${RESET}"
-pnpm --filter @cloud-agent/daemon... install --frozen-lockfile >/dev/null 2>&1 || \
-pnpm --filter @cloud-agent/daemon... install >/dev/null 2>&1 || \
-pnpm install >/dev/null 2>&1
-pnpm --filter @cloud-agent/daemon build >/dev/null 2>&1 || true
+cd "$RUNTIME_DIR"
+pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile || true
 
 # 6. Create Global Executable Wrappers
 WRAPPER_FILE="$BIN_DIR/ca"
@@ -166,18 +157,24 @@ EOF
 chmod +x "$WRAPPER_FILE"
 cp "$WRAPPER_FILE" "$BIN_DIR/cloud-agent-daemon"
 
-# Try symlinking to /usr/local/bin or ~/.local/bin
+# 7. Symlink to global PATH directories
 TARGET_BIN="/usr/local/bin"
+SYMLINK_SUCCESS=false
+
 if [ -w "$TARGET_BIN" ]; then
-  ln -sf "$WRAPPER_FILE" "$TARGET_BIN/ca"
-  ln -sf "$BIN_DIR/cloud-agent-daemon" "$TARGET_BIN/cloud-agent-daemon"
-elif [ -d "$HOME/.local/bin" ]; then
-  mkdir -p "$HOME/.local/bin"
-  ln -sf "$WRAPPER_FILE" "$HOME/.local/bin/ca"
-  ln -sf "$BIN_DIR/cloud-agent-daemon" "$HOME/.local/bin/cloud-agent-daemon"
+  ln -sf "$WRAPPER_FILE" "$TARGET_BIN/ca" && SYMLINK_SUCCESS=true
+  ln -sf "$BIN_DIR/cloud-agent-daemon" "$TARGET_BIN/cloud-agent-daemon" 2>/dev/null || true
+elif command_exists sudo; then
+  sudo ln -sf "$WRAPPER_FILE" "$TARGET_BIN/ca" 2>/dev/null && SYMLINK_SUCCESS=true || true
+  sudo ln -sf "$BIN_DIR/cloud-agent-daemon" "$TARGET_BIN/cloud-agent-daemon" 2>/dev/null || true
 fi
 
-# Ensure BIN_DIR is in PATH
+# Always link in ~/.local/bin as user-level fallback
+mkdir -p "$HOME/.local/bin"
+ln -sf "$WRAPPER_FILE" "$HOME/.local/bin/ca" 2>/dev/null || true
+ln -sf "$BIN_DIR/cloud-agent-daemon" "$HOME/.local/bin/cloud-agent-daemon" 2>/dev/null || true
+
+# 8. Ensure BIN_DIR is added to shell profiles
 SHELL_RC=""
 if [ -n "$BASH_VERSION" ]; then
   SHELL_RC="$HOME/.bashrc"
@@ -189,11 +186,11 @@ fi
 
 if [ -n "$SHELL_RC" ] && [ -f "$SHELL_RC" ]; then
   if ! grep -q '\.cloud-agent/bin' "$SHELL_RC"; then
-    echo 'export PATH="$HOME/.cloud-agent/bin:$PATH"' >> "$SHELL_RC"
+    echo 'export PATH="$HOME/.cloud-agent/bin:$HOME/.local/bin:$PATH"' >> "$SHELL_RC"
   fi
 fi
 
-export PATH="$BIN_DIR:$PATH"
+export PATH="$BIN_DIR:$HOME/.local/bin:$PATH"
 
 echo -e ""
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════════════${RESET}"
@@ -202,6 +199,11 @@ echo -e "  Binary path : ${BOLD}$BIN_DIR/ca${RESET}"
 echo -e "  Config path : ${GRAY}$INSTALL_DIR/daemon.json${RESET}"
 echo -e "${GREEN}${BOLD}════════════════════════════════════════════════════════════════${RESET}"
 echo -e ""
+if [ "$SYMLINK_SUCCESS" != "true" ]; then
+  echo -e "${YELLOW}Notice:${RESET} To make '${BOLD}ca${RESET}' available immediately in this terminal, run:"
+  echo -e "  ${CYAN}${BOLD}source ${SHELL_RC:-~/.bashrc}${RESET}  ${GRAY}# or: export PATH=\"$BIN_DIR:\$PATH\"${RESET}"
+  echo -e ""
+fi
 echo -e "To link this machine with your ${CYAN}Cloud Agent Mobile app${RESET}, run:"
 echo -e ""
 echo -e "  ${CYAN}${BOLD}ca pair${RESET}"

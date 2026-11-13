@@ -64,30 +64,19 @@ $binDir = Join-Path $installDir "bin"
 if (-not (Test-Path $installDir)) { New-Item -ItemType Directory -Path $installDir | Out-Null }
 if (-not (Test-Path $binDir)) { New-Item -ItemType Directory -Path $binDir | Out-Null }
 
-# 5. Clone or update repository (Sparse-checkout: apps/daemon, packages, scripts)
+# 5. Clone or update repository
 $repoUrl = "https://github.com/Abhishekkkk-15/cloud-agent.git"
 if (Test-Path (Join-Path $runtimeDir ".git")) {
     Write-Host "Updating Cloud Agent Daemon runtime..." -ForegroundColor Cyan
     Push-Location $runtimeDir
-    try { git sparse-checkout set apps/daemon packages scripts | Out-Null } catch {}
+    try { git sparse-checkout disable | Out-Null } catch {}
     git fetch --depth=1 origin main | Out-Null
     git reset --hard origin/main | Out-Null
     Pop-Location
 } else {
     Write-Host "Cloning Cloud Agent Daemon into $runtimeDir..." -ForegroundColor Cyan
     if (Test-Path $runtimeDir) { Remove-Item -Recurse -Force $runtimeDir }
-    try {
-        git clone --depth=1 --filter=blob:none --sparse $repoUrl $runtimeDir | Out-Null
-        Push-Location $runtimeDir
-        git sparse-checkout set apps/daemon packages scripts | Out-Null
-        Pop-Location
-    } catch {
-        # Fallback if older git lacks blob filter or sparse clone
-        git clone --depth=1 $repoUrl $runtimeDir | Out-Null
-        Push-Location $runtimeDir
-        try { git sparse-checkout set apps/daemon packages scripts | Out-Null } catch {}
-        Pop-Location
-    }
+    git clone --depth=1 $repoUrl $runtimeDir | Out-Null
 }
 
 # Self-update delegation: hand off to local authoritative script if piped from web
@@ -97,15 +86,16 @@ if (-not $env:CA_INSTALLER_INTERNAL -and (Test-Path "$runtimeDir\scripts\install
     exit $LASTEXITCODE
 }
 
-# 6. Install dependencies and build daemon (Only daemon & internal packages)
+# 6. Install dependencies and build daemon
 Write-Host "Building Cloud Agent Daemon dependencies..." -ForegroundColor Cyan
 Push-Location $runtimeDir
 try {
-    pnpm --filter @cloud-agent/daemon... install | Out-Null
+    pnpm install --frozen-lockfile | Out-Null
 } catch {
-    pnpm install | Out-Null
+    try {
+        pnpm install | Out-Null
+    } catch {}
 }
-pnpm --filter @cloud-agent/daemon build | Out-Null
 Pop-Location
 
 # 7. Create batch wrappers: ca.cmd and cloud-agent-daemon.cmd
