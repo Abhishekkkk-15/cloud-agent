@@ -205,9 +205,6 @@ class PersistentWorker {
     if (this.activeDangerouslySkipPermissions) {
       args.push("--dangerously-skip-permissions");
     }
-    if (options.cwd && fs.existsSync(options.cwd)) {
-      args.push("--add-dir", options.cwd);
-    }
 
     const env = {
       ...process.env,
@@ -263,7 +260,7 @@ class PersistentWorker {
     if (targetSkip !== this.activeDangerouslySkipPermissions) return true;
     if (options.cwd) {
       const normTargetCwd = path.normalize(options.cwd).toLowerCase();
-      if (this.activeCwd && normTargetCwd !== this.activeCwd) return true;
+      if (!this.activeCwd || normTargetCwd !== this.activeCwd) return true;
     }
     return false;
   }
@@ -838,19 +835,14 @@ export class AntigravityStreamClient {
         };
       }
     }
-    if (options.sessionId) {
-      const isDaemonCwd =
-        effectiveCwd &&
-        path.normalize(effectiveCwd).toLowerCase() === path.normalize(process.cwd()).toLowerCase();
-      if (!effectiveCwd || isDaemonCwd) {
-        try {
-          const sessDetail = await getBrainSession(options.sessionId);
-          if (sessDetail?.workspacePath && sessDetail.workspacePath.trim() !== "") {
-            effectiveCwd = sessDetail.workspacePath;
-          }
-        } catch {
-          // ignore lookup failure
+    if (!effectiveCwd && options.sessionId) {
+      try {
+        const sessDetail = await getBrainSession(options.sessionId);
+        if (sessDetail?.workspacePath && sessDetail.workspacePath.trim() !== "") {
+          effectiveCwd = sessDetail.workspacePath;
         }
+      } catch {
+        // ignore lookup failure
       }
     }
 

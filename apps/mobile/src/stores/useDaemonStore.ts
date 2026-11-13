@@ -89,6 +89,17 @@ function getStoredUrlSync(key: string): string | null {
   return null;
 }
 
+function generateSessionId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 const envApiUrl = process.env.EXPO_PUBLIC_API_URL;
 const envGatewayUrl = process.env.EXPO_PUBLIC_GATEWAY_URL;
 
@@ -2444,6 +2455,31 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     const { activeSession, targetWorkspacePath, sessionConfig } = get();
     const effectiveCwd = activeSession?.workspacePath || targetWorkspacePath || undefined;
 
+    const isNewSession = !activeSession;
+    const targetSessionId = activeSession?.id || generateSessionId();
+
+    if (isNewSession) {
+      const cleanPath = (effectiveCwd || '').replace(/\\/g, '/');
+      const parts = cleanPath.split('/').filter(Boolean);
+      const workspaceName = parts.length > 0 ? parts[parts.length - 1] : 'default';
+      const optimisticSession: RealSessionItem = {
+        id: targetSessionId,
+        title: promptText.length > 80 ? `${promptText.slice(0, 77)}...` : promptText,
+        workspacePath: effectiveCwd || '',
+        workspaceName,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messageCount: 1,
+        model: sessionConfig.model || 'antigravity-runtime',
+        status: 'running',
+        pinned: false,
+      };
+      set((state) => ({
+        activeSession: optimisticSession,
+        sessions: [optimisticSession, ...state.sessions.filter((s) => s.id !== targetSessionId)],
+      }));
+    }
+
     // Optimistically append user message
     const userMsg: RealMessageItem = {
       role: 'user',
@@ -2460,7 +2496,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       const runResult = await mobileP2P.sendRpc<any>('agent.run', {
         options: {
           prompt: promptText,
-          sessionId: activeSession?.id,
+          sessionId: targetSessionId,
           cwd: effectiveCwd,
           model: sessionConfig.model,
           effort: sessionConfig.effort,
@@ -2468,7 +2504,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           dangerouslySkipPermissions: skipPermissions,
         },
         prompt: promptText,
-        sessionId: activeSession?.id,
+        sessionId: targetSessionId,
         cwd: effectiveCwd,
         model: sessionConfig.model,
         effort: sessionConfig.effort,
@@ -2485,9 +2521,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
 
       // Automatically re-sync messages from disk transcript once turn completes
-      if (activeSession) {
+      const resolvedSessionId = targetSessionId || runResult?.sessionId || runResult?.result?.sessionId;
+      if (resolvedSessionId) {
         const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
-          sessionId: activeSession.id,
+          sessionId: resolvedSessionId,
           limit: 50,
           offset: 0,
           order: 'desc',
@@ -2532,19 +2569,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             return { sessionMessages: currentMsgs };
           });
         }
-      } else {
-        // Newly initiated session: refresh sessions from disk transcripts
-        const newSessionId = runResult?.sessionId || runResult?.result?.sessionId;
+      }
+
+      if (isNewSession) {
         await get().fetchSessions();
-        if (newSessionId) {
-          const matching = get().sessions.find((s) => s.id === newSessionId);
-          if (matching) {
-            set({
-              activeSession: matching,
-              targetWorkspacePath: matching.workspacePath || targetWorkspacePath,
-            });
-          }
-        }
       }
       get().fetchSessionArtifacts();
     } catch (err: any) {

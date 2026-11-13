@@ -1,6 +1,7 @@
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import { registry } from "../registry.js";
 import {
@@ -249,12 +250,18 @@ export class RpcDispatcher {
           if (!prompt) {
             throw new Error("Missing prompt param");
           }
-          const sessionId = params.options?.sessionId || params.sessionId || "default";
+          const rawSessionId = params.options?.sessionId || params.sessionId;
+          const sessionId =
+            rawSessionId && rawSessionId !== "default"
+              ? rawSessionId
+              : crypto.randomUUID();
+
+          const targetCwd = params.options?.cwd || params.cwd;
           const options = {
+            ...(params.options || {}),
             prompt,
             sessionId,
-            cwd: params.options?.cwd || params.cwd,
-            ...(params.options || {}),
+            ...(targetCwd ? { cwd: targetCwd } : {}),
           };
 
           if (!onStream) {
@@ -673,12 +680,23 @@ export class RpcDispatcher {
           // Include current process cwd as fallback if no session workspaces exist
           const cwd = process.cwd();
           const cwdKey = path.normalize(cwd).toLowerCase();
+          const homeDir = os.homedir();
+          const isHomeDir = path.normalize(cwd).toLowerCase() === path.normalize(homeDir).toLowerCase();
+          const hasProjectIndicators =
+            fs.existsSync(path.join(cwd, ".git")) ||
+            fs.existsSync(path.join(cwd, ".agents")) ||
+            fs.existsSync(path.join(cwd, "package.json")) ||
+            fs.existsSync(path.join(cwd, "pyproject.toml"));
+
           if (!workspacesMap.has(cwdKey)) {
-            workspacesMap.set(cwdKey, {
-              path: cwd,
-              name: path.basename(cwd) || cwd,
-              lastUsed: workspacesMap.size === 0 ? new Date().toISOString() : new Date(0).toISOString(),
-            });
+            // If cwd is the raw user home directory without project files, don't prioritize it over actual workspaces
+            if (!isHomeDir || hasProjectIndicators || workspacesMap.size === 0) {
+              workspacesMap.set(cwdKey, {
+                path: cwd,
+                name: path.basename(cwd) || cwd,
+                lastUsed: workspacesMap.size === 0 ? new Date().toISOString() : new Date(0).toISOString(),
+              });
+            }
           }
 
           const workspaces = Array.from(workspacesMap.values()).sort((a, b) => {
