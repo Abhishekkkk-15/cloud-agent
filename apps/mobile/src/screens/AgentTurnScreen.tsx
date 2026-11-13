@@ -1333,13 +1333,6 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           <MenuIcon size={24} color={glossyHeader.iconColor} />
         </TouchableOpacity>
 
-        {/* Center: Progress / loading spinner if fetching older turns */}
-        <View style={styles.cleanHeaderCenter} pointerEvents="box-none">
-          {isLoadingOlderMessages && (
-            <Spinner size="sm" />
-          )}
-        </View>
-
         {/* Right: Combined Action Pill (PTY Terminal + Separator + Dropdown Menu Trigger) */}
         <Menu>
           <View
@@ -1777,14 +1770,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   accessibilityLabel="Change AI model and parameters"
                 />
 
-                {/* 3. Host Interactive Shell / Terminal */}
-                <AIInput.Action
-                  label="Terminal"
-                  icon={<Terminal size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
-                  onPress={() => setShowTerminal(true)}
-                />
-
-                {/* 4. Artifacts Drawer Sheet */}
+                {/* 3. Artifacts Drawer Sheet */}
                 <AIInput.Action
                   label="Artifacts"
                   icon={<FileText size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
@@ -1988,19 +1974,6 @@ const styles = StyleSheet.create({
     width: 1,
     height: 18,
     marginHorizontal: 1,
-  },
-  cleanHeaderCenter: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  cleanHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f5f5f5',
-    letterSpacing: -0.2,
-    textAlign: 'center',
   },
   // Dropdown Badge
   dropdownBadge: {
