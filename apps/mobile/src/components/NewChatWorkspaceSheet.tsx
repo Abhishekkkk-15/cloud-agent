@@ -13,6 +13,7 @@ import {
   Item,
   Card,
   Text,
+  Select,
   cn,
 } from 'panelui-native';
 import {
@@ -101,8 +102,11 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   return (
     <>
       <BottomSheet open={visible} onOpenChange={(open) => { if (!open) onClose(); }}>
-        <BottomSheet.Content size="full" className="bg-popover border-t border-border p-0">
-          <BottomSheet.Header className="px-4 py-3.5 border-b border-border bg-surface">
+        <BottomSheet.Content
+          size="full"
+          className="bg-popover border-t border-border p-0 px-0 overflow-hidden"
+        >
+          <BottomSheet.Header className="px-4 py-3.5 border-b border-border bg-surface pe-4 pr-4">
             <View className="flex-row items-center gap-2.5">
               <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
                 <FolderGit2 size={16} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
@@ -213,41 +217,69 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
 
             {/* Model & Reasoning Preferences */}
             <View className="mb-2">
-              <View className="flex-row items-center gap-1.5 mb-2">
+              <View className="flex-row items-center gap-1.5 mb-2.5">
                 <SlidersHorizontal size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#f5f5f5'} />
                 <Text className="text-xs font-semibold text-foreground">
                   Reasoning & Execution Mode
                 </Text>
               </View>
 
-              {supportsEffort && (
-                <View className="flex-row gap-1.5 mb-2">
-                  {supportedEfforts.map((eff) => (
-                    <Button
-                      key={eff}
-                      variant={selectedEffort === eff ? 'secondary' : 'outline'}
-                      size="xs"
-                      onPress={() => setSelectedEffort(eff)}
-                      className="flex-1 capitalize"
+              <View className="flex-row gap-2.5">
+                {supportsEffort && (
+                  <View className="flex-1">
+                    <Text className="text-[11px] font-medium text-muted-foreground mb-1.5">
+                      Reasoning Effort
+                    </Text>
+                    <Select
+                      value={selectedEffort}
+                      onValueChange={(val) => setSelectedEffort(val as ReasoningEffort)}
+                      presentation="overlay"
+                      size="sm"
+                      placeholder="Select effort"
                     >
-                      {eff} Effort
-                    </Button>
-                  ))}
-                </View>
-              )}
+                      {supportedEfforts.map((eff) => (
+                        <Select.Item
+                          key={eff}
+                          value={eff}
+                          label={
+                            eff === 'xhigh'
+                              ? 'X-High'
+                              : `${eff.charAt(0).toUpperCase() + eff.slice(1)}`
+                          }
+                        />
+                      ))}
+                    </Select>
+                  </View>
+                )}
 
-              <View className="flex-row gap-1.5">
-                {availableModes.map((m) => (
-                  <Button
-                    key={m}
-                    variant={selectedMode === m ? 'secondary' : 'outline'}
-                    size="xs"
-                    onPress={() => setSelectedMode(m)}
-                    className="flex-1 capitalize"
+                <View className="flex-1">
+                  <Text className="text-[11px] font-medium text-muted-foreground mb-1.5">
+                    Execution Mode
+                  </Text>
+                  <Select
+                    value={selectedMode}
+                    onValueChange={(val) => setSelectedMode(val as ExecutionMode)}
+                    presentation="overlay"
+                    size="sm"
+                    placeholder="Select mode"
                   >
-                    {m === 'accept-edits' ? 'Review' : m}
-                  </Button>
-                ))}
+                    {availableModes.map((m) => (
+                      <Select.Item
+                        key={m}
+                        value={m}
+                        label={
+                          m === 'auto'
+                            ? 'Auto'
+                            : m === 'plan'
+                            ? 'Plan Only'
+                            : m === 'accept-edits'
+                            ? 'Review Edits'
+                            : m
+                        }
+                      />
+                    ))}
+                  </Select>
+                </View>
               </View>
             </View>
           </BottomSheet.Body>
