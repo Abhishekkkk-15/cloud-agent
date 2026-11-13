@@ -99,11 +99,12 @@ function appendCommandToTranscript(
       "transcript.jsonl"
     );
 
-    if (!fs.existsSync(transcriptPath)) {
-      return;
+    const logsDir = path.dirname(transcriptPath);
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
     }
 
-    const content = fs.readFileSync(transcriptPath, "utf-8");
+    const content = fs.existsSync(transcriptPath) ? fs.readFileSync(transcriptPath, "utf-8") : "";
     const lines = content.split("\n").filter((l) => l.trim().length > 0);
     let nextStepIndex = lines.length;
     if (lines.length > 0) {
@@ -705,7 +706,32 @@ export class AntigravityStreamClient {
     const binary = getAgyBinaryPath() || "agy";
     const sessionId = options.sessionId || crypto.randomUUID();
 
-    // 1. Intercept CLI built-in utility commands (/help, /skills, /models, /mcp, /usage, etc.)
+    // 1. Resolve workspace cwd upfront for both built-in commands and LLM worker turns
+    let effectiveCwd = options.cwd;
+    if (!effectiveCwd && options.sessionId) {
+      try {
+        const sessDetail = await getBrainSession(options.sessionId);
+        if (sessDetail?.workspacePath && sessDetail.workspacePath.trim() !== "") {
+          effectiveCwd = sessDetail.workspacePath;
+        }
+      } catch {
+        // ignore lookup failure
+      }
+    }
+
+    const finalCwd = effectiveCwd || options.cwd || process.cwd();
+    if (finalCwd && sessionId) {
+      try {
+        const brainDir = getBrainDir();
+        const sessionDir = path.join(brainDir, sessionId);
+        fs.mkdirSync(sessionDir, { recursive: true });
+        writeSessionMeta(sessionDir, { workspacePath: finalCwd });
+      } catch {
+        // ignore
+      }
+    }
+
+    // 2. Intercept CLI built-in utility commands (/help, /skills, /models, /mcp, /usage, etc.)
     const builtinCmd = getBuiltinCliCommand(options.prompt);
     if (builtinCmd) {
       yield {
@@ -718,7 +744,7 @@ export class AntigravityStreamClient {
       try {
         const cmdConfig = getSubcommandForBuiltin(builtinCmd);
         const { stdout, stderr } = await execFileAsync(binary, cmdConfig.args, {
-          cwd: options.cwd,
+          cwd: finalCwd,
           env: { ...process.env, ...options.env },
         });
 
@@ -727,10 +753,8 @@ export class AntigravityStreamClient {
           outputText = cleanCliOutput(outputText);
         }
 
-        // Persist to session transcript if an active session exists
-        if (options.sessionId) {
-          appendCommandToTranscript(options.sessionId, options.prompt, outputText);
-        }
+        // Persist to session transcript so session appears in transcripts and session trees
+        appendCommandToTranscript(sessionId, options.prompt, outputText);
 
         yield {
           type: "text_chunk",
@@ -767,8 +791,6 @@ export class AntigravityStreamClient {
     }
 
     // 2. Standard prompt / workflow execution via persistent worker
-    let effectiveCwd = options.cwd;
-
     // 2a. HITL Security Gate: Intercept elevated commands if confirmation is enabled
     if (options.dangerouslySkipPermissions === false) {
       const detected = detectElevatedCommand(options.prompt);
@@ -786,7 +808,7 @@ export class AntigravityStreamClient {
             description: detected.description || "Elevated command execution requires operator approval",
             details: {
               command: detected.command || options.prompt,
-              cwd: effectiveCwd,
+              cwd: finalCwd,
             },
             defaultBehavior: "deny",
           },
@@ -835,28 +857,6 @@ export class AntigravityStreamClient {
         };
       }
     }
-    if (!effectiveCwd && options.sessionId) {
-      try {
-        const sessDetail = await getBrainSession(options.sessionId);
-        if (sessDetail?.workspacePath && sessDetail.workspacePath.trim() !== "") {
-          effectiveCwd = sessDetail.workspacePath;
-        }
-      } catch {
-        // ignore lookup failure
-      }
-    }
-
-    const finalCwd = effectiveCwd || options.cwd || process.cwd();
-    if (finalCwd) {
-      try {
-        const brainDir = getBrainDir();
-        const sessionDir = path.join(brainDir, sessionId);
-        writeSessionMeta(sessionDir, { workspacePath: finalCwd });
-      } catch {
-        // ignore
-      }
-    }
-
     const effectiveOptions: CliRunOptions = {
       ...options,
       cwd: finalCwd,
