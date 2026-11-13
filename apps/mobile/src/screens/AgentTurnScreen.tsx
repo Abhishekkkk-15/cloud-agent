@@ -1547,10 +1547,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         >
           {isLoadingMessages ? (
             <View style={styles.sessionLoadingBox}>
-              <View style={[styles.sessionLoadingCard, isLight && { backgroundColor: isSwiss ? '#F1EBE1' : '#ffffff', borderColor: isSwiss ? 'rgba(17, 16, 16, 0.16)' : '#d0d7de' }]}>
-                <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
-                <Text style={[styles.sessionLoadingText, isLight && { color: isSwiss ? '#6B665E' : '#57606a' }]}>Loading session transcript...</Text>
-              </View>
+              <Spinner size="md" color={isSwiss ? '#DC201E' : undefined} />
             </View>
           ) : (
             <EmptyState variant="default" size="lg" className="py-8">
@@ -2345,22 +2342,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  sessionLoadingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#161616',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.10)',
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  sessionLoadingText: {
-    fontSize: 13,
-    color: '#a3a3a3',
-    fontWeight: '500',
   },
 
   // Streaming indicator
