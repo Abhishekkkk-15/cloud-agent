@@ -268,9 +268,13 @@ export const ProcessManagerSheet: React.FC<ProcessManagerSheetProps> = ({
 
   return (
     <BottomSheet open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <BottomSheet.Content size="full" className="bg-popover border-t border-border p-0">
+      <BottomSheet.Content
+        size="full"
+        showClose={false}
+        className="bg-popover border-t border-border p-0 px-0 overflow-hidden"
+      >
         {/* Header */}
-        <BottomSheet.Header className="px-4 py-3.5 border-b border-border bg-surface">
+        <BottomSheet.Header className="px-4 py-3.5 border-b border-border bg-surface pe-4 pr-4">
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center gap-2.5 flex-1 mr-2">
               <View className="w-8 h-8 rounded-lg bg-surface-secondary items-center justify-center border border-border">
