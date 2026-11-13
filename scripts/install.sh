@@ -96,19 +96,27 @@ BIN_DIR="$INSTALL_DIR/bin"
 mkdir -p "$INSTALL_DIR"
 mkdir -p "$BIN_DIR"
 
-# 4. Clone or Update Runtime
+# 4. Clone or Update Runtime (Sparse-checkout: apps/daemon, packages, scripts)
 REPO_URL="https://github.com/Abhishekkkk-15/cloud-agent.git"
 
 if [ -d "$RUNTIME_DIR/.git" ]; then
   echo -e "${CYAN}Updating Cloud Agent Daemon runtime...${RESET}"
   cd "$RUNTIME_DIR"
+  git sparse-checkout set apps/daemon packages scripts >/dev/null 2>&1 || true
   git fetch --depth=1 origin main
   git reset --hard origin/main
 else
   echo -e "${CYAN}Cloning Cloud Agent Daemon into ${RUNTIME_DIR}...${RESET}"
   rm -rf "$RUNTIME_DIR"
-  git clone --depth=1 "$REPO_URL" "$RUNTIME_DIR"
-  cd "$RUNTIME_DIR"
+  if git clone --depth=1 --filter=blob:none --sparse "$REPO_URL" "$RUNTIME_DIR" 2>/dev/null; then
+    cd "$RUNTIME_DIR"
+    git sparse-checkout set apps/daemon packages scripts >/dev/null 2>&1 || true
+  else
+    # Fallback if older git lacks blob filter or sparse clone
+    git clone --depth=1 "$REPO_URL" "$RUNTIME_DIR"
+    cd "$RUNTIME_DIR"
+    git sparse-checkout set apps/daemon packages scripts >/dev/null 2>&1 || true
+  fi
 fi
 
 # Self-update delegation: hand off to local authoritative script if piped from curl
@@ -117,9 +125,11 @@ if [ -z "$CA_INSTALLER_INTERNAL" ] && [ -f "$RUNTIME_DIR/scripts/install.sh" ]; 
   exec bash "$RUNTIME_DIR/scripts/install.sh" "$@"
 fi
 
-# 5. Build Daemon Package
+# 5. Build Daemon Package (Only daemon and internal package dependencies)
 echo -e "${CYAN}Building Cloud Agent Daemon dependencies...${RESET}"
-pnpm install --frozen-lockfile >/dev/null 2>&1 || pnpm install >/dev/null 2>&1
+pnpm --filter @cloud-agent/daemon... install --frozen-lockfile >/dev/null 2>&1 || \
+pnpm --filter @cloud-agent/daemon... install >/dev/null 2>&1 || \
+pnpm install >/dev/null 2>&1
 pnpm --filter @cloud-agent/daemon build >/dev/null 2>&1 || true
 
 # 6. Create Global Executable Wrappers
