@@ -5,6 +5,7 @@ import type {
   CliSessionSummary,
   CliSessionDetail,
   CliMessage,
+  CliAttachment,
   CliArtifact,
   CliToolCall,
   CliPaginatedResult,
@@ -22,6 +23,10 @@ interface TranscriptLine {
   created_at?: string;
   content?: string;
   thinking?: string;
+  media?: Array<{
+    mime_type?: string;
+    uri?: string;
+  }>;
   tool_calls?: Array<{
     name: string;
     args?: Record<string, unknown> | string;
@@ -356,11 +361,42 @@ function parseTranscriptLineToMessage(line: string, index: number): CliMessage |
     const ts = parsed.created_at || new Date().toISOString();
 
     if (parsed.type === "USER_INPUT") {
-      const clean = extractUserPrompt(parsed.content || "");
+      let clean = extractUserPrompt(parsed.content || "");
+      const attachments: CliAttachment[] = [];
+
+      if (Array.isArray(parsed.media) && parsed.media.length > 0) {
+        for (const m of parsed.media) {
+          const rawUri = m.uri || "";
+          const cleanPath = rawUri.replace(/^file:\/\/\/?/, "");
+          const name = path.basename(cleanPath) || "attachment";
+          attachments.push({
+            name,
+            path: cleanPath,
+            mimeType: m.mime_type,
+          });
+        }
+      }
+
+      const attachedRegex = /\[Attached File:\s*([^\]]+)\]/g;
+      let match;
+      while ((match = attachedRegex.exec(parsed.content || "")) !== null) {
+        const filePath = match[1].trim();
+        const name = path.basename(filePath);
+        if (!attachments.some((a) => a.path === filePath || a.name === name)) {
+          attachments.push({
+            name,
+            path: filePath,
+          });
+        }
+      }
+
+      clean = clean.replace(/\[Attached File:\s*[^\]]+\]\s*/g, "").trim();
+
       return {
         id: `step_${parsed.step_index ?? index}`,
         role: "user",
         content: clean,
+        attachments: attachments.length > 0 ? attachments : undefined,
         timestamp: ts,
       };
     }

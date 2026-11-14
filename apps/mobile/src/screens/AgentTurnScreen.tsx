@@ -93,6 +93,7 @@ import { ProcessManagerSheet } from '../components/ProcessManagerSheet';
 import { AttachmentPickerSheet } from '../components/AttachmentPickerSheet';
 import { InlinePreviewCard } from '../components/InlinePreviewCard';
 import { PreviewCanvasModal } from '../components/PreviewCanvasModal';
+import { AttachmentPreviewModal, type AttachmentPreviewTarget } from '../components/AttachmentPreviewModal';
 import { detectPreviewTarget, type PreviewTarget } from '../lib/preview-detector';
 import { startDictation, stopDictation, isSpeechRecognitionSupported } from '../lib/speech';
 import { copyToClipboard } from '../lib/clipboard';
@@ -132,6 +133,7 @@ interface ChatTurn {
     attachments?: Array<{
       name: string;
       path: string;
+      uri?: string;
       mimeType?: string;
       size?: number;
     }>;
@@ -175,7 +177,119 @@ interface TurnCardProps {
   onSendPrompt: (text: string) => Promise<void>;
   renderActionIcon: (category: ActionStep['category']) => React.ReactNode;
   onExpandPreview?: (target: PreviewTarget) => void;
+  onPreviewAttachment?: (attachment: AttachmentPreviewTarget) => void;
 }
+
+const UserAttachmentItem: React.FC<{
+  attachment: { name: string; path?: string; uri?: string; mimeType?: string; size?: number };
+  onPress: () => void;
+  isLight: boolean;
+  isSwiss: boolean;
+}> = ({ attachment, onPress, isLight, isSwiss }) => {
+  const fetchFileBase64 = useDaemonStore((s) => s.fetchFileBase64);
+  const isImg = Boolean(
+    attachment.mimeType?.startsWith('image/') ||
+      /\.(png|jpe?g|webp|gif|svg)$/i.test(attachment.name)
+  );
+
+  const [imageUri, setImageUri] = useState<string | null>(attachment.uri || null);
+  const [isLoading, setIsLoading] = useState<boolean>(!attachment.uri && isImg && Boolean(attachment.path));
+
+  useEffect(() => {
+    if (attachment.uri) {
+      setImageUri(attachment.uri);
+      setIsLoading(false);
+      return;
+    }
+    if (isImg && attachment.path) {
+      setIsLoading(true);
+      fetchFileBase64(attachment.path)
+        .then((b64) => {
+          if (b64) {
+            const mime = attachment.mimeType || guessMimeType(attachment.name) || 'image/png';
+            setImageUri(`data:${mime};base64,${b64}`);
+          }
+          setIsLoading(false);
+        })
+        .catch(() => setIsLoading(false));
+    }
+  }, [attachment.uri, attachment.path, isImg]);
+
+  if (isImg) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={onPress}
+        style={[
+          styles.userImageAttachmentCard,
+          isLight && styles.userImageAttachmentCardLight,
+          isSwiss && styles.userImageAttachmentCardSwiss,
+        ]}
+      >
+        {imageUri ? (
+          <RNImage
+            source={{ uri: imageUri }}
+            style={styles.userImageThumbnail}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.userImageThumbnail, styles.userImagePlaceholder]}>
+            {isLoading ? (
+              <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : '#3b82f6'} />
+            ) : (
+              <ImageIcon size={20} color={isLight ? '#686868' : '#a3a3a3'} />
+            )}
+          </View>
+        )}
+        <View style={styles.userAttachmentCaptionRow}>
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.userAttachmentCaptionText,
+              isLight && styles.userAttachmentCaptionTextLight,
+            ]}
+          >
+            {attachment.name}
+          </Text>
+          {attachment.size ? (
+            <Text
+              style={[
+                styles.userAttachmentSizeText,
+                isLight && styles.userAttachmentSizeTextLight,
+              ]}
+            >
+              {formatFileSize(attachment.size)}
+            </Text>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
+      <Attachment
+        state="done"
+        size="sm"
+        className={
+          isLight
+            ? 'bg-surface border-border'
+            : 'bg-surface-secondary border-border'
+        }
+      >
+        <Attachment.Media variant="icon">
+          <FileText size={14} color={isSwiss ? '#DC201E' : '#3b82f6'} />
+        </Attachment.Media>
+        <Attachment.Content>
+          <Attachment.Title numberOfLines={1}>{attachment.name}</Attachment.Title>
+          <Attachment.Description>
+            {attachment.size ? formatFileSize(attachment.size) : 'Uploaded to workspace'}
+          </Attachment.Description>
+        </Attachment.Content>
+      </Attachment>
+    </TouchableOpacity>
+  );
+};
 
 const TurnCard = React.memo<TurnCardProps>(
   ({
@@ -193,6 +307,7 @@ const TurnCard = React.memo<TurnCardProps>(
     onSendPrompt,
     renderActionIcon,
     onExpandPreview,
+    onPreviewAttachment,
   }) => {
     // Entering animations must strictly trigger ONLY for the live incoming streaming turn.
     // Static historical turns & paginated turns render instantly with zero opacity blink or layout flash.
@@ -220,34 +335,16 @@ const TurnCard = React.memo<TurnCardProps>(
               ]}
             >
               {turn.userMessage.attachments && turn.userMessage.attachments.length > 0 ? (
-                <View className="mb-2 gap-1.5">
-                  {turn.userMessage.attachments.map((att, attIdx) => {
-                    const isImg =
-                      att.mimeType?.startsWith('image/') ||
-                      /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name);
-                    return (
-                      <Attachment
-                        key={`att_${attIdx}_${att.name}`}
-                        state="done"
-                        size="sm"
-                        className={
-                          isLight
-                            ? 'bg-surface border-border'
-                            : 'bg-surface-secondary border-border'
-                        }
-                      >
-                        <Attachment.Media variant={isImg ? 'image' : 'icon'}>
-                          <FileText size={14} color={isSwiss ? '#DC201E' : '#3b82f6'} />
-                        </Attachment.Media>
-                        <Attachment.Content>
-                          <Attachment.Title numberOfLines={1}>{att.name}</Attachment.Title>
-                          <Attachment.Description>
-                            {att.size ? formatFileSize(att.size) : 'Uploaded to workspace'}
-                          </Attachment.Description>
-                        </Attachment.Content>
-                      </Attachment>
-                    );
-                  })}
+                <View className="mb-2 gap-2">
+                  {turn.userMessage.attachments.map((att, attIdx) => (
+                    <UserAttachmentItem
+                      key={`att_${attIdx}_${att.name}`}
+                      attachment={att}
+                      onPress={() => onPreviewAttachment?.(att)}
+                      isLight={isLight}
+                      isSwiss={isSwiss}
+                    />
+                  ))}
                 </View>
               ) : null}
               {turn.userMessage.content ? (
@@ -501,6 +598,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
   const [showProcessManager, setShowProcessManager] = useState(false);
   const [activeCanvasTarget, setActiveCanvasTarget] = useState<PreviewTarget | null>(null);
+  const [selectedPreviewAttachment, setSelectedPreviewAttachment] = useState<AttachmentPreviewTarget | null>(null);
   const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
   const [isRenamingSession, setIsRenamingSession] = useState(false);
   const [renameTitle, setRenameTitle] = useState('');
@@ -1165,6 +1263,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       .map((a) => ({
         name: a.name,
         path: a.hostPath!,
+        uri: a.uri,
         mimeType: a.mimeType,
         size: a.size,
       }));
@@ -1503,6 +1602,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           onSendPrompt={sendPrompt}
           renderActionIcon={renderActionIcon}
           onExpandPreview={(t) => setActiveCanvasTarget(t)}
+          onPreviewAttachment={(att) => setSelectedPreviewAttachment(att)}
         />
       );
     },
@@ -2073,50 +2173,58 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       att.mimeType?.startsWith('image/') ||
                       /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name);
                     return (
-                      <Attachment
+                      <TouchableOpacity
                         key={att.id}
-                        state={att.state}
-                        size="sm"
-                        progress={att.progress}
-                        orientation="horizontal"
-                        className={
-                          isLight
-                            ? 'bg-surface border-border max-w-[240px]'
-                            : 'bg-surface-secondary border-border max-w-[240px]'
-                        }
+                        activeOpacity={0.85}
+                        onPress={() => setSelectedPreviewAttachment(att)}
                       >
-                        <Attachment.Media variant={isImg ? 'image' : 'icon'}>
-                          {isImg ? (
-                            <RNImage
-                              source={{ uri: att.uri }}
-                              style={{ width: 28, height: 28, borderRadius: 4 }}
-                              resizeMode="cover"
-                            />
-                          ) : (
-                            <FileText size={14} color={isSwiss ? '#DC201E' : '#3b82f6'} />
-                          )}
-                        </Attachment.Media>
-                        <Attachment.Content>
-                          <Attachment.Title numberOfLines={1}>{att.name}</Attachment.Title>
-                          <Attachment.Description>
-                            {att.state === 'uploading'
-                              ? 'Uploading...'
-                              : att.state === 'error'
-                              ? 'Failed'
-                              : att.size
-                              ? formatFileSize(att.size)
-                              : 'Ready'}
-                          </Attachment.Description>
-                        </Attachment.Content>
-                        <Attachment.Actions>
-                          <Attachment.Action
-                            accessibilityLabel="Remove attachment"
-                            onPress={() => handleRemoveStagedAttachment(att.id)}
-                          >
-                            <X size={12} color={isSwiss ? '#6B665E' : '#a3a3a3'} />
-                          </Attachment.Action>
-                        </Attachment.Actions>
-                      </Attachment>
+                        <Attachment
+                          state={att.state}
+                          size="sm"
+                          progress={att.progress}
+                          orientation="horizontal"
+                          className={
+                            isLight
+                              ? 'bg-surface border-border max-w-[240px]'
+                              : 'bg-surface-secondary border-border max-w-[240px]'
+                          }
+                        >
+                          <Attachment.Media variant={isImg ? 'image' : 'icon'}>
+                            {isImg ? (
+                              <RNImage
+                                source={{ uri: att.uri }}
+                                style={{ width: 28, height: 28, borderRadius: 4 }}
+                                resizeMode="cover"
+                              />
+                            ) : (
+                              <FileText size={14} color={isSwiss ? '#DC201E' : '#3b82f6'} />
+                            )}
+                          </Attachment.Media>
+                          <Attachment.Content>
+                            <Attachment.Title numberOfLines={1}>{att.name}</Attachment.Title>
+                            <Attachment.Description>
+                              {att.state === 'uploading'
+                                ? 'Uploading...'
+                                : att.state === 'error'
+                                ? 'Failed'
+                                : att.size
+                                ? formatFileSize(att.size)
+                                : 'Ready'}
+                            </Attachment.Description>
+                          </Attachment.Content>
+                          <Attachment.Actions>
+                            <Attachment.Action
+                              accessibilityLabel="Remove attachment"
+                              onPress={(e) => {
+                                e?.stopPropagation?.();
+                                handleRemoveStagedAttachment(att.id);
+                              }}
+                            >
+                              <X size={12} color={isSwiss ? '#6B665E' : '#a3a3a3'} />
+                            </Attachment.Action>
+                          </Attachment.Actions>
+                        </Attachment>
+                      </TouchableOpacity>
                     );
                   })}
                 </Attachment.Group>
@@ -2220,6 +2328,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         visible={Boolean(activeCanvasTarget)}
         target={activeCanvasTarget}
         onClose={() => setActiveCanvasTarget(null)}
+      />
+
+      {/* 10.6 Full-Screen Staged & Sent Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        visible={Boolean(selectedPreviewAttachment)}
+        attachment={selectedPreviewAttachment}
+        onClose={() => setSelectedPreviewAttachment(null)}
       />
 
       {/* 11. Compact Rename Dialog */}
@@ -2628,6 +2743,56 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     color: '#737373',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  userImageAttachmentCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#1e1e1e',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    width: 220,
+    maxWidth: '100%',
+  },
+  userImageAttachmentCardLight: {
+    backgroundColor: '#f7f7f7',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  userImageAttachmentCardSwiss: {
+    backgroundColor: '#EBE4D8',
+    borderColor: 'rgba(17, 16, 16, 0.12)',
+  },
+  userImageThumbnail: {
+    width: '100%',
+    height: 130,
+    backgroundColor: 'rgba(0, 0, 0, 0.20)',
+  },
+  userImagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userAttachmentCaptionRow: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  userAttachmentCaptionText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#f5f5f5',
+  },
+  userAttachmentCaptionTextLight: {
+    color: '#262626',
+  },
+  userAttachmentSizeText: {
+    fontSize: 10,
+    color: '#a3a3a3',
+  },
+  userAttachmentSizeTextLight: {
+    color: '#686868',
   },
 
   // Assistant Turn: Natural Unboxed Flow

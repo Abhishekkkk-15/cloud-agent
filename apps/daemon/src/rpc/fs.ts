@@ -74,11 +74,14 @@ export function buildFileTree(dirPath: string, maxDepth = 4, currentDepth = 0): 
   return nodes;
 }
 
-export function readFileContent(filePath: string): string {
+export function readFileContent(
+  filePath: string,
+  encoding: "utf8" | "base64" = "utf8"
+): string {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
-  return fs.readFileSync(filePath, "utf8");
+  return fs.readFileSync(filePath, encoding);
 }
 
 export function writeFileContent(

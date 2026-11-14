@@ -656,7 +656,8 @@ export class RpcDispatcher {
 
         case "fs.read": {
           if (!params.path) throw new Error("Missing path param");
-          const content = readFileContent(params.path);
+          const encoding = params.encoding === "base64" ? "base64" : "utf8";
+          const content = readFileContent(params.path, encoding);
           return { id: req.id, result: { content } };
         }
 

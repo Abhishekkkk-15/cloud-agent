@@ -184,6 +184,7 @@ export interface RealMessageItem {
   attachments?: Array<{
     name: string;
     path: string;
+    uri?: string;
     mimeType?: string;
     size?: number;
   }>;
@@ -498,6 +499,7 @@ interface DaemonStoreState {
   fetchKnownWorkspaces: () => Promise<void>;
   fetchSessionArtifacts: (sessionId?: string) => Promise<CliArtifact[]>;
   fetchArtifactContent: (artifactPath: string) => Promise<string>;
+  fetchFileBase64: (filePath: string) => Promise<string>;
   fetchDirectorySuggestions: (parentPath?: string) => Promise<Array<{ name: string; fullPath: string }>>;
   browseDirectories: (path?: string) => Promise<DirectoryBrowseResult | null>;
   createDirectory: (parentPath: string, folderName: string) => Promise<{ ok: boolean; fullPath?: string; error?: string }>;
@@ -518,7 +520,7 @@ interface DaemonStoreState {
   subscribeToSessionStream: (sessionId: string) => Promise<void>;
   sendPrompt: (
     promptText: string,
-    attachments?: Array<{ name: string; path: string; mimeType?: string; size?: number }>
+    attachments?: Array<{ name: string; path: string; uri?: string; mimeType?: string; size?: number }>
   ) => Promise<void>;
   uploadAttachment: (params: {
     name: string;
@@ -1726,6 +1728,26 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }
   },
 
+  fetchFileBase64: async (filePath: string) => {
+    if (!filePath) return '';
+    const cached = get().selectedArtifactContent[`base64_${filePath}`];
+    if (cached !== undefined) return cached;
+    try {
+      const res = await mobileP2P.sendRpc<any>('fs.read', { path: filePath, encoding: 'base64' });
+      const content = typeof res?.content === 'string' ? res.content : '';
+      set((state) => ({
+        selectedArtifactContent: {
+          ...state.selectedArtifactContent,
+          [`base64_${filePath}`]: content,
+        },
+      }));
+      return content;
+    } catch (err) {
+      console.error('[DaemonStore] fetchFileBase64 error:', err);
+      return '';
+    }
+  },
+
   fetchDirectorySuggestions: async (parentPath?: string) => {
     try {
       const res = await mobileP2P.sendRpc<any>(
@@ -2314,6 +2336,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           reasoning: m.reasoning,
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
+          attachments: m.attachments,
         }));
         set({
           sessionMessages: msgs,
@@ -2406,6 +2429,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           reasoning: m.reasoning,
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
+          attachments: m.attachments,
         }));
 
         set((state) => ({
@@ -2493,6 +2517,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           reasoning: m.reasoning,
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
+          attachments: m.attachments,
         }));
 
         set((state) => {
@@ -2545,7 +2570,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }
   },
 
-  sendPrompt: async (promptText: string, attachments?: Array<{ name: string; path: string; mimeType?: string; size?: number }>) => {
+  sendPrompt: async (promptText: string, attachments?: Array<{ name: string; path: string; uri?: string; mimeType?: string; size?: number }>) => {
     if (!promptText.trim() && (!attachments || attachments.length === 0)) return;
 
     if (!get().isNetworkOnline) {
@@ -2650,6 +2675,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
             reasoning: m.reasoning,
             timestamp: m.timestamp || new Date().toISOString(),
             toolCalls: m.toolCalls,
+            attachments: m.attachments,
           }));
           // Merge reasoning and ensure messages reflect disk state accurately
           set((state) => {
