@@ -69,7 +69,7 @@ export async function proxyLocalHttp(params: ProxyRequestParams): Promise<ProxyR
   });
 }
 
-function checkPortListening(port: number): Promise<boolean> {
+export function checkPortListening(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = net.createConnection({ port, host: "127.0.0.1", timeout: 800 });
     socket.on("connect", () => {
@@ -87,7 +87,7 @@ function checkPortListening(port: number): Promise<boolean> {
   });
 }
 
-function getLocalIpAddresses(): string[] {
+export function getLocalIpAddresses(): string[] {
   const interfaces = os.networkInterfaces();
   const addresses: string[] = [];
   for (const name of Object.keys(interfaces)) {

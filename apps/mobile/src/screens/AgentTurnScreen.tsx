@@ -92,6 +92,9 @@ import { AutoHealerModal } from '../components/AutoHealerModal';
 import { AskQuestionCard } from '../components/AskQuestionCard';
 import { ProcessManagerSheet } from '../components/ProcessManagerSheet';
 import { AttachmentPickerSheet } from '../components/AttachmentPickerSheet';
+import { InlinePreviewCard } from '../components/InlinePreviewCard';
+import { PreviewCanvasModal } from '../components/PreviewCanvasModal';
+import { detectPreviewTarget, type PreviewTarget } from '../lib/preview-detector';
 import { startDictation, stopDictation, isSpeechRecognitionSupported } from '../lib/speech';
 import { copyToClipboard } from '../lib/clipboard';
 import { formatFileSize, guessMimeType, readUriAsBase64 } from '../lib/attachments';
@@ -141,6 +144,7 @@ interface ChatTurn {
     actions: ActionStep[];
     content?: string;
     elements: AssistantTurnElement[];
+    previewTarget?: PreviewTarget | null;
   };
 }
 
@@ -171,6 +175,7 @@ interface TurnCardProps {
   onBranch: () => void;
   onSendPrompt: (text: string) => Promise<void>;
   renderActionIcon: (category: ActionStep['category']) => React.ReactNode;
+  onExpandPreview?: (target: PreviewTarget) => void;
 }
 
 const TurnCard = React.memo<TurnCardProps>(
@@ -188,6 +193,7 @@ const TurnCard = React.memo<TurnCardProps>(
     onBranch,
     onSendPrompt,
     renderActionIcon,
+    onExpandPreview,
   }) => {
     // Entering animations must strictly trigger ONLY for the live incoming streaming turn.
     // Static historical turns & paginated turns render instantly with zero opacity blink or layout flash.
@@ -405,6 +411,14 @@ const TurnCard = React.memo<TurnCardProps>(
               </>
             )}
 
+            {/* Inline Interactive Deliverable Preview (Live Dev Server, HTML Artifact, React Component) */}
+            {turn.assistant.previewTarget && onExpandPreview ? (
+              <InlinePreviewCard
+                target={turn.assistant.previewTarget}
+                onExpand={onExpandPreview}
+              />
+            ) : null}
+
             {/* Paradev Action Row (Copy Message & Branch Icon Buttons) */}
             {turn.assistant.content ? (
               <View style={styles.agentActionRow}>
@@ -487,6 +501,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [showTerminal, setShowTerminal] = useState(false);
   const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
   const [showProcessManager, setShowProcessManager] = useState(false);
+  const [activeCanvasTarget, setActiveCanvasTarget] = useState<PreviewTarget | null>(null);
   const [artifactFilterQuery, setArtifactFilterQuery] = useState('');
   const [isRenamingSession, setIsRenamingSession] = useState(false);
   const [renameTitle, setRenameTitle] = useState('');
@@ -1407,8 +1422,19 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       }
     }
 
+    // 4. Resolve visual previewable deliverables (dev servers, HTML, React artifacts)
+    for (const turn of turns) {
+      if (turn.assistant) {
+        turn.assistant.previewTarget = detectPreviewTarget({
+          turnContent: turn.assistant.content,
+          actions: turn.assistant.actions,
+          artifacts: sessionArtifacts,
+        });
+      }
+    }
+
     return turns;
-  }, [sessionMessages]);
+  }, [sessionMessages, sessionArtifacts]);
 
   const liveSelectedAction = useMemo(() => {
     if (!selectedActionForTray) return null;
@@ -1475,6 +1501,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
           onBranch={() => handleBranchFromTurn(turnIdx + 1)}
           onSendPrompt={sendPrompt}
           renderActionIcon={renderActionIcon}
+          onExpandPreview={(t) => setActiveCanvasTarget(t)}
         />
       );
     },
@@ -2197,6 +2224,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <TerminalSheet
         visible={showTerminal}
         onClose={() => setShowTerminal(false)}
+      />
+
+      {/* 10.5 Full-Screen Live Web & Dev Server Preview Canvas */}
+      <PreviewCanvasModal
+        visible={Boolean(activeCanvasTarget)}
+        target={activeCanvasTarget}
+        onClose={() => setActiveCanvasTarget(null)}
       />
 
       {/* 11. Compact Rename Dialog */}

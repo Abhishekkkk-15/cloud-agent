@@ -22,7 +22,7 @@ import {
   saveSessionAttachment,
 } from "./fs.js";
 import { loadConfig } from "../config.js";
-import { proxyLocalHttp } from "../tunnel.js";
+import { proxyLocalHttp, checkPortListening, getLocalIpAddresses } from "../tunnel.js";
 import {
   handleAutoHealerTrigger,
   handleAutoHealerApprove,
@@ -792,6 +792,84 @@ export class RpcDispatcher {
             bodyBase64: params.bodyBase64,
           });
           return { id: req.id, result };
+        }
+
+        case "preview.check_port": {
+          const port = parseInt(String(params.port), 10);
+          if (isNaN(port) || port < 1 || port > 65535) {
+            throw new Error(`Invalid local port: ${params.port}`);
+          }
+          const listening = await checkPortListening(port);
+          const lanIps = getLocalIpAddresses();
+          return {
+            id: req.id,
+            result: {
+              port,
+              listening,
+              lanIps,
+              hostname: os.hostname(),
+              localUrl: `http://localhost:${port}`,
+              lanUrl: lanIps.length > 0 ? `http://${lanIps[0]}:${port}` : undefined,
+            },
+          };
+        }
+
+        case "preview.detect_project": {
+          const targetCwd = params.cwd || process.cwd();
+          const pkgPath = path.join(targetCwd, "package.json");
+          let isReact = false;
+          let isVite = false;
+          let isNext = false;
+          let devScript: string | undefined = undefined;
+          let scripts: Record<string, string> = {};
+
+          if (fs.existsSync(pkgPath)) {
+            try {
+              const raw = fs.readFileSync(pkgPath, "utf-8");
+              const pkg = JSON.parse(raw);
+              scripts = pkg.scripts || {};
+              const deps = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+              isReact = Boolean(deps.react || deps["react-dom"]);
+              isVite = Boolean(deps.vite);
+              isNext = Boolean(deps.next);
+              devScript = scripts.dev ? "dev" : scripts.start ? "start" : undefined;
+            } catch {}
+          }
+
+          return {
+            id: req.id,
+            result: {
+              hasPackageJson: fs.existsSync(pkgPath),
+              isReact,
+              isVite,
+              isNext,
+              devScript,
+              scripts,
+              cwd: targetCwd,
+            },
+          };
+        }
+
+        case "preview.start_server": {
+          const targetCwd = params.cwd || process.cwd();
+          const cmd = params.command || (params.script ? `npm run ${params.script}` : "npm run dev");
+          const child = spawn(cmd, {
+            cwd: targetCwd,
+            shell: true,
+            detached: true,
+            stdio: "ignore",
+          });
+          child.unref();
+
+          return {
+            id: req.id,
+            result: {
+              ok: true,
+              pid: child.pid,
+              command: cmd,
+              cwd: targetCwd,
+            },
+          };
         }
 
         case "daemon.workers": {

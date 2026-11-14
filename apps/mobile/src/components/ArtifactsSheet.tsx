@@ -27,10 +27,15 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Maximize2,
+  Globe,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from './MarkdownText';
+import { SandboxedWebView } from './SandboxedWebView';
+import { PreviewCanvasModal } from './PreviewCanvasModal';
+import { isHtmlDocument, isSvgDocument, wrapSvgInHtml } from '../lib/react-template';
 import type { CliArtifact } from '@cloud-agent/cli-interface';
 import { copyToClipboard } from '../lib/clipboard';
 
@@ -66,6 +71,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
   const [selectedArtifact, setSelectedArtifact] = useState<CliArtifact | null>(null);
   const [content, setContent] = useState('');
   const [viewMode, setViewMode] = useState<'preview' | 'source'>('preview');
+  const [showCanvasModal, setShowCanvasModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -358,6 +364,18 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                   </TouchableOpacity>
                 </View>
 
+                {/* Full Screen Canvas Button for HTML/SVG */}
+                {(isHtmlDocument(content) || isSvgDocument(content) || (selectedArtifact.title || '').endsWith('.html') || (selectedArtifact.title || '').endsWith('.svg')) && (
+                  <TouchableOpacity
+                    style={[styles.copyBtn, isLight && styles.copyBtnLight, isSwiss && styles.copyBtnSwiss, { marginRight: 6 }]}
+                    onPress={() => setShowCanvasModal(true)}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Full Screen Preview Canvas"
+                  >
+                    <Maximize2 size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff'} />
+                  </TouchableOpacity>
+                )}
+
                 {/* Copy Button */}
                 <TouchableOpacity
                   style={[styles.copyBtn, isLight && styles.copyBtnLight, isSwiss && styles.copyBtnSwiss]}
@@ -398,7 +416,23 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
 
                   {/* Rendered or Raw Monospace */}
                   {viewMode === 'preview' ? (
-                    <MarkdownText content={content || '*(Empty file)*'} />
+                    isHtmlDocument(content) ||
+                    isSvgDocument(content) ||
+                    (selectedArtifact.title || '').endsWith('.html') ||
+                    (selectedArtifact.title || '').endsWith('.svg') ? (
+                      <View style={{ height: 440, borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: isLight ? '#e1e4e8' : 'rgba(255,255,255,0.12)', marginTop: 8 }}>
+                        <SandboxedWebView
+                          source={
+                            isSvgDocument(content)
+                              ? { html: wrapSvgInHtml(content, !isLight) }
+                              : { html: content }
+                          }
+                          style={{ flex: 1 }}
+                        />
+                      </View>
+                    ) : (
+                      <MarkdownText content={content || '*(Empty file)*'} />
+                    )
                   ) : (
                     <View style={[styles.sourceBox, isLight && styles.sourceBoxLight, isSwiss && styles.sourceBoxSwiss]}>
                       <Text style={[styles.sourceText, isLight && styles.sourceTextLight, isSwiss && styles.sourceTextSwiss]} selectable>
@@ -505,6 +539,26 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
           )}
         </Animated.View>
       </View>
+
+      {/* Full Screen Live Canvas Modal for Artifacts */}
+      <PreviewCanvasModal
+        visible={showCanvasModal}
+        target={
+          selectedArtifact
+            ? {
+                type: 'html_artifact',
+                id: selectedArtifact.id || selectedArtifact.title || 'artifact_preview',
+                title: selectedArtifact.title || 'Artifact Preview',
+                name: selectedArtifact.title || 'preview.html',
+                path: selectedArtifact.path,
+                htmlContent: content,
+              }
+            : null
+        }
+        htmlContent={content}
+        sourceCode={content}
+        onClose={() => setShowCanvasModal(false)}
+      />
     </Modal>
   );
 };

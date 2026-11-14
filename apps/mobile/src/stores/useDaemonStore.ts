@@ -547,6 +547,9 @@ interface DaemonStoreState {
   restartDaemonService: () => Promise<boolean>;
   stopDaemonService: () => Promise<boolean>;
   fetchDaemonLogs: (lines?: number) => Promise<void>;
+  checkPreviewPort: (port: number) => Promise<{ port: number; listening: boolean; lanIps: string[]; localUrl: string; lanUrl?: string } | null>;
+  detectPreviewProject: (cwd?: string) => Promise<{ hasPackageJson: boolean; isReact: boolean; isVite: boolean; isNext: boolean; devScript?: string; scripts: Record<string, string> } | null>;
+  startPreviewServer: (params?: { cwd?: string; command?: string; script?: string }) => Promise<{ ok: boolean; pid?: number; command?: string } | null>;
 }
 
 export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
@@ -2053,6 +2056,41 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       console.warn('[useDaemonStore] fetchDaemonLogs error:', err);
     } finally {
       set({ isLoadingDaemonLogs: false });
+    }
+  },
+
+  checkPreviewPort: async (port: number) => {
+    try {
+      const res = await mobileP2P.sendRpc<any>('preview.check_port', { port }, 5000);
+      return res || null;
+    } catch {
+      return null;
+    }
+  },
+
+  detectPreviewProject: async (cwd?: string) => {
+    try {
+      const activeSession = get().activeSession;
+      const targetCwd = cwd || activeSession?.workspacePath || get().targetWorkspacePath || undefined;
+      const res = await mobileP2P.sendRpc<any>('preview.detect_project', { cwd: targetCwd }, 5000);
+      return res || null;
+    } catch {
+      return null;
+    }
+  },
+
+  startPreviewServer: async (params?: { cwd?: string; command?: string; script?: string }) => {
+    try {
+      const activeSession = get().activeSession;
+      const targetCwd = params?.cwd || activeSession?.workspacePath || get().targetWorkspacePath || undefined;
+      const res = await mobileP2P.sendRpc<any>('preview.start_server', {
+        cwd: targetCwd,
+        command: params?.command,
+        script: params?.script,
+      }, 10000);
+      return res || null;
+    } catch {
+      return null;
     }
   },
 
