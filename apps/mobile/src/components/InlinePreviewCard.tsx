@@ -116,6 +116,15 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
     }
   };
 
+  const handleExpand = () => {
+    const enrichedTarget: PreviewTarget = {
+      ...liveTarget,
+      ...(liveTarget.type === 'html_artifact' ? { htmlContent: content } : {}),
+      ...(liveTarget.type === 'react_artifact' ? { code: content } : {}),
+    };
+    onExpand(enrichedTarget);
+  };
+
   // Resolve source for preview thumbnail
   let source: { html?: string; uri?: string } = { html: '' };
   if (liveTarget.type === 'dev_server') {
@@ -161,7 +170,7 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
 
         {liveTarget.type !== 'project_server' && (
           <TouchableOpacity
-            onPress={() => onExpand(liveTarget)}
+            onPress={handleExpand}
             style={[styles.expandBtn, isLight && styles.expandBtnLight, isSwiss && styles.expandBtnSwiss]}
             activeOpacity={0.7}
             accessibilityLabel="Expand Preview"
@@ -198,7 +207,7 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
         </View>
       ) : (
         <TouchableOpacity
-          onPress={() => onExpand(liveTarget)}
+          onPress={handleExpand}
           activeOpacity={0.92}
           style={styles.previewBox}
         >

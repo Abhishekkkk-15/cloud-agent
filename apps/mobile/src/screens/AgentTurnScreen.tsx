@@ -52,7 +52,6 @@ import {
   Brain,
   SlidersHorizontal,
   Command,
-  Plus,
   Mic,
   Layers,
   Square,
@@ -878,9 +877,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   const handleInputChange = (text: string) => {
     setPromptInput(text);
-    if (text.startsWith('/')) {
+    const trimmed = text.trimStart();
+    if (trimmed.startsWith('/') && !trimmed.includes(' ') && !trimmed.includes('\n')) {
       setShowCommandPicker(true);
-    } else if (showCommandPicker && !text.includes('/')) {
+    } else if (showCommandPicker) {
       setShowCommandPicker(false);
     }
   };
@@ -2142,19 +2142,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               />
             ) : (
               <AIInput.Toolbar>
-                {/* 1. Commands & Slash Command Picker (+) */}
-                <AIInput.Action
-                  label="Commands"
-                  icon={
-                    <Plus
-                      size={15}
-                      color={showCommandPicker ? (isSwiss ? '#DC201E' : isLight ? '#262626' : '#ffffff') : (isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3')}
-                    />
-                  }
-                  onPress={() => setShowCommandPicker((prev) => !prev)}
-                />
-
-                {/* 2. File Attach Action (Paperclip) - Only rendered when coding agent allows file upload */}
+                {/* 1. File Attach Action (Paperclip) - Only rendered when coding agent allows file upload */}
                 {allowFileUpload && (
                   <AIInput.Action
                     label="Attach"
@@ -2851,20 +2839,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 4,
-  },
-  composerPlusBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Platform.OS === 'ios' ? 2 : 1,
-  },
-  composerPlusBtnActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.20)',
-    borderWidth: 1,
   },
   composerTextInput: {
     flex: 1,

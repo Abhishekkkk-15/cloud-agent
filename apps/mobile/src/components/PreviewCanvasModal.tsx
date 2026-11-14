@@ -66,8 +66,6 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
   const [reloadKey, setReloadKey] = useState(0);
   const [isCopied, setIsCopied] = useState(false);
 
-  if (!target) return null;
-
   const fetchArtifactContent = useDaemonStore((s) => s.fetchArtifactContent);
   const targetPath = (target as any)?.path as string | undefined;
   const initialRaw = unescapeContent((target as any)?.htmlContent || (target as any)?.code || htmlContent || sourceCode);
@@ -76,7 +74,7 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
 
   useEffect(() => {
     if (!target) return;
-    const raw = unescapeContent((target as any).htmlContent || (target as any).code || htmlContent || sourceCode);
+    const raw = unescapeContent((target as any)?.htmlContent || (target as any)?.code || htmlContent || sourceCode);
     if (raw) {
       setContent(raw);
       setIsLoadingContent(false);
@@ -97,6 +95,8 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
         });
     }
   }, [target?.id, targetPath, (target as any)?.htmlContent, (target as any)?.code, htmlContent, sourceCode]);
+
+  if (!visible || !target) return null;
 
   // Resolve WebView source (either URL or compiled HTML)
   let source: { html?: string; uri?: string } = { html: '' };
