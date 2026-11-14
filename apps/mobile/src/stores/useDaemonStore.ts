@@ -979,6 +979,24 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           get().openAutoPrReview(event.review);
           return;
         }
+        if (event.type === 'github_agent.completed' && event.report) {
+          const report = event.report;
+          get().openAutoHealerProposal({
+            incidentId: `gh_${report.issueNumber}`,
+            title: `Issue #${report.issueNumber}: ${report.title}`,
+            description: report.summary,
+            source: 'github',
+            branchName: report.branchName,
+            diff: report.diff || '',
+            testCommand: 'pnpm test',
+            testOutput: report.testOutput || '',
+            testsPassed: report.testPassed,
+            createdAt: report.createdAt || new Date().toISOString(),
+            status: report.prUrl ? 'approved' : 'pending_review',
+            url: report.prUrl,
+          });
+          return;
+        }
 
         if (event.type === 'tool_approval_required' || event.type === 'ask_user' || event.type === 'permission_request') {
           const data = event.data || event;

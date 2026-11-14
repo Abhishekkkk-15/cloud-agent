@@ -223,6 +223,21 @@ export class DaemonHub {
   getConnectedCount(): number {
     return this.daemons.size;
   }
+
+  getOnlineMachineIds(): string[] {
+    const ids: string[] = [];
+    for (const [id, s] of this.daemons.entries()) {
+      if (s.ws.readyState === 1) ids.push(id);
+    }
+    return ids;
+  }
+
+  getFirstOnlineMachineId(): string | undefined {
+    for (const [id, s] of this.daemons.entries()) {
+      if (s.ws.readyState === 1) return id;
+    }
+    return undefined;
+  }
 }
 
 export const daemonHub = new DaemonHub();

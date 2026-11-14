@@ -29,6 +29,7 @@ import {
   handleAutoPrReview,
   handlePostPrReview,
 } from "./auto-healer.js";
+import { handleGithubAgentExecute } from "./github-agent.js";
 import {
   handleGithubStatus,
   handleGithubConfigure,
@@ -508,6 +509,17 @@ export class RpcDispatcher {
             verdict: params.verdict,
             body: params.body,
             workspacePath: params.workspacePath,
+          });
+          return { id: req.id, result };
+        }
+
+        case "github_agent.execute": {
+          if (!params.event) {
+            throw new Error("Missing 'event' parameter for github_agent.execute");
+          }
+          const result = await handleGithubAgentExecute({
+            cli: params.cli,
+            event: params.event,
           });
           return { id: req.id, result };
         }
