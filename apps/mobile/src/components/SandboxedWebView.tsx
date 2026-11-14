@@ -50,11 +50,15 @@ export const SandboxedWebView: React.FC<SandboxedWebViewProps> = ({
     );
   }
 
+  const webViewSource = source.uri
+    ? { uri: source.uri }
+    : { html: source.html || '', baseUrl: '' };
+
   return (
     <View style={[styles.container, style]} pointerEvents={pointerEvents}>
       <WebView
         ref={webViewRef}
-        source={source as any}
+        source={webViewSource}
         originWhitelist={['*']}
         javaScriptEnabled={true}
         domStorageEnabled={true}

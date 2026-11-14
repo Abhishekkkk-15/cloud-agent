@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,13 @@ import {
 import { useDaemonStore } from '../stores/useDaemonStore';
 import { toast } from 'panelui-native';
 import type { PreviewTarget } from '../lib/preview-detector';
-import { wrapReactComponentInHtml, wrapSvgInHtml, isSvgDocument } from '../lib/react-template';
+import {
+  wrapReactComponentInHtml,
+  wrapSvgInHtml,
+  isSvgDocument,
+  prepareHtmlForMobile,
+  unescapeContent,
+} from '../lib/react-template';
 
 interface InlinePreviewCardProps {
   target: PreviewTarget;
@@ -37,8 +43,38 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
   const isSwiss = theme === 'swiss';
 
   const startPreviewServer = useDaemonStore((s) => s.startPreviewServer);
+  const fetchArtifactContent = useDaemonStore((s) => s.fetchArtifactContent);
   const [isStartingServer, setIsStartingServer] = useState(false);
   const [liveTarget, setLiveTarget] = useState<PreviewTarget>(target);
+
+  const targetPath = (target as any).path as string | undefined;
+  const initialRaw = unescapeContent((target as any).htmlContent || (target as any).code || htmlContent || sourceCode);
+  const [content, setContent] = useState<string>(initialRaw);
+  const [isLoadingContent, setIsLoadingContent] = useState<boolean>(!initialRaw && Boolean(targetPath));
+
+  useEffect(() => {
+    setLiveTarget(target);
+    const raw = unescapeContent((target as any).htmlContent || (target as any).code || htmlContent || sourceCode);
+    if (raw) {
+      setContent(raw);
+      setIsLoadingContent(false);
+      return;
+    }
+
+    if (targetPath) {
+      setIsLoadingContent(true);
+      fetchArtifactContent(targetPath)
+        .then((fetched) => {
+          if (fetched) {
+            setContent(unescapeContent(fetched));
+          }
+          setIsLoadingContent(false);
+        })
+        .catch(() => {
+          setIsLoadingContent(false);
+        });
+    }
+  }, [target.id, targetPath, (target as any).htmlContent, (target as any).code, htmlContent, sourceCode]);
 
   const handleStartDevServer = async () => {
     setIsStartingServer(true);
@@ -85,19 +121,17 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
   if (liveTarget.type === 'dev_server') {
     source = { uri: liveTarget.url };
   } else if (liveTarget.type === 'react_artifact') {
-    const raw = liveTarget.code || sourceCode || htmlContent || '';
     source = {
-      html: wrapReactComponentInHtml(raw, {
+      html: wrapReactComponentInHtml(content, {
         isDark: !isLight,
         title: liveTarget.title,
       }),
     };
   } else if (liveTarget.type === 'html_artifact') {
-    const raw = liveTarget.htmlContent || htmlContent || sourceCode || '';
-    if (isSvgDocument(raw)) {
-      source = { html: wrapSvgInHtml(raw, !isLight) };
+    if (isSvgDocument(content)) {
+      source = { html: wrapSvgInHtml(content, !isLight) };
     } else {
-      source = { html: raw };
+      source = { html: prepareHtmlForMobile(content) };
     }
   }
 
@@ -168,14 +202,20 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
           activeOpacity={0.92}
           style={styles.previewBox}
         >
-          <View style={styles.webViewMask} pointerEvents="none">
-            <SandboxedWebView
-              source={source}
-              style={styles.miniWebView}
-              scrollEnabled={false}
-              pointerEvents="none"
-            />
-          </View>
+          {isLoadingContent ? (
+            <View style={[styles.miniWebView, { alignItems: 'center', justifyContent: 'center', backgroundColor: isLight ? '#f5f5f5' : '#141414' }]}>
+              <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : '#3b82f6'} />
+            </View>
+          ) : (
+            <View style={styles.webViewMask} pointerEvents="none">
+              <SandboxedWebView
+                source={source}
+                style={styles.miniWebView}
+                scrollEnabled={false}
+                pointerEvents="none"
+              />
+            </View>
+          )}
 
           {/* Footer Touch Bar */}
           <View style={[styles.footerBar, isLight && styles.footerBarLight, isSwiss && styles.footerBarSwiss]}>

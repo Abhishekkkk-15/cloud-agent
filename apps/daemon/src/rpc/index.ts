@@ -695,7 +695,7 @@ export class RpcDispatcher {
             params.mimeType,
             params.targetPath || params.targetDirectory
           );
-          return { id: req.id, result };
+          return { id: req.id, result: { ...result, name: result.filename } };
         }
 
         case "fs.write": {

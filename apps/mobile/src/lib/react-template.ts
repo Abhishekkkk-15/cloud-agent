@@ -3,7 +3,36 @@
  * Automatically handles raw HTML, SVG documents, and standalone React/JSX components.
  */
 
+export function unescapeContent(raw?: unknown): string {
+  if (!raw || typeof raw !== 'string') return '';
+  let text = raw.trim();
+
+  // If it's a JSON-stringified string (e.g. "\"<!DOCTYPE html>\\n...\"")
+  if (text.startsWith('"') && text.endsWith('"') && text.length >= 2) {
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed === 'string') {
+        text = parsed;
+      }
+    } catch {
+      text = text.slice(1, -1);
+    }
+  }
+
+  // Handle literal escaped newlines if real newlines don't exist
+  if (text.includes('\\n') && !text.includes('\n')) {
+    text = text
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"');
+  }
+
+  return text;
+}
+
 export function isHtmlDocument(content: string): boolean {
+  if (!content) return false;
   const trimmed = content.trim().toLowerCase();
   return (
     trimmed.startsWith('<!doctype html') ||
@@ -13,8 +42,28 @@ export function isHtmlDocument(content: string): boolean {
 }
 
 export function isSvgDocument(content: string): boolean {
+  if (!content) return false;
   const trimmed = content.trim().toLowerCase();
   return trimmed.startsWith('<svg') || (trimmed.startsWith('<?xml') && trimmed.includes('<svg'));
+}
+
+export function prepareHtmlForMobile(html: string): string {
+  if (!html) return '';
+  let prepared = unescapeContent(html);
+
+  // If it's an HTML document and lacks a viewport meta tag, inject one inside <head>
+  if (isHtmlDocument(prepared) && !prepared.includes('name="viewport"') && !prepared.includes("name='viewport'")) {
+    const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />';
+    if (prepared.includes('<head>')) {
+      prepared = prepared.replace('<head>', `<head>${viewportMeta}`);
+    } else if (prepared.includes('<head ')) {
+      prepared = prepared.replace(/<head[^>]*>/, `$&${viewportMeta}`);
+    } else if (prepared.includes('<html>') || prepared.includes('<html ')) {
+      prepared = prepared.replace(/<html[^>]*>/, `$&<head>${viewportMeta}</head>`);
+    }
+  }
+
+  return prepared;
 }
 
 export function wrapSvgInHtml(svgContent: string, isDark: boolean = true): string {

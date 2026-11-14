@@ -60,7 +60,10 @@ function normalizeToolArgs(args: unknown): Record<string, unknown> | string {
             continue;
           }
         } catch {
-          // keep as raw string
+          if (val.startsWith('"') && val.endsWith('"') && val.length >= 2) {
+            normalized[key] = val.slice(1, -1).replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, '"');
+            continue;
+          }
         }
       }
       normalized[key] = val;

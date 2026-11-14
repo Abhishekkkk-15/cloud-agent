@@ -917,6 +917,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         name: item.name,
         base64,
         mimeType: item.mimeType,
+        targetPath: activeSession?.workspacePath,
         sessionId: activeSession?.id,
       });
 

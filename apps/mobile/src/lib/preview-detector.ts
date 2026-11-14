@@ -1,5 +1,6 @@
 import type { CliArtifact } from '@cloud-agent/cli-interface';
 import type { ActionStep } from '../components/ToolActionTray';
+import { unescapeContent } from './react-template';
 
 export type PreviewTarget =
   | {
@@ -98,24 +99,25 @@ export function detectPreviewTarget(options: {
       action.toolName === 'write_file' ||
       action.toolName === 'edit_file';
 
-    const filePath =
+    const rawPath =
       action.args?.Path ||
       action.args?.path ||
       action.args?.filePath ||
       '';
-    const cleanPath = String(filePath).trim();
+    const cleanPath = String(rawPath).replace(/^["']|["']$/g, '').trim();
 
     if (cleanPath) {
       if (/\.(html|htm|svg)$/i.test(cleanPath)) {
         const fileName = cleanPath.split(/[\\/]/).pop() || 'preview.html';
-        const fileContent = action.args?.Content || action.args?.content;
+        const rawContent = action.args?.Content || action.args?.content || action.args?.Replacement;
+        const htmlContent = unescapeContent(rawContent) || undefined;
         return {
           type: 'html_artifact',
           id: `html_${fileName}`,
           title: fileName,
           name: fileName,
           path: cleanPath,
-          htmlContent: typeof fileContent === 'string' ? fileContent : undefined,
+          htmlContent,
         };
       }
 
@@ -125,14 +127,15 @@ export function detectPreviewTarget(options: {
         /([A-Z][a-zA-Z0-9]+)\.(tsx|jsx)$/.test(cleanPath)
       ) {
         const fileName = cleanPath.split(/[\\/]/).pop() || 'Component.tsx';
-        const fileContent = action.args?.Content || action.args?.content;
+        const rawContent = action.args?.Content || action.args?.content || action.args?.Replacement;
+        const code = unescapeContent(rawContent) || undefined;
         return {
           type: 'react_artifact',
           id: `react_${fileName}`,
           title: fileName,
           name: fileName,
           path: cleanPath,
-          code: typeof fileContent === 'string' ? fileContent : undefined,
+          code,
         };
       }
     }
@@ -156,9 +159,13 @@ export function detectPreviewTarget(options: {
 
   // 4. Check if turn created or edited a React/Vite project without running a server yet
   for (const action of actions) {
-    const filePath = String(
-      action.args?.Path || action.args?.path || action.title || ''
-    );
+    const rawPath =
+      action.args?.Path ||
+      action.args?.path ||
+      action.args?.filePath ||
+      action.title ||
+      '';
+    const filePath = String(rawPath).replace(/^["']|["']$/g, '').trim();
     if (
       filePath.includes('package.json') ||
       filePath.includes('vite.config') ||

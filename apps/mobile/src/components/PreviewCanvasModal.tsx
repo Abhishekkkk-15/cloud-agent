@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,7 +29,13 @@ import { useDaemonStore } from '../stores/useDaemonStore';
 import { copyToClipboard } from '../lib/clipboard';
 import { toast } from 'panelui-native';
 import type { PreviewTarget } from '../lib/preview-detector';
-import { wrapReactComponentInHtml, wrapSvgInHtml, isSvgDocument } from '../lib/react-template';
+import {
+  wrapReactComponentInHtml,
+  wrapSvgInHtml,
+  isSvgDocument,
+  prepareHtmlForMobile,
+  unescapeContent,
+} from '../lib/react-template';
 
 interface PreviewCanvasModalProps {
   visible: boolean;
@@ -61,28 +68,54 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
 
   if (!target) return null;
 
+  const fetchArtifactContent = useDaemonStore((s) => s.fetchArtifactContent);
+  const targetPath = (target as any)?.path as string | undefined;
+  const initialRaw = unescapeContent((target as any)?.htmlContent || (target as any)?.code || htmlContent || sourceCode);
+  const [content, setContent] = useState<string>(initialRaw);
+  const [isLoadingContent, setIsLoadingContent] = useState<boolean>(!initialRaw && Boolean(targetPath));
+
+  useEffect(() => {
+    if (!target) return;
+    const raw = unescapeContent((target as any).htmlContent || (target as any).code || htmlContent || sourceCode);
+    if (raw) {
+      setContent(raw);
+      setIsLoadingContent(false);
+      return;
+    }
+
+    if (targetPath) {
+      setIsLoadingContent(true);
+      fetchArtifactContent(targetPath)
+        .then((fetched) => {
+          if (fetched) {
+            setContent(unescapeContent(fetched));
+          }
+          setIsLoadingContent(false);
+        })
+        .catch(() => {
+          setIsLoadingContent(false);
+        });
+    }
+  }, [target?.id, targetPath, (target as any)?.htmlContent, (target as any)?.code, htmlContent, sourceCode]);
+
   // Resolve WebView source (either URL or compiled HTML)
   let source: { html?: string; uri?: string } = { html: '' };
-  let effectiveCode = sourceCode || htmlContent;
+  let effectiveCode = content || sourceCode || htmlContent || '';
 
-  if (target.type === 'dev_server') {
+  if (target?.type === 'dev_server') {
     source = { uri: target.url };
-  } else if (target.type === 'react_artifact') {
-    const rawCode = target.code || sourceCode || htmlContent;
-    effectiveCode = rawCode;
+  } else if (target?.type === 'react_artifact') {
     source = {
-      html: wrapReactComponentInHtml(rawCode, {
+      html: wrapReactComponentInHtml(content, {
         isDark: !isLight,
         title: target.title,
       }),
     };
-  } else if (target.type === 'html_artifact') {
-    const rawHtml = target.htmlContent || htmlContent || sourceCode;
-    effectiveCode = rawHtml;
-    if (isSvgDocument(rawHtml)) {
-      source = { html: wrapSvgInHtml(rawHtml, !isLight) };
+  } else if (target?.type === 'html_artifact') {
+    if (isSvgDocument(content)) {
+      source = { html: wrapSvgInHtml(content, !isLight) };
     } else {
-      source = { html: rawHtml };
+      source = { html: prepareHtmlForMobile(content) };
     }
   }
 
@@ -230,11 +263,17 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
                 { width: getViewportWidth() },
               ]}
             >
-              <SandboxedWebView
-                key={`webview_${reloadKey}`}
-                source={source}
-                style={styles.webViewFill}
-              />
+              {isLoadingContent ? (
+                <View style={[styles.webViewFill, { alignItems: 'center', justifyContent: 'center' }]}>
+                  <ActivityIndicator size="small" color={isSwiss ? '#DC201E' : '#3b82f6'} />
+                </View>
+              ) : (
+                <SandboxedWebView
+                  key={`webview_${reloadKey}`}
+                  source={source}
+                  style={styles.webViewFill}
+                />
+              )}
             </View>
           ) : (
             <View style={[styles.codeContainer, isLight && styles.codeContainerLight, isSwiss && styles.codeContainerSwiss]}>

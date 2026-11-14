@@ -35,7 +35,7 @@ import { useDaemonStore } from '../stores/useDaemonStore';
 import { MarkdownText } from './MarkdownText';
 import { SandboxedWebView } from './SandboxedWebView';
 import { PreviewCanvasModal } from './PreviewCanvasModal';
-import { isHtmlDocument, isSvgDocument, wrapSvgInHtml } from '../lib/react-template';
+import { isHtmlDocument, isSvgDocument, wrapSvgInHtml, prepareHtmlForMobile } from '../lib/react-template';
 import type { CliArtifact } from '@cloud-agent/cli-interface';
 import { copyToClipboard } from '../lib/clipboard';
 
@@ -425,7 +425,7 @@ export const ArtifactsSheet: React.FC<ArtifactsSheetProps> = ({
                           source={
                             isSvgDocument(content)
                               ? { html: wrapSvgInHtml(content, !isLight) }
-                              : { html: content }
+                              : { html: prepareHtmlForMobile(content) }
                           }
                           style={{ flex: 1 }}
                         />

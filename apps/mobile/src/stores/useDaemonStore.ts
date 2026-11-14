@@ -2518,17 +2518,22 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       const activeSession = get().activeSession;
       const targetSessionId = sessionId || activeSession?.id;
-      const resp = await mobileP2P.sendRpc<any>('agent.upload_attachment', {
-        sessionId: targetSessionId,
-        name,
-        base64,
-        mimeType,
-        targetPath,
-      });
-      if (resp && resp.path) {
+      const resp = await mobileP2P.sendRpc<any>(
+        'agent.upload_attachment',
+        {
+          sessionId: targetSessionId,
+          name,
+          base64,
+          mimeType,
+          targetPath,
+        },
+        60000
+      );
+      const resolvedPath = resp?.path || resp?.hostPath;
+      if (resp && resolvedPath) {
         return {
-          name: resp.name || name,
-          path: resp.path,
+          name: resp.name || resp.filename || name,
+          path: resolvedPath,
           size: resp.size || 0,
           mimeType: resp.mimeType || mimeType,
         };

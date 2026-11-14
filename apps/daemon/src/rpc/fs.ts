@@ -101,6 +101,7 @@ export interface SavedAttachmentResult {
   ok: boolean;
   filename: string;
   hostPath: string;
+  path: string;
   mimeType: string;
   size: number;
 }
@@ -132,13 +133,15 @@ export function saveSessionAttachment(
   }
 
   const finalPath = path.join(targetDir, cleanFilename);
-  const buffer = Buffer.from(base64Data, "base64");
+  const cleanBase64 = (base64Data || "").replace(/^data:[^;]+;base64,/, "");
+  const buffer = Buffer.from(cleanBase64, "base64");
   fs.writeFileSync(finalPath, buffer);
 
   return {
     ok: true,
     filename: cleanFilename,
     hostPath: finalPath,
+    path: finalPath,
     mimeType: mimeType || "application/octet-stream",
     size: buffer.length,
   };
