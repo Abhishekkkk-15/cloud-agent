@@ -42,6 +42,13 @@ export interface CliToolCall {
   arguments: Record<string, unknown> | string;
 }
 
+export interface CliAttachment {
+  name: string;
+  path: string;
+  mimeType?: string;
+  size?: number;
+}
+
 export interface CliMessage {
   id?: string;
   role: CliRole;
@@ -51,6 +58,7 @@ export interface CliMessage {
   reasoning?: string;
   toolCalls?: CliToolCall[];
   toolCallId?: string;
+  attachments?: CliAttachment[];
 }
 
 export interface CliArtifact {
@@ -114,6 +122,8 @@ export interface CliCapabilities {
   supportsEffort: boolean;
   supportedEffortLevels: CliEffortLevel[];
   defaultEffort: CliEffortLevel;
+  /** Whether file uploads are allowed and supported by this CLI in headless runtime */
+  allowFileUpload?: boolean;
   /** Tool execution permission & HITL capabilities */
   permissions: CliPermissionCapability;
   /** Model discovery capabilities */
@@ -134,6 +144,7 @@ export interface CliRunOptions {
   mode?: CliExecutionMode;
   dangerouslySkipPermissions?: boolean;
   env?: Record<string, string>;
+  attachments?: CliAttachment[];
 }
 
 export interface CliPtyOptions {

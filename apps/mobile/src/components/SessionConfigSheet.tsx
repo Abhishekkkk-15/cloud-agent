@@ -533,6 +533,16 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                   </Text>
                 </View>
               )}
+
+              {/* File Upload Capability Notice if disabled */}
+              {cliCapabilities?.allowFileUpload === false && (
+                <View style={[styles.permissionNotice, isLight && styles.permissionNoticeLight, isSwiss && styles.permissionNoticeSwiss, { marginTop: 12 }]}>
+                  <AlertTriangle size={14} color={isSwiss ? '#DC201E' : '#3b82f6'} style={{ marginTop: 1 }} />
+                  <Text style={[styles.permissionNoticeText, isLight && styles.permissionNoticeTextLight, isSwiss && styles.permissionNoticeTextSwiss]}>
+                    File uploads are disabled for {cliCapabilities.displayName || 'this CLI'} in headless mode.
+                  </Text>
+                </View>
+              )}
             </View>
           </ScrollView>
 

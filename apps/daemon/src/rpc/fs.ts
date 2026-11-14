@@ -81,12 +81,67 @@ export function readFileContent(filePath: string): string {
   return fs.readFileSync(filePath, "utf8");
 }
 
-export function writeFileContent(filePath: string, content: string): void {
+export function writeFileContent(
+  filePath: string,
+  content: string,
+  encoding: "utf8" | "base64" = "utf8"
+): void {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(filePath, content, "utf8");
+  if (encoding === "base64") {
+    fs.writeFileSync(filePath, Buffer.from(content, "base64"));
+  } else {
+    fs.writeFileSync(filePath, content, "utf8");
+  }
+}
+
+export interface SavedAttachmentResult {
+  ok: boolean;
+  filename: string;
+  hostPath: string;
+  mimeType: string;
+  size: number;
+}
+
+/**
+ * Saves a file upload attachment to the session media directory or a target directory.
+ */
+export function saveSessionAttachment(
+  sessionId: string,
+  filename: string,
+  base64Data: string,
+  mimeType?: string,
+  targetDirectory?: string
+): SavedAttachmentResult {
+  // Sanitize filename to prevent directory traversal
+  const cleanFilename = path.basename(filename).replace(/[\\/:*?"<>|]/g, "_");
+
+  let targetDir: string;
+  if (targetDirectory && targetDirectory.trim()) {
+    targetDir = path.resolve(targetDirectory.trim());
+  } else {
+    // Default session attachments directory in user's home .gemini / .cloud-agent directory
+    const home = os.homedir();
+    targetDir = path.join(home, ".gemini", "antigravity-cli", "brain", sessionId, ".user_uploaded");
+  }
+
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  const finalPath = path.join(targetDir, cleanFilename);
+  const buffer = Buffer.from(base64Data, "base64");
+  fs.writeFileSync(finalPath, buffer);
+
+  return {
+    ok: true,
+    filename: cleanFilename,
+    hostPath: finalPath,
+    mimeType: mimeType || "application/octet-stream",
+    size: buffer.length,
+  };
 }
 
 export interface ListDirectoriesResult {

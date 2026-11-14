@@ -13,7 +13,14 @@ import {
   handleSessionPin,
 } from "./session.js";
 import { handleAgentRun, handleAgentCancel, handleRespondPermission } from "./run.js";
-import { buildFileTree, readFileContent, writeFileContent, listDirectories, createDirectory } from "./fs.js";
+import {
+  buildFileTree,
+  readFileContent,
+  writeFileContent,
+  listDirectories,
+  createDirectory,
+  saveSessionAttachment,
+} from "./fs.js";
 import { loadConfig } from "../config.js";
 import { proxyLocalHttp } from "../tunnel.js";
 import {
@@ -135,6 +142,10 @@ export class RpcDispatcher {
           try {
             const activeAdapter = registry.get(params.cli);
             capabilities = await activeAdapter.getCapabilities();
+            const cfg = loadConfig();
+            if (cfg.allowFileUpload === false && capabilities) {
+              capabilities.allowFileUpload = false;
+            }
           } catch {
             // ignore if no adapter registered yet
           }
@@ -158,6 +169,10 @@ export class RpcDispatcher {
         case "cli.capabilities": {
           const adapter = registry.get(params.cli);
           const capabilities = await adapter.getCapabilities();
+          const cfg = loadConfig();
+          if (cfg.allowFileUpload === false && capabilities) {
+            capabilities.allowFileUpload = false;
+          }
           return { id: req.id, result: capabilities };
         }
 
@@ -257,11 +272,13 @@ export class RpcDispatcher {
               : crypto.randomUUID();
 
           const targetCwd = params.options?.cwd || params.cwd;
+          const attachments = params.attachments || params.options?.attachments;
           const options = {
             ...(params.options || {}),
             prompt,
             sessionId,
             ...(targetCwd ? { cwd: targetCwd } : {}),
+            ...(attachments ? { attachments } : {}),
           };
 
           if (!onStream) {
@@ -631,11 +648,50 @@ export class RpcDispatcher {
           return { id: req.id, result: { content } };
         }
 
+        case "agent.upload_attachment":
+        case "attachment.upload": {
+          const cfg = loadConfig();
+          let adapterAllowed = true;
+          try {
+            const adapter = registry.get(params.cli);
+            const caps = await adapter.getCapabilities();
+            if (caps && caps.allowFileUpload === false) {
+              adapterAllowed = false;
+            }
+          } catch {
+            // ignore if no adapter specified
+          }
+
+          if (cfg.allowFileUpload === false || !adapterAllowed) {
+            throw new Error("File uploads are disabled by CLI adapter capability or host daemon configuration");
+          }
+
+          const rawSessionId = params.sessionId || params.options?.sessionId;
+          const sessionId =
+            rawSessionId && rawSessionId !== "default"
+              ? rawSessionId
+              : crypto.randomUUID();
+          const filename = params.filename || params.name;
+          const base64 = params.base64 || params.content;
+          if (!filename || !base64) {
+            throw new Error("Missing filename or base64 data");
+          }
+          const result = saveSessionAttachment(
+            sessionId,
+            filename,
+            base64,
+            params.mimeType,
+            params.targetPath || params.targetDirectory
+          );
+          return { id: req.id, result };
+        }
+
         case "fs.write": {
           if (!params.path || typeof params.content !== "string") {
             throw new Error("Missing path or content param");
           }
-          writeFileContent(params.path, params.content);
+          const encoding = params.encoding === "base64" ? "base64" : "utf8";
+          writeFileContent(params.path, params.content, encoding);
           return { id: req.id, result: { ok: true } };
         }
 

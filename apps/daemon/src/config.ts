@@ -12,6 +12,7 @@ export interface DaemonConfig {
   defaultCli?: string;
   heartbeatIntervalMs?: number;
   githubToken?: string;
+  allowFileUpload?: boolean;
 }
 
 export function getConfigPath(): string {
@@ -60,6 +61,9 @@ export function ensureDefaultConfig(): DaemonConfig {
     allowedWorkspaces: [process.cwd()],
     defaultCli: "antigravity",
     heartbeatIntervalMs: 15000,
+    allowFileUpload:
+      process.env.CLOUD_AGENT_ALLOW_FILE_UPLOAD !== "false" &&
+      process.env.CLOUD_AGENT_ALLOW_FILE_UPLOAD !== "0",
   };
 
   saveConfig(defaults);

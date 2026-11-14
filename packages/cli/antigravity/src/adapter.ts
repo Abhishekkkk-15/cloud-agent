@@ -240,6 +240,7 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
       supportsEffort: true,
       supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
       defaultEffort: "high",
+      allowFileUpload: true,
       permissions: {
         supportsHeadlessHitl: false,
         requiresBypassInHeadless: true,

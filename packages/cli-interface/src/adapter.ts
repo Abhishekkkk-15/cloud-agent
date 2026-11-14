@@ -153,6 +153,7 @@ export abstract class BaseCliAdapter implements ICliAdapter {
       supportsEffort: false,
       supportedEffortLevels: [],
       defaultEffort: "high",
+      allowFileUpload: true,
       permissions: {
         supportsHeadlessHitl: false,
         requiresBypassInHeadless: true,

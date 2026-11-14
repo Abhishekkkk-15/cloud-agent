@@ -181,6 +181,12 @@ export interface RealMessageItem {
   content: string;
   timestamp: string;
   reasoning?: string;
+  attachments?: Array<{
+    name: string;
+    path: string;
+    mimeType?: string;
+    size?: number;
+  }>;
   toolCalls?: Array<{
     id: string;
     name: string;
@@ -321,6 +327,7 @@ export const DEFAULT_ANTIGRAVITY_CAPABILITIES: CliCapabilities = {
   supportsEffort: true,
   supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
   defaultEffort: 'high',
+  allowFileUpload: true,
   permissions: {
     supportsHeadlessHitl: false,
     requiresBypassInHeadless: true,
@@ -509,7 +516,17 @@ interface DaemonStoreState {
   loadOlderMessages: () => Promise<void>;
   reconcileActiveSession: () => Promise<void>;
   subscribeToSessionStream: (sessionId: string) => Promise<void>;
-  sendPrompt: (promptText: string) => Promise<void>;
+  sendPrompt: (
+    promptText: string,
+    attachments?: Array<{ name: string; path: string; mimeType?: string; size?: number }>
+  ) => Promise<void>;
+  uploadAttachment: (params: {
+    name: string;
+    base64: string;
+    mimeType?: string;
+    targetPath?: string;
+    sessionId?: string;
+  }) => Promise<{ name: string; path: string; size: number; mimeType?: string } | null>;
   cancelPrompt: () => Promise<boolean>;
   respondApproval: (allowed: boolean) => Promise<void>;
   dismissPendingApproval: () => void;
@@ -2441,8 +2458,34 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }
   },
 
-  sendPrompt: async (promptText: string) => {
-    if (!promptText.trim()) return;
+  uploadAttachment: async ({ name, base64, mimeType, targetPath, sessionId }) => {
+    try {
+      const activeSession = get().activeSession;
+      const targetSessionId = sessionId || activeSession?.id;
+      const resp = await mobileP2P.sendRpc<any>('agent.upload_attachment', {
+        sessionId: targetSessionId,
+        name,
+        base64,
+        mimeType,
+        targetPath,
+      });
+      if (resp && resp.path) {
+        return {
+          name: resp.name || name,
+          path: resp.path,
+          size: resp.size || 0,
+          mimeType: resp.mimeType || mimeType,
+        };
+      }
+      return null;
+    } catch (err) {
+      console.error('[DaemonStore] uploadAttachment failed:', err);
+      return null;
+    }
+  },
+
+  sendPrompt: async (promptText: string, attachments?: Array<{ name: string; path: string; mimeType?: string; size?: number }>) => {
+    if (!promptText.trim() && (!attachments || attachments.length === 0)) return;
 
     if (!get().isNetworkOnline) {
       Alert.alert(
@@ -2462,9 +2505,10 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       const cleanPath = (effectiveCwd || '').replace(/\\/g, '/');
       const parts = cleanPath.split('/').filter(Boolean);
       const workspaceName = parts.length > 0 ? parts[parts.length - 1] : 'default';
+      const promptSnippet = promptText.trim() || (attachments?.[0]?.name ? `Attached: ${attachments[0].name}` : 'New session');
       const optimisticSession: RealSessionItem = {
         id: targetSessionId,
-        title: promptText.length > 80 ? `${promptText.slice(0, 77)}...` : promptText,
+        title: promptSnippet.length > 80 ? `${promptSnippet.slice(0, 77)}...` : promptSnippet,
         workspacePath: effectiveCwd || '',
         workspaceName,
         createdAt: new Date().toISOString(),
@@ -2485,6 +2529,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       role: 'user',
       content: promptText,
       timestamp: new Date().toISOString(),
+      attachments: attachments && attachments.length > 0 ? attachments : undefined,
     };
     set((state) => ({
       sessionMessages: [...state.sessionMessages, userMsg],
@@ -2502,7 +2547,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           effort: sessionConfig.effort,
           mode: sessionConfig.mode,
           dangerouslySkipPermissions: skipPermissions,
+          attachments,
         },
+        attachments,
         prompt: promptText,
         sessionId: targetSessionId,
         cwd: effectiveCwd,

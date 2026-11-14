@@ -20,6 +20,7 @@ import {
   LayoutAnimation,
   UIManager,
   LayoutChangeEvent,
+  Image as RNImage,
 } from 'react-native';
 import AnimatedReanimated, {
   useSharedValue,
@@ -64,6 +65,8 @@ import {
   GitBranch,
   BookOpen,
   Cpu,
+  Paperclip,
+  ImageIcon,
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors, getGlossyHeaderTokens } from '../theme/tokens';
 import { useDaemonStore } from '../stores/useDaemonStore';
@@ -77,6 +80,7 @@ import {
   Spinner,
   toast,
   EmptyState,
+  Attachment,
 } from 'panelui-native';
 import { ToolActionTray, type ActionStep } from '../components/ToolActionTray';
 import { SlashCommandPicker, type SlashCommandItem } from '../components/SlashCommandPicker';
@@ -87,8 +91,24 @@ import { ArtifactsSheet } from '../components/ArtifactsSheet';
 import { AutoHealerModal } from '../components/AutoHealerModal';
 import { AskQuestionCard } from '../components/AskQuestionCard';
 import { ProcessManagerSheet } from '../components/ProcessManagerSheet';
+import { AttachmentPickerSheet } from '../components/AttachmentPickerSheet';
 import { startDictation, stopDictation, isSpeechRecognitionSupported } from '../lib/speech';
 import { copyToClipboard } from '../lib/clipboard';
+import { formatFileSize, guessMimeType, readUriAsBase64 } from '../lib/attachments';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+
+export interface StagedAttachment {
+  id: string;
+  name: string;
+  size?: number;
+  mimeType?: string;
+  uri: string;
+  state: 'idle' | 'uploading' | 'processing' | 'error' | 'done';
+  progress?: number;
+  hostPath?: string;
+  error?: string;
+}
 
 interface AgentTurnScreenProps {
   onBack?: () => void;
@@ -107,6 +127,12 @@ interface ChatTurn {
     id: string;
     content: string;
     timestamp?: string;
+    attachments?: Array<{
+      name: string;
+      path: string;
+      mimeType?: string;
+      size?: number;
+    }>;
   };
   assistant?: {
     id: string;
@@ -171,7 +197,7 @@ const TurnCard = React.memo<TurnCardProps>(
     return (
       <View key={turn.id} style={styles.turnCardContainer}>
         {/* User Prompt: Paradev OutgoingBubble */}
-        {turn.userMessage?.content ? (
+        {turn.userMessage?.content || (turn.userMessage?.attachments && turn.userMessage.attachments.length > 0) ? (
           <View style={styles.userBubbleWrapper}>
             <View
               style={[
@@ -188,9 +214,42 @@ const TurnCard = React.memo<TurnCardProps>(
                 },
               ]}
             >
-              <Text selectable style={[styles.userBubbleText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>
-                {turn.userMessage.content}
-              </Text>
+              {turn.userMessage.attachments && turn.userMessage.attachments.length > 0 ? (
+                <View className="mb-2 gap-1.5">
+                  {turn.userMessage.attachments.map((att, attIdx) => {
+                    const isImg =
+                      att.mimeType?.startsWith('image/') ||
+                      /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name);
+                    return (
+                      <Attachment
+                        key={`att_${attIdx}_${att.name}`}
+                        state="done"
+                        size="sm"
+                        className={
+                          isLight
+                            ? 'bg-surface border-border'
+                            : 'bg-surface-secondary border-border'
+                        }
+                      >
+                        <Attachment.Media variant={isImg ? 'image' : 'icon'}>
+                          <FileText size={14} color={isSwiss ? '#DC201E' : '#3b82f6'} />
+                        </Attachment.Media>
+                        <Attachment.Content>
+                          <Attachment.Title numberOfLines={1}>{att.name}</Attachment.Title>
+                          <Attachment.Description>
+                            {att.size ? formatFileSize(att.size) : 'Uploaded to workspace'}
+                          </Attachment.Description>
+                        </Attachment.Content>
+                      </Attachment>
+                    );
+                  })}
+                </View>
+              ) : null}
+              {turn.userMessage.content ? (
+                <Text selectable style={[styles.userBubbleText, isLight && { color: isSwiss ? '#111010' : '#1f2328' }]}>
+                  {turn.userMessage.content}
+                </Text>
+              ) : null}
             </View>
             <View style={styles.userBubbleMeta}>
               <Text style={[styles.userBubbleMetaText, isLight && { color: isSwiss ? '#6B665E' : '#8c959f' }]}>
@@ -409,15 +468,20 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const deleteSession = useDaemonStore((s) => s.deleteSession);
   const sessionArtifacts = useDaemonStore((s) => s.sessionArtifacts);
   const fetchSessionArtifacts = useDaemonStore((s) => s.fetchSessionArtifacts);
+  const uploadAttachment = useDaemonStore((s) => s.uploadAttachment);
   const isAutoHealerModalVisible = useDaemonStore((s) => s.isAutoHealerModalVisible);
   const dismissAutoHealer = useDaemonStore((s) => s.dismissAutoHealer);
   const theme = useDaemonStore((s) => s.theme);
   const isLight = theme === 'light' || theme === 'swiss';
   const isSwiss = theme === 'swiss';
   const availableModels = useDaemonStore((s) => s.availableModels);
+  const cliCapabilities = useDaemonStore((s) => s.cliCapabilities);
+  const allowFileUpload = cliCapabilities?.allowFileUpload !== false;
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight, isSwiss), [isLight, isSwiss]);
 
   const [promptInput, setPromptInput] = useState('');
+  const [stagedAttachments, setStagedAttachments] = useState<StagedAttachment[]>([]);
+  const [showAttachmentPicker, setShowAttachmentPicker] = useState(false);
   const [showCommandPicker, setShowCommandPicker] = useState(false);
   const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
@@ -823,14 +887,238 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     }
   };
 
+  const uploadFileItem = async (item: StagedAttachment) => {
+    if (!allowFileUpload) {
+      toast.show({
+        variant: 'warning',
+        label: 'Upload Disabled',
+        description: 'File upload is disabled for the active coding agent.',
+      });
+      return;
+    }
+    try {
+      const base64 = await readUriAsBase64(item.uri);
+      const res = await uploadAttachment({
+        name: item.name,
+        base64,
+        mimeType: item.mimeType,
+        sessionId: activeSession?.id,
+      });
+
+      if (res && res.path) {
+        setStagedAttachments((prev) =>
+          prev.map((att) =>
+            att.id === item.id
+              ? { ...att, state: 'done', progress: 1.0, hostPath: res.path }
+              : att
+          )
+        );
+      } else {
+        setStagedAttachments((prev) =>
+          prev.map((att) =>
+            att.id === item.id
+              ? { ...att, state: 'error', progress: 0, error: 'Upload failed' }
+              : att
+          )
+        );
+        toast.show({
+          variant: 'destructive',
+          label: 'Upload Failed',
+          description: `Could not upload ${item.name} to host`,
+        });
+      }
+    } catch (err: any) {
+      setStagedAttachments((prev) =>
+        prev.map((att) =>
+          att.id === item.id
+            ? { ...att, state: 'error', progress: 0, error: err?.message || 'Upload failed' }
+            : att
+        )
+      );
+      toast.show({
+        variant: 'destructive',
+        label: 'Upload Error',
+        description: err?.message || `Failed to process ${item.name}`,
+      });
+    }
+  };
+
+  const handlePickImages = async () => {
+    if (!allowFileUpload) {
+      toast.show({
+        variant: 'warning',
+        label: 'Upload Disabled',
+        description: 'File upload is disabled for the active coding agent.',
+      });
+      return;
+    }
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Photo Library Permission',
+          'Please allow photo library access in your system settings to upload images.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+        allowsMultipleSelection: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const newItems: StagedAttachment[] = result.assets.map((asset, idx) => {
+        const rawName = asset.fileName || asset.uri.split('/').pop() || `image_${Date.now()}_${idx}.jpg`;
+        const mime = asset.mimeType || guessMimeType(rawName);
+        return {
+          id: `att_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+          name: rawName,
+          size: asset.fileSize,
+          mimeType: mime,
+          uri: asset.uri,
+          state: 'uploading',
+          progress: 0.35,
+        };
+      });
+
+      setStagedAttachments((prev) => [...prev, ...newItems]);
+      for (const item of newItems) {
+        uploadFileItem(item);
+      }
+    } catch (err: any) {
+      toast.show({
+        variant: 'destructive',
+        label: 'Image Picker Error',
+        description: err?.message || 'Could not open image library',
+      });
+    }
+  };
+
+  const handleCaptureCamera = async () => {
+    if (!allowFileUpload) {
+      toast.show({
+        variant: 'warning',
+        label: 'Upload Disabled',
+        description: 'File upload is disabled for the active coding agent.',
+      });
+      return;
+    }
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert(
+          'Camera Permission',
+          'Please allow camera access in your system settings to take photos.'
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      const rawName = asset.fileName || `photo_${Date.now()}.jpg`;
+      const mime = asset.mimeType || 'image/jpeg';
+      const newItem: StagedAttachment = {
+        id: `att_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        name: rawName,
+        size: asset.fileSize,
+        mimeType: mime,
+        uri: asset.uri,
+        state: 'uploading',
+        progress: 0.35,
+      };
+
+      setStagedAttachments((prev) => [...prev, newItem]);
+      uploadFileItem(newItem);
+    } catch (err: any) {
+      toast.show({
+        variant: 'destructive',
+        label: 'Camera Error',
+        description: err?.message || 'Could not open camera',
+      });
+    }
+  };
+
+  const handlePickDocuments = async () => {
+    if (!allowFileUpload) {
+      toast.show({
+        variant: 'warning',
+        label: 'Upload Disabled',
+        description: 'File upload is disabled for the active coding agent.',
+      });
+      return;
+    }
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        copyToCacheDirectory: true,
+        multiple: true,
+      });
+
+      if (result.canceled || !result.assets || result.assets.length === 0) {
+        return;
+      }
+
+      const newItems: StagedAttachment[] = result.assets.map((asset, idx) => {
+        const rawName = asset.name || asset.uri.split('/').pop() || `doc_${Date.now()}_${idx}`;
+        const mime = asset.mimeType || guessMimeType(rawName);
+        return {
+          id: `att_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`,
+          name: rawName,
+          size: asset.size,
+          mimeType: mime,
+          uri: asset.uri,
+          state: 'uploading',
+          progress: 0.35,
+        };
+      });
+
+      setStagedAttachments((prev) => [...prev, ...newItems]);
+      for (const item of newItems) {
+        uploadFileItem(item);
+      }
+    } catch (err: any) {
+      toast.show({
+        variant: 'destructive',
+        label: 'Document Picker Error',
+        description: err?.message || 'Could not open document picker',
+      });
+    }
+  };
+
+  const handleRemoveStagedAttachment = (id: string) => {
+    setStagedAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
   const handleSendPrompt = async () => {
-    if (!promptInput.trim() || isSendingPrompt) return;
+    const hasAttachments = stagedAttachments.length > 0;
+    if ((!promptInput.trim() && !hasAttachments) || isSendingPrompt) return;
 
     if (!isNetworkOnline) {
       toast.show({
         variant: 'warning',
         label: 'Network Offline',
         description: 'Cannot send message while offline. Please check your network connection.',
+      });
+      return;
+    }
+
+    const stillUploading = stagedAttachments.some((a) => a.state === 'uploading');
+    if (stillUploading) {
+      toast.show({
+        variant: 'warning',
+        label: 'Uploading in progress',
+        description: 'Please wait for your attachments to finish uploading before sending.',
       });
       return;
     }
@@ -856,14 +1144,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       return;
     }
 
+    const readyAttachments = stagedAttachments
+      .filter((a) => a.state === 'done' && a.hostPath)
+      .map((a) => ({
+        name: a.name,
+        path: a.hostPath!,
+        mimeType: a.mimeType,
+        size: a.size,
+      }));
+
     // Vercel v0 Pattern: Activate user prompt top-pinning on the new turn
     userJustSubmittedRef.current = true;
     activePromptTurnIndexRef.current = displayedTurns.length;
 
     setPromptInput('');
+    setStagedAttachments([]);
     resumeAutoScroll();
     flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-    await sendPrompt(text);
+    await sendPrompt(text, readyAttachments.length > 0 ? readyAttachments : undefined);
   };
 
   const workspaceTitle =
@@ -900,6 +1198,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             id: `usr_${msgKey}`,
             content: msg.content,
             timestamp: msg.timestamp,
+            attachments: msg.attachments,
           },
         };
         turns.push(currentTurn);
@@ -1737,6 +2036,65 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                 : styles.floatingComposerDark,
             ]}
           >
+            {/* Staged Attachments Preview Group */}
+            {stagedAttachments.length > 0 ? (
+              <View className="px-3 pt-2.5 pb-1">
+                <Attachment.Group orientation="horizontal" className="flex-row flex-wrap gap-2">
+                  {stagedAttachments.map((att) => {
+                    const isImg =
+                      att.mimeType?.startsWith('image/') ||
+                      /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name);
+                    return (
+                      <Attachment
+                        key={att.id}
+                        state={att.state}
+                        size="sm"
+                        progress={att.progress}
+                        orientation="horizontal"
+                        className={
+                          isLight
+                            ? 'bg-surface border-border max-w-[240px]'
+                            : 'bg-surface-secondary border-border max-w-[240px]'
+                        }
+                      >
+                        <Attachment.Media variant={isImg ? 'image' : 'icon'}>
+                          {isImg ? (
+                            <RNImage
+                              source={{ uri: att.uri }}
+                              style={{ width: 28, height: 28, borderRadius: 4 }}
+                              resizeMode="cover"
+                            />
+                          ) : (
+                            <FileText size={14} color={isSwiss ? '#DC201E' : '#3b82f6'} />
+                          )}
+                        </Attachment.Media>
+                        <Attachment.Content>
+                          <Attachment.Title numberOfLines={1}>{att.name}</Attachment.Title>
+                          <Attachment.Description>
+                            {att.state === 'uploading'
+                              ? 'Uploading...'
+                              : att.state === 'error'
+                              ? 'Failed'
+                              : att.size
+                              ? formatFileSize(att.size)
+                              : 'Ready'}
+                          </Attachment.Description>
+                        </Attachment.Content>
+                        <Attachment.Actions>
+                          <Attachment.Action
+                            accessibilityLabel="Remove attachment"
+                            onPress={() => handleRemoveStagedAttachment(att.id)}
+                          >
+                            <X size={12} color={isSwiss ? '#6B665E' : '#a3a3a3'} />
+                          </Attachment.Action>
+                        </Attachment.Actions>
+                      </Attachment>
+                    );
+                  })}
+                </Attachment.Group>
+              </View>
+            ) : null}
+
             <AIInput.Field
               placeholder={
                 !isNetworkOnline
@@ -1768,7 +2126,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   onPress={() => setShowCommandPicker((prev) => !prev)}
                 />
 
-                {/* 2. Interactive AI Model & Reasoning Effort Pill */}
+                {/* 2. File Attach Action (Paperclip) - Only rendered when coding agent allows file upload */}
+                {allowFileUpload && (
+                  <AIInput.Action
+                    label="Attach"
+                    icon={
+                      <Paperclip
+                        size={15}
+                        color={
+                          stagedAttachments.length > 0
+                            ? (isSwiss ? '#DC201E' : '#3b82f6')
+                            : (isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3')
+                        }
+                      />
+                    }
+                    onPress={() => setShowAttachmentPicker(true)}
+                  />
+                )}
+
+                {/* 3. Interactive AI Model & Reasoning Effort Pill */}
                 <AIInput.Pill
                   label={modelPillLabel}
                   detail={modelPillDetail}
@@ -1777,7 +2153,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   accessibilityLabel="Change AI model and parameters"
                 />
 
-                {/* 3. Artifacts Drawer Sheet */}
+                {/* 4. Artifacts Drawer Sheet */}
                 <AIInput.Action
                   label="Artifacts"
                   icon={<FileText size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
@@ -1806,6 +2182,15 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       <SessionConfigSheet
         visible={showConfigSheet}
         onClose={() => setShowConfigSheet(false)}
+      />
+
+      {/* 9.5 Attachment Source Picker Bottom Sheet */}
+      <AttachmentPickerSheet
+        visible={showAttachmentPicker}
+        onClose={() => setShowAttachmentPicker(false)}
+        onSelectPhotoLibrary={handlePickImages}
+        onSelectCamera={handleCaptureCamera}
+        onSelectDocument={handlePickDocuments}
       />
 
       {/* 10. Live Interactive Terminal Sheet */}

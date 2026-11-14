@@ -4,7 +4,7 @@ import { spawn, execFile, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
 import readline from "node:readline";
 import crypto from "node:crypto";
-import type { CliRunOptions, CliEvent, CliWorkerInfo } from "@cloud-agent/cli-interface";
+import type { CliRunOptions, CliEvent, CliWorkerInfo, CliAttachment } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath, getBrainDir } from "./paths.js";
 import { mapAntigravityStreamEvent } from "./mapper.js";
 import { getBrainSession, writeSessionMeta } from "./transcript-reader.js";
@@ -461,7 +461,7 @@ class PersistentWorker {
     }
   }
 
-  async *executeTurn(prompt: string): AsyncIterable<CliEvent> {
+  async *executeTurn(prompt: string, attachments?: CliAttachment[]): AsyncIterable<CliEvent> {
     this.isTurnRunning = true;
     this.lastActiveAt = new Date().toISOString();
     this.resetIdleTimer();
@@ -495,10 +495,33 @@ class PersistentWorker {
 
     // Write input turn payload to stdin in Antigravity NDJSON format
     try {
+      let effectivePrompt = prompt;
+      const mediaList: Array<{ mime_type?: string; uri?: string }> = [];
+
+      if (attachments && attachments.length > 0) {
+        const attachmentNotes: string[] = [];
+        for (const att of attachments) {
+          const filePath = att.path || att.name;
+          attachmentNotes.push(`[Attached File: ${filePath}]`);
+          const normalizedPath = filePath.replace(/\\/g, "/");
+          const fileUri = normalizedPath.startsWith("file://")
+            ? normalizedPath
+            : `file:///${normalizedPath.replace(/^\/+/, "")}`;
+          mediaList.push({
+            mime_type: att.mimeType || "application/octet-stream",
+            uri: fileUri,
+          });
+        }
+        effectivePrompt = `${attachmentNotes.join("\n")}\n\n${prompt}`;
+      }
+
       const turnPayload =
         JSON.stringify({
           event: "user",
-          message: { content: prompt },
+          message: {
+            content: effectivePrompt,
+            ...(mediaList.length > 0 ? { media: mediaList } : {}),
+          },
         }) + "\n";
 
       this.child.stdin?.write(turnPayload);
@@ -890,7 +913,7 @@ export class AntigravityStreamClient {
       };
     }
 
-    yield* worker.executeTurn(options.prompt);
+    yield* worker.executeTurn(options.prompt, options.attachments);
   }
 
   /**
