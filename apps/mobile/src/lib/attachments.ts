@@ -17,6 +17,7 @@ export function guessMimeType(fileName: string): string {
       return 'image/png';
     case 'jpg':
     case 'jpeg':
+    case 'jfif':
       return 'image/jpeg';
     case 'gif':
       return 'image/gif';
@@ -24,6 +25,12 @@ export function guessMimeType(fileName: string): string {
       return 'image/webp';
     case 'svg':
       return 'image/svg+xml';
+    case 'bmp':
+      return 'image/bmp';
+    case 'ico':
+      return 'image/x-icon';
+    case 'heic':
+      return 'image/heic';
     case 'pdf':
       return 'application/pdf';
     case 'json':

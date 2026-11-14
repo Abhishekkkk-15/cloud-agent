@@ -59,9 +59,12 @@ export function detectPreviewTarget(options: {
       if (port >= 1000 && port <= 65535) {
         let framework = 'Dev Server';
         const lowerOut = rawOutput.toLowerCase();
-        if (lowerOut.includes('vite')) framework = 'Vite • React';
-        else if (lowerOut.includes('next')) framework = 'Next.js';
-        else if (lowerOut.includes('uvicorn') || lowerOut.includes('fastapi')) framework = 'FastAPI';
+        if (lowerOut.includes('streamlit') || port === 8501) framework = 'Streamlit';
+        else if (lowerOut.includes('vite') || port === 5173) framework = 'Vite • React';
+        else if (lowerOut.includes('next') || port === 3000) framework = 'Next.js';
+        else if (lowerOut.includes('uvicorn') || lowerOut.includes('fastapi') || port === 8000) framework = 'FastAPI';
+        else if (lowerOut.includes('flask') || port === 5000) framework = 'Flask';
+        else if (lowerOut.includes('django')) framework = 'Django';
         else if (lowerOut.includes('astro')) framework = 'Astro';
 
         return {
@@ -81,12 +84,21 @@ export function detectPreviewTarget(options: {
   if (textMatch && textMatch[1]) {
     const port = parseInt(textMatch[1], 10);
     if (port >= 1000 && port <= 65535) {
+      let framework = 'Dev Server';
+      const lower = turnContent.toLowerCase();
+      if (lower.includes('streamlit') || port === 8501) framework = 'Streamlit';
+      else if (lower.includes('vite') || port === 5173) framework = 'Vite • React';
+      else if (lower.includes('next') || port === 3000) framework = 'Next.js';
+      else if (lower.includes('uvicorn') || lower.includes('fastapi') || port === 8000) framework = 'FastAPI';
+      else if (lower.includes('flask') || port === 5000) framework = 'Flask';
+
       return {
         type: 'dev_server',
         id: `server_${port}`,
-        title: `Dev Server (: ${port})`,
+        title: `${framework} (: ${port})`,
         port,
         url: `http://localhost:${port}`,
+        framework,
       };
     }
   }

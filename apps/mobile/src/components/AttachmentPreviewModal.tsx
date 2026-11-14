@@ -54,7 +54,7 @@ export const AttachmentPreviewModal: React.FC<AttachmentPreviewModalProps> = ({
   const isImage = Boolean(
     attachment &&
       (attachment.mimeType?.startsWith('image/') ||
-        /\.(png|jpe?g|webp|gif|svg)$/i.test(attachment.name))
+        /\.(png|jpe?g|webp|gif|svg|jfif|bmp|ico|heic)$/i.test(attachment.name))
   );
 
   const isTextOrCode = Boolean(

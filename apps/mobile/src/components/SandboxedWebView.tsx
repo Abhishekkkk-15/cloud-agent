@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 export interface SandboxedWebViewProps {
@@ -80,6 +80,14 @@ export const SandboxedWebView: React.FC<SandboxedWebViewProps> = ({
           setIsLoading(false);
           onError?.(syntheticEvent.nativeEvent);
         }}
+        renderError={(errorDomain, errorCode, errorDesc) => (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorTitle}>Cannot reach server</Text>
+            <Text style={styles.errorDesc}>
+              {errorDesc || 'Ensure the dev server is running on the host machine and port is exposed.'}
+            </Text>
+          </View>
+        )}
         style={styles.webView}
       />
       {isLoading && (
@@ -106,5 +114,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  errorContainer: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: '#161616',
+    gap: 8,
+  },
+  errorTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#f5f5f5',
+    textAlign: 'center',
+  },
+  errorDesc: {
+    fontSize: 12,
+    color: '#a3a3a3',
+    textAlign: 'center',
+    maxWidth: 280,
   },
 });

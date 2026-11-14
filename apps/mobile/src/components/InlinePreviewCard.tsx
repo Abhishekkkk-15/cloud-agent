@@ -44,8 +44,10 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
 
   const startPreviewServer = useDaemonStore((s) => s.startPreviewServer);
   const fetchArtifactContent = useDaemonStore((s) => s.fetchArtifactContent);
+  const resolveDevServerTargetUrl = useDaemonStore((s) => s.resolveDevServerTargetUrl);
   const [isStartingServer, setIsStartingServer] = useState(false);
   const [liveTarget, setLiveTarget] = useState<PreviewTarget>(target);
+  const [resolvedServerUrl, setResolvedServerUrl] = useState<string | null>(null);
 
   const targetPath = (target as any).path as string | undefined;
   const initialRaw = unescapeContent((target as any).htmlContent || (target as any).code || htmlContent || sourceCode);
@@ -75,6 +77,16 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
         });
     }
   }, [target.id, targetPath, (target as any).htmlContent, (target as any).code, htmlContent, sourceCode]);
+
+  useEffect(() => {
+    if (liveTarget.type === 'dev_server' && liveTarget.port) {
+      resolveDevServerTargetUrl(liveTarget.port)
+        .then((url) => {
+          if (url) setResolvedServerUrl(url);
+        })
+        .catch(() => {});
+    }
+  }, [liveTarget.id, liveTarget.type, (liveTarget as any)?.port]);
 
   const handleStartDevServer = async () => {
     setIsStartingServer(true);
@@ -119,6 +131,7 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
   const handleExpand = () => {
     const enrichedTarget: PreviewTarget = {
       ...liveTarget,
+      ...(resolvedServerUrl ? { url: resolvedServerUrl } : {}),
       ...(liveTarget.type === 'html_artifact' ? { htmlContent: content } : {}),
       ...(liveTarget.type === 'react_artifact' ? { code: content } : {}),
     };
@@ -128,7 +141,7 @@ export const InlinePreviewCard: React.FC<InlinePreviewCardProps> = ({
   // Resolve source for preview thumbnail
   let source: { html?: string; uri?: string } = { html: '' };
   if (liveTarget.type === 'dev_server') {
-    source = { uri: liveTarget.url };
+    source = { uri: resolvedServerUrl || liveTarget.url };
   } else if (liveTarget.type === 'react_artifact') {
     source = {
       html: wrapReactComponentInHtml(content, {

@@ -66,6 +66,9 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
   const [reloadKey, setReloadKey] = useState(0);
   const [isCopied, setIsCopied] = useState(false);
 
+  const resolveDevServerTargetUrl = useDaemonStore((s) => s.resolveDevServerTargetUrl);
+  const [resolvedServerUrl, setResolvedServerUrl] = useState<string | null>(null);
+
   const fetchArtifactContent = useDaemonStore((s) => s.fetchArtifactContent);
   const targetPath = (target as any)?.path as string | undefined;
   const initialRaw = unescapeContent((target as any)?.htmlContent || (target as any)?.code || htmlContent || sourceCode);
@@ -74,6 +77,11 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
 
   useEffect(() => {
     if (!target) return;
+    if (target.type === 'dev_server' && target.port) {
+      resolveDevServerTargetUrl(target.port).then((url) => {
+        if (url) setResolvedServerUrl(url);
+      }).catch(() => {});
+    }
     const raw = unescapeContent((target as any)?.htmlContent || (target as any)?.code || htmlContent || sourceCode);
     if (raw) {
       setContent(raw);
@@ -94,7 +102,7 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
           setIsLoadingContent(false);
         });
     }
-  }, [target?.id, targetPath, (target as any)?.htmlContent, (target as any)?.code, htmlContent, sourceCode]);
+  }, [target?.id, target?.type, (target as any)?.port, targetPath, (target as any)?.htmlContent, (target as any)?.code, htmlContent, sourceCode]);
 
   if (!visible || !target) return null;
 
@@ -103,7 +111,7 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
   let effectiveCode = content || sourceCode || htmlContent || '';
 
   if (target?.type === 'dev_server') {
-    source = { uri: target.url };
+    source = { uri: resolvedServerUrl || target.url };
   } else if (target?.type === 'react_artifact') {
     source = {
       html: wrapReactComponentInHtml(content, {
@@ -180,7 +188,7 @@ export const PreviewCanvasModal: React.FC<PreviewCanvasModalProps> = ({
               </Text>
               <Text numberOfLines={1} style={[styles.headerSubtitle, isLight && styles.headerSubtitleLight, isSwiss && styles.headerSubtitleSwiss]}>
                 {target.type === 'dev_server'
-                  ? `${target.url} • Live Server`
+                  ? `${resolvedServerUrl || target.url} • Live Server`
                   : target.type === 'react_artifact'
                   ? 'React Standalone Sandbox'
                   : 'HTML / Web Artifact'}

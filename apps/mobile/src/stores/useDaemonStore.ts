@@ -552,6 +552,7 @@ interface DaemonStoreState {
   checkPreviewPort: (port: number) => Promise<{ port: number; listening: boolean; lanIps: string[]; localUrl: string; lanUrl?: string } | null>;
   detectPreviewProject: (cwd?: string) => Promise<{ hasPackageJson: boolean; isReact: boolean; isVite: boolean; isNext: boolean; devScript?: string; scripts: Record<string, string> } | null>;
   startPreviewServer: (params?: { cwd?: string; command?: string; script?: string }) => Promise<{ ok: boolean; pid?: number; command?: string } | null>;
+  resolveDevServerTargetUrl: (port: number) => Promise<string>;
 }
 
 export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
@@ -2132,6 +2133,40 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch {
       return null;
     }
+  },
+
+  resolveDevServerTargetUrl: async (port: number): Promise<string> => {
+    const { gatewayUrl, activeMachine } = get();
+    const machineId = mobileP2P.getMachineId() || activeMachine?.machineId;
+    const defaultHost = getDefaultHost();
+
+    // 1. If connected via Gateway, register an ephemeral tunnel proxy for this port
+    if (gatewayUrl && machineId) {
+      try {
+        const httpGw = gatewayUrl.replace(/^ws(s)?:\/\//, 'http$1://').replace(/\/+$/, '');
+        const resp = await fetch(`${httpGw}/api/tunnel/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ port, machineId, name: `Port ${port}` }),
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data?.previewUrl) {
+            const gwHost = httpGw.replace(/^https?:\/\//, '');
+            const finalUrl = data.previewUrl.replace(/localhost(:\d+)?/i, gwHost);
+            return finalUrl;
+          }
+        }
+      } catch (err) {
+        console.warn('[DaemonStore] Gateway tunnel register failed, falling back to direct host LAN:', err);
+      }
+    }
+
+    // 2. Direct LAN IP fallback
+    if (Platform.OS === 'web') {
+      return `http://localhost:${port}`;
+    }
+    return `http://${defaultHost}:${port}`;
   },
 
   fetchCliCapabilities: async () => {

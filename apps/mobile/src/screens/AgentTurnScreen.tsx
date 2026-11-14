@@ -189,7 +189,7 @@ const UserAttachmentItem: React.FC<{
   const fetchFileBase64 = useDaemonStore((s) => s.fetchFileBase64);
   const isImg = Boolean(
     attachment.mimeType?.startsWith('image/') ||
-      /\.(png|jpe?g|webp|gif|svg)$/i.test(attachment.name)
+      /\.(png|jpe?g|webp|gif|svg|jfif|bmp|ico|heic)$/i.test(attachment.name)
   );
 
   const [imageUri, setImageUri] = useState<string | null>(attachment.uri || null);
@@ -2171,7 +2171,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   {stagedAttachments.map((att) => {
                     const isImg =
                       att.mimeType?.startsWith('image/') ||
-                      /\.(png|jpe?g|webp|gif|svg)$/i.test(att.name);
+                      /\.(png|jpe?g|webp|gif|svg|jfif|bmp|ico|heic)$/i.test(att.name);
                     return (
                       <TouchableOpacity
                         key={att.id}
