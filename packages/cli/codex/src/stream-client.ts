@@ -43,20 +43,19 @@ class CodexWorker {
 
     const args: string[] = ["exec"];
 
-    // Resume existing session if ID provided
     if (options.sessionId) {
-      args.push("resume", options.sessionId);
+      args.push("resume");
     }
 
-    // Pass prompt
-    args.push(options.prompt);
-
-    // Stream output as JSONL
+    // Always stream JSONL output
     args.push("--json");
 
-    // Working directory
-    if (options.cwd) {
-      args.push("-C", options.cwd);
+    // Allow running outside a Git repository without warnings/blocks
+    args.push("--skip-git-repo-check");
+
+    // Non-interactive headless execution bypass
+    if (options.dangerouslySkipPermissions !== false) {
+      args.push("--dangerously-bypass-approvals-and-sandbox");
     }
 
     // Model override
@@ -69,16 +68,18 @@ class CodexWorker {
       args.push("-c", `model_reasoning_effort="${options.effort}"`);
     }
 
-    // Sandbox mode
-    if (options.mode === "plan") {
-      args.push("-s", "read-only");
-    } else {
-      args.push("-s", "workspace-write");
+    // Working directory (for new sessions)
+    if (!options.sessionId && options.cwd) {
+      args.push("-C", options.cwd);
     }
 
-    // Non-interactive headless execution bypass
-    if (options.dangerouslySkipPermissions !== false) {
-      args.push("--dangerously-bypass-approvals-and-sandbox");
+    // Sandbox mode (for new sessions)
+    if (!options.sessionId) {
+      if (options.mode === "plan") {
+        args.push("-s", "read-only");
+      } else {
+        args.push("-s", "workspace-write");
+      }
     }
 
     // Native image attachments
@@ -89,6 +90,12 @@ class CodexWorker {
         }
       }
     }
+
+    // Positional arguments (session ID for resume, then user prompt)
+    if (options.sessionId) {
+      args.push(options.sessionId);
+    }
+    args.push(options.prompt);
 
     const env = {
       ...process.env,

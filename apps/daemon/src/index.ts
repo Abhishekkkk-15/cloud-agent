@@ -44,8 +44,8 @@ async function checkAdapters() {
   console.log();
 }
 
-async function listSessions(workspaceFilter?: string) {
-  const adapter = registry.get();
+async function listSessions(workspaceFilter?: string, cliId?: string) {
+  const adapter = registry.get(cliId);
   console.log(`Listing sessions for adapter: ${adapter.displayName} (${adapter.id})\n`);
   const result = await adapter.listSessions({ workspaceFilter, limit: 10 });
 
@@ -65,8 +65,8 @@ async function listSessions(workspaceFilter?: string) {
   }
 }
 
-async function runPrompt(prompt: string, sessionId?: string) {
-  const adapter = registry.get();
+async function runPrompt(prompt: string, sessionId?: string, cliId?: string) {
+  const adapter = registry.get(cliId);
   console.log(`Executing prompt via adapter: ${adapter.displayName} (${adapter.id})\n`);
   const stream = adapter.run({
     prompt,
@@ -126,6 +126,12 @@ function parseCliFlags(args: string[]): {
       i += 2;
     } else if (arg.startsWith("--name=")) {
       flags.name = arg.slice(7);
+      i++;
+    } else if (arg === "--cli" || arg === "-c") {
+      flags.cli = args[i + 1] || "";
+      i += 2;
+    } else if (arg.startsWith("--cli=")) {
+      flags.cli = arg.slice(6);
       i++;
     } else if (arg === "--follow" || arg === "-f") {
       flags.follow = "true";
@@ -398,11 +404,11 @@ async function main() {
         console.error("Error: Please provide a prompt. Example: cloud-agent-daemon run 'hello'");
         process.exit(1);
       }
-      await runPrompt(positionals[0], positionals[1]);
+      await runPrompt(positionals[0], positionals[1], flags.cli);
       break;
 
     case "sessions":
-      await listSessions(positionals[0]);
+      await listSessions(positionals[0], flags.cli);
       break;
 
     case "workspace":
