@@ -67,6 +67,7 @@ import {
   Cpu,
   Paperclip,
   ImageIcon,
+  FolderTree,
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors, getGlossyHeaderTokens } from '../theme/tokens';
 import { useDaemonStore, normalizeTextPayload } from '../stores/useDaemonStore';
@@ -95,6 +96,7 @@ import { AttachmentPickerSheet } from '../components/AttachmentPickerSheet';
 import { InlinePreviewCard } from '../components/InlinePreviewCard';
 import { PreviewCanvasModal } from '../components/PreviewCanvasModal';
 import { AttachmentPreviewModal, type AttachmentPreviewTarget } from '../components/AttachmentPreviewModal';
+import { WorkspaceFilesSheet } from '../components/WorkspaceFilesSheet';
 import { detectPreviewTarget, type PreviewTarget } from '../lib/preview-detector';
 import { startDictation, stopDictation, isSpeechRecognitionSupported } from '../lib/speech';
 import { copyToClipboard } from '../lib/clipboard';
@@ -599,6 +601,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [showArtifactsSheet, setShowArtifactsSheet] = useState(false);
+  const [showWorkspaceFiles, setShowWorkspaceFiles] = useState(false);
   const [showProcessManager, setShowProcessManager] = useState(false);
   const [activeCanvasTarget, setActiveCanvasTarget] = useState<PreviewTarget | null>(null);
   const [selectedPreviewAttachment, setSelectedPreviewAttachment] = useState<AttachmentPreviewTarget | null>(null);
@@ -1930,6 +1933,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
             </Menu.Item>
 
             <Menu.Item
+              icon={<FolderTree size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
+              description="Browse workspace files & media"
+              onSelect={() => setShowWorkspaceFiles(true)}
+            >
+              Workspace Files
+            </Menu.Item>
+
+            <Menu.Item
               icon={<Terminal size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
               description="Live interactive shell"
               onSelect={() => setShowTerminal(true)}
@@ -2329,6 +2340,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   onPress={() => setShowArtifactsSheet(true)}
                 />
 
+                {/* 4.5 Workspace Files Tree Sheet */}
+                <AIInput.Action
+                  label="Files"
+                  icon={<FolderTree size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
+                  onPress={() => setShowWorkspaceFiles(true)}
+                />
+
                 {/* Spacer pushes Submit to trailing edge */}
                 <AIInput.Spacer />
 
@@ -2454,6 +2472,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         visible={showArtifactsSheet}
         onClose={() => setShowArtifactsSheet(false)}
         initialSearchQuery={artifactFilterQuery}
+      />
+
+      {/* 12a. Workspace Files & Media Tree Sheet */}
+      <WorkspaceFilesSheet
+        visible={showWorkspaceFiles}
+        onClose={() => setShowWorkspaceFiles(false)}
+        rootPath={activeSession?.workspacePath || targetWorkspacePath || undefined}
       />
 
       {/* 12b. Process & Node Manager Bottom Sheet */}

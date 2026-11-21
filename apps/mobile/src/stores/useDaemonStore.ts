@@ -195,6 +195,15 @@ export interface RealSessionItem {
   pinned?: boolean;
 }
 
+export interface DaemonFileNode {
+  id: string;
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  children?: DaemonFileNode[];
+  size?: number;
+}
+
 export interface RealMessageItem {
   id?: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
@@ -588,6 +597,10 @@ interface DaemonStoreState {
   fetchSessionArtifacts: (sessionId?: string) => Promise<CliArtifact[]>;
   fetchArtifactContent: (artifactPath: string) => Promise<string>;
   fetchFileBase64: (filePath: string) => Promise<string>;
+  fetchFileUtf8: (filePath: string) => Promise<string>;
+  workspaceTree: DaemonFileNode[] | null;
+  isLoadingWorkspaceTree: boolean;
+  fetchWorkspaceTree: (dirPath?: string) => Promise<DaemonFileNode[]>;
   fetchDirectorySuggestions: (parentPath?: string) => Promise<Array<{ name: string; fullPath: string }>>;
   browseDirectories: (path?: string) => Promise<DirectoryBrowseResult | null>;
   createDirectory: (parentPath: string, folderName: string) => Promise<{ ok: boolean; fullPath?: string; error?: string }>;
@@ -729,6 +742,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isRestartingDaemon: false,
   daemonLogLines: [],
   isLoadingDaemonLogs: false,
+  workspaceTree: null,
+  isLoadingWorkspaceTree: false,
 
   setTheme: (theme: 'dark' | 'light' | 'swiss') => {
     set({ theme });
@@ -1914,6 +1929,41 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     } catch (err) {
       console.error('[DaemonStore] fetchFileBase64 error:', err);
       return '';
+    }
+  },
+
+  fetchFileUtf8: async (filePath: string) => {
+    if (!filePath) return '';
+    const cached = get().selectedArtifactContent[`utf8_${filePath}`];
+    if (cached !== undefined) return cached;
+    try {
+      const res = await mobileP2P.sendRpc<any>('fs.read', { path: filePath, encoding: 'utf8' });
+      const content = typeof res?.content === 'string' ? res.content : '';
+      set((state) => ({
+        selectedArtifactContent: {
+          ...state.selectedArtifactContent,
+          [`utf8_${filePath}`]: content,
+        },
+      }));
+      return content;
+    } catch (err) {
+      console.error('[DaemonStore] fetchFileUtf8 error:', err);
+      return '';
+    }
+  },
+
+  fetchWorkspaceTree: async (dirPath?: string) => {
+    const targetPath = dirPath || get().activeSession?.workspacePath || get().targetWorkspacePath || undefined;
+    set({ isLoadingWorkspaceTree: true });
+    try {
+      const res = await mobileP2P.sendRpc<any>('fs.tree', { path: targetPath, maxDepth: 4 });
+      const tree: DaemonFileNode[] = Array.isArray(res) ? res : Array.isArray(res?.result) ? res.result : [];
+      set({ workspaceTree: tree, isLoadingWorkspaceTree: false });
+      return tree;
+    } catch (err) {
+      console.error('[DaemonStore] fetchWorkspaceTree error:', err);
+      set({ isLoadingWorkspaceTree: false });
+      return [];
     }
   },
 

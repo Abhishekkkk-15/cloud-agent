@@ -31,6 +31,26 @@ export function guessMimeType(fileName: string): string {
       return 'image/x-icon';
     case 'heic':
       return 'image/heic';
+    case 'mp3':
+      return 'audio/mpeg';
+    case 'wav':
+      return 'audio/wav';
+    case 'ogg':
+      return 'audio/ogg';
+    case 'm4a':
+      return 'audio/mp4';
+    case 'aac':
+      return 'audio/aac';
+    case 'flac':
+      return 'audio/flac';
+    case 'mp4':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'mov':
+      return 'video/quicktime';
+    case 'mkv':
+      return 'video/x-matroska';
     case 'pdf':
       return 'application/pdf';
     case 'json':
