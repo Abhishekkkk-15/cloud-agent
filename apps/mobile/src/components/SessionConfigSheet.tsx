@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   RefreshCw,
   AlertTriangle,
+  Sparkles,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import {
@@ -73,6 +74,9 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
   const cliCapabilities = useDaemonStore((s) => s.cliCapabilities);
   const availableModels = useDaemonStore((s) => s.availableModels);
   const fetchCliModels = useDaemonStore((s) => s.fetchCliModels);
+  const selectedCli = useDaemonStore((s) => s.selectedCli);
+  const availableAdapters = useDaemonStore((s) => s.availableAdapters);
+  const setSelectedCli = useDaemonStore((s) => s.setSelectedCli);
 
   const [isRefreshingModels, setIsRefreshingModels] = useState(false);
 
@@ -254,6 +258,74 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
           >
+            {/* 0. Agent Engine / CLI Provider */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeaderRow}>
+                <Sparkles size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>AGENT ENGINE</Text>
+              </View>
+
+              <View style={[styles.segmentedRow, isLight && styles.segmentedRowLight, isSwiss && styles.segmentedRowSwiss]}>
+                {(availableAdapters.length > 0
+                  ? availableAdapters
+                  : [
+                      { id: 'antigravity', displayName: 'Google Antigravity', binaryName: 'agy', available: true },
+                      { id: 'codex', displayName: 'OpenAI Codex', binaryName: 'codex', available: true },
+                    ]
+                ).map((adapter) => {
+                  const isSelected = selectedCli === adapter.id;
+                  const isCodex = adapter.id === 'codex';
+                  return (
+                    <TouchableOpacity
+                      key={adapter.id}
+                      style={[
+                        styles.segmentBtn,
+                        isLight && styles.segmentBtnLight,
+                        isSelected && (isSwiss ? styles.segmentBtnActiveSwiss : isLight ? styles.segmentBtnActiveLight : styles.segmentBtnActive),
+                        { flexDirection: 'row', gap: 6, alignItems: 'center' },
+                      ]}
+                      activeOpacity={0.75}
+                      onPress={async () => {
+                        if (adapter.id !== selectedCli) {
+                          await setSelectedCli(adapter.id);
+                        }
+                      }}
+                    >
+                      {isCodex ? (
+                        <Bot
+                          size={13}
+                          color={
+                            isSelected
+                              ? (isSwiss ? '#ffffff' : isLight ? '#262626' : colors.green)
+                              : (isSwiss ? '#6B665E' : isLight ? '#57606a' : colors.textMuted)
+                          }
+                        />
+                      ) : (
+                        <Sparkles
+                          size={13}
+                          color={
+                            isSelected
+                              ? (isSwiss ? '#ffffff' : isLight ? '#262626' : colors.green)
+                              : (isSwiss ? '#6B665E' : isLight ? '#57606a' : colors.textMuted)
+                          }
+                        />
+                      )}
+                      <Text
+                        style={[
+                          styles.segmentBtnText,
+                          isLight && styles.segmentBtnTextLight,
+                          isSwiss && styles.segmentBtnTextSwiss,
+                          isSelected && (isSwiss ? styles.segmentBtnTextActiveSwiss : isLight ? styles.segmentBtnTextActiveLight : styles.segmentBtnTextActive),
+                        ]}
+                      >
+                        {adapter.displayName || (adapter.id === 'codex' ? 'OpenAI Codex' : 'Antigravity')}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* 1. Reasoning Effort */}
             {supportsEffort && effortLevels.length > 0 && (
               <View style={styles.section}>

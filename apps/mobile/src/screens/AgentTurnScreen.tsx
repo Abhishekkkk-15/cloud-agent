@@ -48,6 +48,7 @@ import {
   GitFork,
   ArrowDown,
   Sparkles,
+  Bot,
   Search,
   Brain,
   SlidersHorizontal,
@@ -586,6 +587,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const isSwiss = theme === 'swiss';
   const availableModels = useDaemonStore((s) => s.availableModels);
   const cliCapabilities = useDaemonStore((s) => s.cliCapabilities);
+  const selectedCli = useDaemonStore((s) => s.selectedCli);
+  const availableAdapters = useDaemonStore((s) => s.availableAdapters);
   const allowFileUpload = cliCapabilities?.allowFileUpload !== false;
   const glossyHeader = useMemo(() => getGlossyHeaderTokens(isLight, isSwiss), [isLight, isSwiss]);
 
@@ -618,6 +621,10 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     if (id.includes('opus')) return 'Opus 4.6';
     if (id.includes('gemini-3.8') || id.includes('flash-high')) return 'Gemini 3.8';
     if (id.includes('gemini-2.5') || id.includes('gemini-2')) return 'Gemini 2.5';
+    if (id.includes('gpt-5.6-luna') || id.includes('5.6-luna')) return 'GPT-5.6 Luna';
+    if (id.includes('gpt-6-luna') || id.includes('6-luna')) return 'GPT-6 Luna';
+    if (id.includes('terra')) return 'GPT-5.6 Terra';
+    if (id.includes('reserve')) return 'GPT Reserve';
     if (id.includes('gpt-oss') || id.includes('120b')) return 'GPT-OSS';
     if (id.includes('gpt-4o')) return 'GPT-4o';
     const clean = currentModelId.split('/').pop()?.split(':')[0]?.replace(/-/g, ' ') || currentModelId;
@@ -626,11 +633,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
 
   const modelPillDetail = useMemo(() => {
     const effort = sessionConfig?.effort;
-    if (effort) {
+    if (effort && cliCapabilities?.supportsEffort !== false) {
       return effort.charAt(0).toUpperCase() + effort.slice(1);
     }
+    if (selectedCli === 'codex') {
+      return 'Codex';
+    }
     return undefined;
-  }, [sessionConfig?.effort]);
+  }, [sessionConfig?.effort, cliCapabilities?.supportsEffort, selectedCli]);
 
   useEffect(() => {
     return () => {
@@ -1839,23 +1849,55 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               >
                 {workspaceTitle}
               </Text>
-              {activeSession?.workspaceName ? (
-                <Text
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                <View
                   style={{
-                    fontSize: 11,
-                    color: isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3',
-                    marginTop: 3,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 4,
+                    backgroundColor: isSwiss
+                      ? 'rgba(220, 32, 30, 0.12)'
+                      : isLight
+                      ? 'rgba(0, 0, 0, 0.06)'
+                      : 'rgba(255, 255, 255, 0.08)',
                   }}
-                  numberOfLines={1}
                 >
-                  Workspace: {activeSession.workspaceName}
-                </Text>
-              ) : null}
+                  {selectedCli === 'codex' ? (
+                    <Bot size={11} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+                  ) : (
+                    <Sparkles size={11} color={isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa'} />
+                  )}
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: '700',
+                      color: isSwiss ? '#DC201E' : isLight ? '#262626' : '#fafafa',
+                    }}
+                  >
+                    {selectedCli === 'codex' ? 'OpenAI Codex' : 'Antigravity'}
+                  </Text>
+                </View>
+                {activeSession?.workspaceName ? (
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3',
+                      flex: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {activeSession.workspaceName}
+                  </Text>
+                ) : null}
+              </View>
             </View>
 
             <Menu.Item
               icon={<SlidersHorizontal size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
-              description="Model, thinking, temperature"
+              description={`${selectedCli === 'codex' ? 'Codex' : 'Antigravity'} · ${modelPillLabel}${modelPillDetail ? ` (${modelPillDetail})` : ''}`}
               onSelect={() => setShowConfigSheet(true)}
             >
               Session Parameters

@@ -37,6 +37,8 @@ import {
   Moon,
   Palette,
   Cpu,
+  Bot,
+  Sparkles,
 } from './Icons';
 import { useDaemonStore, RealSessionItem } from '../stores/useDaemonStore';
 import { NewChatWorkspaceSheet } from './NewChatWorkspaceSheet';
@@ -87,6 +89,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const renameSession = useDaemonStore((s) => s.renameSession);
   const togglePinSession = useDaemonStore((s) => s.togglePinSession);
   const deleteSession = useDaemonStore((s) => s.deleteSession);
+  const selectedCli = useDaemonStore((s) => s.selectedCli);
+  const availableAdapters = useDaemonStore((s) => s.availableAdapters);
+  const setSelectedCli = useDaemonStore((s) => s.setSelectedCli);
   const theme = useDaemonStore((s) => s.theme);
   const toggleTheme = useDaemonStore((s) => s.toggleTheme);
   const isLight = theme === 'light' || theme === 'swiss';
@@ -345,7 +350,73 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               </Animated.View>
             )}
 
-            {/* 2. Compute Node Selector Card */}
+            {/* 2. CLI Engine Switcher */}
+            <View className="mb-3 p-1 rounded-2xl bg-surface border border-border flex-row gap-1">
+              {(availableAdapters.length > 0
+                ? availableAdapters
+                : [
+                    { id: 'antigravity', displayName: 'Antigravity', binaryName: 'agy', available: true },
+                    { id: 'codex', displayName: 'OpenAI Codex', binaryName: 'codex', available: true },
+                  ]
+              ).map((adapter) => {
+                const isSelected = selectedCli === adapter.id;
+                const isCodex = adapter.id === 'codex';
+                return (
+                  <TouchableOpacity
+                    key={adapter.id}
+                    onPress={() => setSelectedCli(adapter.id)}
+                    activeOpacity={0.7}
+                    className={cn(
+                      'flex-1 flex-row items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl transition-all',
+                      isSelected
+                        ? 'bg-primary shadow-xs'
+                        : 'bg-transparent active:bg-secondary/60'
+                    )}
+                  >
+                    {isCodex ? (
+                      <Bot
+                        size={14}
+                        color={
+                          isSelected
+                            ? isLight
+                              ? '#fafafa'
+                              : '#262626'
+                            : isLight
+                            ? '#686868'
+                            : '#a3a3a3'
+                        }
+                      />
+                    ) : (
+                      <Sparkles
+                        size={14}
+                        color={
+                          isSelected
+                            ? isLight
+                              ? '#fafafa'
+                              : '#262626'
+                            : isLight
+                            ? '#686868'
+                            : '#a3a3a3'
+                        }
+                      />
+                    )}
+                    <Text
+                      className={cn(
+                        'text-xs font-semibold',
+                        isSelected
+                          ? 'text-primary-foreground font-semibold'
+                          : 'text-muted-foreground'
+                      )}
+                      numberOfLines={1}
+                    >
+                      {adapter.displayName || (isCodex ? 'OpenAI Codex' : 'Antigravity')}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* 3. Compute Node Selector Card */}
             <TouchableOpacity
               onPress={() => setShowMachineSwitcher(true)}
               activeOpacity={0.7}

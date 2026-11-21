@@ -44,6 +44,7 @@ const STORAGE_KEY_USER = 'cloud_agent_user';
 const STORAGE_KEY_API = 'cloud_agent_api_url';
 const STORAGE_KEY_GATEWAY = 'cloud_agent_gateway_url';
 const STORAGE_KEY_TERMINAL_HISTORY = 'cloud_agent_terminal_history';
+const STORAGE_KEY_SELECTED_CLI = 'cloud_agent_selected_cli';
 
 async function getStorageItem(key: string): Promise<string | null> {
   try {
@@ -392,7 +393,75 @@ export const DEFAULT_ANTIGRAVITY_CAPABILITIES: CliCapabilities = {
   },
 };
 
+export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
+  cliId: 'codex',
+  displayName: 'OpenAI Codex',
+  supportedModes: ['auto', 'plan', 'accept-edits'],
+  defaultMode: 'auto',
+  supportsEffort: true,
+  supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+  defaultEffort: 'medium',
+  allowFileUpload: true,
+  permissions: {
+    supportsHeadlessHitl: false,
+    requiresBypassInHeadless: true,
+    bypassFlagName: '--dangerously-bypass-approvals-and-sandbox',
+    warningMessage:
+      'OpenAI Codex in headless daemon mode requires auto-approval to prevent background workers from freezing on unhandled interactive confirmation prompts.',
+    defaultAutoApprove: true,
+  },
+  models: {
+    supportsDynamicDiscovery: true,
+    fallbackModels: [
+      {
+        id: 'gpt-5.6-luna',
+        name: 'GPT-5.6-Luna',
+        description: 'Default: Flagship agentic coding and deep reasoning model',
+        provider: 'OpenAI',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        isDefault: true,
+      },
+      {
+        id: 'gpt-6-luna',
+        name: 'GPT-6-Luna',
+        description: 'Next-generation deep architectural reasoning agent',
+        provider: 'OpenAI',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      {
+        id: 'gpt-5.6-terra',
+        name: 'GPT-5.6-Terra',
+        description: 'High-throughput deep coding model supporting ultra reasoning depth',
+        provider: 'OpenAI',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+      },
+      {
+        id: 'gpt-reserve',
+        name: 'GPT-Reserve',
+        description: 'Fast reserve model for high-traffic and low-latency agent tasks',
+        provider: 'OpenAI',
+        supportsEffort: true,
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+      },
+    ],
+  },
+};
+
+export interface CliAdapterInfo {
+  id: string;
+  displayName: string;
+  binaryName: string;
+  available: boolean;
+  version?: string;
+  binaryPath?: string;
+}
+
 interface DaemonStoreState {
+  availableAdapters: CliAdapterInfo[];
+  selectedCli: string;
   cliCapabilities: CliCapabilities | null;
   availableModels: CliModelCapability[];
   isLoadingCapabilities: boolean;
@@ -535,9 +604,10 @@ interface DaemonStoreState {
   setPendingApproval: (approval: ApprovalRequest | null) => void;
   pingHeartbeat: () => Promise<void>;
   setSelectedWorkspace: (ws: string) => void;
+  setSelectedCli: (cliId: string) => Promise<void>;
   setSessionConfig: (config: Partial<SessionConfig>) => void;
-  fetchCliCapabilities: () => Promise<void>;
-  fetchCliModels: () => Promise<void>;
+  fetchCliCapabilities: (cliId?: string) => Promise<void>;
+  fetchCliModels: (cliId?: string) => Promise<void>;
   setServerEndpoints: (urls: { apiUrl: string; gatewayUrl: string }) => Promise<void>;
   resetServerEndpoints: () => Promise<void>;
   testServerEndpoints: (apiUrl: string, gatewayUrl: string) => Promise<EndpointTestResult>;
@@ -567,6 +637,21 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   isLoadingMachines: false,
   connectionState: 'disconnected',
   isNetworkOnline: networkMonitor.getIsOnline(),
+  availableAdapters: [
+    {
+      id: 'antigravity',
+      displayName: 'Google Antigravity',
+      binaryName: 'agy',
+      available: true,
+    },
+    {
+      id: 'codex',
+      displayName: 'OpenAI Codex',
+      binaryName: 'codex',
+      available: true,
+    },
+  ],
+  selectedCli: 'antigravity',
   cliCapabilities: DEFAULT_ANTIGRAVITY_CAPABILITIES,
   availableModels: DEFAULT_ANTIGRAVITY_CAPABILITIES.models.fallbackModels,
   isLoadingCapabilities: false,
@@ -914,6 +999,42 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     set({ selectedWorkspace: ws });
   },
 
+  setSelectedCli: async (cliId: string) => {
+    if (!cliId || get().selectedCli === cliId) return;
+    set({ selectedCli: cliId });
+    try {
+      await setStorageItem(STORAGE_KEY_SELECTED_CLI, cliId);
+    } catch {
+      // ignore
+    }
+
+    // 1. Fetch capabilities for new CLI
+    await get().fetchCliCapabilities(cliId);
+
+    // 2. Fetch models for new CLI
+    await get().fetchCliModels(cliId);
+
+    // 3. Set default model for the new CLI in sessionConfig
+    const caps = get().cliCapabilities;
+    const defaultModel =
+      caps?.models?.fallbackModels?.find((m) => m.isDefault)?.id ||
+      (cliId === 'codex' ? 'gpt-5.6-luna' : 'gemini-3.8-flash-high');
+    const defaultEffort = caps?.defaultEffort || (cliId === 'codex' ? 'medium' : 'high');
+
+    set((state) => ({
+      sessionConfig: {
+        ...state.sessionConfig,
+        model: defaultModel,
+        effort: defaultEffort as ReasoningEffort,
+      },
+      activeSession: null,
+      sessionMessages: [],
+    }));
+
+    // 4. Reload sessions for the new CLI
+    await get().fetchSessions();
+  },
+
   init: async () => {
     const { apiUrl, gatewayUrl } = get();
 
@@ -924,6 +1045,23 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         set({ theme: savedTheme });
       } else {
         set({ theme: 'swiss' });
+      }
+    } catch {
+      // ignore
+    }
+
+    // Restore persisted CLI provider
+    try {
+      const savedCli = await getStorageItem(STORAGE_KEY_SELECTED_CLI);
+      if (savedCli) {
+        set({
+          selectedCli: savedCli,
+          cliCapabilities: savedCli === 'codex' ? DEFAULT_CODEX_CAPABILITIES : DEFAULT_ANTIGRAVITY_CAPABILITIES,
+          availableModels:
+            savedCli === 'codex'
+              ? DEFAULT_CODEX_CAPABILITIES.models.fallbackModels
+              : DEFAULT_ANTIGRAVITY_CAPABILITIES.models.fallbackModels,
+        });
       }
     } catch {
       // ignore
@@ -1970,9 +2108,22 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   refreshStatus: async () => {
     try {
-      const result = await mobileP2P.sendRpc<DaemonStatusResult>('daemon.status');
+      const currentCli = get().selectedCli;
+      const result = await mobileP2P.sendRpc<DaemonStatusResult>('daemon.status', { cli: currentCli });
       if (result) {
         set({ daemonStatus: result });
+        if (Array.isArray(result.adapters)) {
+          const avail = result.availability || {};
+          const mappedAdapters: CliAdapterInfo[] = result.adapters.map((a: any) => ({
+            id: a.id,
+            displayName: a.displayName || a.name || a.id,
+            binaryName: a.binaryName || a.id,
+            available: avail[a.id]?.available ?? false,
+            version: avail[a.id]?.version,
+            binaryPath: avail[a.id]?.binaryPath,
+          }));
+          set({ availableAdapters: mappedAdapters });
+        }
         if (result.capabilities) {
           set({
             cliCapabilities: result.capabilities,
@@ -2169,10 +2320,11 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     return `http://${defaultHost}:${port}`;
   },
 
-  fetchCliCapabilities: async () => {
+  fetchCliCapabilities: async (cliId?: string) => {
+    const targetCli = cliId || get().selectedCli;
     try {
       set({ isLoadingCapabilities: true });
-      const caps = await mobileP2P.sendRpc<CliCapabilities>('cli.capabilities');
+      const caps = await mobileP2P.sendRpc<CliCapabilities>('cli.capabilities', { cli: targetCli });
       if (caps) {
         set({
           cliCapabilities: caps,
@@ -2184,17 +2336,25 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
     } catch (err) {
       console.warn('[DaemonStore] fetchCliCapabilities error:', err);
-      if (!get().cliCapabilities) {
-        set({ cliCapabilities: DEFAULT_ANTIGRAVITY_CAPABILITIES });
+      if (!get().cliCapabilities || get().cliCapabilities?.cliId !== targetCli) {
+        set({
+          cliCapabilities:
+            targetCli === 'codex' ? DEFAULT_CODEX_CAPABILITIES : DEFAULT_ANTIGRAVITY_CAPABILITIES,
+          availableModels:
+            targetCli === 'codex'
+              ? DEFAULT_CODEX_CAPABILITIES.models.fallbackModels
+              : DEFAULT_ANTIGRAVITY_CAPABILITIES.models.fallbackModels,
+        });
       }
     } finally {
       set({ isLoadingCapabilities: false });
     }
   },
 
-  fetchCliModels: async () => {
+  fetchCliModels: async (cliId?: string) => {
     try {
-      const res = await mobileP2P.sendRpc<{ models: CliModelCapability[] }>('cli.models');
+      const targetCli = cliId || get().selectedCli;
+      const res = await mobileP2P.sendRpc<{ models: CliModelCapability[] }>('cli.models', { cli: targetCli });
       if (res?.models && Array.isArray(res.models) && res.models.length > 0) {
         set({ availableModels: res.models });
       }
@@ -2206,7 +2366,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   fetchSessions: async () => {
     set({ isLoadingSessions: true });
     try {
+      const currentCli = get().selectedCli;
       const resp = await mobileP2P.sendRpc<{ items: any[]; total: number }>('sessions.list', {
+        cli: currentCli,
         limit: 50,
       });
 
@@ -2267,7 +2429,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   renameSession: async (sessionId: string, title: string) => {
     try {
-      await mobileP2P.sendRpc('sessions.rename', { sessionId, title });
+      await mobileP2P.sendRpc('sessions.rename', { cli: get().selectedCli, sessionId, title });
       set((state) => ({
         sessions: state.sessions.map((s) => (s.id === sessionId ? { ...s, title } : s)),
         activeSession:
@@ -2286,7 +2448,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     const current = get().sessions.find((s) => s.id === sessionId);
     const newPinned = !current?.pinned;
     try {
-      await mobileP2P.sendRpc('sessions.pin', { sessionId, pinned: newPinned });
+      await mobileP2P.sendRpc('sessions.pin', { cli: get().selectedCli, sessionId, pinned: newPinned });
       set((state) => {
         const updated = state.sessions.map((s) =>
           s.id === sessionId ? { ...s, pinned: newPinned } : s
@@ -2314,7 +2476,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
 
   deleteSession: async (sessionId: string) => {
     try {
-      await mobileP2P.sendRpc('sessions.delete', { sessionId });
+      await mobileP2P.sendRpc('sessions.delete', { cli: get().selectedCli, sessionId });
       set((state) => ({
         sessions: state.sessions.filter((s) => s.id !== sessionId),
         activeSession: state.activeSession?.id === sessionId ? null : state.activeSession,
@@ -2350,6 +2512,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       // Query the latest 50 messages in reverse chronological order
       const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
+        cli: get().selectedCli,
         sessionId: session.id,
         limit: 50,
         offset: 0,
@@ -2386,7 +2549,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       try {
         const statusRes = await mobileP2P.sendRpc<any>(
           'agent.status',
-          { sessionId: session.id },
+          { cli: get().selectedCli, sessionId: session.id },
           3000
         );
         if (statusRes?.isRunning) {
@@ -2428,7 +2591,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       try {
         const statusRes = await mobileP2P.sendRpc<any>(
           'agent.status',
-          { sessionId: activeSession.id },
+          { cli: get().selectedCli, sessionId: activeSession.id },
           4000
         );
         if (statusRes?.isRunning) {
@@ -2442,6 +2605,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       const resp = await mobileP2P.sendRpc<any>(
         'sessions.messages',
         {
+          cli: get().selectedCli,
           sessionId: activeSession.id,
           limit: 50,
           offset: 0,
@@ -2531,6 +2695,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     set({ isLoadingOlderMessages: true });
     try {
       const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
+        cli: get().selectedCli,
         sessionId: activeSession.id,
         limit: 50,
         offset: messagesOffset,
@@ -2660,6 +2825,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       const skipPermissions = sessionConfig.dangerouslySkipPermissions !== false;
       const runResult = await mobileP2P.sendRpc<any>('agent.run', {
+        cli: get().selectedCli,
         options: {
           prompt: promptText,
           sessionId: targetSessionId,
@@ -2692,6 +2858,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       const resolvedSessionId = targetSessionId || runResult?.sessionId || runResult?.result?.sessionId;
       if (resolvedSessionId) {
         const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
+          cli: get().selectedCli,
           sessionId: resolvedSessionId,
           limit: 50,
           offset: 0,
@@ -2786,7 +2953,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       const targetSessionId = activeSession?.id;
       if (targetSessionId) {
-        await mobileP2P.sendRpc('agent.cancel', { sessionId: targetSessionId });
+        await mobileP2P.sendRpc('agent.cancel', { cli: get().selectedCli, sessionId: targetSessionId });
       }
 
       set((state) => ({

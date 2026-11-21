@@ -23,6 +23,8 @@ import {
   SlidersHorizontal,
   ChevronRight,
   HardDrive,
+  Bot,
+  Sparkles,
 } from './Icons';
 import { useDaemonStore, type ReasoningEffort, type ExecutionMode } from '../stores/useDaemonStore';
 import { FolderPickerModal } from './FolderPickerModal';
@@ -50,6 +52,9 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   const fetchKnownWorkspaces = useDaemonStore((s) => s.fetchKnownWorkspaces);
   const fetchDirectorySuggestions = useDaemonStore((s) => s.fetchDirectorySuggestions);
   const cliCapabilities = useDaemonStore((s) => s.cliCapabilities);
+  const selectedCli = useDaemonStore((s) => s.selectedCli);
+  const availableAdapters = useDaemonStore((s) => s.availableAdapters);
+  const setSelectedCli = useDaemonStore((s) => s.setSelectedCli);
 
   const [pathInput, setPathInput] = useState<string>('');
   const [showFolderPicker, setShowFolderPicker] = useState(false);
@@ -58,6 +63,12 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
   const [selectedModel, setSelectedModel] = useState(sessionConfig.model);
   const [selectedEffort, setSelectedEffort] = useState<ReasoningEffort>(sessionConfig.effort);
   const [selectedMode, setSelectedMode] = useState<ExecutionMode>(sessionConfig.mode);
+
+  useEffect(() => {
+    setSelectedModel(sessionConfig.model);
+    setSelectedEffort(sessionConfig.effort);
+    setSelectedMode(sessionConfig.mode);
+  }, [sessionConfig.model, sessionConfig.effort, sessionConfig.mode]);
 
   const availableModes: ExecutionMode[] = cliCapabilities?.supportedModes || ['auto', 'plan', 'accept-edits'];
   const supportedEfforts = cliCapabilities?.supportedEffortLevels?.filter((e) => ['low', 'medium', 'high', 'xhigh'].includes(e)) || ['low', 'medium', 'high'];
@@ -123,6 +134,70 @@ export const NewChatWorkspaceSheet: React.FC<NewChatWorkspaceSheetProps> = ({
           </BottomSheet.Header>
 
           <BottomSheet.Body className="p-4">
+            {/* Agent Engine Switcher */}
+            <View className="mb-4">
+              <Text className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Agent Engine
+              </Text>
+              <View className="p-1 rounded-xl bg-surface border border-border flex-row gap-1">
+                {(availableAdapters.length > 0
+                  ? availableAdapters
+                  : [
+                      { id: 'antigravity', displayName: 'Antigravity', binaryName: 'agy', available: true },
+                      { id: 'codex', displayName: 'OpenAI Codex', binaryName: 'codex', available: true },
+                    ]
+                ).map((adapter) => {
+                  const isSelected = selectedCli === adapter.id;
+                  const isCodex = adapter.id === 'codex';
+                  return (
+                    <TouchableOpacity
+                      key={adapter.id}
+                      onPress={async () => {
+                        if (adapter.id !== selectedCli) {
+                          await setSelectedCli(adapter.id);
+                        }
+                      }}
+                      activeOpacity={0.7}
+                      className={cn(
+                        'flex-1 flex-row items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg transition-all',
+                        isSelected
+                          ? 'bg-primary'
+                          : 'bg-transparent'
+                      )}
+                    >
+                      {isCodex ? (
+                        <Bot
+                          size={13}
+                          color={
+                            isSelected
+                              ? (isSwiss ? '#ffffff' : isLight ? '#fafafa' : '#262626')
+                              : (isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3')
+                          }
+                        />
+                      ) : (
+                        <Sparkles
+                          size={13}
+                          color={
+                            isSelected
+                              ? (isSwiss ? '#ffffff' : isLight ? '#fafafa' : '#262626')
+                              : (isSwiss ? '#6B665E' : isLight ? '#686868' : '#a3a3a3')
+                          }
+                        />
+                      )}
+                      <Text
+                        className={cn(
+                          'text-xs font-medium',
+                          isSelected ? 'text-primary-foreground font-semibold' : 'text-muted-foreground'
+                        )}
+                      >
+                        {adapter.displayName || (adapter.id === 'codex' ? 'OpenAI Codex' : 'Antigravity')}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
             {/* Target Path Field */}
             <View className="mb-4">
               <View className="flex-row items-center justify-between mb-1.5">
