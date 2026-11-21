@@ -1,5 +1,6 @@
 import type { ICliAdapter, CliAvailability } from "@cloud-agent/cli-interface";
 import { AntigravityAdapter } from "@cloud-agent/cli-antigravity";
+import { CodexAdapter } from "@cloud-agent/cli-codex";
 
 export class CliAdapterRegistry {
   private adapters = new Map<string, ICliAdapter>();
@@ -8,6 +9,7 @@ export class CliAdapterRegistry {
   constructor() {
     // Register standard first-party CLI adapters
     this.register(new AntigravityAdapter());
+    this.register(new CodexAdapter());
   }
 
   register(adapter: ICliAdapter): void {
