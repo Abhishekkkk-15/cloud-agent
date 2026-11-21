@@ -378,7 +378,13 @@ function parseRolloutLineToMessage(line: string, index: number): CliMessage | nu
 
       // 2. Reasoning / Thinking
       if (payload.type === "reasoning") {
-        const reasoningText = payload.text || payload.summary || "";
+        const rawReasoning = payload.text || payload.summary || "";
+        const reasoningText =
+          typeof rawReasoning === "string"
+            ? rawReasoning
+            : (rawReasoning as any) && typeof rawReasoning === "object"
+            ? (rawReasoning as any).text || (rawReasoning as any).summary || JSON.stringify(rawReasoning)
+            : String(rawReasoning || "");
         return {
           id: `reasoning_${index}`,
           role: "assistant",

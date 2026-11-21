@@ -35,6 +35,25 @@ function getDefaultHost(): string {
   return '192.168.1.10';
 }
 
+export function normalizeTextPayload(val: unknown): string {
+  if (typeof val === 'string') return val;
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'object') {
+    if ('text' in (val as Record<string, unknown>) && typeof (val as any).text === 'string') return (val as any).text;
+    if ('summary' in (val as Record<string, unknown>) && typeof (val as any).summary === 'string') return (val as any).summary;
+    if ('content' in (val as Record<string, unknown>) && typeof (val as any).content === 'string') return (val as any).content;
+    if (Array.isArray(val)) {
+      return val.map(normalizeTextPayload).filter(Boolean).join('\n');
+    }
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
+}
+
 const defaultHost = getDefaultHost();
 let activeSubscriptionSessionId: string | null = null;
 let hasInitializedGlobalListeners = false;
@@ -2530,8 +2549,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         const msgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
           id: m.id,
           role: m.role || 'user',
-          content: m.content || '',
-          reasoning: m.reasoning,
+          content: normalizeTextPayload(m.content),
+          reasoning: m.reasoning !== undefined && m.reasoning !== null ? normalizeTextPayload(m.reasoning) : undefined,
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
           attachments: m.attachments,
@@ -2624,8 +2643,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         const msgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
           id: m.id,
           role: m.role || 'user',
-          content: m.content || '',
-          reasoning: m.reasoning,
+          content: normalizeTextPayload(m.content),
+          reasoning: m.reasoning !== undefined && m.reasoning !== null ? normalizeTextPayload(m.reasoning) : undefined,
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
           attachments: m.attachments,
@@ -2713,8 +2732,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         const olderMsgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
           id: m.id,
           role: m.role || 'user',
-          content: m.content || '',
-          reasoning: m.reasoning,
+          content: normalizeTextPayload(m.content),
+          reasoning: m.reasoning !== undefined && m.reasoning !== null ? normalizeTextPayload(m.reasoning) : undefined,
           timestamp: m.timestamp || new Date().toISOString(),
           toolCalls: m.toolCalls,
           attachments: m.attachments,
@@ -2873,8 +2892,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           const msgs: RealMessageItem[] = [...rawList].reverse().map((m: any) => ({
             id: m.id,
             role: m.role || 'user',
-            content: m.content || '',
-            reasoning: m.reasoning,
+            content: normalizeTextPayload(m.content),
+            reasoning: m.reasoning !== undefined && m.reasoning !== null ? normalizeTextPayload(m.reasoning) : undefined,
             timestamp: m.timestamp || new Date().toISOString(),
             toolCalls: m.toolCalls,
             attachments: m.attachments,

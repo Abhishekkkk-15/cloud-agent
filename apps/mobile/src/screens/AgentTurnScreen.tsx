@@ -69,7 +69,7 @@ import {
   ImageIcon,
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors, getGlossyHeaderTokens } from '../theme/tokens';
-import { useDaemonStore } from '../stores/useDaemonStore';
+import { useDaemonStore, normalizeTextPayload } from '../stores/useDaemonStore';
 import {
   Menu,
   AIInput,
@@ -410,7 +410,7 @@ const TurnCard = React.memo<TurnCardProps>(
                           }
                         />
                         <Reasoning.Content>
-                          {element.text.trim()}
+                          {typeof element.text === 'string' ? element.text.trim() : String(element.text || '')}
                         </Reasoning.Content>
                       </Reasoning>
                     </AnimatedReanimated.View>
@@ -1317,11 +1317,12 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
       const msgKey = msg.id || (msg.timestamp ? `${msg.role}_${msg.timestamp}` : `msg_${i}`);
 
       if (msg.role === 'user') {
+        const userContent = normalizeTextPayload(msg.content);
         currentTurn = {
           id: `turn_${msgKey}`,
           userMessage: {
             id: `usr_${msgKey}`,
-            content: msg.content,
+            content: userContent,
             timestamp: msg.timestamp,
             attachments: msg.attachments,
           },
@@ -1349,22 +1350,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         const asstObj = currentTurn.assistant;
 
         // 1. Process reasoning with stable identifier
-        if (msg.reasoning && msg.reasoning.trim()) {
+        const reasoningText = normalizeTextPayload(msg.reasoning);
+        if (reasoningText && reasoningText.trim()) {
           asstObj.reasoning = asstObj.reasoning
-            ? asstObj.reasoning + '\n' + msg.reasoning
-            : msg.reasoning;
+            ? asstObj.reasoning + '\n' + reasoningText
+            : reasoningText;
 
           const reasoningKey = `${msgKey}_reasoning`;
           const existingReasoning = asstObj.elements.find(
             (el) => el.type === 'reasoning' && el.id === reasoningKey
           );
           if (existingReasoning && existingReasoning.type === 'reasoning') {
-            existingReasoning.text = msg.reasoning;
+            existingReasoning.text = reasoningText;
           } else {
             asstObj.elements.push({
               type: 'reasoning',
               id: reasoningKey,
-              text: msg.reasoning,
+              text: reasoningText,
             });
           }
         }
@@ -1510,22 +1512,23 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
         }
 
         // 3. Process content with stable identifier
-        if (msg.content && msg.content.trim()) {
+        const contentText = normalizeTextPayload(msg.content);
+        if (contentText && contentText.trim()) {
           asstObj.content = asstObj.content
-            ? asstObj.content + '\n' + msg.content
-            : msg.content;
+            ? asstObj.content + '\n' + contentText
+            : contentText;
 
           const contentKey = `${msgKey}_content`;
           const existingContent = asstObj.elements.find(
             (el) => el.type === 'content' && el.id === contentKey
           );
           if (existingContent && existingContent.type === 'content') {
-            existingContent.text = msg.content;
+            existingContent.text = contentText;
           } else {
             asstObj.elements.push({
               type: 'content',
               id: contentKey,
-              text: msg.content,
+              text: contentText,
             });
           }
         }

@@ -412,7 +412,14 @@ function parseTranscriptLineToMessage(line: string, index: number): CliMessage |
         id: `step_${parsed.step_index ?? index}`,
         role: "assistant",
         content: parsed.content || "",
-        reasoning: parsed.thinking,
+        reasoning:
+          typeof parsed.thinking === "string"
+            ? parsed.thinking
+            : (parsed.thinking as any) && typeof parsed.thinking === "object"
+            ? (parsed.thinking as any).text || (parsed.thinking as any).summary || JSON.stringify(parsed.thinking)
+            : parsed.thinking != null
+            ? String(parsed.thinking)
+            : undefined,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         timestamp: ts,
       };
