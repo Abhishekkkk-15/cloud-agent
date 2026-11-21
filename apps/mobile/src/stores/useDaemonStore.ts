@@ -1011,6 +1011,17 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
   setSessionConfig: (newCfg: Partial<SessionConfig>) => {
     set((state) => ({
       sessionConfig: { ...state.sessionConfig, ...newCfg },
+      activeSession: state.activeSession
+        ? {
+            ...state.activeSession,
+            ...(newCfg.model ? { model: newCfg.model } : {}),
+          }
+        : null,
+      sessions: state.activeSession && newCfg.model
+        ? state.sessions.map((s) =>
+            s.id === state.activeSession!.id ? { ...s, model: newCfg.model! } : s
+          )
+        : state.sessions,
     }));
   },
 
@@ -2514,12 +2525,21 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       if (session.workspacePath && get().targetWorkspacePath !== session.workspacePath) {
         set({ targetWorkspacePath: session.workspacePath });
       }
+      if (session.model && get().sessionConfig.model !== session.model) {
+        set((state) => ({
+          sessionConfig: { ...state.sessionConfig, model: session.model! },
+        }));
+      }
       get().fetchSessionArtifacts(session.id);
       return;
     }
     set({
       activeSession: session,
       targetWorkspacePath: session.workspacePath || null,
+      sessionConfig: {
+        ...get().sessionConfig,
+        ...(session.model ? { model: session.model } : {}),
+      },
       sessionMessages: [],
       sessionArtifacts: [],
       messagesOffset: 0,

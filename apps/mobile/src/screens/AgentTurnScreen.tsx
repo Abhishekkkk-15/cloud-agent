@@ -609,7 +609,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [isRespondingApproval, setIsRespondingApproval] = useState(false);
   const [isDictating, setIsDictating] = useState(false);
 
-  const currentModelId = activeSession?.model || sessionConfig?.model || 'gemini-3.8-flash-high';
+  const currentModelId = sessionConfig?.model || activeSession?.model || 'gemini-3.8-flash-high';
   const modelPillLabel = useMemo(() => {
     const matched = availableModels.find((m) => m.id === currentModelId);
     if (matched) {
@@ -1294,7 +1294,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     (targetWorkspacePath ? targetWorkspacePath.split(/[\\/]/).pop() || null : null) ||
     activeSession?.title ||
     'Workspace';
-  const modelStr = activeSession?.model || sessionConfig.model.split('-')[0] || 'antigravity';
+  const modelStr = modelPillLabel || sessionConfig?.model || activeSession?.model || 'antigravity';
 
   // Group linear chronological messages into sequential chat turns matching Antigravity flow
   const chatTurns = useMemo<ChatTurn[]>(() => {
