@@ -27,12 +27,16 @@ import {
   RefreshCw,
   AlertTriangle,
   Sparkles,
+  Globe,
+  GitBranch,
+  Eye,
 } from './Icons';
 import { colors, radii, typography } from '../theme/tokens';
 import {
   useDaemonStore,
   type ReasoningEffort,
   type ExecutionMode,
+  type SessionConfig,
 } from '../stores/useDaemonStore';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -48,12 +52,20 @@ interface SessionConfigSheetProps {
   onClose: () => void;
 }
 
+function formatTokens(tokens?: number): string {
+  if (!tokens) return '';
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(0)}M`;
+  if (tokens >= 1_000) return `${Math.round(tokens / 1_000)}k`;
+  return String(tokens);
+}
+
 const ALL_EFFORT_LEVELS: { id: ReasoningEffort; label: string; desc: string }[] = [
   { id: 'low', label: 'Low', desc: 'Fastest turns, minimal thinking tokens' },
   { id: 'medium', label: 'Medium', desc: 'Balanced reasoning for standard tasks' },
   { id: 'high', label: 'High', desc: 'In-depth multi-step verification (Recommended)' },
   { id: 'xhigh', label: 'X-High', desc: 'Extended reasoning depth for challenging logic' },
   { id: 'max', label: 'Max', desc: 'Exhaustive deliberation on critical code' },
+  { id: 'ultra', label: 'Ultra', desc: 'Maximum architectural reasoning for large-scale tasks' },
 ];
 
 const ALL_EXECUTION_MODES: { id: ExecutionMode; label: string; desc: string }[] = [
@@ -80,15 +92,20 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
 
   const [isRefreshingModels, setIsRefreshingModels] = useState(false);
 
-  // Dynamic capabilities resolution
-  const supportedEffortIds = cliCapabilities?.supportedEffortLevels || ['low', 'medium', 'high', 'xhigh', 'max'];
-  const effortLevels = ALL_EFFORT_LEVELS.filter((e) => supportedEffortIds.includes(e.id));
-  const supportsEffort = cliCapabilities?.supportsEffort !== false;
+  const models = availableModels.length > 0 ? availableModels : (cliCapabilities?.models?.fallbackModels || []);
+  const activeModel = models.find((m) => m.id === (sessionConfig.model || models[0]?.id));
+
+  // Dynamic model-specific capabilities resolution
+  const modelSupportsEffort = activeModel ? activeModel.supportsEffort !== false : cliCapabilities?.supportsEffort !== false;
+  const modelEffortLevels = (activeModel?.supportedEffortLevels && activeModel.supportedEffortLevels.length > 0)
+    ? activeModel.supportedEffortLevels
+    : (cliCapabilities?.supportedEffortLevels || ['low', 'medium', 'high', 'xhigh', 'max']);
+  const effortLevels = ALL_EFFORT_LEVELS.filter((e) => modelEffortLevels.includes(e.id));
+  const supportsEffort = modelSupportsEffort && effortLevels.length > 0;
 
   const supportedModeIds = cliCapabilities?.supportedModes || ['auto', 'plan', 'accept-edits'];
   const executionModes = ALL_EXECUTION_MODES.filter((m) => supportedModeIds.includes(m.id));
 
-  const models = availableModels.length > 0 ? availableModels : (cliCapabilities?.models?.fallbackModels || []);
   const permissionsCap = cliCapabilities?.permissions;
   const requiresBypassInHeadless = permissionsCap?.requiresBypassInHeadless ?? true;
 
@@ -363,7 +380,8 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                   })}
                 </View>
                 <Text style={[styles.effortDescription, isLight && styles.effortDescriptionLight, isSwiss && styles.effortDescriptionSwiss]}>
-                  {effortLevels.find((e) => e.id === (sessionConfig.effort || 'high'))?.desc}
+                  {activeModel?.reasoningEffortDescriptions?.[sessionConfig.effort || 'medium'] ||
+                    effortLevels.find((e) => e.id === (sessionConfig.effort || 'high'))?.desc}
                 </Text>
               </View>
             )}
@@ -461,7 +479,15 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                         isSelected && (isSwiss ? styles.modelCardActiveSwiss : isLight ? styles.modelCardActiveLight : styles.modelCardActive),
                       ]}
                       activeOpacity={0.75}
-                      onPress={() => setSessionConfig({ model: model.id })}
+                      onPress={() => {
+                        const updates: Partial<SessionConfig> = { model: model.id };
+                        if (model.supportedEffortLevels && model.supportedEffortLevels.length > 0) {
+                          if (!model.supportedEffortLevels.includes(sessionConfig.effort)) {
+                            updates.effort = (model.defaultEffort as ReasoningEffort) || (model.supportedEffortLevels[0] as ReasoningEffort);
+                          }
+                        }
+                        setSessionConfig(updates);
+                      }}
                     >
                       <View style={styles.modelCardLeft}>
                         <View
@@ -495,6 +521,35 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                           {descText ? (
                             <Text style={[styles.modelDesc, isLight && styles.modelDescLight, isSwiss && styles.modelDescSwiss]}>{descText}</Text>
                           ) : null}
+
+                          {/* Model Dynamic Capability Chips */}
+                          <View style={styles.capabilityChipsRow}>
+                            {model.contextWindow ? (
+                              <View style={[styles.capChip, isLight && styles.capChipLight, isSwiss && styles.capChipSwiss]}>
+                                <Text style={[styles.capChipText, isLight && styles.capChipTextLight, isSwiss && styles.capChipTextSwiss]}>
+                                  {formatTokens(model.contextWindow)} ctx
+                                </Text>
+                              </View>
+                            ) : null}
+                            {model.supportsSearch ? (
+                              <View style={[styles.capChip, isLight && styles.capChipLight, isSwiss && styles.capChipSwiss]}>
+                                <Globe size={9} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                                <Text style={[styles.capChipText, isLight && styles.capChipTextLight, isSwiss && styles.capChipTextSwiss]}>Search</Text>
+                              </View>
+                            ) : null}
+                            {model.inputModalities?.includes('image') ? (
+                              <View style={[styles.capChip, isLight && styles.capChipLight, isSwiss && styles.capChipSwiss]}>
+                                <Eye size={9} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                                <Text style={[styles.capChipText, isLight && styles.capChipTextLight, isSwiss && styles.capChipTextSwiss]}>Vision</Text>
+                              </View>
+                            ) : null}
+                            {model.supportedEffortLevels?.includes('ultra') ? (
+                              <View style={[styles.capChipUltra, isLight && styles.capChipUltraLight, isSwiss && styles.capChipUltraSwiss]}>
+                                <Flame size={9} color={isSwiss ? '#DC201E' : '#f59e0b'} />
+                                <Text style={[styles.capChipTextUltra, isLight && styles.capChipTextUltraLight, isSwiss && styles.capChipTextUltraSwiss]}>Ultra Depth</Text>
+                              </View>
+                            ) : null}
+                          </View>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -502,6 +557,163 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
                 })}
               </View>
             </View>
+
+            {/* 3.5 Live Web Search */}
+            {Boolean(cliCapabilities?.supportsWebSearch || activeModel?.supportsSearch) && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Globe size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                  <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>LIVE WEB SEARCH</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    isLight && styles.modeCardLight,
+                    isSwiss && styles.modeCardSwiss,
+                    sessionConfig.search && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
+                  ]}
+                  activeOpacity={0.75}
+                  onPress={() => setSessionConfig({ search: !sessionConfig.search })}
+                >
+                  <View style={styles.modeCardLeft}>
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        isLight && styles.radioCircleLight,
+                        isSwiss && styles.radioCircleSwiss,
+                        sessionConfig.search && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                      ]}
+                    >
+                      {sessionConfig.search && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
+                    </View>
+                    <View style={styles.modeCardTextCol}>
+                      <Text
+                        style={[
+                          styles.modeCardLabel,
+                          isLight && styles.modeCardLabelLight,
+                          isSwiss && styles.modeCardLabelSwiss,
+                          sessionConfig.search && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                        ]}
+                      >
+                        {sessionConfig.search ? 'Web Search Enabled' : 'Web Search Disabled'}
+                      </Text>
+                      <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>
+                        Allows the agent to execute real-time web searches to retrieve up-to-date documentation and code samples.
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* 3.6 Git Worktree Isolation */}
+            {Boolean(cliCapabilities?.supportsWorktree) && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <GitBranch size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                  <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>GIT WORKTREE ISOLATION</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.modeCard,
+                    isLight && styles.modeCardLight,
+                    isSwiss && styles.modeCardSwiss,
+                    sessionConfig.worktree && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
+                  ]}
+                  activeOpacity={0.75}
+                  onPress={() => setSessionConfig({ worktree: !sessionConfig.worktree })}
+                >
+                  <View style={styles.modeCardLeft}>
+                    <View
+                      style={[
+                        styles.radioCircle,
+                        isLight && styles.radioCircleLight,
+                        isSwiss && styles.radioCircleSwiss,
+                        sessionConfig.worktree && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                      ]}
+                    >
+                      {sessionConfig.worktree && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
+                    </View>
+                    <View style={styles.modeCardTextCol}>
+                      <Text
+                        style={[
+                          styles.modeCardLabel,
+                          isLight && styles.modeCardLabelLight,
+                          isSwiss && styles.modeCardLabelSwiss,
+                          sessionConfig.worktree && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                        ]}
+                      >
+                        {sessionConfig.worktree ? 'Isolated Git Worktree (Active)' : 'Standard Workspace Root'}
+                      </Text>
+                      <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>
+                        Spawns this session in a dedicated git worktree so changes do not modify your working copy until merged.
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* 3.7 Sandbox Policies */}
+            {Boolean(cliCapabilities?.supportsSandboxPolicies) && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeaderRow}>
+                  <Shield size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />
+                  <Text style={[styles.sectionTitle, isLight && styles.sectionTitleLight, isSwiss && styles.sectionTitleSwiss]}>SANDBOX POLICY</Text>
+                </View>
+
+                <View style={styles.modeCardsCol}>
+                  {[
+                    { id: 'workspace-write' as const, label: 'Workspace Write (Standard)', desc: 'Shell commands can only modify files inside the project workspace directory.' },
+                    { id: 'read-only' as const, label: 'Read Only (Safe Audit)', desc: 'Strict read-only sandbox. Files cannot be created, modified, or deleted.' },
+                    { id: 'danger-full-access' as const, label: 'Full Access (Unconstrained)', desc: 'Unrestricted system access for commands requiring elevated host tools.' },
+                  ].map((sb) => {
+                    const isSelected = (sessionConfig.sandbox || 'workspace-write') === sb.id;
+                    return (
+                      <TouchableOpacity
+                        key={sb.id}
+                        style={[
+                          styles.modeCard,
+                          isLight && styles.modeCardLight,
+                          isSwiss && styles.modeCardSwiss,
+                          isSelected && (isSwiss ? styles.modeCardActiveSwiss : isLight ? styles.modeCardActiveLight : styles.modeCardActive),
+                        ]}
+                        activeOpacity={0.75}
+                        onPress={() => setSessionConfig({ sandbox: sb.id })}
+                      >
+                        <View style={styles.modeCardLeft}>
+                          <View
+                            style={[
+                              styles.radioCircle,
+                              isLight && styles.radioCircleLight,
+                              isSwiss && styles.radioCircleSwiss,
+                              isSelected && (isSwiss ? styles.radioCircleActiveSwiss : isLight ? styles.radioCircleActiveLight : styles.radioCircleActive),
+                            ]}
+                          >
+                            {isSelected && <View style={[styles.radioDot, isLight && styles.radioDotLight, isSwiss && styles.radioDotSwiss]} />}
+                          </View>
+                          <View style={styles.modeCardTextCol}>
+                            <Text
+                              style={[
+                                styles.modeCardLabel,
+                                isLight && styles.modeCardLabelLight,
+                                isSwiss && styles.modeCardLabelSwiss,
+                                isSelected && (isSwiss ? styles.modeCardLabelActiveSwiss : isLight ? styles.modeCardLabelActiveLight : styles.modeCardLabelActive),
+                              ]}
+                            >
+                              {sb.label}
+                            </Text>
+                            <Text style={[styles.modeCardDesc, isLight && styles.modeCardDescLight, isSwiss && styles.modeCardDescSwiss]}>{sb.desc}</Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
             {/* 4. Tool Permissions */}
             <View style={styles.section}>
@@ -855,6 +1067,74 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  capabilityChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 6,
+    alignItems: 'center',
+  },
+  capChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: radii.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  capChipLight: {
+    backgroundColor: '#eaeef2',
+    borderColor: 'rgba(0, 0, 0, 0.08)',
+  },
+  capChipSwiss: {
+    backgroundColor: '#EBE4D8',
+    borderColor: 'rgba(17, 16, 16, 0.12)',
+  },
+  capChipText: {
+    fontSize: 9,
+    color: colors.textMuted,
+    fontFamily: typography.mono,
+  },
+  capChipTextLight: {
+    color: '#57606a',
+  },
+  capChipTextSwiss: {
+    color: '#6B665E',
+  },
+  capChipUltra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    borderRadius: radii.xs,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  capChipUltraLight: {
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
+  capChipUltraSwiss: {
+    backgroundColor: 'rgba(220, 32, 30, 0.10)',
+    borderColor: 'rgba(220, 32, 30, 0.30)',
+  },
+  capChipTextUltra: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#f59e0b',
+    fontFamily: typography.mono,
+  },
+  capChipTextUltraLight: {
+    color: '#d97706',
+  },
+  capChipTextUltraSwiss: {
+    color: '#DC201E',
   },
   radioCircle: {
     width: 16,

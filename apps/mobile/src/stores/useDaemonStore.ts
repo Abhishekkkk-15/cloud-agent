@@ -229,14 +229,18 @@ export interface RealMessageItem {
   toolCallId?: string;
 }
 
-export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+export type ReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra';
 export type ExecutionMode = 'auto' | 'plan' | 'accept-edits';
+export type SandboxPolicy = 'read-only' | 'workspace-write' | 'danger-full-access';
 
 export interface SessionConfig {
   model: string;
   effort: ReasoningEffort;
   mode: ExecutionMode;
   dangerouslySkipPermissions?: boolean;
+  search?: boolean;
+  worktree?: boolean;
+  sandbox?: SandboxPolicy;
 }
 
 export interface ApprovalRequest {
@@ -427,9 +431,13 @@ export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
   supportedModes: ['auto', 'plan', 'accept-edits'],
   defaultMode: 'auto',
   supportsEffort: true,
-  supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+  supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
   defaultEffort: 'medium',
   allowFileUpload: true,
+  supportsWebSearch: true,
+  supportsWorktree: true,
+  supportsSandboxPolicies: true,
+  supportedSandboxPolicies: ['read-only', 'workspace-write', 'danger-full-access'],
   permissions: {
     supportsHeadlessHitl: false,
     requiresBypassInHeadless: true,
@@ -448,6 +456,11 @@ export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
         provider: 'OpenAI',
         supportsEffort: true,
         supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        defaultEffort: 'medium',
+        contextWindow: 272000,
+        maxContextWindow: 872000,
+        supportsSearch: true,
+        inputModalities: ['text', 'image'],
         isDefault: true,
       },
       {
@@ -457,6 +470,11 @@ export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
         provider: 'OpenAI',
         supportsEffort: true,
         supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        defaultEffort: 'medium',
+        contextWindow: 272000,
+        maxContextWindow: 872000,
+        supportsSearch: true,
+        inputModalities: ['text', 'image'],
       },
       {
         id: 'gpt-5.6-terra',
@@ -464,7 +482,12 @@ export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
         description: 'High-throughput deep coding model supporting ultra reasoning depth',
         provider: 'OpenAI',
         supportsEffort: true,
-        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
+        defaultEffort: 'medium',
+        contextWindow: 272000,
+        maxContextWindow: 872000,
+        supportsSearch: true,
+        inputModalities: ['text', 'image'],
       },
       {
         id: 'gpt-reserve',
@@ -473,6 +496,11 @@ export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
         provider: 'OpenAI',
         supportsEffort: true,
         supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        defaultEffort: 'medium',
+        contextWindow: 272000,
+        maxContextWindow: 872000,
+        supportsSearch: true,
+        inputModalities: ['text', 'image'],
       },
     ],
   },
@@ -710,6 +738,8 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     effort: 'high',
     mode: 'auto',
     dangerouslySkipPermissions: true,
+    search: false,
+    worktree: false,
   },
   terminalLines: [],
   terminalHistory: [],
@@ -2944,6 +2974,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           effort: sessionConfig.effort,
           mode: sessionConfig.mode,
           dangerouslySkipPermissions: skipPermissions,
+          search: sessionConfig.search,
+          worktree: sessionConfig.worktree,
+          sandbox: sessionConfig.sandbox,
           attachments,
         },
         attachments,
@@ -2954,6 +2987,9 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         effort: sessionConfig.effort,
         mode: sessionConfig.mode,
         dangerouslySkipPermissions: skipPermissions,
+        search: sessionConfig.search,
+        worktree: sessionConfig.worktree,
+        sandbox: sessionConfig.sandbox,
       });
       set({ isSendingPrompt: false });
 

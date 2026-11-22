@@ -39,6 +39,11 @@ const CODEX_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "OpenAI",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    defaultEffort: "medium",
+    supportsSearch: true,
+    contextWindow: 272000,
+    maxContextWindow: 872000,
+    inputModalities: ["text", "image"],
     isDefault: true,
   },
   {
@@ -48,6 +53,11 @@ const CODEX_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "OpenAI",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    defaultEffort: "medium",
+    supportsSearch: true,
+    contextWindow: 272000,
+    maxContextWindow: 872000,
+    inputModalities: ["text", "image"],
   },
   {
     id: "gpt-5.6-terra",
@@ -55,7 +65,12 @@ const CODEX_FALLBACK_MODELS: CliModelCapability[] = [
     description: "High-throughput deep coding model supporting ultra reasoning depth",
     provider: "OpenAI",
     supportsEffort: true,
-    supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    supportedEffortLevels: ["low", "medium", "high", "xhigh", "max", "ultra"],
+    defaultEffort: "medium",
+    supportsSearch: true,
+    contextWindow: 272000,
+    maxContextWindow: 872000,
+    inputModalities: ["text", "image"],
   },
   {
     id: "gpt-reserve",
@@ -64,6 +79,11 @@ const CODEX_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "OpenAI",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    defaultEffort: "medium",
+    supportsSearch: true,
+    contextWindow: 272000,
+    maxContextWindow: 872000,
+    inputModalities: ["text", "image"],
   },
 ];
 
@@ -200,9 +220,13 @@ export class CodexAdapter extends BaseCliAdapter implements ICliAdapter {
       supportedModes: ["auto", "plan", "accept-edits"],
       defaultMode: "auto",
       supportsEffort: true,
-      supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+      supportedEffortLevels: ["low", "medium", "high", "xhigh", "max", "ultra"],
       defaultEffort: "medium",
       allowFileUpload: true,
+      supportsWebSearch: true,
+      supportsWorktree: true,
+      supportsSandboxPolicies: true,
+      supportedSandboxPolicies: ["read-only", "workspace-write", "danger-full-access"],
       permissions: {
         supportsHeadlessHitl: false,
         requiresBypassInHeadless: true,
@@ -243,6 +267,15 @@ export class CodexAdapter extends BaseCliAdapter implements ICliAdapter {
           ? m.supported_reasoning_levels.map((r: { effort: string }) => r.effort)
           : undefined;
 
+        const effortDescriptions: Record<string, string> = {};
+        if (Array.isArray(m.supported_reasoning_levels)) {
+          for (const r of m.supported_reasoning_levels) {
+            if (r.effort && r.description) {
+              effortDescriptions[r.effort] = r.description;
+            }
+          }
+        }
+
         results.push({
           id: m.slug,
           name: m.display_name || m.slug,
@@ -250,6 +283,12 @@ export class CodexAdapter extends BaseCliAdapter implements ICliAdapter {
           provider: "OpenAI",
           supportsEffort: Array.isArray(supportedEfforts) && supportedEfforts.length > 0,
           supportedEffortLevels: supportedEfforts,
+          defaultEffort: m.default_reasoning_level || "medium",
+          reasoningEffortDescriptions: Object.keys(effortDescriptions).length > 0 ? effortDescriptions : undefined,
+          supportsSearch: Boolean(m.supports_search_tool || m.web_search_tool_type),
+          contextWindow: typeof m.context_window === "number" ? m.context_window : undefined,
+          maxContextWindow: typeof m.max_context_window === "number" ? m.max_context_window : undefined,
+          inputModalities: Array.isArray(m.input_modalities) ? m.input_modalities : ["text", "image"],
           isDefault: m.slug === "gpt-5.6-luna",
         });
       }

@@ -85,8 +85,9 @@ export interface CliSessionDetail extends CliSessionSummary {
   artifacts?: CliArtifact[];
 }
 
-export type CliEffortLevel = "low" | "medium" | "high" | "xhigh" | "max";
+export type CliEffortLevel = "low" | "medium" | "high" | "xhigh" | "max" | "ultra";
 export type CliExecutionMode = "auto" | "plan" | "accept-edits";
+export type CliSandboxPolicy = "read-only" | "workspace-write" | "danger-full-access";
 
 export interface CliModelCapability {
   id: string;
@@ -95,7 +96,13 @@ export interface CliModelCapability {
   provider?: string;
   supportsEffort?: boolean;
   supportedEffortLevels?: CliEffortLevel[];
+  defaultEffort?: CliEffortLevel;
   isDefault?: boolean;
+  inputModalities?: ("text" | "image" | "audio" | "video")[];
+  supportsSearch?: boolean;
+  contextWindow?: number;
+  maxContextWindow?: number;
+  reasoningEffortDescriptions?: Record<string, string>;
 }
 
 export interface CliPermissionCapability {
@@ -124,6 +131,13 @@ export interface CliCapabilities {
   defaultEffort: CliEffortLevel;
   /** Whether file uploads are allowed and supported by this CLI in headless runtime */
   allowFileUpload?: boolean;
+  /** Whether live web search is natively supported */
+  supportsWebSearch?: boolean;
+  /** Whether running within an isolated Git worktree is supported */
+  supportsWorktree?: boolean;
+  /** Whether explicit sandbox policies are supported */
+  supportsSandboxPolicies?: boolean;
+  supportedSandboxPolicies?: CliSandboxPolicy[];
   /** Tool execution permission & HITL capabilities */
   permissions: CliPermissionCapability;
   /** Model discovery capabilities */
@@ -145,6 +159,9 @@ export interface CliRunOptions {
   dangerouslySkipPermissions?: boolean;
   env?: Record<string, string>;
   attachments?: CliAttachment[];
+  search?: boolean;
+  worktree?: boolean;
+  sandbox?: CliSandboxPolicy;
 }
 
 export interface CliPtyOptions {

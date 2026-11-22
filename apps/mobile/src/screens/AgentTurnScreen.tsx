@@ -68,6 +68,7 @@ import {
   Paperclip,
   ImageIcon,
   FolderTree,
+  Globe,
 } from '../components/Icons';
 import { colors, radii, typography, getThemeColors, getGlossyHeaderTokens } from '../theme/tokens';
 import { useDaemonStore, normalizeTextPayload } from '../stores/useDaemonStore';
@@ -563,6 +564,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const activeSession = useDaemonStore((s) => s.activeSession);
   const targetWorkspacePath = useDaemonStore((s) => s.targetWorkspacePath);
   const sessionConfig = useDaemonStore((s) => s.sessionConfig);
+  const setSessionConfig = useDaemonStore((s) => s.setSessionConfig);
   const sessionMessages = useDaemonStore((s) => s.sessionMessages);
   const isSendingPrompt = useDaemonStore((s) => s.isSendingPrompt);
   const isCancellingPrompt = useDaemonStore((s) => s.isCancellingPrompt);
@@ -613,6 +615,13 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   const [isDictating, setIsDictating] = useState(false);
 
   const currentModelId = sessionConfig?.model || activeSession?.model || 'gemini-3.8-flash-high';
+  const activeModel = useMemo(
+    () => availableModels.find((m) => m.id === currentModelId),
+    [availableModels, currentModelId]
+  );
+  const supportsSearch = Boolean(cliCapabilities?.supportsWebSearch || activeModel?.supportsSearch);
+  const modelSupportsVision = activeModel ? (activeModel.inputModalities?.includes('image') !== false) : true;
+
   const modelPillLabel = useMemo(() => {
     const matched = availableModels.find((m) => m.id === currentModelId);
     if (matched) {
@@ -635,15 +644,25 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
   }, [currentModelId, availableModels]);
 
   const modelPillDetail = useMemo(() => {
+    const parts: string[] = [];
     const effort = sessionConfig?.effort;
     if (effort && cliCapabilities?.supportsEffort !== false) {
-      return effort.charAt(0).toUpperCase() + effort.slice(1);
+      parts.push(effort.charAt(0).toUpperCase() + effort.slice(1));
+    }
+    if (sessionConfig?.search) {
+      parts.push('Search');
+    }
+    if (sessionConfig?.worktree) {
+      parts.push('Worktree');
+    }
+    if (parts.length > 0) {
+      return parts.join(' · ');
     }
     if (selectedCli === 'codex') {
       return 'Codex';
     }
     return undefined;
-  }, [sessionConfig?.effort, cliCapabilities?.supportsEffort, selectedCli]);
+  }, [sessionConfig?.effort, sessionConfig?.search, sessionConfig?.worktree, cliCapabilities?.supportsEffort, selectedCli]);
 
   useEffect(() => {
     return () => {
@@ -2306,8 +2325,8 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               />
             ) : (
               <AIInput.Toolbar>
-                {/* 1. File Attach Action (Paperclip) - Only rendered when coding agent allows file upload */}
-                {allowFileUpload && (
+                {/* 1. File Attach Action (Paperclip) - Only rendered when coding agent allows file upload & model supports vision */}
+                {allowFileUpload && modelSupportsVision && (
                   <AIInput.Action
                     label="Attach"
                     icon={
@@ -2321,6 +2340,24 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                       />
                     }
                     onPress={() => setShowAttachmentPicker(true)}
+                  />
+                )}
+
+                {/* 2. Web Search Toggle (Globe) */}
+                {supportsSearch && (
+                  <AIInput.Action
+                    label="Search"
+                    icon={
+                      <Globe
+                        size={15}
+                        color={
+                          sessionConfig.search
+                            ? (isSwiss ? '#DC201E' : '#3b82f6')
+                            : (isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3')
+                        }
+                      />
+                    }
+                    onPress={() => setSessionConfig({ search: !sessionConfig.search })}
                   />
                 )}
 

@@ -38,6 +38,10 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "Google",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    defaultEffort: "high",
+    contextWindow: 1048576,
+    supportsSearch: true,
+    inputModalities: ["text", "image", "audio", "video"],
     isDefault: true,
   },
   {
@@ -47,6 +51,10 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "Google",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    defaultEffort: "medium",
+    contextWindow: 1048576,
+    supportsSearch: true,
+    inputModalities: ["text", "image", "audio", "video"],
   },
   {
     id: "gemini-3.8-flash-low",
@@ -55,6 +63,10 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "Google",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
+    defaultEffort: "low",
+    contextWindow: 1048576,
+    supportsSearch: true,
+    inputModalities: ["text", "image", "audio", "video"],
   },
   {
     id: "claude-sonnet-4-6",
@@ -63,6 +75,10 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "Anthropic",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "max"],
+    defaultEffort: "high",
+    contextWindow: 200000,
+    supportsSearch: true,
+    inputModalities: ["text", "image"],
   },
   {
     id: "claude-opus-4-6-thinking",
@@ -71,6 +87,10 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     provider: "Anthropic",
     supportsEffort: true,
     supportedEffortLevels: ["low", "medium", "high", "max"],
+    defaultEffort: "high",
+    contextWindow: 200000,
+    supportsSearch: true,
+    inputModalities: ["text", "image"],
   },
   {
     id: "gpt-oss-120b-medium",
@@ -78,6 +98,9 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     description: "Open weights model running locally or hybrid",
     provider: "OSS",
     supportsEffort: false,
+    contextWindow: 128000,
+    supportsSearch: false,
+    inputModalities: ["text"],
   },
 ];
 
@@ -241,6 +264,9 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
       supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
       defaultEffort: "high",
       allowFileUpload: true,
+      supportsWebSearch: true,
+      supportsWorktree: false,
+      supportsSandboxPolicies: false,
       permissions: {
         supportsHeadlessHitl: false,
         requiresBypassInHeadless: true,

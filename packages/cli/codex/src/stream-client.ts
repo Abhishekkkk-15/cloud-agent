@@ -73,8 +73,20 @@ class CodexWorker {
       args.push("-C", options.cwd);
     }
 
-    // Sandbox mode (for new sessions)
-    if (!options.sessionId) {
+    // Git Worktree isolation (for new sessions)
+    if (options.worktree && !options.sessionId) {
+      args.push("--worktree");
+    }
+
+    // Live Web Search tool
+    if (options.search) {
+      args.push("--search");
+    }
+
+    // Sandbox mode
+    if (options.sandbox) {
+      args.push("-s", options.sandbox);
+    } else if (!options.sessionId) {
       if (options.mode === "plan") {
         args.push("-s", "read-only");
       } else {
