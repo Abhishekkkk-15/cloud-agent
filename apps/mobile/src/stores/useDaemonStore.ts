@@ -1214,6 +1214,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
               event.type === 'tool_call' ||
               event.type === 'tool_result' ||
               event.type === 'status' ||
+              event.type === 'error' ||
               event.type === 'artifact')
           ) {
             return;
