@@ -26,7 +26,7 @@ export function mapAntigravityStreamEvent(
 
     // 1. Init event
     if (eventType === "init") {
-      const convId = (raw.conversation_id as string) || sessionId;
+      const convId = sessionId || (raw.conversation_id as string);
       events.push(
         createCliEvent<StatusEventData>("status", convId, {
           status: "idle",
@@ -73,7 +73,7 @@ export function mapAntigravityStreamEvent(
     // 2. Step Update event (streaming text/thought/tools)
     if (eventType === "step_update" && raw.step_update && typeof raw.step_update === "object") {
       const su = raw.step_update as Record<string, unknown>;
-      const convId = (su.conversation_id as string) || sessionId;
+      const convId = sessionId || (su.conversation_id as string);
 
       const isThoughtStep =
         su.step_type === "thought" ||
@@ -229,7 +229,7 @@ export function mapAntigravityStreamEvent(
     // 3. Result event (turn finished or errored)
     if (eventType === "result" && raw.result && typeof raw.result === "object") {
       const res = raw.result as Record<string, unknown>;
-      const convId = (res.conversation_id as string) || sessionId;
+      const convId = sessionId || (res.conversation_id as string);
 
       if (res.status === "ERROR") {
         events.push(

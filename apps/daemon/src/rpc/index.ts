@@ -347,9 +347,8 @@ export class RpcDispatcher {
               if ((event as any).data?.isCommand) {
                 isCommand = true;
               }
-              if (!event.sessionId) {
-                event.sessionId = sessionId;
-              }
+              // Guarantee session ID alignment with the caller channel
+              event.sessionId = sessionId;
               sessionStreamHub.broadcast(sessionId, event);
             }
           } finally {

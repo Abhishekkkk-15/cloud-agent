@@ -1374,6 +1374,21 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
               }
               return updated ? { sessionMessages: msgs } : state;
             });
+          } else if (event.type === 'error') {
+            const errMsg = event.data?.error || event.error || (typeof event.data === 'string' ? event.data : 'Execution failed');
+            notifyTurnError(errMsg).catch(() => {});
+            set((state) => ({
+              sessionMessages: [
+                ...state.sessionMessages,
+                {
+                  id: `err_${Date.now()}`,
+                  role: 'assistant',
+                  content: `⚠️ Error: ${errMsg}`,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+              isSendingPrompt: false,
+            }));
           } else if (event.type === 'status') {
             const statusVal = event.data?.status || event.status;
             const msg = event.data?.message || event.message;
@@ -2483,19 +2498,24 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           ].filter(Boolean))
         );
 
+        const activeSess = get().activeSession;
+        const mergedSessions = activeSess && !parsed.some((s) => s.id === activeSess.id)
+          ? [activeSess, ...parsed]
+          : parsed;
+
         set({
-          sessions: parsed,
+          sessions: mergedSessions,
           workspaces: uniqueWorkspaces,
           isLoadingSessions: false,
         });
 
         // Auto-select first session ONLY IF none selected AND we don't have active chat messages
-        if (!get().activeSession && parsed.length > 0) {
+        if (!get().activeSession && mergedSessions.length > 0) {
           if (get().sessionMessages.length === 0) {
-            get().selectSession(parsed[0]);
+            get().selectSession(mergedSessions[0]);
           } else {
             // Associate with newly created session on disk without wiping in-memory sessionMessages
-            set({ activeSession: parsed[0] });
+            set({ activeSession: mergedSessions[0] });
           }
         }
       } else {
@@ -3014,6 +3034,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         // Disconnected mid-flight: do not inject a permanent error card.
         // Instead, release lock and schedule background reconciliation with the host disk.
         activeSubscriptionSessionId = null;
+        set({ isSendingPrompt: false });
         setTimeout(() => {
           get().reconcileActiveSession();
         }, 1200);

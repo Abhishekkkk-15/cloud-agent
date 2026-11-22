@@ -162,6 +162,7 @@ class PersistentWorker {
   private resolveWait: (() => void) | null = null;
   private idleTimer: NodeJS.Timeout | null = null;
   private isTurnRunning = false;
+  private lastStderrLine = "";
   readonly activeModel?: string;
   readonly activeEffort?: string;
   readonly activeMode?: string;
@@ -181,6 +182,27 @@ class PersistentWorker {
     this.activeMode = options.mode;
     this.activeDangerouslySkipPermissions = options.dangerouslySkipPermissions !== false;
     this.activeCwd = options.cwd ? path.normalize(options.cwd).toLowerCase() : undefined;
+
+    // Pre-initialize session directory and transcript file so agy recognizes the conversation ID
+    if (this.sessionId) {
+      try {
+        const brainDir = getBrainDir();
+        const sessionDir = path.join(brainDir, this.sessionId);
+        const logsDir = path.join(sessionDir, ".system_generated", "logs");
+        if (!fs.existsSync(logsDir)) {
+          fs.mkdirSync(logsDir, { recursive: true });
+        }
+        const transcriptPath = path.join(logsDir, "transcript.jsonl");
+        if (!fs.existsSync(transcriptPath)) {
+          fs.writeFileSync(transcriptPath, "", "utf-8");
+        }
+        if (options.cwd) {
+          writeSessionMeta(sessionDir, { workspacePath: options.cwd });
+        }
+      } catch (err) {
+        console.warn(`[PersistentWorker] Failed to ensure session transcript dir:`, err);
+      }
+    }
 
     const args: string[] = [
       "--input-format",
@@ -349,13 +371,17 @@ class PersistentWorker {
     rlErr.on("line", (line: string) => {
       const trimmed = line.trim();
       if (!trimmed) return;
+      this.lastStderrLine = trimmed;
+
+      const lower = trimmed.toLowerCase();
+      const isErrorLine = lower.includes("error:") || lower.includes("fatal:") || lower.includes("failed to");
 
       this.pushItem({
         event: {
-          type: "status",
+          type: isErrorLine ? "error" : "status",
           sessionId: this.sessionId,
           timestamp: new Date().toISOString(),
-          data: { status: "thinking", message: trimmed },
+          data: isErrorLine ? { error: trimmed } : { status: "thinking", message: trimmed },
         },
       });
     });
@@ -377,15 +403,15 @@ class PersistentWorker {
     this.child.on("close", (code: number | null) => {
       this.isAlive = false;
       if (this.isTurnRunning) {
+        const errorDetail = this.lastStderrLine || `Process exited with code ${code}`;
         this.pushItem({
           event: {
-            type: "status",
+            type: code === 0 ? "status" : "error",
             sessionId: this.sessionId,
             timestamp: new Date().toISOString(),
-            data: {
-              status: code === 0 ? "done" : "error",
-              message: code === 0 ? "Turn completed" : `Process exited with code ${code}`,
-            },
+            data: code === 0
+              ? { status: "done", message: "Turn completed" }
+              : { error: errorDetail },
           },
         });
         this.pushItem({ done: true });
@@ -743,12 +769,21 @@ export class AntigravityStreamClient {
     }
 
     const finalCwd = effectiveCwd || options.cwd || process.cwd();
-    if (finalCwd && sessionId) {
+    if (sessionId) {
       try {
         const brainDir = getBrainDir();
         const sessionDir = path.join(brainDir, sessionId);
-        fs.mkdirSync(sessionDir, { recursive: true });
-        writeSessionMeta(sessionDir, { workspacePath: finalCwd });
+        const logsDir = path.join(sessionDir, ".system_generated", "logs");
+        if (!fs.existsSync(logsDir)) {
+          fs.mkdirSync(logsDir, { recursive: true });
+        }
+        const transcriptPath = path.join(logsDir, "transcript.jsonl");
+        if (!fs.existsSync(transcriptPath)) {
+          fs.writeFileSync(transcriptPath, "", "utf-8");
+        }
+        if (finalCwd) {
+          writeSessionMeta(sessionDir, { workspacePath: finalCwd });
+        }
       } catch {
         // ignore
       }
