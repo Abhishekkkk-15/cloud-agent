@@ -17,6 +17,7 @@ import {
   type CliCapabilities,
   type CliModelCapability,
   type CliWorkerInfo,
+  type CliSlashCommand,
 } from "@cloud-agent/cli-interface";
 import { getCodexBinaryPath, getCodexModelsCacheFile } from "./paths.js";
 import {
@@ -30,6 +31,53 @@ import {
 import { CodexStreamClient } from "./stream-client.js";
 
 const execFileAsync = promisify(execFile);
+
+const CODEX_SLASH_COMMANDS: CliSlashCommand[] = [
+  {
+    command: "/review",
+    category: "workflow",
+    title: "Code Review",
+    description: "Run automated non-interactive code review on git changes",
+    template: "Review the current repository changes and suggest improvements.",
+  },
+  {
+    command: "/worktree",
+    category: "workflow",
+    title: "Worktree Branch",
+    description: "Run in an isolated temporary Git worktree branch",
+    template: "Run in an isolated git worktree branch: ",
+  },
+  {
+    command: "/search",
+    category: "context",
+    title: "Web Search",
+    description: "Query documentation and real-time web resources",
+    template: "Search the web for: ",
+  },
+  {
+    command: "/compact",
+    category: "context",
+    title: "Compact Transcript",
+    description: "Summarize thread history to free up LLM context tokens",
+    template: "/compact",
+    immediate: true,
+  },
+  {
+    command: "/mcp",
+    category: "cli",
+    title: "MCP Tools",
+    description: "Inspect Model Context Protocol tools and configuration",
+    template: "List configured MCP servers and active tools.",
+  },
+  {
+    command: "/terminal",
+    category: "cli",
+    title: "Interactive Terminal",
+    description: "Open full-screen host bash console with ANSI streaming",
+    template: "/terminal",
+    immediate: true,
+  },
+];
 
 const CODEX_FALLBACK_MODELS: CliModelCapability[] = [
   {
@@ -217,7 +265,7 @@ export class CodexAdapter extends BaseCliAdapter implements ICliAdapter {
     return {
       cliId: this.id,
       displayName: this.displayName,
-      supportedModes: ["auto", "plan", "accept-edits"],
+      supportedModes: ["auto", "plan"],
       defaultMode: "auto",
       supportsEffort: true,
       supportedEffortLevels: ["low", "medium", "high", "xhigh", "max", "ultra"],
@@ -227,6 +275,8 @@ export class CodexAdapter extends BaseCliAdapter implements ICliAdapter {
       supportsWorktree: true,
       supportsSandboxPolicies: true,
       supportedSandboxPolicies: ["read-only", "workspace-write", "danger-full-access"],
+      supportsArtifacts: false,
+      commands: CODEX_SLASH_COMMANDS,
       permissions: {
         supportsHeadlessHitl: false,
         requiresBypassInHeadless: true,

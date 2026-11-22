@@ -122,6 +122,54 @@ export const ANTIGRAVITY_COMMANDS: SlashCommandItem[] = [
   },
 ];
 
+export const CODEX_COMMANDS: SlashCommandItem[] = [
+  // 1. Code Review & Worktrees
+  {
+    command: '/review',
+    category: 'workflow',
+    title: 'Code Review',
+    description: 'Run automated non-interactive code review on git changes',
+    template: 'Review the current repository changes and suggest improvements.',
+  },
+  {
+    command: '/worktree',
+    category: 'workflow',
+    title: 'Worktree Branch',
+    description: 'Run in an isolated temporary Git worktree branch',
+    template: 'Run in an isolated git worktree branch: ',
+  },
+  {
+    command: '/search',
+    category: 'context',
+    title: 'Web Search',
+    description: 'Query documentation and real-time web resources',
+    template: 'Search the web for: ',
+  },
+  {
+    command: '/compact',
+    category: 'context',
+    title: 'Compact Transcript',
+    description: 'Summarize thread history to free up LLM context tokens',
+    template: '/compact',
+    immediate: true,
+  },
+  {
+    command: '/mcp',
+    category: 'cli',
+    title: 'MCP Tools',
+    description: 'Inspect Model Context Protocol tools and configuration',
+    template: 'List configured MCP servers and active tools.',
+  },
+  {
+    command: '/terminal',
+    category: 'cli',
+    title: 'Interactive Terminal',
+    description: 'Open full-screen host bash console with ANSI streaming',
+    template: '/terminal',
+    immediate: true,
+  },
+];
+
 interface SlashCommandPickerProps {
   visible: boolean;
   searchQuery: string;
@@ -136,18 +184,24 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
   onClose,
 }) => {
   const theme = useDaemonStore((s) => s.theme);
+  const selectedCli = useDaemonStore((s) => s.selectedCli);
+  const cliCapabilities = useDaemonStore((s) => s.cliCapabilities);
   const isLight = theme === 'light' || theme === 'swiss';
   const isSwiss = theme === 'swiss';
 
+  const activeCommands = (cliCapabilities?.commands && cliCapabilities.commands.length > 0)
+    ? cliCapabilities.commands
+    : (selectedCli === 'codex' ? CODEX_COMMANDS : ANTIGRAVITY_COMMANDS);
+
   // Filter commands by search query
   const filteredCommands = useMemo(() => {
-    if (!visible) return ANTIGRAVITY_COMMANDS;
+    if (!visible) return activeCommands;
     const rawQuery = searchQuery.trim().toLowerCase();
     const query = rawQuery.startsWith('/') ? rawQuery.slice(1) : rawQuery;
 
-    if (!query) return ANTIGRAVITY_COMMANDS;
+    if (!query) return activeCommands;
 
-    return ANTIGRAVITY_COMMANDS.filter((cmd) => {
+    return activeCommands.filter((cmd) => {
       const cleanCmd = cmd.command.slice(1).toLowerCase();
       return (
         cleanCmd.includes(query) ||
@@ -155,7 +209,7 @@ export const SlashCommandPicker: React.FC<SlashCommandPickerProps> = ({
         cmd.description.toLowerCase().includes(query)
       );
     });
-  }, [searchQuery, visible]);
+  }, [searchQuery, visible, activeCommands]);
 
   const { height: windowHeight } = useWindowDimensions();
   const maxListHeight = Math.min(260, Math.max(160, Math.floor(windowHeight * 0.34)));

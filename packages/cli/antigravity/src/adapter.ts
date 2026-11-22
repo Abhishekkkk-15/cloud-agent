@@ -16,6 +16,7 @@ import {
   type CliCapabilities,
   type CliModelCapability,
   type CliWorkerInfo,
+  type CliSlashCommand,
 } from "@cloud-agent/cli-interface";
 import { getAgyBinaryPath } from "./paths.js";
 import {
@@ -29,6 +30,97 @@ import {
 import { AntigravityStreamClient } from "./stream-client.js";
 
 const execFileAsync = promisify(execFile);
+
+const ANTIGRAVITY_SLASH_COMMANDS: CliSlashCommand[] = [
+  {
+    command: "/plan",
+    category: "workflow",
+    title: "Plan Strategy",
+    description: "Draft step-by-step implementation plan before modifying files",
+    template: "/plan ",
+  },
+  {
+    command: "/goal",
+    category: "workflow",
+    title: "Autonomous Goal",
+    description: "Execute long-running task thoroughly until completion",
+    template: "/goal ",
+  },
+  {
+    command: "/boost",
+    category: "workflow",
+    title: "Deep Thinking",
+    description: "Enable deep strategic planning, multiple perspectives & rigor",
+    template: "/boost ",
+  },
+  {
+    command: "/grill-me",
+    category: "workflow",
+    title: "Grill Me",
+    description: "Interactive interview to resolve design decisions",
+    template: "/grill-me ",
+  },
+  {
+    command: "/learn",
+    category: "workflow",
+    title: "Learn Memory",
+    description: "Persist architectural corrections into project AGENTS.md rules",
+    template: "/learn ",
+  },
+  {
+    command: "/teamwork",
+    category: "workflow",
+    title: "Team Swarm",
+    description: "Deploy coordinator and autonomous specialist workers",
+    template: "/teamwork ",
+  },
+  {
+    command: "/compact",
+    category: "context",
+    title: "Compact Transcript",
+    description: "Summarize transcript and free up LLM context window tokens",
+    template: "/compact",
+    immediate: true,
+  },
+  {
+    command: "/schedule",
+    category: "context",
+    title: "Schedule Timer",
+    description: "Schedule one-shot timer or recurring cron check",
+    template: "/schedule ",
+  },
+  {
+    command: "/browser",
+    category: "context",
+    title: "Web Browser",
+    description: "Search documentation or interact with external services",
+    template: "/browser ",
+  },
+  {
+    command: "/artifacts",
+    category: "context",
+    title: "Artifacts Browser",
+    description: "View implementation plans, diffs, and walkthrough documents",
+    template: "/artifacts",
+    immediate: true,
+  },
+  {
+    command: "/terminal",
+    category: "cli",
+    title: "Interactive Terminal",
+    description: "Open full-screen host bash console with ANSI streaming",
+    template: "/terminal",
+    immediate: true,
+  },
+  {
+    command: "/healer",
+    category: "cli",
+    title: "Auto-Healer",
+    description: "Inspect auto-healing proposals and patch review",
+    template: "/healer",
+    immediate: true,
+  },
+];
 
 const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
   {
@@ -267,6 +359,8 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
       supportsWebSearch: true,
       supportsWorktree: false,
       supportsSandboxPolicies: false,
+      supportsArtifacts: true,
+      commands: ANTIGRAVITY_SLASH_COMMANDS,
       permissions: {
         supportsHeadlessHitl: false,
         requiresBypassInHeadless: true,

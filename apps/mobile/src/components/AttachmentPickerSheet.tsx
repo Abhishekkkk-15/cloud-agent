@@ -21,22 +21,30 @@ export const AttachmentPickerSheet: React.FC<AttachmentPickerSheetProps> = ({
 }) => {
   const theme = useDaemonStore((s) => s.theme);
   const isSwiss = theme === 'swiss';
+  const sessionConfig = useDaemonStore((s) => s.sessionConfig);
+  const availableModels = useDaemonStore((s) => s.availableModels);
+  const activeModel = availableModels.find((m) => m.id === sessionConfig.model);
+  const supportsVision = activeModel ? (activeModel.inputModalities?.includes('image') !== false) : true;
 
   const options = [
-    {
-      id: 'photos',
-      label: 'Photo Library',
-      description: 'Upload images, screenshots, and diagrams',
-      icon: <ImageIcon size={20} color={isSwiss ? '#DC201E' : '#3b82f6'} />,
-      action: onSelectPhotoLibrary,
-    },
-    {
-      id: 'camera',
-      label: 'Take Photo',
-      description: 'Capture a picture with your device camera',
-      icon: <Camera size={20} color={isSwiss ? '#DC201E' : '#10b981'} />,
-      action: onSelectCamera,
-    },
+    ...(supportsVision
+      ? [
+          {
+            id: 'photos',
+            label: 'Photo Library',
+            description: 'Upload images, screenshots, and diagrams',
+            icon: <ImageIcon size={20} color={isSwiss ? '#DC201E' : '#3b82f6'} />,
+            action: onSelectPhotoLibrary,
+          },
+          {
+            id: 'camera',
+            label: 'Take Photo',
+            description: 'Capture a picture with your device camera',
+            icon: <Camera size={20} color={isSwiss ? '#DC201E' : '#10b981'} />,
+            action: onSelectCamera,
+          },
+        ]
+      : []),
     {
       id: 'documents',
       label: 'Browse Files & Code',

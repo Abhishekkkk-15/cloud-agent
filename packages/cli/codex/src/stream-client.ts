@@ -94,20 +94,34 @@ class CodexWorker {
       }
     }
 
-    // Native image attachments
+    // Process attachments: images to -i, non-images (code, docs, logs) appended as references
+    const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp"]);
+    const textAttachments: string[] = [];
+
     if (options.attachments && options.attachments.length > 0) {
       for (const att of options.attachments) {
         if (att.path && fs.existsSync(att.path)) {
-          args.push("-i", att.path);
+          const ext = path.extname(att.path).toLowerCase();
+          if (IMAGE_EXTENSIONS.has(ext)) {
+            args.push("-i", att.path);
+          } else {
+            textAttachments.push(att.path);
+          }
         }
       }
+    }
+
+    let finalPrompt = options.prompt;
+    if (textAttachments.length > 0) {
+      const notes = textAttachments.map((f) => `[Attached File: ${f}]`).join("\n");
+      finalPrompt = `${finalPrompt}\n\n${notes}`;
     }
 
     // Positional arguments (session ID for resume, then user prompt)
     if (options.sessionId) {
       args.push(options.sessionId);
     }
-    args.push(options.prompt);
+    args.push(finalPrompt);
 
     const env = {
       ...process.env,

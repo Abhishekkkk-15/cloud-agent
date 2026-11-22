@@ -117,6 +117,15 @@ export interface CliPermissionCapability {
   defaultAutoApprove: boolean;
 }
 
+export interface CliSlashCommand {
+  command: string;
+  category: "workflow" | "context" | "cli";
+  title: string;
+  description: string;
+  template: string;
+  immediate?: boolean;
+}
+
 export interface CliCapabilities {
   /** Unique ID of the CLI adapter (e.g. "antigravity", "claude") */
   cliId: string;
@@ -138,6 +147,10 @@ export interface CliCapabilities {
   /** Whether explicit sandbox policies are supported */
   supportsSandboxPolicies?: boolean;
   supportedSandboxPolicies?: CliSandboxPolicy[];
+  /** Whether generated artifacts (plans, walkthroughs, diagrams) are produced by this CLI */
+  supportsArtifacts?: boolean;
+  /** Built-in or supported slash commands for this CLI */
+  commands?: CliSlashCommand[];
   /** Tool execution permission & HITL capabilities */
   permissions: CliPermissionCapability;
   /** Model discovery capabilities */

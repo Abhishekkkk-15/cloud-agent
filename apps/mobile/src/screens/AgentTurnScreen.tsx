@@ -1928,28 +1928,30 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
               Session Parameters
             </Menu.Item>
 
-            <Menu.Item
-              icon={<Layers size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
-              description={
-                sessionArtifacts.length > 0
-                  ? `${sessionArtifacts.length} generated artifact${sessionArtifacts.length === 1 ? '' : 's'}`
-                  : 'View session outputs'
-              }
-              trailing={
-                sessionArtifacts.length > 0 ? (
-                  <View style={[styles.dropdownBadge, isSwiss ? { backgroundColor: '#DC201E' } : isLight && { backgroundColor: '#262626' }]}>
-                    <Text style={styles.dropdownBadgeText}>{sessionArtifacts.length}</Text>
-                  </View>
-                ) : undefined
-              }
-              onSelect={() => {
-                setArtifactFilterQuery('');
-                setShowArtifactsSheet(true);
-                fetchSessionArtifacts().catch(() => {});
-              }}
-            >
-              Artifacts
-            </Menu.Item>
+            {cliCapabilities?.supportsArtifacts !== false && (
+              <Menu.Item
+                icon={<Layers size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
+                description={
+                  sessionArtifacts.length > 0
+                    ? `${sessionArtifacts.length} generated artifact${sessionArtifacts.length === 1 ? '' : 's'}`
+                    : 'View session outputs'
+                }
+                trailing={
+                  sessionArtifacts.length > 0 ? (
+                    <View style={[styles.dropdownBadge, isSwiss ? { backgroundColor: '#DC201E' } : isLight && { backgroundColor: '#262626' }]}>
+                      <Text style={styles.dropdownBadgeText}>{sessionArtifacts.length}</Text>
+                    </View>
+                  ) : undefined
+                }
+                onSelect={() => {
+                  setArtifactFilterQuery('');
+                  setShowArtifactsSheet(true);
+                  fetchSessionArtifacts().catch(() => {});
+                }}
+              >
+                Artifacts
+              </Menu.Item>
+            )}
 
             <Menu.Item
               icon={<FolderTree size={18} color={isSwiss ? '#111010' : isLight ? '#1f2328' : '#fafafa'} />}
@@ -2370,12 +2372,14 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
                   accessibilityLabel="Change AI model and parameters"
                 />
 
-                {/* 4. Artifacts Drawer Sheet */}
-                <AIInput.Action
-                  label="Artifacts"
-                  icon={<FileText size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
-                  onPress={() => setShowArtifactsSheet(true)}
-                />
+                {/* 4. Artifacts Drawer Sheet - Only rendered for CLIs that produce artifacts */}
+                {cliCapabilities?.supportsArtifacts !== false && (
+                  <AIInput.Action
+                    label="Artifacts"
+                    icon={<FileText size={14} color={isSwiss ? '#6B665E' : isLight ? '#57606a' : '#a3a3a3'} />}
+                    onPress={() => setShowArtifactsSheet(true)}
+                  />
+                )}
 
                 {/* 4.5 Workspace Files Tree Sheet */}
                 <AIInput.Action

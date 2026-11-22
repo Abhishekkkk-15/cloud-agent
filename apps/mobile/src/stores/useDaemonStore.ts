@@ -362,6 +362,10 @@ export const DEFAULT_ANTIGRAVITY_CAPABILITIES: CliCapabilities = {
   supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max'],
   defaultEffort: 'high',
   allowFileUpload: true,
+  supportsWebSearch: true,
+  supportsWorktree: false,
+  supportsSandboxPolicies: false,
+  supportsArtifacts: true,
   permissions: {
     supportsHeadlessHitl: false,
     requiresBypassInHeadless: true,
@@ -428,7 +432,7 @@ export const DEFAULT_ANTIGRAVITY_CAPABILITIES: CliCapabilities = {
 export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
   cliId: 'codex',
   displayName: 'OpenAI Codex',
-  supportedModes: ['auto', 'plan', 'accept-edits'],
+  supportedModes: ['auto', 'plan'],
   defaultMode: 'auto',
   supportsEffort: true,
   supportedEffortLevels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'],
@@ -438,6 +442,7 @@ export const DEFAULT_CODEX_CAPABILITIES: CliCapabilities = {
   supportsWorktree: true,
   supportsSandboxPolicies: true,
   supportedSandboxPolicies: ['read-only', 'workspace-write', 'danger-full-access'],
+  supportsArtifacts: false,
   permissions: {
     supportsHeadlessHitl: false,
     requiresBypassInHeadless: true,
@@ -1922,6 +1927,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     set({ isLoadingArtifacts: true });
     try {
       const resp = await mobileP2P.sendRpc<any>('sessions.get', {
+        cli: get().selectedCli,
         sessionId: targetId,
         includeArtifacts: true,
       });
