@@ -342,10 +342,14 @@ export class RpcDispatcher {
           });
 
           let isCommand = false;
+          let actualSessionId = sessionId;
           try {
             for await (const event of stream) {
               if ((event as any).data?.isCommand) {
                 isCommand = true;
+              }
+              if ((event as any).detectedSessionId) {
+                actualSessionId = (event as any).detectedSessionId;
               }
               // Guarantee session ID alignment with the caller channel
               event.sessionId = sessionId;
@@ -353,12 +357,12 @@ export class RpcDispatcher {
             }
           } finally {
             unsubCaller();
-            sessionStreamHub.endTurn(sessionId, { completed: true, isCommand, sessionId });
+            sessionStreamHub.endTurn(sessionId, { completed: true, isCommand, sessionId: actualSessionId });
           }
 
           return {
             id: req.id,
-            result: { completed: true, isCommand, sessionId },
+            result: { completed: true, isCommand, sessionId: actualSessionId },
             done: true,
           };
         }

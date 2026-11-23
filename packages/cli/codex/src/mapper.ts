@@ -53,7 +53,7 @@ export function mapCodexStreamEvent(
     if (data.type === "thread.started" && data.thread_id) {
       detectedSessionId = data.thread_id;
       events.push(
-        createCliEvent("status", detectedSessionId, {
+        createCliEvent("status", currentSessionId, {
           status: "starting",
           message: "Codex thread initialized",
         })
@@ -129,6 +129,15 @@ export function mapCodexStreamEvent(
           })
         );
       }
+
+      // Explicit error item
+      else if (item.type === "error" && (item as any).message) {
+        events.push(
+          createCliEvent("error", effectiveSessionId, {
+            error: (item as any).message,
+          })
+        );
+      }
       return { events };
     }
 
@@ -142,9 +151,23 @@ export function mapCodexStreamEvent(
       return { events };
     }
 
-    // 6. Error event
-    if (data.type === "error" || data.error) {
-      const msg = typeof data.error === "string" ? data.error : data.error?.message || "Codex error";
+    // 6. Error event / Turn failed
+    if (data.type === "error" || data.type === "turn.failed" || data.error) {
+      let msg = "";
+      const rawMsg = (data as any).message || (data as any).error?.message || data.error;
+      if (typeof rawMsg === "string") {
+        try {
+          const inner = JSON.parse(rawMsg);
+          msg = inner?.error?.message || inner?.message || rawMsg;
+        } catch {
+          msg = rawMsg;
+        }
+      } else if (typeof rawMsg === "object" && rawMsg !== null) {
+        msg = (rawMsg as any).message || JSON.stringify(rawMsg);
+      } else {
+        msg = "Codex error";
+      }
+
       events.push(
         createCliEvent("error", effectiveSessionId, {
           error: msg,

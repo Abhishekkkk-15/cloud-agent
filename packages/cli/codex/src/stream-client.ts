@@ -10,6 +10,7 @@ import type {
 } from "@cloud-agent/cli-interface";
 import { getCodexBinaryPath } from "./paths.js";
 import { mapCodexStreamEvent } from "./mapper.js";
+import { findRolloutPath } from "./transcript-reader.js";
 
 type QueueItem = { event?: CliEvent; error?: Error; done?: boolean };
 
@@ -18,6 +19,7 @@ class CodexWorker {
   readonly options: CliRunOptions;
   readonly startedAt: string = new Date().toISOString();
   lastActiveAt: string = new Date().toISOString();
+  detectedSessionId?: string;
   private child: ChildProcess;
   private isAlive = true;
   private queue: QueueItem[] = [];
@@ -41,9 +43,12 @@ class CodexWorker {
     this.activeMode = options.mode;
     this.activeCwd = options.cwd ? path.normalize(options.cwd).toLowerCase() : undefined;
 
+    // Only resume if the session rollout file actually exists on host disk
+    const isExistingSession = Boolean(options.sessionId && findRolloutPath(options.sessionId));
+
     const args: string[] = ["exec"];
 
-    if (options.sessionId) {
+    if (isExistingSession && options.sessionId) {
       args.push("resume");
     }
 
@@ -58,10 +63,12 @@ class CodexWorker {
       args.push("--dangerously-bypass-approvals-and-sandbox");
     }
 
-    // Model override
-    if (options.model) {
-      args.push("-m", options.model);
-    }
+    // Model override - sanitize against cross-provider model contamination
+    const effectiveModel =
+      options.model && !options.model.startsWith("gemini") && !options.model.startsWith("claude")
+        ? options.model
+        : "gpt-5.6-luna";
+    args.push("-m", effectiveModel);
 
     // Reasoning effort override
     if (options.effort) {
@@ -69,25 +76,20 @@ class CodexWorker {
     }
 
     // Working directory (for new sessions)
-    if (!options.sessionId && options.cwd) {
+    if (!isExistingSession && options.cwd) {
       args.push("-C", options.cwd);
     }
 
     // Git Worktree isolation (for new sessions)
-    if (options.worktree && !options.sessionId) {
+    if (options.worktree && !isExistingSession) {
       args.push("--worktree");
     }
 
-    // Live Web Search tool
-    if (options.search) {
-      args.push("--search");
-    }
-
-    // Sandbox mode
-    if (options.sandbox) {
-      args.push("-s", options.sandbox);
-    } else if (!options.sessionId) {
-      if (options.mode === "plan") {
+    // Sandbox mode (for new sessions only - resume inherits session sandbox)
+    if (!isExistingSession) {
+      if (options.sandbox) {
+        args.push("-s", options.sandbox);
+      } else if (options.mode === "plan") {
         args.push("-s", "read-only");
       } else {
         args.push("-s", "workspace-write");
@@ -117,8 +119,8 @@ class CodexWorker {
       finalPrompt = `${finalPrompt}\n\n${notes}`;
     }
 
-    // Positional arguments (session ID for resume, then user prompt)
-    if (options.sessionId) {
+    // Positional arguments (session ID only for resume, then user prompt)
+    if (isExistingSession && options.sessionId) {
       args.push(options.sessionId);
     }
     args.push(finalPrompt);
@@ -202,15 +204,29 @@ class CodexWorker {
 
     rl.on("line", (line: string) => {
       this.lastActiveAt = new Date().toISOString();
-      const { events } = mapCodexStreamEvent(line, this.sessionId);
+      const { events, detectedSessionId } = mapCodexStreamEvent(line, this.sessionId);
+      if (detectedSessionId && detectedSessionId !== this.detectedSessionId) {
+        this.detectedSessionId = detectedSessionId;
+      }
       for (const ev of events) {
+        if (this.detectedSessionId) {
+          (ev as any).detectedSessionId = this.detectedSessionId;
+        }
         this.pushQueue({ event: ev });
       }
     });
 
     this.child.on("error", (err: Error) => {
       console.error(`[CodexWorker] Child process error:`, err);
-      this.pushQueue({ error: err });
+      this.pushQueue({
+        event: {
+          type: "error",
+          sessionId: this.sessionId,
+          timestamp: new Date().toISOString(),
+          data: { error: err.message },
+        },
+      });
+      this.pushQueue({ done: true });
       this.cleanup();
     });
 
@@ -222,6 +238,14 @@ class CodexWorker {
       if (code !== 0 && code !== null) {
         const errorMsg = stderrBuffer.trim() || `Codex process exited with code ${code}`;
         console.warn(`[CodexWorker] Session ${this.sessionId} exited non-zero (${code}): ${errorMsg}`);
+        this.pushQueue({
+          event: {
+            type: "error",
+            sessionId: this.sessionId,
+            timestamp: new Date().toISOString(),
+            data: { error: errorMsg },
+          },
+        });
       }
 
       this.pushQueue({ done: true });

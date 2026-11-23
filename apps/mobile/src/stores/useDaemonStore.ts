@@ -1134,14 +1134,26 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     try {
       const savedCli = await getStorageItem(STORAGE_KEY_SELECTED_CLI);
       if (savedCli) {
-        set({
+        const isCodex = savedCli === 'codex';
+        const defaultModel = isCodex ? 'gpt-5.6-luna' : 'gemini-3.8-flash-high';
+        const defaultEffort: ReasoningEffort = isCodex ? 'medium' : 'high';
+        set((state) => ({
           selectedCli: savedCli,
-          cliCapabilities: savedCli === 'codex' ? DEFAULT_CODEX_CAPABILITIES : DEFAULT_ANTIGRAVITY_CAPABILITIES,
-          availableModels:
-            savedCli === 'codex'
-              ? DEFAULT_CODEX_CAPABILITIES.models.fallbackModels
-              : DEFAULT_ANTIGRAVITY_CAPABILITIES.models.fallbackModels,
-        });
+          cliCapabilities: isCodex ? DEFAULT_CODEX_CAPABILITIES : DEFAULT_ANTIGRAVITY_CAPABILITIES,
+          availableModels: isCodex
+            ? DEFAULT_CODEX_CAPABILITIES.models.fallbackModels
+            : DEFAULT_ANTIGRAVITY_CAPABILITIES.models.fallbackModels,
+          sessionConfig: {
+            ...state.sessionConfig,
+            model:
+              isCodex && (state.sessionConfig.model?.startsWith('gemini') || state.sessionConfig.model?.startsWith('claude'))
+                ? defaultModel
+                : !isCodex && state.sessionConfig.model?.startsWith('gpt')
+                ? defaultModel
+                : state.sessionConfig.model || defaultModel,
+            effort: state.sessionConfig.effort || defaultEffort,
+          },
+        }));
       }
     } catch {
       // ignore
@@ -1240,10 +1252,13 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         } else {
           // Ensure session-scoped streaming events apply strictly to the active session
           const activeSessionId = get().activeSession?.id;
+          const isMatchingSession =
+            !event.sessionId ||
+            !activeSessionId ||
+            event.sessionId === activeSessionId ||
+            (event.detectedSessionId && event.detectedSessionId === activeSessionId);
           if (
-            event.sessionId &&
-            activeSessionId &&
-            event.sessionId !== activeSessionId &&
+            !isMatchingSession &&
             (event.type === 'text_chunk' ||
               event.type === 'thought' ||
               event.type === 'tool_call' ||
@@ -2969,6 +2984,23 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
     }));
 
     try {
+      const isCodex = get().selectedCli === 'codex';
+      const rawModel = sessionConfig.model;
+      const effectiveModel = isCodex && (rawModel?.startsWith('gemini') || rawModel?.startsWith('claude'))
+        ? 'gpt-5.6-luna'
+        : !isCodex && rawModel?.startsWith('gpt')
+        ? 'gemini-3.8-flash-high'
+        : rawModel;
+
+      if (rawModel !== effectiveModel) {
+        set((state) => ({
+          sessionConfig: {
+            ...state.sessionConfig,
+            model: effectiveModel,
+          },
+        }));
+      }
+
       const skipPermissions = sessionConfig.dangerouslySkipPermissions !== false;
       const runResult = await mobileP2P.sendRpc<any>('agent.run', {
         cli: get().selectedCli,
@@ -2976,7 +3008,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
           prompt: promptText,
           sessionId: targetSessionId,
           cwd: effectiveCwd,
-          model: sessionConfig.model,
+          model: effectiveModel,
           effort: sessionConfig.effort,
           mode: sessionConfig.mode,
           dangerouslySkipPermissions: skipPermissions,
@@ -2989,7 +3021,7 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
         prompt: promptText,
         sessionId: targetSessionId,
         cwd: effectiveCwd,
-        model: sessionConfig.model,
+        model: effectiveModel,
         effort: sessionConfig.effort,
         mode: sessionConfig.mode,
         dangerouslySkipPermissions: skipPermissions,
@@ -3007,7 +3039,14 @@ export const useDaemonStore = create<DaemonStoreState>((set, get) => ({
       }
 
       // Automatically re-sync messages from disk transcript once turn completes
-      const resolvedSessionId = targetSessionId || runResult?.sessionId || runResult?.result?.sessionId;
+      const actualSessionId = runResult?.sessionId || runResult?.result?.sessionId || targetSessionId;
+      if (actualSessionId && actualSessionId !== targetSessionId) {
+        set((state) => ({
+          activeSession: state.activeSession ? { ...state.activeSession, id: actualSessionId } : null,
+          sessions: state.sessions.map((s) => (s.id === targetSessionId ? { ...s, id: actualSessionId } : s)),
+        }));
+      }
+      const resolvedSessionId = actualSessionId;
       if (resolvedSessionId) {
         const resp = await mobileP2P.sendRpc<any>('sessions.messages', {
           cli: get().selectedCli,
