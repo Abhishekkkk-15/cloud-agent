@@ -132,7 +132,7 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
     defaultEffort: "high",
     contextWindow: 1048576,
-    supportsSearch: true,
+    supportsSearch: false,
     inputModalities: ["text", "image", "audio", "video"],
     isDefault: true,
   },
@@ -145,7 +145,7 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
     defaultEffort: "medium",
     contextWindow: 1048576,
-    supportsSearch: true,
+    supportsSearch: false,
     inputModalities: ["text", "image", "audio", "video"],
   },
   {
@@ -157,7 +157,7 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
     defaultEffort: "low",
     contextWindow: 1048576,
-    supportsSearch: true,
+    supportsSearch: false,
     inputModalities: ["text", "image", "audio", "video"],
   },
   {
@@ -169,7 +169,7 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     supportedEffortLevels: ["low", "medium", "high", "max"],
     defaultEffort: "high",
     contextWindow: 200000,
-    supportsSearch: true,
+    supportsSearch: false,
     inputModalities: ["text", "image"],
   },
   {
@@ -181,7 +181,7 @@ const ANTIGRAVITY_FALLBACK_MODELS: CliModelCapability[] = [
     supportedEffortLevels: ["low", "medium", "high", "max"],
     defaultEffort: "high",
     contextWindow: 200000,
-    supportsSearch: true,
+    supportsSearch: false,
     inputModalities: ["text", "image"],
   },
   {
@@ -356,7 +356,7 @@ export class AntigravityAdapter extends BaseCliAdapter implements ICliAdapter {
       supportedEffortLevels: ["low", "medium", "high", "xhigh", "max"],
       defaultEffort: "high",
       allowFileUpload: true,
-      supportsWebSearch: true,
+      supportsWebSearch: false,
       supportsWorktree: false,
       supportsSandboxPolicies: false,
       supportsArtifacts: true,

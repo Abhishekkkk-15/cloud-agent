@@ -559,7 +559,7 @@ export const SessionConfigSheet: React.FC<SessionConfigSheetProps> = ({
             </View>
 
             {/* 3.5 Live Web Search */}
-            {Boolean(cliCapabilities?.supportsWebSearch || activeModel?.supportsSearch) && (
+            {Boolean(cliCapabilities?.supportsWebSearch) && (
               <View style={styles.section}>
                 <View style={styles.sectionHeaderRow}>
                   <Globe size={13} color={isSwiss ? '#DC201E' : isLight ? '#262626' : colors.primary} />

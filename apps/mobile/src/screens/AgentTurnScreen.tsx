@@ -619,7 +619,7 @@ export const AgentTurnScreen: React.FC<AgentTurnScreenProps> = ({
     () => availableModels.find((m) => m.id === currentModelId),
     [availableModels, currentModelId]
   );
-  const supportsSearch = Boolean(cliCapabilities?.supportsWebSearch || activeModel?.supportsSearch);
+  const supportsSearch = Boolean(cliCapabilities?.supportsWebSearch);
   const modelSupportsVision = activeModel ? (activeModel.inputModalities?.includes('image') !== false) : true;
 
   const modelPillLabel = useMemo(() => {
